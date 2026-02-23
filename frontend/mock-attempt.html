@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Attempt</title>
+    <link rel="stylesheet" href="./src/styles.css?v=21" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mock-wrap">
+      <section class="mock-page-header">
+        <h1 id="attemptTitle">Mock Attempt</h1>
+        <p id="attemptProgress" class="mock-subtitle">0/0 answered (0%)</p>
+      </section>
+
+      <p id="attemptStatus" class="form-message"></p>
+      <div id="attemptPostActions" class="attempt-post-actions hidden">
+        <button id="reattemptTestBtn" class="btn-primary" type="button">Reattempt Test</button>
+        <a id="backToTestsBtn" class="btn-ghost" href="./mock-tests.html">Back to Tests</a>
+      </div>
+
+      <section id="attemptLessonRef" class="attempt-lesson-ref hidden">
+        <div class="attempt-lesson-head">
+          <h2>Lesson Playback Reference</h2>
+          <p id="attemptLessonMeta" class="mock-subtitle">-</p>
+        </div>
+        <audio id="attemptLessonAudio" controls class="attempt-lesson-media"></audio>
+        <video id="attemptLessonVideo" controls class="attempt-lesson-media hidden"></video>
+        <div class="attempt-lesson-transcript-wrap">
+          <h3>Transcript</h3>
+          <div id="attemptLessonTranscript" class="attempt-lesson-transcript"></div>
+        </div>
+      </section>
+
+      <section class="attempt-card">
+        <div class="attempt-topbar">
+          <p id="questionIndex" class="attempt-index"></p>
+          <p id="attemptTimer" class="attempt-timer" aria-live="polite">0:00:00</p>
+        </div>
+        <h2 id="questionText" class="attempt-question-text"></h2>
+        <form id="optionsForm" class="attempt-options"></form>
+
+        <div class="attempt-actions">
+          <button
+            id="prevQuestionBtn"
+            class="btn-primary attempt-nav-btn"
+            type="button"
+            aria-label="Previous question"
+            title="Previous"
+          >
+            &#9664;
+          </button>
+          <button
+            id="nextQuestionBtn"
+            class="btn-primary attempt-nav-btn"
+            type="button"
+            aria-label="Next question"
+            title="Next"
+          >
+            &#9654;
+          </button>
+          <button id="stopAttemptBtn" class="btn-primary attempt-main-btn" type="button">Stop</button>
+          <button id="submitAttemptBtn" class="btn-primary attempt-main-btn" type="button" disabled>
+            Submit
+          </button>
+        </div>
+      </section>
+
+      <section id="reviewWrap" class="admin-panel hidden">
+        <h2>Result & Review</h2>
+        <p><strong>Score:</strong> <span id="resultScore">-</span></p>
+        <p><strong>Remark:</strong> <span id="resultRemark">-</span></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Question</th>
+                <th>Selected</th>
+                <th>Correct</th>
+                <th>Status</th>
+                <th>Explanation</th>
+              </tr>
+            </thead>
+            <tbody id="reviewTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div id="stopAttemptModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card" style="width: min(420px, 92%); padding: 1rem 1rem 0.9rem">
+        <button id="stopAttemptCloseBtn" class="modal-close" type="button" aria-label="Close">
+          &times;
+        </button>
+        <h3 style="margin: 0 0 0.45rem">Stop Test</h3>
+        <p style="margin: 0 0 1rem">Are you sure to stop the test?</p>
+        <div class="admin-actions" style="justify-content: flex-end">
+          <button id="stopAttemptCancelBtn" class="btn-ghost" type="button">Cancel</button>
+          <button id="stopAttemptConfirmBtn" class="btn-primary" type="button">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/mock-attempt.js?v=15"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Referrals</title>
+    <link rel="stylesheet" href="./src/styles.css?v=12" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link active" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Referral Management</h1>
+              <p class="admin-subtitle">Approve withdrawals, verify payout methods, and monitor referral reports.</p>
+            </div>
+          </section>
+
+          <p id="adminReferralMessage" class="form-message"></p>
+
+          <section class="admin-overview">
+            <article class="overview-card">
+              <p class="overview-k">Pending Withdrawals</p>
+              <p id="ovPending" class="overview-v">0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Pending Amount</p>
+              <p id="ovPendingAmount" class="overview-v">?0.00</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Approved Amount</p>
+              <p id="ovApprovedAmount" class="overview-v">?0.00</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Total Bonus Given</p>
+              <p id="ovTotalBonus" class="overview-v">?0.00</p>
+            </article>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom:0.8rem;">
+              <h2 style="margin:0;">Withdrawal Requests</h2>
+              <div class="admin-actions">
+                <select id="withdrawalStatusFilter">
+                  <option value="">All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+                <input id="withdrawalSearch" placeholder="Search name/mobile/code" />
+                <button id="withdrawalSearchBtn" class="btn-secondary" type="button">Search</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Amount</th>
+                    <th>Payout</th>
+                    <th>Status</th>
+                    <th>Requested</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="withdrawalsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom:0.8rem;">
+              <h2 style="margin:0;">Payout Methods Verification</h2>
+              <div class="admin-actions">
+                <select id="methodVerifyFilter">
+                  <option value="">All</option>
+                  <option value="true">Verified</option>
+                  <option value="false">Unverified</option>
+                </select>
+                <input id="methodSearch" placeholder="Search name/mobile/upi" />
+                <button id="methodSearchBtn" class="btn-secondary" type="button">Search</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Type</th>
+                    <th>Details</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="methodsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom:0.8rem;">
+              <h2 style="margin:0;">Student Referral Report</h2>
+              <div class="admin-actions">
+                <input id="studentsSearch" placeholder="Search name/mobile/code" />
+                <button id="studentsSearchBtn" class="btn-secondary" type="button">Search</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Referral Code</th>
+                    <th>Friends</th>
+                    <th>Total Earned</th>
+                    <th>Total Withdrawn</th>
+                    <th>Wallet</th>
+                    <th>Joined</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-referrals.js?v=2"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

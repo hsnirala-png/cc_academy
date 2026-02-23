@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Tests | Student</title>
+    <link rel="stylesheet" href="./src/styles.css?v=21" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mock-wrap">
+      <section class="mock-page-header">
+        <h1>Mock Test Center</h1>
+        <p id="studentName" class="mock-subtitle">Student</p>
+      </section>
+
+      <p id="mockStatus" class="form-message"></p>
+
+      <section class="mock-filters-card">
+        <h2>Choose Test Type</h2>
+        <div class="mock-filter-grid">
+          <div class="field">
+            <label for="examType">Exam Type</label>
+            <select id="examType">
+              <option value="PSTET_1">PSTET-1</option>
+              <option value="PSTET_2">PSTET-2</option>
+            </select>
+          </div>
+          <div id="streamChoiceWrap" class="field hidden">
+            <label for="streamChoice">PSTET-2 Stream</label>
+            <select id="streamChoice">
+              <option value="">Select stream</option>
+              <option value="SCIENCE_MATH">Science/Math</option>
+              <option value="SOCIAL_STUDIES">Social Studies</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="subject">Subject</label>
+            <select id="subject"></select>
+          </div>
+          <div id="languageModeWrap" class="field hidden">
+            <label for="languageMode">Language Mode</label>
+            <select id="languageMode">
+              <option value="">Select language</option>
+              <option value="PUNJABI">Punjabi</option>
+              <option value="ENGLISH">English</option>
+              <option value="HINDI">Hindi</option>
+            </select>
+          </div>
+          <div class="field filter-action">
+            <button id="applyFiltersBtn" class="btn-primary" type="button">Load Tests</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Available Mock Tests</h2>
+        <div id="testsContainer" class="mock-tests-grid"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/mock-tests-student.js?v=6"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

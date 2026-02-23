@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lesson Player | Student</title>
+    <link rel="stylesheet" href="./src/styles.css?v=23" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="lesson-wrap">
+      <section class="lesson-overview-head">
+        <a id="backToChapter" class="btn-ghost lesson-back-btn" href="./dashboard.html">Back to Dashboard</a>
+        <h1 id="lessonTitle">Lesson Player</h1>
+        <p id="lessonMeta" class="mock-subtitle">-</p>
+      </section>
+
+      <p id="playerStatus" class="form-message"></p>
+
+      <section class="lesson-player-layout">
+        <article class="lesson-transcript-card">
+          <h2>Transcript</h2>
+          <p class="mock-subtitle">Transcript follows current playback.</p>
+          <div class="transcript-scroll-speed-row">
+            <label for="transcriptScrollSpeed">Scroll Speed</label>
+            <select id="transcriptScrollSpeed" class="tts-compact-select" aria-label="Transcript scroll speed">
+              <option value="extra-slow">Extra Slow</option>
+              <option value="super-slow">Super Slow</option>
+              <option value="slow">Slow</option>
+              <option value="normal" selected>Normal</option>
+              <option value="fast">Fast</option>
+              <option value="super-fast">Super Fast</option>
+            </select>
+          </div>
+          <div id="transcriptList" class="transcript-list"></div>
+        </article>
+
+        <article class="lesson-video-card">
+          <h2>Playback</h2>
+          <video id="lessonVideo" class="lesson-video" controls preload="metadata"></video>
+          <audio id="audioPlayer" controls style="width: 100%; display: none;"></audio>
+          <div class="lesson-player-actions">
+            <p id="progressInfo" class="lesson-progress-info">Progress: 0%</p>
+            <button id="startAssessmentBtn" class="btn-primary hidden" type="button">Attempt Test</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/lesson-player.js?v=17"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

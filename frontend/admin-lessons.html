@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Digital Lessons</title>
+    <link rel="stylesheet" href="./src/styles.css?v=20" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link active" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Digital Lessons</h1>
+              <p class="admin-subtitle">Create course, subject, and chapter video structure.</p>
+            </div>
+          </section>
+
+          <p id="adminLessonsMessage" class="form-message"></p>
+          <div id="adminLessonsToast" class="admin-toast" role="status" aria-live="polite"></div>
+
+          <section class="admin-tabs" aria-label="Digital lesson sections">
+            <button type="button" class="admin-tab-btn active" data-admin-tab="courses">Courses</button>
+            <button type="button" class="admin-tab-btn" data-admin-tab="chapters">Subjects</button>
+            <button type="button" class="admin-tab-btn" data-admin-tab="lessons">Chapters</button>
+            <button type="button" class="admin-tab-btn" data-admin-tab="mocktests">Tests</button>
+            <button type="button" class="admin-tab-btn" data-admin-tab="tracking">Tracking</button>
+          </section>
+
+          <section class="admin-panel admin-tab-panel active" data-admin-tab-panel="courses">
+            <h2>Courses</h2>
+            <form id="courseForm" class="admin-form">
+              <input id="courseId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="courseTitle">Title</label>
+                  <input id="courseTitle" required />
+                </div>
+                <div class="admin-field">
+                  <label for="courseDescription">Description</label>
+                  <input id="courseDescription" />
+                </div>
+                <div class="admin-field inline-check">
+                  <input id="courseIsActive" type="checkbox" checked />
+                  <label for="courseIsActive">Active</label>
+                </div>
+              </div>
+              <div class="admin-actions">
+                <button id="courseSubmitBtn" class="btn-primary" type="submit">Create Course</button>
+                <button id="courseCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Subjects</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="coursesTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel admin-tab-panel" data-admin-tab-panel="chapters">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Subjects</h2>
+              <p id="chapterContext" class="admin-subtitle" style="margin: 0">Select a course first.</p>
+            </div>
+
+            <form id="chapterForm" class="admin-form">
+              <input id="chapterId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="chapterCourseId">Course</label>
+                  <select id="chapterCourseId">
+                    <option value="">Select course</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="chapterTitle">Title</label>
+                  <input id="chapterTitle" />
+                </div>
+                <div class="admin-field">
+                  <label for="chapterOrderIndex">Order Index</label>
+                  <input id="chapterOrderIndex" type="number" min="1" step="1" />
+                </div>
+                <div class="admin-field">
+                  <label for="chapterDescription">Description</label>
+                  <input id="chapterDescription" />
+                </div>
+              </div>
+              <div class="admin-actions">
+                <button id="chapterSubmitBtn" class="btn-primary" type="submit">Create Subject</button>
+                <button id="chapterCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Title</th>
+                    <th>Chapters</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="chaptersTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel admin-tab-panel" data-admin-tab-panel="lessons">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Chapters</h2>
+              <p id="lessonContext" class="admin-subtitle" style="margin: 0">Select a subject first.</p>
+            </div>
+
+            <form id="lessonForm" class="admin-form">
+              <input id="lessonId" type="hidden" />
+              <div class="admin-form-row lesson-top-row">
+                <div class="admin-field">
+                  <label for="lessonCourseId">Course</label>
+                  <select id="lessonCourseId">
+                    <option value="">Select course</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="lessonChapterId">Subject</label>
+                  <select id="lessonChapterId">
+                    <option value="">Select subject</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="lessonSelectId">Chapter (Edit Existing)</label>
+                  <select id="lessonSelectId">
+                    <option value="">Select chapter to edit</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="lessonTitle">Title</label>
+                  <input id="lessonTitle" />
+                </div>
+              </div>
+              <div class="admin-actions" style="margin-top: 0.55rem">
+                <button id="btnCreateNewLesson" type="button" class="btn-ghost">Create New Lesson</button>
+              </div>
+            </form>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Title</th>
+                    <th>Duration</th>
+                    <th>Assessment</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lessonsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel admin-tab-panel" data-admin-tab-panel="tracking">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <div>
+                <h2 style="margin: 0">Lesson Tracking</h2>
+                <p id="lessonTrackingContext" class="admin-subtitle" style="margin: 0.25rem 0 0">
+                  Scope: all courses and chapters.
+                </p>
+              </div>
+              <p id="lessonTrackingSummary" class="admin-subtitle" style="margin: 0"></p>
+            </div>
+
+            <div class="admin-form-row">
+              <div class="admin-field">
+                <label for="lessonTrackingSearch">Search lesson title</label>
+                <input id="lessonTrackingSearch" placeholder="Type lesson title..." />
+              </div>
+              <div class="admin-field" style="align-self: end">
+                <button id="lessonTrackingRefreshBtn" class="btn-secondary" type="button">
+                  Refresh Tracker
+                </button>
+              </div>
+            </div>
+
+            <div class="admin-table-wrap" style="margin-top: 0.9rem">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Course</th>
+                    <th>Chapter</th>
+                    <th>Lesson</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                    <th>Completion %</th>
+                    <th>Avg Watch %</th>
+                    <th>Transcript</th>
+                    <th>Audio</th>
+                    <th>Last Activity</th>
+                  </tr>
+                </thead>
+                <tbody id="lessonTrackingTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel admin-tab-panel" data-admin-tab-panel="mocktests">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <div>
+                <h2 style="margin: 0">Tests</h2>
+                <p id="lessonMockContext" class="admin-subtitle" style="margin: 0.25rem 0 0">
+                  Select course, subject, and chapter to create and attach a test.
+                </p>
+              </div>
+            </div>
+
+            <div class="tests-subtabs" role="tablist" aria-label="Tests actions">
+              <button type="button" class="tests-subtab-btn active" data-tests-mode="create">
+                Create Test (Question Wise)
+              </button>
+              <button type="button" class="tests-subtab-btn" data-tests-mode="attach">
+                Publish Test
+              </button>
+            </div>
+
+            <div id="testsAttachFilterRow" class="admin-form-row hidden" style="margin: 0.65rem 0 0.8rem">
+              <div class="admin-field">
+                <label for="lessonAttachFilterType">Filter By Access</label>
+                <select id="lessonAttachFilterType">
+                  <option value="all">All tests</option>
+                  <option value="DEMO">DEMO (Free for all)</option>
+                  <option value="MOCK">MOCK</option>
+                  <option value="LESSON">LESSON</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label for="lessonAttachTestSearch">Search Test</label>
+                <input id="lessonAttachTestSearch" placeholder="Filter created tests..." />
+              </div>
+            </div>
+
+            <div id="testsChapterDetailsPanel" class="admin-form" style="margin-bottom: 1rem">
+              <h3 style="margin: 0 0 0.4rem">Chapter Details</h3>
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="lessonOrderIndex">Order Index</label>
+                  <input id="lessonOrderIndex" form="lessonForm" type="number" min="1" step="1" />
+                </div>
+                <div class="admin-field">
+                  <label for="lessonDurationSec">Duration (sec)</label>
+                  <input id="lessonDurationSec" form="lessonForm" type="number" min="0" step="1" />
+                </div>
+                <div class="admin-field">
+                  <label for="lessonVideoUrl">Video URL (optional)</label>
+                  <input id="lessonVideoUrl" form="lessonForm" placeholder="https://... or /public/..." />
+                </div>
+                <div class="admin-field">
+                  <label for="lessonAssessmentTestId">Linked Assessment</label>
+                  <select id="lessonAssessmentTestId" form="lessonForm">
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="admin-field">
+                <label for="lessonTranscriptText">Transcript Text</label>
+                <textarea
+                  id="lessonTranscriptText"
+                  form="lessonForm"
+                  placeholder="Paste Punjabi / Hindi / English lesson text here..."
+                  rows="8"
+                ></textarea>
+                <p class="admin-subtitle" id="lessonDurationHint" style="margin: 0.35rem 0 0">
+                  Duration auto-calculates from transcript text.
+                </p>
+              </div>
+
+              <div class="admin-form-row" style="grid-template-columns: minmax(0, 1fr); margin-top: 0.45rem">
+                <div class="admin-field">
+                  <label for="lessonUploadedAudio">Upload Audio (optional)</label>
+                  <input id="lessonUploadedAudio" form="lessonForm" type="file" accept="audio/*" />
+                  <p class="admin-subtitle" style="margin: 0">
+                    Selected file will replace lesson audio when you save. Generate Voice remains available.
+                  </p>
+                </div>
+              </div>
+
+              <div class="admin-actions" style="margin-top: 0.6rem">
+                <select id="lessonAudioProvider" form="lessonForm" class="tts-compact-select" title="TTS Provider">
+                  <option value="openai">Provider: OpenAI</option>
+                  <option value="gemini">Provider: Gemini</option>
+                </select>
+                <select id="lessonAudioLanguage" form="lessonForm" class="tts-compact-select">
+                  <option value="auto">Lang: Auto</option>
+                  <option value="Punjabi">Punjabi</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="English">English</option>
+                </select>
+                <select id="lessonAudioVoice" form="lessonForm" class="tts-compact-select">
+                  <option value="alloy">Voice: Alloy</option>
+                  <option value="onyx">Onyx (Male)</option>
+                  <option value="echo">Echo (Male)</option>
+                  <option value="fable">Fable (Male)</option>
+                  <option value="nova">Nova (Female)</option>
+                  <option value="shimmer">Shimmer (Female)</option>
+                </select>
+                <button
+                  id="btnPreviewVoice"
+                  form="lessonForm"
+                  type="button"
+                  class="btn-ghost speaker-preview-btn"
+                  aria-label="Preview selected voice"
+                  title="Preview selected voice"
+                >
+                  &#128266;
+                </button>
+                <button id="btnGenerateVoice" form="lessonForm" type="button" class="btn-secondary">
+                  Generate Voice
+                </button>
+                <span id="voiceStatus" class="admin-subtitle"></span>
+              </div>
+
+              <div id="voiceGenerationProgressWrap" class="voice-progress-wrap hidden" aria-live="polite">
+                <div class="voice-progress-track">
+                  <div id="voiceGenerationProgressBar" class="voice-progress-fill" style="width: 0%"></div>
+                </div>
+                <span id="voiceGenerationProgressPercent" class="voice-progress-percent">0%</span>
+              </div>
+
+              <div class="admin-actions" style="margin-top: 0.45rem">
+                <select id="lessonCustomVoiceId" form="lessonForm" class="tts-compact-select" title="Select cloned voice id">
+                  <option value="">Voice ID: Built-in</option>
+                </select>
+                <button id="btnRefreshCustomVoices" form="lessonForm" type="button" class="btn-ghost">
+                  Refresh Voices
+                </button>
+              </div>
+
+              <details id="voiceCloneSection" style="margin-top: 0.55rem">
+                <summary style="cursor: pointer; font-weight: 700">Create Real Voice Clone (Admin)</summary>
+                <div class="admin-form-row" style="margin-top: 0.6rem">
+                  <div class="admin-field">
+                    <label for="cloneVoiceName">Voice Name</label>
+                    <input id="cloneVoiceName" form="lessonForm" placeholder="e.g. Teacher Voice 1" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="cloneConsentStatement">Consent Statement</label>
+                    <input
+                      id="cloneConsentStatement"
+                      form="lessonForm"
+                      value="I am the speaker and I consent to use my voice for CC Academy lessons."
+                    />
+                  </div>
+                </div>
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="cloneConsentAudio">Consent Audio</label>
+                    <input id="cloneConsentAudio" form="lessonForm" type="file" accept="audio/*" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="cloneSampleAudio">Voice Sample Audio</label>
+                    <input id="cloneSampleAudio" form="lessonForm" type="file" accept="audio/*" />
+                  </div>
+                </div>
+                <div class="admin-actions" style="margin-top: 0.45rem">
+                  <button id="btnCreateVoiceClone" form="lessonForm" type="button" class="btn-secondary">
+                    Create Voice Clone
+                  </button>
+                  <span id="cloneVoiceStatus" class="admin-subtitle"></span>
+                </div>
+              </details>
+
+              <div class="admin-actions" style="margin-top: 0.8rem">
+                <label class="admin-field inline-check" style="margin: 0">
+                  <input id="lessonMockTestIsActive" form="lessonMockTestForm" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+                <button id="lessonSubmitBtn" class="btn-primary" form="lessonForm" type="submit">Save Test</button>
+                <button id="lessonCancelBtn" class="btn-ghost hidden" form="lessonForm" type="button">
+                  Cancel Edit
+                </button>
+              </div>
+            </div>
+
+            <form id="lessonMockTestForm" class="admin-form">
+              <input id="lessonMockTestId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="mockLinkCourseId">Course</label>
+                  <select id="mockLinkCourseId">
+                    <option value="">Select course</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="mockLinkChapterId">Subject</label>
+                  <select id="mockLinkChapterId">
+                    <option value="">Select subject</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="mockLinkLessonId">Chapter</label>
+                  <select id="mockLinkLessonId">
+                    <option value="">Select chapter</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="lessonMockTestTitle">Test Title</label>
+                  <input id="lessonMockTestTitle" placeholder="Chapter test title" />
+                </div>
+                <div class="admin-field">
+                  <label for="lessonMockTestAccessCode">Access Code</label>
+                  <select id="lessonMockTestAccessCode">
+                    <option value="DEMO">DEMO (Free for all)</option>
+                    <option value="MOCK">MOCK (Needs product)</option>
+                    <option value="LESSON">LESSON (Needs lesson/product access)</option>
+                  </select>
+                </div>
+                <div id="lessonMockLanguageWrap" class="admin-field">
+                  <label for="lessonMockTestLanguageMode">Language Mode</label>
+                  <select id="lessonMockTestLanguageMode">
+                    <option value="">Select language</option>
+                    <option value="PUNJABI">Punjabi</option>
+                    <option value="ENGLISH">English</option>
+                    <option value="HINDI">Hindi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="testsCreatePanel">
+                <p class="admin-subtitle" style="margin: 0.1rem 0 0.35rem">
+                  Create test for selected course, subject, and chapter.
+                </p>
+
+                <div class="admin-form-row">
+                  <input id="lessonMockTestExamType" type="hidden" value="PSTET_1" />
+                  <input id="lessonMockTestSubject" type="hidden" value="PUNJABI" />
+                  <div id="lessonMockStreamWrap" class="admin-field hidden">
+                    <label for="lessonMockTestStreamChoice">Stream Choice</label>
+                    <select id="lessonMockTestStreamChoice">
+                      <option value="">Select stream</option>
+                      <option value="SCIENCE_MATH">Science/Math</option>
+                      <option value="SOCIAL_STUDIES">Social Studies</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="admin-actions">
+                  <button id="lessonMockSubmitBtn" class="btn-primary hidden" type="submit">
+                    Publish Test
+                  </button>
+                  <button id="lessonMockCancelBtn" class="btn-ghost hidden" type="button">
+                    Cancel Edit
+                  </button>
+                </div>
+              </div>
+
+              <div id="testsAttachPanel" class="hidden">
+                <p class="admin-subtitle" style="margin: 0">
+                  Use Play to open transcript page, then Attempt Test to open mock attempt. Publish to publish, and Actions to edit, deactivate, or delete tests.
+                </p>
+              </div>
+            </form>
+
+            <section id="lessonQuestionBankPanel" class="lesson-question-bank hidden">
+              <h3 style="margin: 0 0 0.35rem">Question Bank</h3>
+              <p id="lessonSelectedTestHint" class="admin-subtitle" style="margin: 0 0 0.35rem">
+                Select course, subject, and chapter. Then create or attach a test to add questions.
+              </p>
+              <p id="lessonQuestionCountWarning" class="form-message"></p>
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="lessonQuestionTargetCount">Number of Questions</label>
+                  <input id="lessonQuestionTargetCount" type="number" min="1" max="5000" step="1" value="30" />
+                </div>
+              </div>
+
+              <form id="lessonQuestionForm" class="admin-form">
+                <input id="lessonQuestionId" type="hidden" />
+                <div class="admin-field">
+                  <label for="lessonQuestionText">Question Text</label>
+                  <textarea id="lessonQuestionText" required></textarea>
+                </div>
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="lessonOptionA">Option A</label>
+                    <input id="lessonOptionA" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionB">Option B</label>
+                    <input id="lessonOptionB" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionC">Option C</label>
+                    <input id="lessonOptionC" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionD">Option D</label>
+                    <input id="lessonOptionD" required />
+                  </div>
+                </div>
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="lessonCorrectOption">Correct Option</label>
+                    <select id="lessonCorrectOption">
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonQuestionExplanation">Explanation (optional)</label>
+                    <input id="lessonQuestionExplanation" />
+                  </div>
+                </div>
+                <div class="admin-actions">
+                  <label class="admin-field inline-check" style="margin: 0">
+                    <input id="lessonQuestionIsActive" type="checkbox" checked />
+                    <span>Active</span>
+                  </label>
+                  <button id="lessonQuestionSubmitBtn" class="btn-primary" type="submit">Add Question</button>
+                  <button id="lessonQuestionCancelBtn" class="btn-ghost hidden" type="button">
+                    Cancel Edit
+                  </button>
+                </div>
+              </form>
+
+              <div class="admin-field">
+                <label for="lessonBulkImportText">Bulk Import (question|A|B|C|D|correct|explanation)</label>
+                <textarea id="lessonBulkImportText" rows="4"></textarea>
+                <button id="lessonBulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
+              </div>
+
+              <div class="admin-field" style="margin-top: 0.75rem">
+                <label for="lessonBulkImportCsvFile">
+                  CSV Upload (questionText, optionA, optionB, optionC, optionD, correctOption, explanation, isActive)
+                </label>
+                <div class="admin-actions">
+                  <input id="lessonBulkImportCsvFile" type="file" accept=".csv,text/csv" />
+                  <label class="admin-field inline-check" style="margin: 0">
+                    <input id="lessonBulkImportReplaceExisting" type="checkbox" />
+                    <span>Replace existing questions</span>
+                  </label>
+                  <button id="lessonBulkImportCsvBtn" class="btn-secondary" type="button">Upload CSV</button>
+                  <a class="btn-ghost" href="./public/mock-test-import-template.csv" download>
+                    Download Sample CSV
+                  </a>
+                </div>
+              </div>
+
+              <div class="admin-table-wrap" style="margin-top: 1rem">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Question</th>
+                      <th>A</th>
+                      <th>B</th>
+                      <th>C</th>
+                      <th>D</th>
+                      <th>Correct</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lessonQuestionsTableBody"></tbody>
+                </table>
+              </div>
+
+              <div class="admin-actions" style="margin-top: 0.75rem">
+                <button id="lessonSaveTestBtn" class="btn-primary" type="button">Create Lesson</button>
+              </div>
+            </section>
+
+            <div id="testsTrackPanel" class="admin-table-wrap hidden">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Exam</th>
+                    <th>Subject</th>
+                    <th>Stream</th>
+                    <th>Language</th>
+                    <th>Access</th>
+                    <th>Questions</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lessonMockTestsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="lessonPreviewModal" class="modal-overlay lesson-preview-modal" aria-hidden="true">
+      <div class="modal-card lesson-preview-card" role="dialog" aria-modal="true" aria-label="Lesson Preview">
+        <button id="lessonPreviewClose" class="modal-close" type="button" aria-label="Close preview">
+          &times;
+        </button>
+        <h2 id="lessonPreviewTitle">Lesson Preview</h2>
+        <p id="lessonPreviewMeta" class="admin-subtitle"></p>
+        <p id="lessonPreviewStatus" class="form-message"></p>
+
+        <section class="lesson-player-layout">
+          <article class="lesson-video-card">
+            <div class="preview-live-transcript-card">
+              <h3 style="margin: 0">Transcript</h3>
+              <p id="previewTranscriptSubtitle" class="mock-subtitle">
+                Live spoken text (word-by-word) is shown here.
+              </p>
+              <div id="previewScrollSpeedRow" class="transcript-scroll-speed-row hidden">
+                <label for="previewScrollSpeed">Scroll Speed</label>
+                <select id="previewScrollSpeed" class="tts-compact-select" aria-label="Transcript scroll speed">
+                  <option value="extra-slow">Extra Slow</option>
+                  <option value="super-slow">Super Slow</option>
+                  <option value="slow">Slow</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="fast">Fast</option>
+                </select>
+              </div>
+              <div id="previewTranscriptList" class="transcript-list transcript-history-list"></div>
+            </div>
+
+            <div id="previewSettingsRow" class="lesson-player-actions" style="margin-bottom: 0.6rem">
+              <button id="previewBtnModeVideo" class="btn-ghost" type="button">Video</button>
+              <button id="previewBtnModeAudio" class="btn-ghost" type="button">Audio</button>
+              <select id="previewHighlightMode" class="tts-compact-select" title="Highlight mode">
+                <option value="auto" selected>Highlight: Auto</option>
+                <option value="word">Highlight: Word</option>
+                <option value="line">Highlight: Line</option>
+              </select>
+              <select id="previewVoiceRate" class="tts-compact-select" title="Voice playback speed">
+                <option value="0.75">Voice: 0.75x</option>
+                <option value="1" selected>Voice: 1x</option>
+                <option value="1.25">Voice: 1.25x</option>
+                <option value="1.5">Voice: 1.5x</option>
+                <option value="1.75">Voice: 1.75x</option>
+                <option value="2">Voice: 2x</option>
+              </select>
+              <select id="previewTextRate" class="tts-compact-select" title="Text highlight speed">
+                <option value="0.75">Text: 0.75x</option>
+                <option value="1" selected>Text: 1x</option>
+                <option value="1.25">Text: 1.25x</option>
+                <option value="1.5">Text: 1.5x</option>
+                <option value="1.75">Text: 1.75x</option>
+                <option value="2">Text: 2x</option>
+              </select>
+            </div>
+
+            <div id="previewSyncRow" class="preview-sync-row">
+              <label for="previewSyncOffsetInput">Timeline Sync</label>
+              <input
+                id="previewSyncOffsetInput"
+                type="range"
+                min="-4000"
+                max="4000"
+                step="50"
+                value="0"
+                aria-label="Timeline sync offset in milliseconds"
+              />
+              <span id="previewSyncOffsetLabel" class="preview-sync-offset-label">0 ms</span>
+              <input
+                id="previewSyncOffsetManualInput"
+                class="preview-sync-offset-manual"
+                type="number"
+                min="-4000"
+                max="4000"
+                step="10"
+                value="0"
+                aria-label="Manual timeline sync offset in milliseconds"
+              />
+              <span class="preview-sync-offset-unit">ms</span>
+              <button id="previewSyncOffsetReset" type="button" class="btn-ghost">Reset</button>
+            </div>
+            <div id="previewLineSyncRow" class="preview-line-sync-row">
+              <label for="previewLineSyncSelect">Line Match</label>
+              <select id="previewLineSyncSelect" class="tts-compact-select"></select>
+              <input
+                id="previewLineSyncMsInput"
+                class="preview-line-sync-ms"
+                type="number"
+                step="10"
+                value="0"
+                aria-label="Selected line offset in milliseconds"
+              />
+              <span class="preview-sync-offset-unit">ms</span>
+              <button id="previewLineSyncApply" type="button" class="btn-ghost">Set Line</button>
+              <button id="previewLineSyncReset" type="button" class="btn-ghost">Reset Line</button>
+            </div>
+            <div id="previewManualStretchRow" class="preview-manual-stretch-row">
+              <div class="preview-stretch-card">
+                <label for="previewAudioCutStartInput">Audio Bar (Cut for Match)</label>
+                <div class="preview-stretch-range-group">
+                  <input
+                    id="previewAudioCutStartInput"
+                    type="range"
+                    min="0"
+                    max="0"
+                    step="10"
+                    value="0"
+                    aria-label="Audio cut start in milliseconds"
+                  />
+                  <input
+                    id="previewAudioCutEndInput"
+                    type="range"
+                    min="0"
+                    max="0"
+                    step="10"
+                    value="0"
+                    aria-label="Audio cut end in milliseconds"
+                  />
+                </div>
+                <div class="preview-stretch-controls">
+                  <span id="previewAudioCutSummary" class="preview-stretch-summary">Start 0 ms | End 0 ms</span>
+                  <input
+                    id="previewAudioCutStartManualInput"
+                    class="preview-sync-offset-manual"
+                    type="number"
+                    min="0"
+                    step="10"
+                    value="0"
+                    aria-label="Manual audio cut start in milliseconds"
+                  />
+                  <span class="preview-sync-offset-unit">ms</span>
+                  <input
+                    id="previewAudioCutEndManualInput"
+                    class="preview-sync-offset-manual"
+                    type="number"
+                    min="0"
+                    step="10"
+                    value="0"
+                    aria-label="Manual audio cut end in milliseconds"
+                  />
+                  <span class="preview-sync-offset-unit">ms</span>
+                  <button id="previewAudioCutReset" type="button" class="btn-ghost">Reset Cut</button>
+                </div>
+              </div>
+              <div class="preview-stretch-card">
+                <label for="previewTextStretchInput">Text Bar (Stretch / Concise)</label>
+                <div class="preview-stretch-range-group">
+                  <input
+                    id="previewTextStretchInput"
+                    type="range"
+                    min="60"
+                    max="180"
+                    step="1"
+                    value="100"
+                    aria-label="Text stretch percentage"
+                  />
+                </div>
+                <div class="preview-stretch-controls">
+                  <span id="previewTextStretchLabel" class="preview-stretch-summary">100%</span>
+                  <input
+                    id="previewTextStretchManualInput"
+                    class="preview-sync-offset-manual"
+                    type="number"
+                    min="60"
+                    max="180"
+                    step="1"
+                    value="100"
+                    aria-label="Manual text stretch percentage"
+                  />
+                  <span class="preview-sync-offset-unit">%</span>
+                  <button id="previewTextStretchReset" type="button" class="btn-ghost">Reset Stretch</button>
+                </div>
+              </div>
+            </div>
+            <video id="previewVideo" class="lesson-video" controls preload="metadata"></video>
+            <audio id="previewAudio" controls style="width: 100%; display: none;"></audio>
+            <div class="lesson-player-actions" style="margin-top: 0.6rem">
+              <button id="previewAttemptTestBtn" class="btn-primary hidden" type="button">
+                Attempt Test
+              </button>
+            </div>
+          </article>
+        </section>
+      </div>
+    </div>
+
+    <div id="lessonQuestionEditModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Edit Question">
+        <button id="lessonQuestionEditClose" class="modal-close" type="button" aria-label="Close edit question modal">
+          &times;
+        </button>
+        <h2 style="margin: 0 0 0.7rem">Edit Question</h2>
+        <form id="lessonQuestionEditForm" class="admin-form">
+          <input id="lessonQuestionEditId" type="hidden" />
+          <div class="admin-field">
+            <label for="lessonQuestionEditText">Question Text</label>
+            <textarea id="lessonQuestionEditText" required></textarea>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionA">Option A</label>
+              <input id="lessonQuestionEditOptionA" required />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionB">Option B</label>
+              <input id="lessonQuestionEditOptionB" required />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionC">Option C</label>
+              <input id="lessonQuestionEditOptionC" required />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionD">Option D</label>
+              <input id="lessonQuestionEditOptionD" required />
+            </div>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="lessonQuestionEditCorrect">Correct Option</label>
+              <select id="lessonQuestionEditCorrect">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditExplanation">Explanation (optional)</label>
+              <input id="lessonQuestionEditExplanation" />
+            </div>
+          </div>
+          <div class="admin-actions">
+            <label class="admin-field inline-check" style="margin: 0">
+              <input id="lessonQuestionEditIsActive" type="checkbox" checked />
+              <span>Active</span>
+            </label>
+            <button id="lessonQuestionEditUpdateBtn" class="btn-primary" type="submit">Update</button>
+            <button id="lessonQuestionEditCancelBtn" class="btn-ghost" type="button">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-lessons.js?v=74"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

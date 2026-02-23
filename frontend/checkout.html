@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=24" />
+  </head>
+  <body class="home-page checkout-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_B1.png" alt="CC Academy logo" class="brand-logo logo-b1" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <div class="home-header-tools" aria-label="Course tools">
+          <label class="home-course-select-wrap" for="headerCourseSelectCheckout">
+            <span class="sr-only">All Courses</span>
+            <select id="headerCourseSelectCheckout" class="home-course-select">
+              <option value="">All Courses</option>
+              <option value="products" selected>Study Materials</option>
+              <option value="mock-tests">Mock Tests</option>
+            </select>
+          </label>
+          <form class="home-search-form" role="search" aria-label="Search products">
+            <input
+              id="headerCourseSearchCheckout"
+              class="home-search-input"
+              type="search"
+              placeholder="Search products..."
+              aria-label="Search products"
+            />
+          </form>
+          <button id="referEarnBtn" class="btn-secondary refer-earn-btn" type="button">
+            Refer &amp; Earn
+          </button>
+        </div>
+
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./index.html#features">Features</a>
+          <a href="./index.html#testimonials">Testimonials</a>
+          <a href="./index.html#contact">Contact</a>
+        </nav>
+
+        <div class="header-actions">
+          <button id="openLoginTop" data-open-login type="button" class="btn-secondary top-login-btn">Login</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="checkout-wrap">
+      <section class="checkout-grid">
+        <section class="checkout-left">
+          <article class="checkout-card">
+            <h2>1. Product Details</h2>
+            <div class="checkout-product-row">
+              <img id="checkoutProductThumb" src="./public/PSTET_1.png" alt="Product" />
+              <div>
+                <h3 id="checkoutProductTitle">Loading product...</h3>
+                <p id="checkoutProductValidity">--</p>
+                <strong id="checkoutProductCurrent">--</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="checkout-card">
+            <h2>2. Personal Details</h2>
+            <div class="checkout-personal-grid">
+              <p id="checkoutStudentName">Name: --</p>
+              <p id="checkoutStudentMobile">Contact Number: --</p>
+              <p id="checkoutStudentEmail">Email: --</p>
+            </div>
+          </article>
+
+          <article class="checkout-card">
+            <h2>3. Choose your Payment Method</h2>
+            <div class="checkout-payment-grid" id="checkoutPaymentMethods">
+              <label class="checkout-method is-active">
+                <input type="radio" name="paymentMethod" value="UPI" checked />
+                <span>UPI</span>
+              </label>
+              <label class="checkout-method">
+                <input type="radio" name="paymentMethod" value="CARD" />
+                <span>Credit/Debit Card</span>
+              </label>
+              <label class="checkout-method">
+                <input type="radio" name="paymentMethod" value="WALLET" />
+                <span>Wallets</span>
+              </label>
+              <label class="checkout-method">
+                <input type="radio" name="paymentMethod" value="NETBANKING" />
+                <span>Netbanking</span>
+              </label>
+              <label class="checkout-method">
+                <input type="radio" name="paymentMethod" value="EMI" />
+                <span>EMI</span>
+              </label>
+            </div>
+          </article>
+        </section>
+
+        <aside class="checkout-right">
+          <article class="checkout-card">
+            <h2>Available Coupons</h2>
+            <div class="checkout-coupon-row">
+              <strong id="checkoutCouponText">Coupon not applied</strong>
+              <button type="button" id="checkoutCouponToggle" class="checkout-link-btn">APPLY</button>
+            </div>
+            <p id="checkoutCouponHelp" class="checkout-help-text"></p>
+          </article>
+
+          <article class="checkout-card">
+            <h2>Price Details</h2>
+            <div class="checkout-price-row">
+              <span>Subtotal</span>
+              <strong id="checkoutSubtotal">--</strong>
+            </div>
+            <div class="checkout-price-row">
+              <span>Discount (Coupon)</span>
+              <strong id="checkoutCouponDiscount">--</strong>
+            </div>
+            <div class="checkout-price-row">
+              <span>Discount (Friend)</span>
+              <strong id="checkoutFriendDiscount">--</strong>
+            </div>
+            <div class="checkout-price-row total">
+              <span>Amount Payable</span>
+              <strong id="checkoutToPay">--</strong>
+            </div>
+          </article>
+
+          <p id="checkoutMessage" class="form-message"></p>
+          <button id="checkoutPayNowBtn" type="button" class="btn-primary checkout-pay-btn">Pay Now</button>
+        </aside>
+      </section>
+    </main>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script type="module" src="./src/checkout.js?v=3"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

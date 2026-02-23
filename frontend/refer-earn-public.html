@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Refer CC Academy courses and earn rewards on every successful purchase."
+    />
+    <title>Refer & Earn | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=21" />
+  </head>
+  <body class="home-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_B1.png" alt="CC Academy logo" class="brand-logo logo-b1" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <div class="home-header-tools" aria-label="Course tools">
+          <label class="home-course-select-wrap" for="headerCourseSelect">
+            <span class="sr-only">All Courses</span>
+            <select id="headerCourseSelect" class="home-course-select">
+              <option value="">All Courses</option>
+              <option value="pstet-1">PSTET-1 Complete Batch</option>
+              <option value="pstet-2-science">PSTET-2 Science/Math</option>
+              <option value="pstet-2-social">PSTET-2 Social Studies</option>
+              <option value="mock-tests">Mock Tests</option>
+              <option value="products">Study Materials</option>
+              <option value="spoken-english">Spoken English</option>
+              <option value="personality-development">Personality Development</option>
+            </select>
+          </label>
+          <form class="home-search-form" role="search" aria-label="Search courses">
+            <input
+              id="headerCourseSearch"
+              class="home-search-input"
+              type="search"
+              placeholder="Search courses..."
+              aria-label="Search courses"
+            />
+          </form>
+          <a class="btn-secondary refer-earn-btn" href="./refer-earn-public.html">Refer &amp; Earn</a>
+        </div>
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./products.html" data-label="Products" data-icon="&#128230;" aria-label="Products">Products</a>
+          <a href="./index.html#testimonials" data-label="Testimonials" data-icon="&#128172;" aria-label="Testimonials">Testimonials</a>
+          <a href="./index.html#contact" data-label="Contact" data-icon="&#9993;" aria-label="Contact">Contact</a>
+          <div class="mobile-toggle-top">
+            <a href="./index.html" class="btn-secondary mobile-toggle-login">Login</a>
+            <a href="./refer-earn-public.html" class="mobile-gift-btn" aria-label="Refer and Earn">&#127873;</a>
+          </div>
+          <div class="mobile-toggle-courses">
+            <button type="button" id="mobileCoursesToggle" class="mobile-courses-toggle">
+              <span>All Courses</span>
+            </button>
+            <div class="mobile-courses-select-wrap">
+              <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
+              <select id="headerCourseSelectMobile" class="home-course-select">
+                <option value="">All Courses</option>
+                <option value="pstet-1">PSTET-1 Complete Batch</option>
+                <option value="pstet-2-science">PSTET-2 Science/Math</option>
+                <option value="pstet-2-social">PSTET-2 Social Studies</option>
+                <option value="mock-tests">Mock Tests</option>
+                <option value="products">Study Materials</option>
+                <option value="spoken-english">Spoken English</option>
+                <option value="personality-development">Personality Development</option>
+              </select>
+            </div>
+          </div>
+        </nav>
+        <div class="mobile-search-panel" aria-label="Search courses panel">
+          <label class="sr-only" for="headerCourseSearchMobile">Search courses</label>
+          <input
+            id="headerCourseSearchMobile"
+            class="home-search-input"
+            type="search"
+            placeholder="Search courses..."
+            aria-label="Search courses"
+          />
+        </div>
+        <div class="header-actions">
+          <button
+            id="mobileSearchToggle"
+            class="mobile-search-btn"
+            type="button"
+            aria-label="Open search"
+            aria-expanded="false"
+          ></button>
+          <a href="./index.html" class="btn-secondary top-login-btn">Login</a>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="public-refer-wrap">
+      <section class="public-refer-hero">
+        <img src="./public/refer_1.png" alt="Refer and Earn" />
+      </section>
+
+      <section class="public-refer-layout">
+        <section class="public-refer-card">
+          <h1>Refer our courses &amp; Earn</h1>
+          <p>Turn your referrals into real rewards. You earn valuable benefits, and your friends save more on every purchase with your exclusive code.</p>
+
+          <div class="public-refer-table-wrap">
+            <table class="public-refer-table">
+              <thead>
+                <tr>
+                  <th>Course Price</th>
+                  <th>You Earn</th>
+                  <th>Your Friend Saving</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>&#8377; 249 - &#8377; 500</td><td>&#8377;25</td><td>&#8377;10</td></tr>
+                <tr><td>&#8377; 501 - &#8377; 1000</td><td>&#8377;50</td><td>&#8377;40</td></tr>
+                <tr><td>&#8377; 1001 - &#8377; 2000</td><td>&#8377;100</td><td>&#8377;80</td></tr>
+                <tr><td>&#8377; 2001 - &#8377; 3000</td><td>&#8377;200</td><td>&#8377;160</td></tr>
+                <tr><td>&#8377; 3001 - &#8377; 4000</td><td>&#8377;300</td><td>&#8377;240</td></tr>
+                <tr><td>&#8377; 4001 - &#8377; 5000</td><td>&#8377;400</td><td>&#8377;320</td></tr>
+                <tr><td>&#8377; 5001 - &#8377; 6000</td><td>&#8377;500</td><td>&#8377;400</td></tr>
+                <tr><td>&#8377; 6001 - &#8377; 8000</td><td>&#8377;600</td><td>&#8377;480</td></tr>
+                <tr><td>&#8377; 8001 - &#8377; 10000</td><td>&#8377;1000</td><td>&#8377;640</td></tr>
+                <tr><td>&gt;= &#8377; 10001</td><td>&#8377;1200</td><td>&#8377;800</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="public-refer-note">
+            Attention: Rewards or cashback are calculated solely on the actual amount paid by the referral, not on the MRP.
+          </p>
+        </section>
+        <aside class="public-refer-top-earners">
+          <h3>Top Earners (You can be next)</h3>
+          <div class="public-earners-scroll" aria-label="Top 20 earners list">
+            <div class="public-earners-track">
+            <ol class="public-earners-list" data-earners-primary>
+              <li><span>Harvinder S.</span><strong>&#8377;1450</strong></li>
+              <li><span>Simran K.</span><strong>&#8377;180</strong></li>
+              <li><span>Manpreet G.</span><strong>&#8377;1120</strong></li>
+              <li><span>Ravneet D.</span><strong>&#8377;1040</strong></li>
+              <li><span>Gurpreet B.</span><strong>&#8377;1300</strong></li>
+              <li><span>Navjot P.</span><strong>&#8377;980</strong></li>
+              <li><span>Jaspreet A.</span><strong>&#8377;910</strong></li>
+              <li><span>Amanjot M.</span><strong>&#8377;2350</strong></li>
+              <li><span>Parminder R.</span><strong>&#8377;840</strong></li>
+              <li><span>Tanveer H.</span><strong>&#8377;830</strong></li>
+              <li><span>Rajveer T.</span><strong>&#8377;760</strong></li>
+              <li><span>Baljeet W.</span><strong>&#8377;70</strong></li>
+              <li><span>Mandeep N.</span><strong>&#8377;790</strong></li>
+              <li><span>Harman U.</span><strong>&#8377;980</strong></li>
+              <li><span>Komal Z.</span><strong>&#8377;690</strong></li>
+              <li><span>Rupinder C.</span><strong>&#8377;630</strong></li>
+              <li><span>Deepika V.</span><strong>&#8377;620</strong></li>
+              <li><span>Sukhdeep Q.</span><strong>&#8377;670</strong></li>
+              <li><span>Gagandeep L.</span><strong>&#8377;1120</strong></li>
+              <li><span>Prabhjot Y.</span><strong>&#8377;550</strong></li>
+            </ol>
+            <ol class="public-earners-list" data-earners-duplicate aria-hidden="true"></ol>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./src/refer-earn-public.js?v=2"></script>
+  </body>
+</html>

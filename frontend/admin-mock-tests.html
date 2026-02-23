@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Mock Tests</title>
+    <link rel="stylesheet" href="./src/styles.css?v=18" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link active" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+      <section class="admin-header-row">
+        <div>
+          <h1>Mock Test Administration</h1>
+          <p class="admin-subtitle">Manage tests, questions, and all student attempt results.</p>
+        </div>
+      </section>
+
+      <p id="adminMockStatus" class="form-message"></p>
+
+      <section class="admin-panel">
+        <h2>Mock Tests</h2>
+        <div class="admin-form-row">
+          <div class="admin-field">
+            <label for="filterExamType">Exam Type</label>
+            <select id="filterExamType">
+              <option value="">All exam types</option>
+              <option value="PSTET_1">PSTET-1</option>
+              <option value="PSTET_2">PSTET-2</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label for="filterSubject">Subject</label>
+            <select id="filterSubject"></select>
+          </div>
+          <div class="admin-field">
+            <label for="filterStreamChoice">Stream</label>
+            <select id="filterStreamChoice">
+              <option value="">All streams</option>
+              <option value="SCIENCE_MATH">Science/Math</option>
+              <option value="SOCIAL_STUDIES">Social Studies</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label for="filterActive">Active</label>
+            <select id="filterActive">
+              <option value="">All</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label for="filterLanguageMode">Language</label>
+            <select id="filterLanguageMode">
+              <option value="">All languages</option>
+              <option value="PUNJABI">Punjabi</option>
+              <option value="ENGLISH">English</option>
+              <option value="HINDI">Hindi</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label for="filterAccessCode">Access Code</label>
+            <select id="filterAccessCode">
+              <option value="">All access codes</option>
+              <option value="DEMO">DEMO</option>
+              <option value="MOCK">MOCK</option>
+              <option value="LESSON">LESSON</option>
+            </select>
+          </div>
+        </div>
+        <div class="admin-actions" style="margin-top: 0.7rem">
+          <button id="applyTestFilterBtn" class="btn-secondary" type="button">Apply Filters</button>
+        </div>
+
+        <form id="mockTestForm" class="admin-form" style="margin-top: 1rem">
+          <input id="mockTestId" type="hidden" />
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="mockTestTitle">Title</label>
+              <input id="mockTestTitle" required />
+            </div>
+            <div class="admin-field">
+              <label for="mockTestExamType">Exam Type</label>
+              <select id="mockTestExamType">
+                <option value="PSTET_1">PSTET-1</option>
+                <option value="PSTET_2">PSTET-2</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="mockTestSubject">Subject</label>
+              <select id="mockTestSubject"></select>
+            </div>
+            <div id="mockTestStreamWrap" class="admin-field hidden">
+              <label for="mockTestStreamChoice">Stream Choice</label>
+              <select id="mockTestStreamChoice">
+                <option value="">Select stream</option>
+                <option value="SCIENCE_MATH">Science/Math</option>
+                <option value="SOCIAL_STUDIES">Social Studies</option>
+              </select>
+            </div>
+            <div id="mockTestLanguageWrap" class="admin-field hidden">
+              <label for="mockTestLanguageMode">Language Mode</label>
+              <select id="mockTestLanguageMode">
+                <option value="">Select language</option>
+                <option value="PUNJABI">Punjabi</option>
+                <option value="ENGLISH">English</option>
+                <option value="HINDI">Hindi</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="mockTestAccessCode">Access Code</label>
+              <select id="mockTestAccessCode">
+                <option value="DEMO">DEMO (Free for all)</option>
+                <option value="MOCK">MOCK (Needs product)</option>
+                <option value="LESSON">LESSON (Needs lesson/product access)</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-actions">
+            <label class="admin-field inline-check">
+              <input id="mockTestIsActive" type="checkbox" checked />
+              <span>Active</span>
+            </label>
+            <button id="mockTestSubmitBtn" class="btn-primary" type="submit">Create Mock Test</button>
+            <button id="mockTestCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+          </div>
+        </form>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Exam</th>
+                <th>Subject</th>
+                <th>Stream</th>
+                <th>Language</th>
+                <th>Access</th>
+                <th>Questions</th>
+                <th>Status</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mockTestsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Question Bank</h2>
+        <p id="selectedTestHint" class="admin-subtitle">Select a test</p>
+        <p id="questionCountWarning" class="form-message"></p>
+        <form id="questionForm" class="admin-form">
+          <input id="questionId" type="hidden" />
+          <div class="admin-field">
+            <label for="questionText">Question Text</label>
+            <textarea id="questionText" required></textarea>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="optionA">Option A</label>
+              <input id="optionA" required />
+            </div>
+            <div class="admin-field">
+              <label for="optionB">Option B</label>
+              <input id="optionB" required />
+            </div>
+            <div class="admin-field">
+              <label for="optionC">Option C</label>
+              <input id="optionC" required />
+            </div>
+            <div class="admin-field">
+              <label for="optionD">Option D</label>
+              <input id="optionD" required />
+            </div>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="correctOption">Correct Option</label>
+              <select id="correctOption">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="questionExplanation">Explanation (optional)</label>
+              <input id="questionExplanation" />
+            </div>
+          </div>
+          <div class="admin-actions">
+            <label class="admin-field inline-check">
+              <input id="questionIsActive" type="checkbox" checked />
+              <span>Active</span>
+            </label>
+            <button id="questionSubmitBtn" class="btn-primary" type="submit">Add Question</button>
+            <button id="questionCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+          </div>
+        </form>
+
+        <div class="admin-field">
+          <label for="bulkImportText">Bulk Import (question|A|B|C|D|correct|explanation)</label>
+          <textarea id="bulkImportText" rows="4"></textarea>
+          <button id="bulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
+        </div>
+
+        <div class="admin-field" style="margin-top: 0.75rem">
+          <label for="bulkImportCsvFile">
+            CSV Upload (questionText, optionA, optionB, optionC, optionD, correctOption, explanation, isActive)
+          </label>
+          <div class="admin-actions">
+            <input id="bulkImportCsvFile" type="file" accept=".csv,text/csv" />
+            <label class="admin-field inline-check" style="margin: 0">
+              <input id="bulkImportReplaceExisting" type="checkbox" />
+              <span>Replace existing questions</span>
+            </label>
+            <button id="bulkImportCsvBtn" class="btn-secondary" type="button">Upload CSV</button>
+            <a class="btn-ghost" href="./public/mock-test-import-template.csv" download>
+              Download CSV Template
+            </a>
+          </div>
+        </div>
+
+        <div class="admin-table-wrap" style="margin-top: 1rem">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>A</th>
+                <th>B</th>
+                <th>C</th>
+                <th>D</th>
+                <th>Correct</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="questionsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Attempts & Results</h2>
+        <form id="attemptFilterForm" class="admin-form">
+          <div class="admin-form-row">
+            <div class="admin-field">
+              <label for="attemptStudentId">Student ID (CA12345) or Internal ID</label>
+              <input id="attemptStudentId" />
+            </div>
+            <div class="admin-field">
+              <label for="attemptExamType">Exam Type</label>
+              <select id="attemptExamType">
+                <option value="">All exam types</option>
+                <option value="PSTET_1">PSTET-1</option>
+                <option value="PSTET_2">PSTET-2</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="attemptSubject">Subject</label>
+              <select id="attemptSubject">
+                <option value="">All subjects</option>
+                <option value="PUNJABI">Punjabi</option>
+                <option value="ENGLISH">English</option>
+                <option value="CHILD_PEDAGOGY">Child Pedagogy</option>
+                <option value="MATHS_EVS">Maths/EVS</option>
+                <option value="SCIENCE_MATH">Science/Math</option>
+                <option value="SOCIAL_STUDIES">Social Studies</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label for="attemptDateFrom">Date From</label>
+              <input id="attemptDateFrom" type="date" />
+            </div>
+            <div class="admin-field">
+              <label for="attemptDateTo">Date To</label>
+              <input id="attemptDateTo" type="date" />
+            </div>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-primary" type="submit">Load Attempts</button>
+          </div>
+        </form>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Started</th>
+                <th>Student</th>
+                <th>Mobile</th>
+                <th>Exam</th>
+                <th>Subject</th>
+                <th>Score</th>
+                <th>Percent</th>
+                <th>Remark</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="attemptsTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="attemptDetailWrap" class="admin-panel hidden" style="margin-top: 1rem">
+          <h3 id="attemptDetailTitle">Attempt Detail</h3>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Question</th>
+                  <th>Selected</th>
+                  <th>Correct</th>
+                  <th>Explanation</th>
+                </tr>
+              </thead>
+              <tbody id="attemptDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-mock-tests.js?v=6"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

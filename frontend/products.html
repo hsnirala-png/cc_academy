@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Products | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=23" />
+  </head>
+  <body class="home-page products-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_B1.png" alt="CC Academy logo" class="brand-logo logo-b1" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <div class="home-header-tools" aria-label="Course tools">
+          <label class="home-course-select-wrap" for="headerCourseSelect">
+            <span class="sr-only">All Courses</span>
+            <select id="headerCourseSelect" class="home-course-select">
+              <option value="">All Courses</option>
+              <option value="products" selected>Study Materials</option>
+              <option value="mock-tests">Mock Tests</option>
+              <option value="pstet-1">PSTET-1 Complete Batch</option>
+              <option value="pstet-2-science">PSTET-2 Science/Math</option>
+              <option value="pstet-2-social">PSTET-2 Social Studies</option>
+            </select>
+          </label>
+          <form class="home-search-form" role="search" aria-label="Search products">
+            <input
+              id="headerCourseSearch"
+              class="home-search-input"
+              type="search"
+              placeholder="Search products..."
+              aria-label="Search products"
+            />
+          </form>
+          <button id="referEarnBtn" class="btn-secondary refer-earn-btn" type="button">
+            Refer &amp; Earn
+          </button>
+        </div>
+
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./index.html#features" data-label="Features" aria-label="Features">Features</a>
+          <a href="./index.html#testimonials" data-label="Testimonials" aria-label="Testimonials"
+            >Testimonials</a
+          >
+          <a href="./index.html#contact" data-label="Contact" aria-label="Contact">Contact</a>
+          <div class="mobile-toggle-top">
+            <button type="button" class="btn-secondary mobile-toggle-login" data-open-login>Login</button>
+            <button type="button" id="mobileReferEarnBtn" class="mobile-gift-btn" aria-label="Refer and Earn">
+              🎁
+            </button>
+          </div>
+          <div class="mobile-toggle-courses">
+            <div class="mobile-courses-select-wrap">
+              <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
+              <select id="headerCourseSelectMobile" class="home-course-select">
+                <option value="">All Courses</option>
+                <option value="products" selected>Study Materials</option>
+                <option value="mock-tests">Mock Tests</option>
+                <option value="pstet-1">PSTET-1 Complete Batch</option>
+                <option value="pstet-2-science">PSTET-2 Science/Math</option>
+                <option value="pstet-2-social">PSTET-2 Social Studies</option>
+              </select>
+            </div>
+          </div>
+        </nav>
+
+        <div class="mobile-search-panel" aria-label="Search products panel">
+          <label class="sr-only" for="headerCourseSearchMobile">Search products</label>
+          <input
+            id="headerCourseSearchMobile"
+            class="home-search-input"
+            type="search"
+            placeholder="Search products..."
+            aria-label="Search products"
+          />
+        </div>
+
+        <div class="header-actions">
+          <button
+            id="mobileSearchToggle"
+            class="mobile-search-btn"
+            type="button"
+            aria-label="Open search"
+            aria-expanded="false"
+          ></button>
+          <button id="openLoginTop" data-open-login type="button" class="btn-secondary top-login-btn">Login</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="products-wrap">
+      <section class="products-layout">
+        <aside class="products-filters">
+          <h2>Filters</h2>
+
+          <div class="filter-block">
+            <h3>Exam Category</h3>
+            <div id="filterCategories" class="filter-options"></div>
+          </div>
+
+          <div class="filter-block">
+            <h3>Exams</h3>
+            <input id="examFilterSearch" class="filter-search" type="search" placeholder="Search exams" />
+            <div id="filterExams" class="filter-options"></div>
+          </div>
+
+          <div class="filter-block">
+            <h3>Language</h3>
+            <div id="filterLanguages" class="filter-options"></div>
+          </div>
+
+          <div class="filter-block">
+            <h3>Price</h3>
+            <div class="price-range">
+              <input id="minPrice" type="number" min="0" placeholder="Min" />
+              <input id="maxPrice" type="number" min="0" placeholder="Max" />
+            </div>
+            <button id="applyPriceFilterBtn" type="button" class="btn-secondary">Apply</button>
+          </div>
+        </aside>
+
+        <section class="products-content">
+          <div class="products-quick-links">
+            <strong>Quick Links:</strong>
+            <button class="quick-link-btn active" data-type="">All</button>
+            <button class="quick-link-btn" data-type="LIVE_CLASS">Live Classes</button>
+            <button class="quick-link-btn" data-type="TEST_SERIES">Test Series</button>
+            <button class="quick-link-btn" data-type="VIDEOS">Videos</button>
+            <button class="quick-link-btn" data-type="EBOOKS">Ebooks</button>
+            <button class="quick-link-btn" data-type="BOOKS">Books</button>
+          </div>
+
+          <div class="products-heading-row">
+            <h1>Study Materials</h1>
+            <p id="productsCountText">0 products</p>
+          </div>
+
+          <p id="productsMessage" class="form-message"></p>
+          <div id="productsGrid" class="products-grid"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/products.js?v=21"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

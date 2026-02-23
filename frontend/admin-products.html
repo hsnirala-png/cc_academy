@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Products</title>
+    <link rel="stylesheet" href="./src/styles.css?v=14" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link active" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Products</h1>
+              <p class="admin-subtitle">Create, edit, activate, and remove study products.</p>
+            </div>
+          </section>
+
+          <p id="adminProductsMessage" class="form-message"></p>
+
+          <section class="admin-panel">
+            <h2>Product Details</h2>
+            <form id="productForm" class="admin-form">
+              <input id="productId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="productTitle">Title</label>
+                  <input id="productTitle" required />
+                </div>
+                <div class="admin-field">
+                  <label for="productCategory">Exam Category</label>
+                  <input id="productCategory" placeholder="SSC / PSTET / Banking" required />
+                </div>
+                <div class="admin-field">
+                  <label for="productExamName">Exam</label>
+                  <input id="productExamName" placeholder="PSTET-1 / SSC CGL" required />
+                </div>
+                <div class="admin-field">
+                  <label for="productCourseType">Product Type</label>
+                  <select id="productCourseType">
+                    <option value="LIVE_CLASS">Live Classes</option>
+                    <option value="TEST_SERIES">Test Series</option>
+                    <option value="VIDEOS">Videos</option>
+                    <option value="EBOOKS">Ebooks</option>
+                    <option value="BOOKS">Books</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="productLanguageMode">Language</label>
+                  <select id="productLanguageMode">
+                    <option value="">Any language</option>
+                    <option value="Punjabi">Punjabi</option>
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="productListPrice">MRP</label>
+                  <input id="productListPrice" type="number" min="1" step="0.01" required />
+                </div>
+                <div class="admin-field">
+                  <label for="productSalePrice">Discount Price</label>
+                  <input id="productSalePrice" type="number" min="1" step="0.01" required />
+                </div>
+                <div class="admin-field">
+                  <label for="productReferralBonus">Referral Bonus (Rs)</label>
+                  <input id="productReferralBonus" type="number" min="0" step="0.01" />
+                </div>
+                <div class="admin-field">
+                  <label for="productReferralDiscount">Referral Friend Discount (Rs)</label>
+                  <input id="productReferralDiscount" type="number" min="0" step="0.01" />
+                </div>
+                <div class="admin-field">
+                  <label for="productAccessDays">Access (days)</label>
+                  <input id="productAccessDays" type="number" min="1" step="1" required />
+                </div>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="productValidityLabel">Validity Badge</label>
+                  <input id="productValidityLabel" placeholder="4X Validity / 6 Months Access" />
+                </div>
+              <div class="admin-field">
+                <label for="productThumbnailUrl">Thumbnail URL</label>
+                  <input
+                    id="productThumbnailUrl"
+                    placeholder="./public/PSTET_1.png or https://example.com/image.jpg"
+                  />
+                  <div class="thumbnail-upload-row">
+                    <input id="productThumbnailFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                    <button id="uploadThumbnailBtn" class="btn-secondary" type="button">Upload Image</button>
+                  </div>
+                  <img id="productThumbnailPreview" class="admin-thumb-preview hidden" alt="Thumbnail preview" />
+                </div>
+                <div class="admin-field">
+                  <label>Attach Tests</label>
+                  <div id="productMockTestsWrap" class="admin-inline-checklist"></div>
+                </div>
+                <div class="admin-field">
+                  <label>Attach Demo Tests</label>
+                  <div id="productDemoMockTestsWrap" class="admin-inline-checklist"></div>
+                </div>
+                <div class="admin-field">
+                  <label for="productAddons">Product Highlights (one per line)</label>
+                  <textarea
+                    id="productAddons"
+                    rows="5"
+                    placeholder="Access to Structured Classes in Audio with Scroll Form&#10;Doubt Solving Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions (subject to availability).&#10;Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot&#10;Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="admin-field">
+                <label for="productDescription">Description</label>
+                <textarea id="productDescription" rows="3"></textarea>
+              </div>
+
+              <div class="admin-actions">
+                <label class="admin-field inline-check">
+                  <input id="productIsActive" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+                <button id="productSubmitBtn" class="btn-primary" type="submit">Create Product</button>
+                <button id="productCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Product Catalog</h2>
+              <div class="admin-actions" style="margin-left: auto">
+                <select id="productsStatusFilter">
+                  <option value="">All</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+                <button id="reloadProductsBtn" class="btn-secondary" type="button">Reload</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Thumbnail</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Exam</th>
+                    <th>Type</th>
+                    <th>Language</th>
+                    <th>Price</th>
+                    <th>Linked Tests / Demo</th>
+                    <th>Referral Bonus</th>
+                    <th>Friend Discount</th>
+                    <th>Access</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="productsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-products.js?v=12"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

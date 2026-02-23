@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="./src/styles.css?v=24" />
+    <style>
+      .dash-wrap {
+        width: min(960px, 92%);
+        margin: 0.45rem auto 2rem;
+      }
+
+      .fb-profile {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .fb-cover {
+        position: relative;
+        width: 100%;
+        height: clamp(180px, 30vw, 320px);
+        background: linear-gradient(135deg, #d8e5ff, #f0f5ff);
+        z-index: 1;
+      }
+
+      .fb-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .cover-placeholder {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #d8e5ff, #f0f5ff);
+      }
+
+      .cover-placeholder p {
+        position: absolute;
+        left: 50%;
+        top: calc(50% + clamp(44px, 6vw, 78px));
+        transform: translateX(-50%);
+        margin: 0;
+        color: #2f3d58;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .cover-placeholder img {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -62%);
+        width: min(86%, 760px);
+        height: auto !important;
+        max-height: 66%;
+        object-fit: contain;
+        opacity: 0.25;
+      }
+
+      .cover-actions {
+        display: none;
+      }
+
+      .cover-upload-btn {
+        border: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.45rem 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .cover-file-input {
+        width: 190px;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.35rem 0.45rem;
+      }
+
+      .cover-remove-btn {
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .fb-body {
+        padding: 0 1.2rem 1.2rem;
+      }
+
+      .fb-top {
+        margin-top: -52px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        position: relative;
+        z-index: 3;
+      }
+
+      .fb-main {
+        display: flex;
+        align-items: flex-end;
+        gap: 1rem;
+      }
+
+      .fb-side-actions {
+        margin-left: auto;
+      }
+
+      .edit-cover-btn {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        color: #0f53bd;
+        padding: 0.5rem 0.9rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        cursor: pointer;
+      }
+
+      .edit-cover-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+
+      .cover-camera-btn {
+        display: none;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 200;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--brand);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(15, 83, 189, 0.28);
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+
+      .cover-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 30, 48, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1200;
+      }
+
+      .cover-modal.open {
+        display: flex;
+      }
+
+      .cover-modal-card {
+        width: min(420px, 92vw);
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 1rem;
+      }
+
+      .cover-modal-title {
+        margin: 0 0 0.8rem;
+        font-size: 1.1rem;
+      }
+
+      .cover-modal-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+
+      .cover-modal-close {
+        margin-top: 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0.45rem 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .dash-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        object-fit: cover;
+        background: #edf3ff;
+        box-shadow: 0 8px 20px rgba(15, 83, 189, 0.2);
+        position: relative;
+        z-index: 4;
+      }
+
+      .avatar-wrap {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        flex: 0 0 auto;
+      }
+
+      .avatar-camera-btn {
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: #fff;
+        box-shadow: 0 4px 10px rgba(15, 83, 189, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 5;
+      }
+
+      .avatar-camera-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: #0f53bd;
+      }
+
+      .avatar-upload-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .fb-name-wrap h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 3vw, 2.4rem);
+      }
+
+      .fb-sub {
+        margin: 0.15rem 0 0;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .fb-student-id {
+        margin: 0.18rem 0 0;
+        color: #1f4c9f;
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+
+      .fb-about {
+        margin-top: 0.8rem;
+        color: #2f3d58;
+        line-height: 1.45;
+      }
+
+      .dash-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .dash-banner-slider {
+        margin-top: 1rem;
+      }
+
+      .dash-slider-card {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .dash-slider-track {
+        display: flex;
+        width: 100%;
+        transition: transform 0.45s linear;
+      }
+
+      .dash-slide {
+        display: block;
+        flex: 0 0 100%;
+        width: 100%;
+      }
+
+      .dash-slide img {
+        width: 100%;
+        height: auto;
+        display: block;
+        object-fit: cover;
+      }
+
+      .dash-slider-dots {
+        position: static;
+        left: auto;
+        bottom: auto;
+        transform: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0;
+        border-radius: 999px;
+        background: transparent;
+        margin: 0.45rem auto 0;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .dash-slider-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        border: 0;
+        background: #b8c8ea;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .dash-slider-dot.active {
+        background: #0f53bd;
+      }
+
+      .cover-refer-btn,
+      .header-refer-link {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--brand);
+        text-decoration: none;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: none;
+        cursor: pointer;
+      }
+
+      .cover-refer-btn {
+        padding: 0;
+        margin-right: 0.5rem;
+      }
+
+      .header-refer-link {
+        padding: 0;
+        font-size: 0.9rem;
+        display: none;
+      }
+
+      .cover-refer-btn:hover,
+      .header-refer-link:hover {
+        text-decoration: underline;
+      }
+
+      .dash-section {
+        margin-top: 2rem;
+      }
+
+      .dash-section h2 {
+        margin: 0 0 0.8rem;
+      }
+
+      .dash-card {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .dash-products-grid {
+        margin-top: 0.8rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1rem;
+      }
+
+      .dash-product-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .dash-product-thumb-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .dash-product-thumb {
+        width: min(300px, 100%);
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #f4f7ff;
+      }
+
+      .dash-product-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+
+      .dash-ref-code-input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.5rem 0.62rem;
+        font-size: 0.85rem;
+      }
+
+      .btn-sky {
+        border: 1px solid #7fc8ff;
+        border-radius: 12px;
+        background: #54b6ff;
+        color: #fff;
+        padding: 0.62rem 1.12rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn-sky:hover {
+        background: #3fa8fb;
+      }
+
+      .dash-k {
+        color: var(--muted);
+        margin: 0 0 0.3rem;
+        font-size: 0.9rem;
+      }
+
+      .dash-v {
+        margin: 0;
+        font-weight: 700;
+      }
+
+      @media (max-width: 680px) {
+        .dash-wrap {
+          margin-top: 4.4rem;
+        }
+
+        .fb-top {
+          margin-top: -38px;
+        }
+
+        .fb-main {
+          align-items: center;
+        }
+
+        .avatar-wrap {
+          width: 90px;
+          height: 90px;
+        }
+
+        .dash-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .dash-products-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .fb-side-actions {
+          display: none;
+        }
+
+        .header-refer-link {
+          display: inline-flex;
+          padding: 0;
+          font-size: 0.84rem;
+        }
+
+        .cover-camera-btn {
+          display: inline-flex !important;
+          z-index: 999 !important;
+        }
+
+        .cover-camera-btn svg {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+        }
+      }
+
+      @media (min-width: 681px) {
+        .cover-camera-btn {
+          display: none !important;
+        }
+
+        .nav-links a:nth-child(1)::before {
+          content: "\2630";
+        }
+
+        .nav-links a:nth-child(2)::before {
+          content: "\263A";
+        }
+
+        .nav-links a:nth-child(3)::before {
+          content: "\2699";
+        }
+
+        .nav-links a:nth-child(4)::before {
+          content: "\25A4";
+        }
+
+        .nav-links a:nth-child(5)::before {
+          content: "S";
+        }
+
+        .nav-links a:nth-child(6)::before {
+          content: "\20B9";
+        }
+
+        .nav-links a.account-subtab {
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+        }
+
+        .header-refer-link {
+          display: none;
+        }
+
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="#account" data-label="Account" aria-label="Account">Account</a>
+          <a
+            href="#subscriptions"
+            class="account-subtab"
+            data-label="Subscriptions"
+            aria-label="Subscriptions"
+          >
+            Subscriptions
+          </a>
+          <a href="#payments" class="account-subtab" data-label="Payments" aria-label="Payments">
+            Payments
+          </a>
+        </nav>
+        <div class="header-actions">
+          <a id="headerReferEarnBtn" class="header-refer-link" href="./refer-earn.html">Refer &amp; Earn</a>
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="dash-wrap">
+      <section id="dashboard">
+        <article class="fb-profile">
+          <div class="fb-cover">
+            <img id="dashCoverImg" alt="Cover photo" class="hidden" />
+            <div id="dashCoverPlaceholder" class="cover-placeholder">
+              <img src="./public/logo_B.png" alt="Default cover logo" />
+            </div>
+            <button id="dashCoverBtnMobile" class="cover-camera-btn" type="button" aria-label="Edit Cover Page">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M9 4l1.5-2h3L15 4h3a3 3 0 013 3v9a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h3zm3 4.5A4.5 4.5 0 1012 17a4.5 4.5 0 000-9zm0 2A2.5 2.5 0 1112 15a2.5 2.5 0 010-5z"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="fb-body">
+            <div class="fb-top">
+              <div class="fb-main">
+                <div class="avatar-wrap">
+                  <img id="dashAvatar" class="dash-avatar" alt="Student avatar" />
+                  <label for="dashAvatarInput" class="avatar-camera-btn" title="Change avatar photo">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M9 4l1.5-2h3L15 4h3a3 3 0 013 3v9a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h3zm3 4.5A4.5 4.5 0 1012 17a4.5 4.5 0 000-9zm0 2A2.5 2.5 0 1112 15a2.5 2.5 0 010-5z"
+                      />
+                    </svg>
+                  </label>
+                  <input id="dashAvatarInput" class="avatar-upload-input" type="file" accept="image/*" />
+                </div>
+                <div class="fb-name-wrap">
+                  <h1 id="dashTitleName">Student Dashboard</h1>
+                  <p id="dashSubline" class="fb-sub">Student profile</p>
+                  <p id="dashStudentId" class="fb-student-id">Student ID: -</p>
+                </div>
+              </div>
+              <div class="fb-side-actions">
+                <a id="dashReferEarnBtn" class="cover-refer-btn" href="./refer-earn.html">Refer &amp; Earn</a>
+                <button id="dashCoverBtn" class="edit-cover-btn" type="button" aria-label="Edit Cover Page">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M9 4l1.5-2h3L15 4h3a3 3 0 013 3v9a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h3zm3 4.5A4.5 4.5 0 1012 17a4.5 4.5 0 000-9zm0 2A2.5 2.5 0 1112 15a2.5 2.5 0 010-5z"
+                    />
+                  </svg>
+                  <span class="edit-cover-label">Edit Cover Page</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+        <div id="dashCoverModal" class="cover-modal" aria-hidden="true">
+          <div class="cover-modal-card">
+            <h3 class="cover-modal-title">Edit Cover Page</h3>
+            <div class="cover-modal-actions">
+              <input id="dashCoverInput" class="cover-file-input" type="file" accept="image/*" />
+              <button id="dashCoverRemove" class="cover-upload-btn cover-remove-btn" type="button">
+                Remove
+              </button>
+            </div>
+            <button id="dashCoverClose" class="cover-modal-close" type="button">Close</button>
+          </div>
+        </div>
+        <p id="dashMessage" class="form-message"></p>
+        <section class="dash-banner-slider">
+          <article class="dash-slider-card">
+            <div id="dashSliderTrack" class="dash-slider-track" style="transform: translateX(0%);">
+              <a class="dash-slide" href="./refer-earn.html" aria-label="Refer and Earn">
+                <img src="./public/PSTET_4.png" alt="Refer and Earn banner" />
+              </a>
+              <div class="dash-slide">
+                <img src="./public/PSTET_5.png" alt="Student promotion banner" />
+              </div>
+              <div class="dash-slide">
+                <img src="./public/PSTET_1.png" alt="PSTET student banner" />
+              </div>
+            </div>
+          </article>
+          <div id="dashSliderDots" class="dash-slider-dots"></div>
+        </section>
+        <section id="productsSection" class="dash-section">
+          <h2>Product Catalog</h2>
+          <p id="dashProductsStatus" class="form-message"></p>
+          <div id="dashProductsCatalog" class="dash-products-grid">
+            <article class="dash-card">
+              <p class="dash-k">Loading products...</p>
+            </article>
+          </div>
+        </section>
+        <div class="dash-grid">
+          <article class="dash-card">
+            <p class="dash-k">Digital Lessons</p>
+            <p class="dash-v">Watch lessons, track progress, and unlock assessments.</p>
+            <p><a class="btn-secondary" href="./lessons.html">Open Lessons</a></p>
+          </article>
+          <article class="dash-card">
+            <p class="dash-k">Mock Test Center</p>
+            <p class="dash-v">Choose PSTET-1 / PSTET-2 and start your test.</p>
+            <p><a class="btn-primary" href="./mock-tests.html">Open Mock Tests</a></p>
+          </article>
+          <article class="dash-card">
+            <p class="dash-k">Attempt History</p>
+            <p class="dash-v">Check previous scores, remarks, and answer review.</p>
+            <p><a class="btn-secondary" href="./mock-history.html">Open History</a></p>
+          </article>
+        </div>
+        <section id="lessonTestsSection" class="dash-section">
+          <h2>Lesson Tests</h2>
+          <p id="dashLessonTestStatus" class="form-message"></p>
+          <div id="dashLessonTests" class="dash-grid">
+            <article class="dash-card">
+              <p class="dash-k">Loading linked lesson tests...</p>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <section id="account" class="dash-section">
+        <h2>Account</h2>
+        <div class="dash-card">
+          <p class="dash-k">Use sub-tabs for account activity.</p>
+        </div>
+      </section>
+
+      <section id="subscriptions" class="dash-section">
+        <h2>Subscriptions</h2>
+        <div class="dash-card">
+          <p class="dash-k">Subscription plans and status will appear here.</p>
+        </div>
+      </section>
+
+      <section id="payments" class="dash-section">
+        <h2>Payments</h2>
+        <div class="dash-card">
+          <p class="dash-k">Payment history and invoices will appear here.</p>
+        </div>
+      </section>
+    </main>
+    <script src="./src/dashboard.js?v=21"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

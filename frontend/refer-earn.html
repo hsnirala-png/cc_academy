@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Refer & Earn | Student</title>
+    <link rel="stylesheet" href="./src/styles.css?v=14" />
+    <style>
+      @media (min-width: 681px) {
+        .nav-links a:nth-child(1)::before {
+          content: "\2630";
+        }
+
+        .nav-links a:nth-child(2)::before {
+          content: "\263A";
+        }
+
+        .nav-links a:nth-child(3)::before {
+          content: "\2699";
+        }
+
+        .nav-links a:nth-child(4)::before {
+          content: "\25A4";
+        }
+
+        .nav-links a:nth-child(5)::before {
+          content: "S";
+        }
+
+        .nav-links a:nth-child(6)::before {
+          content: "\20B9";
+        }
+
+        .nav-links a.account-subtab {
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+        }
+      }
+
+      @media (max-width: 680px) {
+        #btnAddBankDetail {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./dashboard.html#account" data-label="Account" aria-label="Account">Account</a>
+          <a
+            href="./dashboard.html#subscriptions"
+            class="account-subtab"
+            data-label="Subscriptions"
+            aria-label="Subscriptions"
+          >
+            Subscriptions
+          </a>
+          <a
+            href="./dashboard.html#payments"
+            class="account-subtab"
+            data-label="Payments"
+            aria-label="Payments"
+          >
+            Payments
+          </a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="products-wrap referral-page" style="margin-top: 0.8rem" data-no-collapse="true">
+      <section class="admin-panel">
+        <div class="admin-header-row" style="margin-bottom: 0.8rem">
+          <div>
+            <h1 style="margin:0; font-size: clamp(1.4rem, 3vw, 2.1rem)">Refer &amp; Earn</h1>
+            <p id="referralMeta" class="admin-subtitle">Share your referral ID and earn unlimited from 1-level referrals.</p>
+          </div>
+          <div class="admin-actions">
+            <button id="btnAddBankDetail" class="btn-secondary" type="button">Add Bank Detail / UPI</button>
+            <button id="btnRequestWithdrawal" class="btn-primary" type="button">Request Withdrawal</button>
+          </div>
+        </div>
+
+        <p id="referralMessage" class="form-message"></p>
+
+        <div class="admin-overview" style="margin-bottom: 0.9rem">
+          <article class="overview-card">
+            <p class="overview-k">Total Friends (Referrals)</p>
+            <p id="cardTotalFriends" class="overview-v">0</p>
+          </article>
+          <article class="overview-card">
+            <p class="overview-k">Total Earns</p>
+            <p id="cardTotalEarns" class="overview-v">&#8377;0.00</p>
+          </article>
+          <article class="overview-card">
+            <p class="overview-k">Total Withdrawals</p>
+            <p id="cardTotalWithdrawals" class="overview-v">&#8377;0.00</p>
+          </article>
+          <article class="overview-card">
+            <p class="overview-k">Wallet Balance</p>
+            <p id="cardWalletBalance" class="overview-v">&#8377;0.00</p>
+          </article>
+        </div>
+
+        <div class="admin-form-row referral-link-row" style="margin-bottom: 0.8rem">
+          <div class="admin-field referral-link-field" style="grid-column: span 4">
+            <label for="referralLinkText">Referral Link</label>
+            <div class="admin-actions referral-link-actions" style="gap: 0.45rem">
+              <input id="referralLinkText" readonly style="flex:1" placeholder="Your referral link will appear here" />
+              <button id="btnCopyReferral" type="button" class="btn-secondary">Copy</button>
+            </div>
+            <p class="referral-id-text">Referral ID: <span id="referralCodeText">-</span></p>
+          </div>
+        </div>
+
+        <p id="withdrawalEligibility" class="admin-subtitle"></p>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-tabs referral-tabs" role="tablist" aria-label="Referral sections">
+          <button
+            type="button"
+            class="admin-tab-btn active"
+            id="tabBtnPayoutMethods"
+            data-referral-tab-target="tabPayoutMethods"
+            role="tab"
+            aria-selected="true"
+            aria-controls="tabPayoutMethods"
+          >
+            Payout Methods
+          </button>
+          <button
+            type="button"
+            class="admin-tab-btn"
+            id="tabBtnWithdrawals"
+            data-referral-tab-target="tabWithdrawals"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabWithdrawals"
+          >
+            Withdrawal History
+          </button>
+          <button
+            type="button"
+            class="admin-tab-btn"
+            id="tabBtnTransactions"
+            data-referral-tab-target="tabTransactions"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabTransactions"
+          >
+            Recent Referral Transactions
+          </button>
+          <button
+            type="button"
+            class="admin-tab-btn"
+            id="tabBtnFriends"
+            data-referral-tab-target="tabFriends"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabFriends"
+          >
+            Referred Friends
+          </button>
+        </div>
+
+        <div id="tabPayoutMethods" class="admin-tab-panel active" data-referral-tab-panel role="tabpanel" aria-labelledby="tabBtnPayoutMethods">
+          <h2>Payout Methods</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Details</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="payoutMethodsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tabWithdrawals" class="admin-tab-panel" data-referral-tab-panel role="tabpanel" aria-labelledby="tabBtnWithdrawals">
+          <h2>Withdrawal History</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Requested</th>
+                  <th>Reviewed</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="withdrawalsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tabTransactions" class="admin-tab-panel" data-referral-tab-panel role="tabpanel" aria-labelledby="tabBtnTransactions">
+          <h2>Recent Referral Transactions</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Amount</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tabFriends" class="admin-tab-panel" data-referral-tab-panel role="tabpanel" aria-labelledby="tabBtnFriends">
+          <h2>Referred Friends</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Mobile</th>
+                  <th>Joined At</th>
+                </tr>
+              </thead>
+              <tbody id="friendsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="bankDetailModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bankDetailTitle">
+        <button id="btnCloseBankModal" class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        <h2 id="bankDetailTitle">Add Bank Detail / UPI</h2>
+        <form id="bankDetailForm" class="auth-form" novalidate>
+          <div class="field">
+            <label for="methodType">Method Type</label>
+            <select id="methodType">
+              <option value="BANK">Bank</option>
+              <option value="UPI">UPI</option>
+            </select>
+          </div>
+
+          <div id="bankFields" class="field" style="display:grid; gap:0.65rem;">
+            <div class="field">
+              <label for="bankName">Bank Name</label>
+              <input id="bankName" type="text" />
+            </div>
+            <div class="field">
+              <label for="accountNo">Account No</label>
+              <input id="accountNo" type="text" />
+            </div>
+            <div class="field">
+              <label for="ifsc">IFSC</label>
+              <input id="ifsc" type="text" />
+            </div>
+            <div class="field">
+              <label for="place">Place</label>
+              <input id="place" type="text" />
+            </div>
+          </div>
+
+          <div id="upiFields" class="field hidden">
+            <label for="upiId">UPI ID</label>
+            <input id="upiId" type="text" placeholder="example@upi" />
+          </div>
+
+          <p id="bankFormMessage" class="form-message"></p>
+          <button id="btnSaveBankMethod" type="submit" class="btn-primary auth-submit">Save Method</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="withdrawalConfirmModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="withdrawalConfirmTitle">
+        <button
+          id="btnCloseWithdrawalConfirmModal"
+          class="modal-close"
+          type="button"
+          aria-label="Close dialog"
+        >
+          &times;
+        </button>
+        <h2 id="withdrawalConfirmTitle">Confirm Payout Details</h2>
+        <div id="withdrawalConfirmDetails" class="withdrawal-confirm-details"></div>
+        <p id="withdrawalConfirmHint" class="admin-subtitle"></p>
+        <div class="admin-actions" style="margin-top: 0.7rem">
+          <button id="btnEditWithdrawalMethod" type="button" class="btn-secondary">Edit</button>
+          <button id="btnConfirmWithdrawalMethod" type="button" class="btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/refer-earn.js?v=5"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

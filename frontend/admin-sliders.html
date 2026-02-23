@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Sliders</title>
+    <link rel="stylesheet" href="./src/styles.css?v=11" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link active" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Sliders</h1>
+              <p class="admin-subtitle">Manage slider images and links for landing, student dashboard, or any page key.</p>
+            </div>
+          </section>
+
+          <p id="adminSlidersMessage" class="form-message"></p>
+
+          <section class="admin-panel">
+            <h2>Slider Details</h2>
+            <form id="sliderForm" class="admin-form">
+              <input id="sliderId" type="hidden" />
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="sliderPageKey">Page Key</label>
+                  <input
+                    id="sliderPageKey"
+                    list="sliderPageKeys"
+                    placeholder="landing / student-dashboard / products"
+                    required
+                  />
+                  <datalist id="sliderPageKeys">
+                    <option value="landing"></option>
+                    <option value="student-dashboard"></option>
+                    <option value="products"></option>
+                    <option value="mock-tests"></option>
+                    <option value="profile"></option>
+                  </datalist>
+                </div>
+
+                <div class="admin-field">
+                  <label for="sliderSortOrder">Order</label>
+                  <input id="sliderSortOrder" type="number" min="0" step="1" value="0" />
+                </div>
+
+                <label class="admin-field inline-check" style="align-self: end">
+                  <input id="sliderIsActive" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="sliderTitle">Title / Alt Text</label>
+                  <input id="sliderTitle" placeholder="Optional banner title" />
+                </div>
+
+                <div class="admin-field">
+                  <label for="sliderLinkUrl">Slide Link</label>
+                  <input
+                    id="sliderLinkUrl"
+                    placeholder="./refer-earn.html or https://example.com/page"
+                  />
+                </div>
+              </div>
+
+              <div class="admin-field">
+                <label for="sliderImageUrl">Image URL</label>
+                <input
+                  id="sliderImageUrl"
+                  placeholder="./public/PSTET_1.png or https://example.com/image.jpg"
+                  required
+                />
+                <div class="thumbnail-upload-row">
+                  <input
+                    id="sliderImageFile"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    multiple
+                  />
+                  <button id="uploadSliderImageBtn" class="btn-secondary" type="button">Upload Image</button>
+                </div>
+                <p class="admin-subtitle" style="margin: 0.4rem 0 0">
+                  You can select multiple files and use "Create From Selected Images" to add many sliders at once.
+                </p>
+                <img id="sliderImagePreview" class="admin-thumb-preview hidden" alt="Slider preview" />
+              </div>
+
+              <div class="admin-actions">
+                <button id="sliderSubmitBtn" class="btn-primary" type="submit">Create Slider</button>
+                <button id="sliderBulkCreateBtn" class="btn-secondary" type="button">Create From Selected Images</button>
+                <button id="sliderCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Slider Catalog</h2>
+              <div class="admin-actions" style="margin-left: auto">
+                <input id="slidersPageFilter" placeholder="Filter by page key" />
+                <button id="reloadSlidersBtn" class="btn-secondary" type="button">Reload</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Preview</th>
+                    <th>Page</th>
+                    <th>Title</th>
+                    <th>Link</th>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="slidersTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-sliders.js?v=2"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

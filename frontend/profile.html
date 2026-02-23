@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Profile</title>
+    <link rel="stylesheet" href="./src/styles.css?v=21" />
+    <style>
+      .profile-wrap {
+        width: min(1060px, 92%);
+        margin: 2rem auto 3rem;
+      }
+
+      .profile-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .profile-top h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+      }
+
+      .avatar-box {
+        display: grid;
+        justify-items: end;
+        gap: 0.5rem;
+      }
+
+      .avatar-preview {
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        object-fit: cover;
+        background: #f4f7ff;
+      }
+
+      .avatar-upload {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .profile-card {
+        margin-top: 1rem;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem 1rem;
+      }
+
+      .field {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .field label {
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .field input {
+        border: 1px solid #d6dff6;
+        border-radius: 10px;
+        padding: 0.62rem 0.72rem;
+        font: inherit;
+      }
+
+      .profile-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.6rem;
+        justify-content: flex-end;
+      }
+
+      @media (max-width: 680px) {
+        .profile-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .profile-top {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .avatar-box {
+          justify-items: start;
+        }
+      }
+
+      @media (min-width: 681px) {
+        .nav-links a:nth-child(1)::before {
+          content: "\2630";
+        }
+
+        .nav-links a:nth-child(2)::before {
+          content: "\263A";
+        }
+
+        .nav-links a:nth-child(3)::before {
+          content: "\2699";
+        }
+
+        .nav-links a:nth-child(4)::before {
+          content: "\25A4";
+        }
+
+        .nav-links a:nth-child(5)::before {
+          content: "\20B9";
+        }
+
+        .nav-links a.account-subtab {
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+        }
+
+        .home-top-link {
+          text-decoration: none;
+          color: var(--brand);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          font-size: 0;
+          line-height: 1;
+        }
+
+        .home-top-link::before {
+          content: "\2302";
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./dashboard.html#account" data-label="Account" aria-label="Account">Account</a>
+          <a
+            href="./dashboard.html#subscriptions"
+            class="account-subtab"
+            data-label="Subscriptions"
+            aria-label="Subscriptions"
+          >
+            Subscriptions
+          </a>
+          <a
+            href="./dashboard.html#payments"
+            class="account-subtab"
+            data-label="Payments"
+            aria-label="Payments"
+          >
+            Payments
+          </a>
+        </nav>
+        <div class="header-actions">
+          <a id="homeTopLink" href="./index.html#home" class="home-top-link" aria-label="Home">Home</a>
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="profile-wrap">
+      <div class="profile-top">
+        <h1>Student Profile</h1>
+        <div class="avatar-box">
+          <img id="avatarPreview" class="avatar-preview" alt="Student avatar preview" />
+          <input id="avatarInput" class="avatar-upload" type="file" accept="image/*" />
+        </div>
+      </div>
+
+      <p id="profileMessage" class="form-message"></p>
+
+      <section class="profile-card">
+        <form id="profileForm">
+          <div class="profile-grid">
+            <div class="field">
+              <label for="pName">Name</label>
+              <input id="pName" name="name" />
+            </div>
+            <div class="field">
+              <label for="pMobile">Mobile (User ID)</label>
+              <input id="pMobile" name="mobile" readonly />
+            </div>
+            <div class="field">
+              <label for="pFatherName">Father Name</label>
+              <input id="pFatherName" name="fatherName" />
+            </div>
+            <div class="field">
+              <label for="pAddress1">Address Line 1</label>
+              <input id="pAddress1" name="address1" />
+            </div>
+            <div class="field">
+              <label for="pAddress2">Address Line 2</label>
+              <input id="pAddress2" name="address2" />
+            </div>
+            <div class="field">
+              <label for="pCityVillage">City/Village</label>
+              <input id="pCityVillage" name="cityVillage" />
+            </div>
+            <div class="field">
+              <label for="pDistt">Distt</label>
+              <input id="pDistt" name="distt" />
+            </div>
+            <div class="field">
+              <label for="pPinCode">Pin Code</label>
+              <input id="pPinCode" name="pinCode" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="pState">State</label>
+              <input id="pState" name="state" />
+            </div>
+            <div class="field">
+              <label for="pCity">City</label>
+              <input id="pCity" name="city" />
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <button id="editProfileBtn" type="button" class="btn-secondary">Edit</button>
+            <button id="saveProfileBtn" type="submit" class="btn-primary" disabled>Save</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script src="./src/profile.js?v=3"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

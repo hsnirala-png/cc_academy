@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Lessons | Student</title>
+    <link rel="stylesheet" href="./src/styles.css?v=22" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="lesson-wrap">
+      <section class="lesson-overview-head">
+        <h1>Digital Lessons</h1>
+        <p id="lessonHeadSubtitle" class="mock-subtitle">
+          Learn chapter-wise, track course-wise progress, and start linked tests anytime.
+        </p>
+      </section>
+
+      <p id="lessonStatus" class="form-message"></p>
+
+      <section class="lesson-summary-card">
+        <div>
+          <p class="lesson-summary-k">Assigned Course</p>
+          <select id="lessonCourseSelect" class="input lesson-course-select"></select>
+        </div>
+        <div>
+          <p class="lesson-summary-k">Course</p>
+          <p id="lessonCourseTitle" class="lesson-summary-v">-</p>
+        </div>
+        <div>
+          <p class="lesson-summary-k">Chapter</p>
+          <p id="lessonChapterTitle" class="lesson-summary-v">-</p>
+        </div>
+        <div>
+          <p class="lesson-summary-k">Course Progress</p>
+          <p id="lessonCompletion" class="lesson-summary-v">0%</p>
+        </div>
+        <div>
+          <button id="openNextLessonBtn" class="btn-primary" type="button">Open Next Lesson</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Chapter Lessons</h2>
+        <div id="lessonList" class="lesson-list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/lessons.js?v=4"></script>
+      <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>
+

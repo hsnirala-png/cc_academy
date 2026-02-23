@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CC Academy Admin Panel</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <style>
+      .admin-wrap {
+        width: min(1120px, 94%);
+        margin: 0.8rem auto 2rem;
+      }
+
+      .admin-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .admin-header-row h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 3vw, 2.4rem);
+        line-height: 1.15;
+      }
+
+      .admin-subtitle {
+        margin: 0.25rem 0 0;
+        color: var(--muted);
+      }
+
+      .admin-overview {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .overview-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        padding: 0.85rem 0.95rem;
+      }
+
+      .overview-card p {
+        margin: 0;
+      }
+
+      .overview-k {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .overview-v {
+        margin-top: 0.15rem !important;
+        font-size: 1.4rem;
+        font-weight: 800;
+      }
+
+      .admin-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .admin-panel {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        padding: 1rem;
+      }
+
+      .admin-panel h2 {
+        margin: 0 0 0.8rem;
+        font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+      }
+
+      .admin-form {
+        display: grid;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      .admin-form-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.6rem;
+      }
+
+      .admin-field {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .admin-field label {
+        font-weight: 600;
+        font-size: 0.86rem;
+      }
+
+      .admin-field input,
+      .admin-field textarea,
+      .admin-field select {
+        border: 1px solid #dcdcdc;
+        border-radius: 10px;
+        padding: 0.55rem 0.65rem;
+        font: inherit;
+      }
+
+      .admin-field textarea {
+        resize: vertical;
+        min-height: 78px;
+      }
+
+      .admin-field.inline-check {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .admin-field.inline-check input {
+        width: 16px;
+        height: 16px;
+      }
+
+      .admin-actions {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .btn-ghost {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--brand);
+        padding: 0.66rem 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .admin-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+
+      .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+      }
+
+      .admin-table th,
+      .admin-table td {
+        padding: 0.62rem 0.7rem;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .admin-table th {
+        background: #f2f7ff;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .table-actions {
+        display: flex;
+        gap: 0.45rem;
+      }
+
+      .table-btn {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0.35rem 0.6rem;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .table-btn.edit {
+        color: var(--brand);
+      }
+
+      .table-btn.delete {
+        color: #d6336c;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .chip.active {
+        background: #e8f7ee;
+        color: #2b8a3e;
+      }
+
+      .chip.inactive {
+        background: #fff4e8;
+        color: #e67700;
+      }
+
+      @media (max-width: 980px) {
+        .admin-overview {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .admin-form-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 680px) {
+        .admin-header-row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .admin-overview {
+          grid-template-columns: 1fr;
+        }
+
+        .admin-form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link active" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <div class="admin-header-row">
+            <div>
+              <h1>Admin Panel</h1>
+              <p class="admin-subtitle">Monitor and manage classes and subscriptions.</p>
+            </div>
+            <div class="admin-actions">
+              <a class="btn-secondary" href="./admin-mock-tests.html">Manage Mock Tests</a>
+              <a class="btn-secondary" href="./admin-lessons.html">Manage Lessons</a>
+              <a class="btn-secondary" href="./admin-products.html">Manage Products</a>
+              <a class="btn-secondary" href="./admin-referrals.html">Manage Referrals</a>
+              <a class="btn-secondary" href="./admin-sliders.html">Manage Sliders</a>
+            </div>
+          </div>
+
+          <p id="adminMessage" class="form-message"></p>
+
+          <section id="dashboard" class="admin-overview">
+            <article class="overview-card">
+              <p class="overview-k">Students</p>
+              <p id="overviewStudents" class="overview-v">0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Classes (Active/Total)</p>
+              <p id="overviewClasses" class="overview-v">0 / 0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Plans (Active/Total)</p>
+              <p id="overviewPlans" class="overview-v">0 / 0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Subscriptions (Active/Total)</p>
+              <p id="overviewSubs" class="overview-v">0 / 0</p>
+            </article>
+          </section>
+
+          <div class="admin-grid">
+            <section class="admin-panel">
+              <h2>Classes</h2>
+              <form id="classForm" class="admin-form">
+                <input id="classId" type="hidden" />
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="className">Class Name</label>
+                    <input id="className" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="classInstructor">Instructor</label>
+                    <input id="classInstructor" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="classMode">Mode</label>
+                    <select id="classMode">
+                      <option value="ONLINE">ONLINE</option>
+                      <option value="OFFLINE">OFFLINE</option>
+                      <option value="HYBRID">HYBRID</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="classSeats">Seats</label>
+                    <input id="classSeats" type="number" min="1" />
+                  </div>
+                </div>
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="classStartDate">Start Date</label>
+                    <input id="classStartDate" type="datetime-local" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="classEndDate">End Date</label>
+                    <input id="classEndDate" type="datetime-local" />
+                  </div>
+                  <div class="admin-field inline-check">
+                    <input id="classIsActive" type="checkbox" checked />
+                    <label for="classIsActive">Active</label>
+                  </div>
+                </div>
+                <div class="admin-field">
+                  <label for="classDescription">Description</label>
+                  <textarea id="classDescription"></textarea>
+                </div>
+                <div class="admin-actions">
+                  <button id="classSubmitBtn" class="btn-primary" type="submit">Create Class</button>
+                  <button id="classCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+                </div>
+              </form>
+
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Instructor</th>
+                      <th>Mode</th>
+                      <th>Date</th>
+                      <th>Seats</th>
+                      <th>Status</th>
+                      <th>Subs</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="classesTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="payments" class="admin-panel">
+              <h2>Subscription Plans</h2>
+              <form id="planForm" class="admin-form">
+                <input id="planId" type="hidden" />
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="planTitle">Title</label>
+                    <input id="planTitle" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="planPrice">Price</label>
+                    <input id="planPrice" type="number" step="0.01" min="0.01" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="planDuration">Duration (days)</label>
+                    <input id="planDuration" type="number" min="1" required />
+                  </div>
+                  <div class="admin-field inline-check">
+                    <input id="planIsActive" type="checkbox" checked />
+                    <label for="planIsActive">Active</label>
+                  </div>
+                </div>
+                <div class="admin-field">
+                  <label for="planDescription">Description</label>
+                  <textarea id="planDescription"></textarea>
+                </div>
+                <div class="admin-actions">
+                  <button id="planSubmitBtn" class="btn-primary" type="submit">Create Plan</button>
+                  <button id="planCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+                </div>
+              </form>
+
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Price</th>
+                      <th>Duration</th>
+                      <th>Status</th>
+                      <th>Subscribers</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plansTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script src="./src/admin.js?v=6"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

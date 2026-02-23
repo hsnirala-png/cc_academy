@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Coaching programs to help you build confidence, clarity, and consistent results."
+    />
+    <title>CC Academy Coaching</title>
+    <link rel="stylesheet" href="./src/styles.css?v=14" />
+  </head>
+  <body class="home-page">
+    <header class="site-header">
+      <a href="#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_B1.png" alt="CC Academy logo" class="brand-logo logo-b1" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <div class="home-header-tools" aria-label="Course tools">
+          <label class="home-course-select-wrap" for="headerCourseSelect">
+            <span class="sr-only">All Courses</span>
+            <select id="headerCourseSelect" class="home-course-select">
+              <option value="">All Courses</option>
+              <option value="pstet-1">PSTET-1 Complete Batch</option>
+              <option value="pstet-2-science">PSTET-2 Science/Math</option>
+              <option value="pstet-2-social">PSTET-2 Social Studies</option>
+              <option value="mock-tests">Mock Tests</option>
+              <option value="products">Study Materials</option>
+              <option value="spoken-english">Spoken English</option>
+              <option value="personality-development">Personality Development</option>
+            </select>
+          </label>
+          <form class="home-search-form" role="search" aria-label="Search courses">
+            <input
+              id="headerCourseSearch"
+              class="home-search-input"
+              type="search"
+              placeholder="Search courses..."
+              aria-label="Search courses"
+            />
+          </form>
+          <button id="referEarnBtn" class="btn-secondary refer-earn-btn" type="button">
+            Refer &amp; Earn
+          </button>
+        </div>
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./products.html" data-label="Products" data-icon="&#128230;" aria-label="Products">Products</a>
+          <a href="#testimonials" data-label="Testimonials" data-icon="ðŸ’¬" aria-label="Testimonials">Testimonials</a>
+          <a href="#contact" data-label="Contact" data-icon="âœ‰" aria-label="Contact">Contact</a>
+          <div class="mobile-toggle-top">
+            <button type="button" class="btn-secondary mobile-toggle-login" data-open-login>Login</button>
+            <button type="button" id="mobileReferEarnBtn" class="mobile-gift-btn" aria-label="Refer and Earn">
+              ðŸŽ
+            </button>
+          </div>
+          <div class="mobile-toggle-courses">
+            <button type="button" id="mobileCoursesToggle" class="mobile-courses-toggle">
+              <span>All Courses</span>
+            </button>
+            <div class="mobile-courses-select-wrap">
+              <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
+              <select id="headerCourseSelectMobile" class="home-course-select">
+                <option value="">All Courses</option>
+                <option value="pstet-1">PSTET-1 Complete Batch</option>
+                <option value="pstet-2-science">PSTET-2 Science/Math</option>
+                <option value="pstet-2-social">PSTET-2 Social Studies</option>
+                <option value="mock-tests">Mock Tests</option>
+                <option value="products">Study Materials</option>
+                <option value="spoken-english">Spoken English</option>
+                <option value="personality-development">Personality Development</option>
+              </select>
+            </div>
+          </div>
+        </nav>
+        <div class="mobile-search-panel" aria-label="Search courses panel">
+          <label class="sr-only" for="headerCourseSearchMobile">Search courses</label>
+          <input
+            id="headerCourseSearchMobile"
+            class="home-search-input"
+            type="search"
+            placeholder="Search courses..."
+            aria-label="Search courses"
+          />
+        </div>
+        <div class="header-actions">
+          <button
+            id="mobileSearchToggle"
+            class="mobile-search-btn"
+            type="button"
+            aria-label="Open search"
+            aria-expanded="false"
+          ></button>
+          <button id="openLoginTop" data-open-login type="button" class="btn-secondary top-login-btn">
+            Login
+          </button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="home">
+      <section class="hero section">
+        <div class="hero-content">
+          <p class="eyebrow">Transform your growth journey</p>
+          <h1>
+            <span class="hero-line hero-line-one">Learn Anywhere.</span>
+            <span class="hero-line hero-line-two">Achieve <span class="hero-highlight">Everywhere.</span></span>
+          </h1>
+          <p class="hero-subtitle">
+            With India's fastest growing online learning platform
+          </p>
+          <div class="hero-actions hero-mobile-cta">
+            <span class="mobile-prefix">+91</span>
+            <input
+              id="enrollMobileInput"
+              type="tel"
+              inputmode="numeric"
+              maxlength="15"
+              placeholder="Enter your valid mobile number"
+              aria-label="Enter your valid mobile number"
+            />
+            <button id="enrollNowBtn" type="button" class="btn-primary">Enroll Now</button>
+          </div>
+          <p id="enrollMobileMessage" class="form-message"></p>
+        </div>
+        <div class="hero-media">
+          <img src="./public/photo_3.png" alt="Students learning online" />
+        </div>
+        <div class="hero-scroll" aria-label="Student learning gallery">
+          <div id="homeSliderTrack" class="hero-scroll-track">
+            <div class="hero-scroll-item"><img src="./public/PSTET_1.png" alt="PSTET preparation slide 1" /></div>
+            <div class="hero-scroll-item"><img src="./public/PSTET_2.png" alt="PSTET preparation slide 2" /></div>
+            <div class="hero-scroll-item"><img src="./public/PSTET_3.png" alt="PSTET preparation slide 3" /></div>
+            <div class="hero-scroll-item"><img src="./public/PSTET_1.png" alt="PSTET preparation slide 1" /></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="latestCourses" class="section home-latest-products">
+        <div class="home-latest-head">
+          <h2>Latest Courses</h2>
+          <a class="home-latest-view-all" href="./products.html">View All</a>
+        </div>
+        <div id="homeLatestProductsGrid" class="home-latest-grid" aria-live="polite">
+          <div class="home-latest-empty">Loading latest courses...</div>
+        </div>
+        <p id="homeLatestProductsMessage" class="form-message home-latest-message"></p>
+      </section>
+
+      <section id="features" class="section">
+        <div class="section-heading">
+          <h2>Why Our Coaching Program Works</h2>
+          <p>
+            A practical framework combining clarity, accountability, and expert
+            support.
+          </p>
+        </div>
+        <div class="features-grid">
+          <article class="card feature-card">
+            <h3>Custom Growth Plan</h3>
+            <p>
+              Receive a step-by-step roadmap aligned to your exact goals,
+              timeline, and current stage.
+            </p>
+          </article>
+          <article class="card feature-card">
+            <h3>Weekly Accountability</h3>
+            <p>
+              Stay on track through focused check-ins that convert intention
+              into consistent action.
+            </p>
+          </article>
+          <article class="card feature-card">
+            <h3>Mindset + Strategy</h3>
+            <p>
+              Strengthen confidence while applying proven methods that improve
+              decision making and outcomes.
+            </p>
+          </article>
+          <article class="card feature-card">
+            <h3>Measurable Progress</h3>
+            <p>
+              Track key milestones clearly so you can see growth and keep
+              building momentum.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="testimonials" class="section">
+        <div class="section-heading">
+          <h2>Client Success Stories</h2>
+          <p>Real feedback from people who committed to growth.</p>
+        </div>
+        <div class="testimonials-grid">
+          <article class="card testimonial-card">
+            <p>
+              "In 8 weeks, I became more focused and finally executed my plan.
+              The weekly coaching sessions changed my consistency."
+            </p>
+            <h3>Priya S.</h3>
+            <span>Career Transition Client</span>
+          </article>
+          <article class="card testimonial-card">
+            <p>
+              "The structure and support helped me remove overwhelm. I now have
+              clear systems that actually work for me."
+            </p>
+            <h3>Rahul M.</h3>
+            <span>Entrepreneur</span>
+          </article>
+          <article class="card testimonial-card">
+            <p>
+              "I gained confidence and clarity quickly. It felt practical from
+              day one, not generic advice."
+            </p>
+            <h3>Neha K.</h3>
+            <span>Leadership Coaching Client</span>
+          </article>
+        </div>
+      </section>
+
+      <section id="contact" class="section">
+        <div class="section-heading">
+          <h2>Let's Talk About Your Goals</h2>
+          <p>Send a message and we'll get back to you within 24 hours.</p>
+        </div>
+
+        <form class="contact-form card" action="/api/contact" method="POST">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" placeholder="Your name" required />
+
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+          />
+
+          <label for="message">Message</label>
+          <textarea
+            id="message"
+            name="message"
+            rows="5"
+            placeholder="Tell us what you want to achieve..."
+            required
+          ></textarea>
+
+          <button type="submit" class="btn-primary">Send Message</button>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; 2026 CC Academy. All rights reserved.</p>
+      <div class="social-links">
+        <a href="#" aria-label="Instagram">Instagram</a>
+        <a href="#" aria-label="LinkedIn">LinkedIn</a>
+        <a href="#" aria-label="YouTube">YouTube</a>
+      </div>
+    </footer>
+
+    <div id="authModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+        <button id="closeAuthModal" class="modal-close" type="button" aria-label="Close dialog">
+          &times;
+        </button>
+        <img src="./public/logo_B1.png" alt="CC Academy" class="auth-modal-logo" />
+
+        <h2 id="authModalTitle">Student Registration</h2>
+
+        <form id="registerForm" class="auth-form" novalidate>
+          <div class="field">
+            <label for="studentName">Name</label>
+            <input id="studentName" name="name" type="text" />
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label for="studentMobile">Mobile Number</label>
+            <input id="studentMobile" name="mobile" type="tel" maxlength="15" readonly />
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label for="studentState">State</label>
+            <select id="studentState" name="state">
+              <option value="">Select state</option>
+            </select>
+            <small class="error-text"></small>
+          </div>
+
+          <div id="manualStateWrap" class="field hidden">
+            <label for="studentManualState">Enter State</label>
+            <input id="studentManualState" name="manualState" type="text" />
+            <small class="error-text"></small>
+          </div>
+
+          <div id="citySelectWrap" class="field">
+            <label for="studentCity">City</label>
+            <select id="studentCity" name="city">
+              <option value="">Select city</option>
+            </select>
+            <small class="error-text"></small>
+          </div>
+
+          <div id="manualCityWrap" class="field hidden">
+            <label for="studentManualCity">Enter City</label>
+            <input id="studentManualCity" name="manualCity" type="text" />
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label for="studentPassword">Password</label>
+            <div class="password-input-wrap">
+              <input id="studentPassword" name="password" type="password" />
+              <button type="button" class="password-toggle" data-target="studentPassword" aria-label="Show password">
+                ðŸ‘
+              </button>
+            </div>
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label for="studentConfirmPassword">Confirm Password</label>
+            <div class="password-input-wrap">
+              <input id="studentConfirmPassword" name="confirmPassword" type="password" />
+              <button
+                type="button"
+                class="password-toggle"
+                data-target="studentConfirmPassword"
+                aria-label="Show password"
+              >
+                ðŸ‘
+              </button>
+            </div>
+            <small class="error-text"></small>
+          </div>
+
+          <p id="registerMessage" class="form-message"></p>
+          <button type="submit" class="btn-primary auth-submit">Submit Registration</button>
+        </form>
+
+        <form id="loginForm" class="auth-form hidden" novalidate>
+          <div class="field">
+            <label for="loginMobile">Mobile Number (User ID)</label>
+            <input id="loginMobile" name="mobile" type="tel" maxlength="15" />
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label for="loginPassword">Password</label>
+            <div class="password-input-wrap">
+              <input id="loginPassword" name="password" type="password" />
+              <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Show password">
+                ðŸ‘
+              </button>
+            </div>
+            <button type="button" class="forgot-password-link">Forgot Password?</button>
+            <small class="error-text"></small>
+          </div>
+
+          <p id="loginMessage" class="form-message"></p>
+          <button type="submit" class="btn-primary auth-submit">Login</button>
+        </form>
+      </div>
+    </div>
+    <script src="./src/main.js?v=12"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login - CC Academy</title>
+    <link rel="stylesheet" href="../src/styles.css" />
+    <style>
+      .admin-login-wrap {
+        width: min(460px, 92%);
+        margin: 3.5rem auto 2rem;
+      }
+
+      .admin-login-card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        padding: 1.1rem;
+      }
+
+      .admin-login-title {
+        margin: 0 0 0.25rem;
+      }
+
+      .admin-login-sub {
+        margin: 0 0 0.9rem;
+        color: var(--muted);
+      }
+
+      .admin-login-form {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .admin-login-field {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .admin-login-field label {
+        font-weight: 600;
+      }
+
+      .admin-login-field input {
+        border: 1px solid #dcdcdc;
+        border-radius: 10px;
+        padding: 0.62rem 0.7rem;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="../index.html#home" class="brand">
+        <img src="../public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="../public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+    </header>
+
+    <main class="admin-login-wrap">
+      <article class="admin-login-card">
+        <h1 class="admin-login-title">Admin Login</h1>
+        <p class="admin-login-sub">Login with your admin credentials.</p>
+        <form id="adminLoginForm" class="admin-login-form" novalidate>
+          <div class="admin-login-field">
+            <label for="adminMobile">Mobile Number</label>
+            <input id="adminMobile" type="tel" maxlength="15" required />
+          </div>
+          <div class="admin-login-field">
+            <label for="adminPassword">Password</label>
+            <input id="adminPassword" type="password" required />
+          </div>
+          <p id="adminLoginMessage" class="form-message"></p>
+          <button type="submit" class="btn-primary">Login as Admin</button>
+        </form>
+      </article>
+    </main>
+
+    <script src="../src/admin-login.js?v=2"></script>
+      <script src="../src/global-nav.js?v=1"></script>
+  </body>
+</html>
+
