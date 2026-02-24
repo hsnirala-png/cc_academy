@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const maxPriceInput = document.querySelector("#maxPrice");
   const applyPriceFilterBtn = document.querySelector("#applyPriceFilterBtn");
   const quickLinkButtons = document.querySelectorAll(".quick-link-btn");
-  const auth = (() => {
+  const readStoredAuth = () => {
     const readAuth = (storage) => {
       const token = storage.getItem("cc_token");
       let user = null;
@@ -228,10 +228,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       token: localAuth.token || sessionAuth.token || null,
       user: localAuth.user || sessionAuth.user || null,
     };
-  })();
-  const token = auth.token;
-  const storedUser = auth.user;
-  const isStudentLoggedIn = Boolean(token && storedUser?.role === "STUDENT");
+  };
+  const getAuthState = () => {
+    const auth = readStoredAuth();
+    const token = auth.token;
+    const user = auth.user;
+    return {
+      token,
+      user,
+      isStudentLoggedIn: Boolean(token && user?.role === "STUDENT"),
+    };
+  };
 
   /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null}} */
   const state = {
@@ -413,6 +420,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadCheckoutPreview = async (productId, options = {}) => {
+    const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
       window.location.href = "./index.html?auth=login";
       return null;
@@ -457,6 +465,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const buyWithWallet = async (productId, options = {}) => {
+    const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
       window.location.href = "./index.html?auth=login";
       return;
@@ -485,6 +494,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const buyDirect = async (productId, options = {}) => {
+    const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
       window.location.href = "./index.html?auth=login";
       return;
@@ -751,6 +761,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const openCheckoutModal = async (productId, seededReferralCode = "") => {
+    const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
       window.location.href = "./index.html?auth=login";
       return;
@@ -776,6 +787,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const startLearningAttempt = async (mockTestId) => {
+    const { token } = getAuthState();
     if (!token) {
       window.location.href = "./index.html#home";
       return;
@@ -815,6 +827,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const openLessonByMockTestContext = async (mockTestId) => {
+    const { token } = getAuthState();
     if (!token) {
       window.location.href = "./index.html#home";
       return false;
@@ -1363,7 +1376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     referButtons.forEach((button) => {
       if (!button) return;
       button.addEventListener("click", () => {
-        if (isStudentLoggedIn) {
+        if (getAuthState().isStudentLoggedIn) {
           window.location.href = "./refer-earn.html";
           return;
         }
@@ -1540,6 +1553,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadProducts = async () => {
+    const { token } = getAuthState();
     const response = await fetch(`${API_BASE}/products`, {
       headers: token
         ? {
