@@ -1167,7 +1167,7 @@ export const mockTestService = {
     return fetchAttemptDetails(attemptId);
   },
 
-  async getLessonContextForMockTest(mockTestId: string) {
+  async getLessonContextForMockTest(mockTestId: string, userId?: string) {
     const lessons = await prisma.lesson.findMany({
       where: {
         assessmentTestId: mockTestId,
@@ -1192,8 +1192,33 @@ export const mockTestService = {
     });
 
     if (!lessons.length) return null;
+    const [accessMap, demoEntitledSet, enrollments] = await Promise.all([
+      loadMockTestAccessMap([mockTestId]),
+      loadDemoLinkedMockTests([mockTestId]),
+      userId
+        ? prisma.enrollment.findMany({
+            where: {
+              userId,
+              courseId: {
+                in: Array.from(new Set(lessons.map((lesson) => lesson.chapter.course.id))),
+              },
+            },
+            select: {
+              courseId: true,
+            },
+          })
+        : Promise.resolve([] as Array<{ courseId: string }>),
+    ]);
+    const accessCode = accessMap.get(mockTestId) || "DEMO";
+    const isDemoLessonContext = accessCode === "DEMO" || demoEntitledSet.has(mockTestId);
+    const enrolledCourseIds = new Set(enrollments.map((row) => row.courseId));
+    const eligibleLessons = isDemoLessonContext
+      ? lessons
+      : lessons.filter((lesson) => enrolledCourseIds.has(lesson.chapter.course.id));
 
-    const scoreLesson = (lesson: (typeof lessons)[number]) => {
+    if (!eligibleLessons.length) return null;
+
+    const scoreLesson = (lesson: (typeof eligibleLessons)[number]) => {
       let score = 0;
       const hasAudio = Boolean(normalizeLessonAssetUrl(lesson.audioUrl));
       const hasVideo = Boolean(normalizeLessonAssetUrl(lesson.videoUrl));
@@ -1212,7 +1237,7 @@ export const mockTestService = {
       return score;
     };
 
-    const lesson = lessons
+    const lesson = eligibleLessons
       .map((item, index) => ({ item, score: scoreLesson(item), index }))
       .sort((left, right) => {
         if (left.score !== right.score) return right.score - left.score;

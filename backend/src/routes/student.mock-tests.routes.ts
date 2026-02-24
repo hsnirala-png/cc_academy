@@ -41,7 +41,10 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
 
 studentMockTestsRouter.get("/mock-tests/:mockTestId/lesson-context", ...ensureStudent, async (req, res, next) => {
   try {
-    const lesson = await mockTestService.getLessonContextForMockTest(req.params.mockTestId);
+    const lesson = await mockTestService.getLessonContextForMockTest(
+      req.params.mockTestId,
+      req.user!.userId
+    );
     res.json({ lesson });
   } catch (error) {
     next(error);

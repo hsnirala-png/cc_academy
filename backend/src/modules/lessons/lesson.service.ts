@@ -43,6 +43,38 @@ const assertEnrollment = async (userId: string, courseId: string) => {
   }
 };
 
+const canAccessLessonAsDemo = async (assessmentTestId: string | null): Promise<boolean> => {
+  if (!assessmentTestId) return false;
+
+  const [accessRows, demoRows] = await Promise.all([
+    prisma.$queryRawUnsafe(
+      `
+        SELECT accessCode
+        FROM MockTestAccessRule
+        WHERE mockTestId = ?
+        LIMIT 1
+      `,
+      assessmentTestId
+    ) as Promise<Array<{ accessCode: string | null }>>,
+    prisma.$queryRawUnsafe(
+      `
+        SELECT 1 AS ok
+        FROM ProductDemoMockTest
+        WHERE mockTestId = ?
+        LIMIT 1
+      `,
+      assessmentTestId
+    ) as Promise<Array<{ ok: number }>>,
+  ]);
+
+  const accessCode = String(accessRows[0]?.accessCode || "")
+    .trim()
+    .toUpperCase();
+  if (accessCode === "DEMO") return true;
+  if (demoRows.length > 0) return true;
+  return false;
+};
+
 const getAssignedCourses = async (userId: string) =>
   prisma.enrollment.findMany({
     where: {
@@ -236,7 +268,18 @@ export const lessonService = {
       throw new AppError("Lesson not found", 404);
     }
 
-    await assertEnrollment(userId, lesson.chapter.course.id);
+    try {
+      await assertEnrollment(userId, lesson.chapter.course.id);
+    } catch (error) {
+      const appError = error as AppError;
+      if (!(appError instanceof AppError) || appError.statusCode !== 403) {
+        throw error;
+      }
+      const demoAllowed = await canAccessLessonAsDemo(lesson.assessmentTestId);
+      if (!demoAllowed) {
+        throw error;
+      }
+    }
 
     const progress = mapLessonProgress(lesson.progress[0] ?? null);
     const assignedCourses = await this.listAssignedCourses(userId);
@@ -284,7 +327,18 @@ export const lessonService = {
       throw new AppError("Lesson not found", 404);
     }
 
-    await assertEnrollment(userId, lesson.chapter.courseId);
+    try {
+      await assertEnrollment(userId, lesson.chapter.courseId);
+    } catch (error) {
+      const appError = error as AppError;
+      if (!(appError instanceof AppError) || appError.statusCode !== 403) {
+        throw error;
+      }
+      const demoAllowed = await canAccessLessonAsDemo(lesson.assessmentTestId);
+      if (!demoAllowed) {
+        throw error;
+      }
+    }
 
     const nextPositionSec = normalizePositionSec(payload.lastPositionSec, lesson.durationSec);
     const autoCompleted =

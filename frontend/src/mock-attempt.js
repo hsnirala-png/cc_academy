@@ -1066,7 +1066,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadAttemptData();
     setStatus("");
   } catch (error) {
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401) {
       clearAuth();
       window.location.href = "./index.html";
       return;
