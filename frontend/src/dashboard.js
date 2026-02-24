@@ -2,7 +2,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   const header = document.querySelector(".site-header");
   const menuToggle = document.querySelector(".menu-toggle");
   const navLinks = document.querySelectorAll(".nav-links a");
-  const token = localStorage.getItem("cc_token");
+  const readStoredAuth = () => {
+    const parseAuth = (storage) => {
+      const token = storage.getItem("cc_token");
+      let user = null;
+      try {
+        user = JSON.parse(storage.getItem("cc_user") || "null");
+      } catch {
+        user = null;
+      }
+      return { token, user };
+    };
+    const localAuth = parseAuth(localStorage);
+    const sessionAuth = parseAuth(sessionStorage);
+    if (localAuth.token && localAuth.user) return localAuth;
+    if (sessionAuth.token && sessionAuth.user) return sessionAuth;
+    return {
+      token: localAuth.token || sessionAuth.token || null,
+      user: localAuth.user || sessionAuth.user || null,
+    };
+  };
+  const storedAuth = readStoredAuth();
+  const token = storedAuth.token;
   const dashMessage = document.querySelector("#dashMessage");
   const logoutBtn = document.querySelector("#logoutBtn");
   const dashTitleName = document.querySelector("#dashTitleName");
@@ -335,12 +356,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const getProfileStoreKey = (mobile) => `cc_profile_${mobile || ""}`;
 
   const getCurrentProfileKey = () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("cc_user") || "{}");
-      return getProfileStoreKey(user?.mobile || "");
-    } catch {
-      return getProfileStoreKey("");
-    }
+    const user = readStoredAuth().user;
+    return getProfileStoreKey(user?.mobile || "");
   };
 
   const openCoverModal = () => {
@@ -947,10 +964,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   } catch (error) {
     setMessage("Unable to load dashboard. Please ensure backend is running.", "error");
-    const localUserRaw = localStorage.getItem("cc_user");
-    if (localUserRaw) {
+    const localUser = readStoredAuth().user;
+    if (localUser) {
       try {
-        const localUser = JSON.parse(localUserRaw);
         if (localUser?.role === "ADMIN") {
           window.location.href = "./admin.html";
           return;

@@ -209,14 +209,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   const maxPriceInput = document.querySelector("#maxPrice");
   const applyPriceFilterBtn = document.querySelector("#applyPriceFilterBtn");
   const quickLinkButtons = document.querySelectorAll(".quick-link-btn");
-  const storedUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("cc_user") || "null");
-    } catch {
-      return null;
-    }
+  const auth = (() => {
+    const readAuth = (storage) => {
+      const token = storage.getItem("cc_token");
+      let user = null;
+      try {
+        user = JSON.parse(storage.getItem("cc_user") || "null");
+      } catch {
+        user = null;
+      }
+      return { token, user };
+    };
+    const localAuth = readAuth(localStorage);
+    const sessionAuth = readAuth(sessionStorage);
+    if (localAuth.token && localAuth.user) return localAuth;
+    if (sessionAuth.token && sessionAuth.user) return sessionAuth;
+    return {
+      token: localAuth.token || sessionAuth.token || null,
+      user: localAuth.user || sessionAuth.user || null,
+    };
   })();
-  const token = localStorage.getItem("cc_token");
+  const token = auth.token;
+  const storedUser = auth.user;
   const isStudentLoggedIn = Boolean(token && storedUser?.role === "STUDENT");
 
   /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null}} */
@@ -762,7 +776,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const startLearningAttempt = async (mockTestId) => {
-    if (!isStudentLoggedIn || !token) {
+    if (!token) {
       window.location.href = "./index.html#home";
       return;
     }
@@ -801,7 +815,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const openLessonByMockTestContext = async (mockTestId) => {
-    if (!isStudentLoggedIn || !token) {
+    if (!token) {
       window.location.href = "./index.html#home";
       return false;
     }

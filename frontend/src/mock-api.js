@@ -41,15 +41,33 @@ export const REQUIRED_QUESTIONS_BY_SUBJECT = {
   SOCIAL_STUDIES: 60,
 };
 
-export const getStoredUser = () => {
+const readAuthFromStorage = (storage) => {
+  const token = storage.getItem("cc_token");
+  let user = null;
   try {
-    return JSON.parse(localStorage.getItem("cc_user") || "null");
+    user = JSON.parse(storage.getItem("cc_user") || "null");
   } catch {
-    return null;
+    user = null;
   }
+  return { token, user };
 };
 
-export const getStoredToken = () => localStorage.getItem("cc_token");
+const getStoredAuth = () => {
+  const localAuth = readAuthFromStorage(localStorage);
+  const sessionAuth = readAuthFromStorage(sessionStorage);
+
+  if (localAuth.token && localAuth.user) return localAuth;
+  if (sessionAuth.token && sessionAuth.user) return sessionAuth;
+
+  return {
+    token: localAuth.token || sessionAuth.token || null,
+    user: localAuth.user || sessionAuth.user || null,
+  };
+};
+
+export const getStoredUser = () => getStoredAuth().user;
+
+export const getStoredToken = () => getStoredAuth().token;
 
 export const clearAuth = () => {
   localStorage.removeItem("cc_token");
