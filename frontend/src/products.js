@@ -13,62 +13,55 @@ const DEFAULT_PRODUCT_HIGHLIGHTS = [
   "Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot",
   "Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject.",
 ];
-const PRODUCT_EXAMS_COVERED = [
+const DEFAULT_SALIENT_FEATURES = ["Audio Lesson", "Scroll with Audio", "Digital Test", "Timer Enable"];
+const DEFAULT_PRODUCT_EXAMS_COVERED = [
   { title: "PSTET", imageUrl: "./public/PSTET_7.png" },
   { title: "Punjab Teaching Exams", imageUrl: "./public/PSTET_8.png" },
   { title: "CTET", imageUrl: "./public/PSTET_10.png" },
 ];
-const PSTET_OVERVIEW_PARAGRAPHS = [
-  "ਜਿਵੇਂ ਕਿ ਤੁਹਾਨੂੰ ਪਤਾ ਹੈ, PSTET ਦੀ ਪ੍ਰੀਖਿਆ 15 ਮਾਰਚ 2026 ਨੂੰ ਹੋਣੀ ਨਿਸ਼ਚਿਤ ਕੀਤੀ ਗਈ ਹੈ। ਇਸ ਨੂੰ ਧਿਆਨ ਵਿੱਚ ਰੱਖਦੇ ਹੋਏ, CC Academy ਵੱਲੋਂ PSTET Paper-1 ਅਤੇ Paper-2 ਸਾਲ 2026 ਲਈ ਇੱਕ ਵਿਸ਼ੇਸ਼ Live Crash Course ਸ਼ੁਰੂ ਕੀਤਾ ਗਿਆ ਹੈ। ਇਹ ਕੋਰਸ Bilingual (ਪੰਜਾਬੀ ਅਤੇ ਅੰਗਰੇਜ਼ੀ) ਭਾਸ਼ਾ ਵਿੱਚ ਹੋਵੇਗਾ, ਤਾਂ ਜੋ ਹਰ ਵਿਦਿਆਰਥੀ ਲਈ ਸਮਝਣਾ ਆਸਾਨ ਰਹੇ।",
-  "ਇਸ ਬੈਚ ਵਿੱਚ ਤੁਹਾਨੂੰ ਇੰਟਰਐਕਟਿਵ ਕਲਾਸਾਂ ਮਿਲਣਗੀਆਂ, ਨਾਲ ਹੀ ਤੇਜ਼ ਰਿਵੀਜ਼ਨ ਲਈ ਰਿਕਾਰਡਡ ਵੀਡੀਓਜ਼ ਵੀ ਉਪਲਬਧ ਹੋਣਗੀਆਂ। ਸਿਖਲਾਈ ਨੂੰ ਹੋਰ ਪ੍ਰਭਾਵਸ਼ਾਲੀ ਬਣਾਉਣ ਲਈ Audio-Supported Lessons ਸਕ੍ਰੀਨ ਸਕ੍ਰੋਲ ਦੇ ਨਾਲ ਪ੍ਰਦਾਨ ਕੀਤੇ ਜਾਣਗੇ, ਜਿਸ ਨਾਲ ਪੜ੍ਹਾਈ ਹੋਰ ਵੀ ਆਸਾਨ ਅਤੇ ਦਿਲਚਸਪ ਬਣੇਗੀ।",
-  "ਕੋਰਸ ਵਿੱਚ Child Development & Pedagogy, ਪੰਜਾਬੀ, ਅੰਗਰੇਜ਼ੀ, ਗਣਿਤ, ਵਾਤਾਵਰਣ ਅਧਿਐਨ, ਅਤੇ ਸਮਾਜਿਕ ਅਧਿਐਨ/ਵਿਗਿਆਨ ਸਮੇਤ ਸਾਰੇ ਜ਼ਰੂਰੀ ਵਿਸ਼ੇ ਕਵਰ ਕੀਤੇ ਜਾਣਗੇ।",
-  "ਵਿਦਿਆਰਥੀਆਂ ਦੀ ਤਿਆਰੀ ਅਤੇ ਪ੍ਰਗਤੀ ਨੂੰ ਮਾਪਣ ਲਈ ਨਿਯਮਿਤ Digital Tests & Evaluations ਕਰਵਾਏ ਜਾਣਗੇ। ਇਹ ਟੈਸਟ PSTET ਦੀ ਅਸਲ ਪ੍ਰੀਖਿਆ ਦੇ ਪੈਟਰਨ ਅਨੁਸਾਰ MCQs 'ਤੇ ਆਧਾਰਿਤ ਹੋਣਗੇ, ਅਤੇ ਹਰ MCQ ਲਈ ਉਚਿਤ ਸਮਾਂ ਵੀ ਨਿਰਧਾਰਤ ਕੀਤਾ ਜਾਵੇਗਾ, ਤਾਂ ਜੋ ਵਿਦਿਆਰਥੀ ਅਸਲੀ ਇਗਜ਼ਾਮ ਵਾਲੇ ਮਾਹੌਲ ਵਿੱਚ ਪ੍ਰੈਕਟਿਸ ਕਰ ਸਕਣ। ਇਸ ਨਾਲ ਤਿਆਰੀ ਹੋਰ ਵੀ ਪ੍ਰਭਾਵਸ਼ਾਲੀ ਬਣੇਗੀ ਅਤੇ ਸਿੱਖਣ ਦੀ ਗੁਣਵੱਤਾ ਯਕੀਨੀ ਬਣਾਈ ਜਾ ਸਕੇਗੀ। ਪ੍ਰੀਖਿਆ ਲਈ ਮਜ਼ਬੂਤ ਰਣਨੀਤੀ ਤਿਆਰ ਕਰਨ ਵਾਸਤੇ ਵਿਸ਼ੇਸ਼ Strategy Sessions ਵੀ ਸ਼ਾਮਲ ਹਨ।",
-];
-const PSTET_PACKAGE_INCLUDES = [
-  "Recorded Videos for Quick Revision",
-  "Audio-Supported Lessons with Scroll",
-  "Digital Tests & Evaluations with Performance Review",
-  "Strategy Sessions for Final Exam Preparation",
-  "Doubt Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions",
-];
-const PSTET_STUDY_PLAN = [
-  "Days 4-5: Child Development & Pedagogy + Language Foundation",
-  "Days 3-4: Mathematics + Environmental Studies / Science & Social",
-  "Days 3-5: Full-Length Practice + Topic-Wise Revision",
-  "Days 1-2: Mock-Based Analysis + Strategy Sessions + Final Revision",
-];
-const PSTET_SUBJECTS_COVERED = [
-  "Child Development & Pedagogy",
-  "Punjabi Language",
-  "English Language",
-  "Mathematics",
-  "Environmental Studies",
-  "Social Studies / Science",
-];
-const PSTET_EXAM_PATTERN = [
-  "Mode: Objective 150 MCQ based परीक्षा pattern",
-  "Regular Digital Tests based on latest PSTET trend",
-  "Timed MCQ practice for real exam simulation",
-  "Accuracy + Speed analysis after every test",
-];
-const PSTET_FAQS = [
-  {
-    q: "Is this batch suitable for both PSTET Paper-1 and Paper-2?",
-    a: "Yes. This crash course is structured for both Paper-1 and Paper-2 preparation.",
-  },
-  {
-    q: "Will classes be available in Punjabi and English?",
-    a: "Yes. The course is bilingual so learners can understand every concept easily.",
-  },
-  {
-    q: "Do I get recorded lectures along with live classes?",
-    a: "Yes. Live classes plus recorded videos are provided for fast revision.",
-  },
-  {
-    q: "How is test practice handled in this course?",
-    a: "You get regular timed digital tests, exam-pattern MCQs, and evaluation insights.",
-  },
-];
+const DEFAULT_PRODUCT_DETAILS_TABS = {
+  overview: [
+    "This program is designed for structured, exam-focused preparation with lesson-first learning flow.",
+    "Students can start with guided audio-scroll lessons and move to test attempts with full flexibility.",
+  ],
+  packageIncludes: [
+    "Audio-supported lessons with scroll content",
+    "Structured chapter-wise learning flow",
+    "Timed digital practice tests",
+    "Progress tracking and performance support",
+    "Quick revision support content",
+  ],
+  studyPlan: [
+    "Concept learning with guided lessons",
+    "Daily topic-wise practice",
+    "Mock-based revision cycle",
+    "Final strategy and exam readiness sessions",
+  ],
+  subjectsCovered: [
+    "Child Development & Pedagogy",
+    "Punjabi Language",
+    "English Language",
+    "Mathematics",
+    "Environmental Studies",
+    "Social Studies / Science",
+  ],
+  examPattern: [
+    "Objective MCQ-based practice",
+    "Timed attempts to simulate real exam pressure",
+    "Topic-level and full-length mixed tests",
+    "Performance review for speed and accuracy",
+  ],
+  faqs: [
+    {
+      q: "Is this course suitable for beginners?",
+      a: "Yes. It starts from core concepts and progressively moves toward test-level practice.",
+    },
+    {
+      q: "Can I attempt tests while audio is running?",
+      a: "Yes. The learning flow supports moving to attempts and returning to lesson playback when needed.",
+    },
+  ],
+};
 const SALIENT_FEATURES = [
   {
     label: "Audio Lesson",
@@ -776,7 +769,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await refreshCheckoutPreview();
   };
 
-  const startLearningAttempt = async (mockTestId) => {
+  const startLearningAttempt = async (mockTestId, { autoplay = false } = {}) => {
     const { token } = getAuthState();
     if (!token) {
       window.location.href = "./index.html#home";
@@ -803,8 +796,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const attemptPagePath = await resolveAttemptPagePath();
-    const separator = attemptPagePath.includes("?") ? "&" : "?";
-    window.location.href = `${attemptPagePath}${separator}attemptId=${encodeURIComponent(attemptId)}`;
+    const params = new URLSearchParams();
+    params.set("attemptId", attemptId);
+    if (autoplay) params.set("autoplay", "1");
+    window.location.href = `${attemptPagePath}?${params.toString()}`;
   };
 
   const normalizeDemoLessonUrl = (value) => {
@@ -816,7 +811,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `./${raw}`;
   };
 
-  const openLessonByMockTestContext = async (mockTestId) => {
+  const openLessonByMockTestContext = async (mockTestId, { autoplay = false } = {}) => {
     const { token } = getAuthState();
     if (!token) {
       window.location.href = "./index.html#home";
@@ -844,6 +839,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams();
     params.set("lessonId", lessonId);
     if (chapterId) params.set("chapterId", chapterId);
+    if (autoplay) params.set("autoplay", "1");
     window.location.href = `${lessonPagePath}?${params.toString()}`;
     return true;
   };
@@ -908,7 +904,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_LESSON_OR_ATTEMPT",
-        ctaLabel: "Play Lesson",
+        ctaLabel: "Play",
       });
     } else if (demoLessonUrl) {
       items.push({
@@ -917,7 +913,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_DEMO_URL",
-        ctaLabel: "Play Lesson",
+        ctaLabel: "Play",
       });
     }
 
@@ -932,7 +928,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessType: "PREMIUM",
         unlocked: premiumUnlocked,
         action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
-        ctaLabel: isLessonLinked ? "Play Lesson" : "Attempt Test",
+        ctaLabel: isLessonLinked ? "Play" : "Attempt Test",
       });
     });
 
@@ -943,6 +939,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!items.length) {
       return `<p class="product-learn-empty">Demo lesson is not configured for this product yet.</p>`;
     }
+    const isPlayAction = (action) =>
+      action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT";
 
     return `
       <div class="product-learn-table-wrap">
@@ -956,8 +954,19 @@ document.addEventListener("DOMContentLoaded", async () => {
           </thead>
           <tbody>
             ${items
-              .map(
-                (item, index) => `
+              .map((item, index) => {
+                const action = item.action || "ATTEMPT_TEST";
+                const playAction = isPlayAction(action);
+                const buttonClass = item.unlocked
+                  ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}`
+                  : "btn-ghost";
+                const buttonLabel = item.unlocked
+                  ? playAction
+                    ? '<span aria-hidden="true">&#9654;</span><span class="sr-only">Play lesson</span>'
+                    : escapeHtml(item.ctaLabel || "Start")
+                  : "Premium Required";
+
+                return `
                   <tr>
                     <td>${index + 1}</td>
                     <td>
@@ -967,18 +976,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <td>
                       <button
                         type="button"
-                        class="${item.unlocked ? "btn-secondary" : "btn-ghost"}"
+                        class="${buttonClass}"
                         data-start-learning-id="${escapeHtml(item.id)}"
-                        data-start-learning-action="${escapeHtml(item.action || "ATTEMPT_TEST")}"
+                        data-start-learning-action="${escapeHtml(action)}"
                         data-learning-locked="${item.unlocked ? "false" : "true"}"
-                        ${item.unlocked ? "" : 'disabled title="Buy premium product to unlock."'}
+                        ${
+                          item.unlocked
+                            ? playAction
+                              ? 'aria-label="Play lesson"'
+                              : ""
+                            : 'disabled title="Buy premium product to unlock."'
+                        }
                       >
-                        ${item.unlocked ? escapeHtml(item.ctaLabel || "Start") : "Premium Required"}
+                        ${buttonLabel}
                       </button>
                     </td>
                   </tr>
-                `
-              )
+                `;
+              })
               .join("")}
           </tbody>
         </table>
@@ -986,20 +1001,88 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   };
 
-  const renderSalientFeatures = () => `
+  const normalizeTextList = (value, fallback) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...fallback];
+  };
+
+  const normalizeFaqList = (value) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const q = String(item.q || "").trim();
+        const a = String(item.a || "").trim();
+        if (!q || !a) return null;
+        return { q, a };
+      })
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...DEFAULT_PRODUCT_DETAILS_TABS.faqs];
+  };
+
+  const normalizeExamsCoveredList = (value) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const title = String(item.title || "").trim();
+        const imageUrl = String(item.imageUrl || "").trim();
+        if (!title) return null;
+        return { title, imageUrl: imageUrl || "./public/PSTET_7.png" };
+      })
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...DEFAULT_PRODUCT_EXAMS_COVERED];
+  };
+
+  const normalizeProductDetailsContent = (rawValue) => {
+    const raw =
+      rawValue && typeof rawValue === "object" && !Array.isArray(rawValue) ? rawValue : {};
+    const detailsTabs =
+      raw.detailsTabs && typeof raw.detailsTabs === "object" && !Array.isArray(raw.detailsTabs)
+        ? raw.detailsTabs
+        : {};
+    const highlightsSource = Array.isArray(rawValue) ? rawValue : raw.highlights;
+    return {
+      highlights: normalizeTextList(highlightsSource, DEFAULT_PRODUCT_HIGHLIGHTS),
+      salientFeatures: normalizeTextList(raw.salientFeatures, DEFAULT_SALIENT_FEATURES),
+      examsCovered: normalizeExamsCoveredList(raw.examsCovered),
+      detailsTabs: {
+        overview: normalizeTextList(detailsTabs.overview, DEFAULT_PRODUCT_DETAILS_TABS.overview),
+        packageIncludes: normalizeTextList(
+          detailsTabs.packageIncludes,
+          DEFAULT_PRODUCT_DETAILS_TABS.packageIncludes
+        ),
+        studyPlan: normalizeTextList(detailsTabs.studyPlan, DEFAULT_PRODUCT_DETAILS_TABS.studyPlan),
+        subjectsCovered: normalizeTextList(
+          detailsTabs.subjectsCovered,
+          DEFAULT_PRODUCT_DETAILS_TABS.subjectsCovered
+        ),
+        examPattern: normalizeTextList(detailsTabs.examPattern, DEFAULT_PRODUCT_DETAILS_TABS.examPattern),
+        faqs: normalizeFaqList(detailsTabs.faqs),
+      },
+    };
+  };
+
+  const renderSalientFeatures = (detailsContent) => `
     <section class="product-salient-features">
       <h4>Salient <span>Features</span></h4>
       <div class="product-salient-grid">
-        ${SALIENT_FEATURES.map(
-          (feature) => `
+        ${detailsContent.salientFeatures
+          .map((label, index) => {
+            const fallbackIcon = SALIENT_FEATURES[index % SALIENT_FEATURES.length]?.icon || "";
+            return `
             <article class="product-salient-item">
               <span class="product-salient-icon">
-                ${feature.icon}
+                ${fallbackIcon}
               </span>
-              <span>${escapeHtml(feature.label)}</span>
+              <span>${escapeHtml(label)}</span>
             </article>
-          `
-        ).join("")}
+          `;
+          })
+          .join("")}
       </div>
       <div class="product-contact-card">
         <span class="product-contact-icon" aria-hidden="true">
@@ -1014,14 +1097,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
     </section>
   `;
-
-  const toProductHighlights = (rawValue) => {
-    const source = Array.isArray(rawValue) ? rawValue : [];
-    const cleaned = source
-      .map((item) => String(item || "").trim())
-      .filter(Boolean);
-    return cleaned.length ? cleaned : [...DEFAULT_PRODUCT_HIGHLIGHTS];
-  };
 
   const renderProductHighlights = (highlights) => `
     <section class="product-highlights">
@@ -1045,11 +1120,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     </section>
   `;
 
-  const renderExamsCovered = () => `
+  const renderProductDescription = (description) => `
+    <section class="product-description-section">
+      <h4>Descriptions of Product</h4>
+      <p>${escapeHtml(description || "Comprehensive learning package.")}</p>
+    </section>
+  `;
+
+  const renderExamsCovered = (detailsContent) => `
     <section class="product-exams-covered">
       <h4>Exams <span>Covered</span></h4>
       <div class="product-exams-grid">
-        ${PRODUCT_EXAMS_COVERED.map(
+        ${detailsContent.examsCovered.map(
           (item) => `
             <article class="product-exam-item">
               <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" />
@@ -1060,13 +1142,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
     </section>
   `;
-
-  const isPstetProduct = (product) => {
-    const haystack = [product?.title, product?.examCategory, product?.examName]
-      .map((item) => String(item || "").toLowerCase())
-      .join(" ");
-    return haystack.includes("pstet");
-  };
 
   const renderPstetBulletList = (items) => `
     <ul class="product-pstet-list">
@@ -1089,8 +1164,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     </div>
   `;
 
-  const renderPstetTabs = (product) => {
-    if (!isPstetProduct(product)) return "";
+  const renderProductDetailsTabs = (detailsContent) => {
+    const tabs = detailsContent.detailsTabs;
     return `
       <section class="product-pstet-tabs" data-pstet-tabs>
         <div class="product-pstet-tab-nav" role="tablist" aria-label="Course details tabs">
@@ -1103,22 +1178,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         <div class="product-pstet-tab-panels">
           <section class="product-pstet-tab-panel is-active" data-pstet-tab-panel="overview">
-            ${PSTET_OVERVIEW_PARAGRAPHS.map((para) => `<p>${escapeHtml(para)}</p>`).join("")}
+            ${tabs.overview.map((para) => `<p>${escapeHtml(para)}</p>`).join("")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="includes">
-            ${renderPstetBulletList(PSTET_PACKAGE_INCLUDES)}
+            ${renderPstetBulletList(tabs.packageIncludes)}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="plan">
-            ${renderPstetBulletList(PSTET_STUDY_PLAN)}
+            ${renderPstetBulletList(tabs.studyPlan)}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="subjects">
-            ${renderPstetBulletList(PSTET_SUBJECTS_COVERED)}
+            ${renderPstetBulletList(tabs.subjectsCovered)}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="pattern">
-            ${renderPstetBulletList(PSTET_EXAM_PATTERN)}
+            ${renderPstetBulletList(tabs.examPattern)}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="faqs">
-            ${renderPstetFaqList(PSTET_FAQS)}
+            ${renderPstetFaqList(tabs.faqs)}
           </section>
         </div>
       </section>
@@ -1137,7 +1212,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     productsGrid.innerHTML = state.filtered
       .map((product) => {
         const thumb = normalizeAssetUrl(product.thumbnailUrl);
-        const highlights = toProductHighlights(product.addons);
+        const detailsContent = normalizeProductDetailsContent(product.addons);
+        const highlights = detailsContent.highlights;
         const productId = String(product.id || "").trim();
         const referralFriendDiscount = Number(product.referralDiscountAmount || 0);
         return `
@@ -1158,7 +1234,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </p>
                 <h3>${escapeHtml(product.title)}</h3>
                 <p class="product-meta">${escapeHtml(product.examCategory)} | ${escapeHtml(product.examName)}</p>
-                <p class="product-description">${escapeHtml(product.description || "Comprehensive learning package.")}</p>
                 <div class="product-pricing">
                   <strong>${toCurrency(product.salePrice)}</strong>
                   <span class="product-mrp">${toCurrency(product.listPrice)}</span>
@@ -1169,15 +1244,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                   Friend Code Discount: ${toCurrency(referralFriendDiscount)}
                 </p>
                 <p class="product-access">${product.accessDays} days access</p>
-                <div class="product-referral-code-wrap">
-                  <input
-                    type="text"
-                    class="product-referral-code-input"
-                    data-product-referral-code
-                    maxlength="40"
-                    placeholder="Use friend Student ID / referral code (optional)"
-                  />
-                </div>
                 <div class="product-actions">
                   <button
                     type="button"
@@ -1201,10 +1267,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${renderLearningTable(product)}
             </aside>
             </article>
-            ${renderSalientFeatures()}
+            ${renderProductDescription(product.description)}
+            ${renderSalientFeatures(detailsContent)}
             ${renderProductHighlights(highlights)}
-            ${renderExamsCovered()}
-            ${renderPstetTabs(product)}
+            ${renderExamsCovered(detailsContent)}
+            ${renderProductDetailsTabs(detailsContent)}
           </div>
         `;
       })
@@ -1376,6 +1443,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(selectEl instanceof HTMLSelectElement)) return;
       selectEl.addEventListener("change", () => navigateByCourse(selectEl.value));
     });
+
+    const syncHeaderForViewport = () => {
+      if (window.innerWidth <= 680) return;
+      header.classList.remove("menu-open");
+      header.classList.remove("mobile-search-open");
+      if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+      if (mobileSearchToggle) mobileSearchToggle.setAttribute("aria-expanded", "false");
+    };
+
+    syncHeaderForViewport();
+    window.addEventListener("resize", syncHeaderForViewport);
   };
 
   const bindFilters = () => {
@@ -1483,12 +1561,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (learningAction === "OPEN_LESSON_OR_ATTEMPT") {
               setMessage("Opening lesson...");
-              const opened = await openLessonByMockTestContext(learningId);
+              const opened = await openLessonByMockTestContext(learningId, { autoplay: true });
               if (opened) return;
             }
 
             setMessage("Starting learning attempt...");
-            await startLearningAttempt(learningId);
+            await startLearningAttempt(learningId, {
+              autoplay: learningAction === "OPEN_LESSON_OR_ATTEMPT",
+            });
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to start learning.";
             setMessage(message, "error");
@@ -1542,7 +1622,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const loadProducts = async () => {
     const { token } = getAuthState();
-    const response = await fetch(`${API_BASE}/products`, {
+    const requestUrl = `${API_BASE}/products?_t=${Date.now()}`;
+    const response = await fetch(requestUrl, {
+      cache: "no-store",
       headers: token
         ? {
             Authorization: `Bearer ${token}`,
@@ -1584,4 +1666,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
+
 

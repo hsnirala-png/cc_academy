@@ -74,6 +74,82 @@ type ProductMockTestRow = {
   mockTestIsActive: number | boolean;
 };
 
+type ProductFaq = { q: string; a: string };
+type ProductExamCovered = { title: string; imageUrl: string };
+type ProductDetailsTabs = {
+  overview: string[];
+  packageIncludes: string[];
+  studyPlan: string[];
+  subjectsCovered: string[];
+  examPattern: string[];
+  faqs: ProductFaq[];
+};
+type ProductDetailsContent = {
+  highlights: string[];
+  salientFeatures: string[];
+  examsCovered: ProductExamCovered[];
+  detailsTabs: ProductDetailsTabs;
+};
+
+const DEFAULT_PRODUCT_HIGHLIGHTS = [
+  "Access to Structured Classes in Audio with Scroll Form",
+  "Doubt Solving Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions (subject to availability).",
+  "Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot",
+  "Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject.",
+];
+
+const DEFAULT_SALIENT_FEATURES = ["Audio Lesson", "Scroll with Audio", "Digital Test", "Timer Enable"];
+
+const DEFAULT_EXAMS_COVERED = [
+  { title: "PSTET", imageUrl: "./public/PSTET_7.png" },
+  { title: "Punjab Teaching Exams", imageUrl: "./public/PSTET_8.png" },
+  { title: "CTET", imageUrl: "./public/PSTET_10.png" },
+];
+
+const DEFAULT_PRODUCT_DETAILS_TABS = {
+  overview: [
+    "This program is designed for structured, exam-focused preparation with lesson-first learning flow.",
+    "Students can start with guided audio-scroll lessons and move to test attempts with full flexibility.",
+  ],
+  packageIncludes: [
+    "Audio-supported lessons with scroll content",
+    "Structured chapter-wise learning flow",
+    "Timed digital practice tests",
+    "Progress tracking and performance support",
+    "Quick revision support content",
+  ],
+  studyPlan: [
+    "Concept learning with guided lessons",
+    "Daily topic-wise practice",
+    "Mock-based revision cycle",
+    "Final strategy and exam readiness sessions",
+  ],
+  subjectsCovered: [
+    "Child Development & Pedagogy",
+    "Punjabi Language",
+    "English Language",
+    "Mathematics",
+    "Environmental Studies",
+    "Social Studies / Science",
+  ],
+  examPattern: [
+    "Objective MCQ-based practice",
+    "Timed attempts to simulate real exam pressure",
+    "Topic-level and full-length mixed tests",
+    "Performance review for speed and accuracy",
+  ],
+  faqs: [
+    {
+      q: "Is this course suitable for beginners?",
+      a: "Yes. It starts from core concepts and progressively moves toward test-level practice.",
+    },
+    {
+      q: "Can I attempt tests while audio is running?",
+      a: "Yes. The learning flow supports moving to attempts and returning to lesson playback when needed.",
+    },
+  ],
+};
+
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -98,29 +174,86 @@ const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   return "DEMO";
 };
 
-const parseAddons = (value: unknown): string[] => {
-  if (!value) return [];
+const normalizeTextList = (value: unknown, fallback: string[]): string[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return cleaned.length ? cleaned : [...fallback];
+};
 
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter((item) => item.length > 0);
-  }
+const normalizeFaqList = (value: unknown): ProductFaq[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const q = String((item as { q?: unknown }).q || "").trim();
+      const a = String((item as { a?: unknown }).a || "").trim();
+      if (!q || !a) return null;
+      return { q, a };
+    })
+    .filter((item): item is ProductFaq => Boolean(item));
+  return cleaned.length ? cleaned : [...DEFAULT_PRODUCT_DETAILS_TABS.faqs];
+};
+
+const normalizeExamsCoveredList = (value: unknown): ProductExamCovered[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const title = String((item as { title?: unknown }).title || "").trim();
+      const imageUrl = String((item as { imageUrl?: unknown }).imageUrl || "").trim();
+      if (!title) return null;
+      return {
+        title,
+        imageUrl: imageUrl || "./public/PSTET_7.png",
+      };
+    })
+    .filter((item): item is ProductExamCovered => Boolean(item));
+  return cleaned.length ? cleaned : [...DEFAULT_EXAMS_COVERED];
+};
+
+const normalizeProductDetailsContent = (value: unknown): ProductDetailsContent => {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const detailsTabsRaw =
+    raw.detailsTabs && typeof raw.detailsTabs === "object" && !Array.isArray(raw.detailsTabs)
+      ? (raw.detailsTabs as Record<string, unknown>)
+      : {};
+
+  const highlightsSource = Array.isArray(value) ? value : raw.highlights;
+  return {
+    highlights: normalizeTextList(highlightsSource, DEFAULT_PRODUCT_HIGHLIGHTS),
+    salientFeatures: normalizeTextList(raw.salientFeatures, DEFAULT_SALIENT_FEATURES),
+    examsCovered: normalizeExamsCoveredList(raw.examsCovered),
+    detailsTabs: {
+      overview: normalizeTextList(detailsTabsRaw.overview, DEFAULT_PRODUCT_DETAILS_TABS.overview),
+      packageIncludes: normalizeTextList(
+        detailsTabsRaw.packageIncludes,
+        DEFAULT_PRODUCT_DETAILS_TABS.packageIncludes
+      ),
+      studyPlan: normalizeTextList(detailsTabsRaw.studyPlan, DEFAULT_PRODUCT_DETAILS_TABS.studyPlan),
+      subjectsCovered: normalizeTextList(
+        detailsTabsRaw.subjectsCovered,
+        DEFAULT_PRODUCT_DETAILS_TABS.subjectsCovered
+      ),
+      examPattern: normalizeTextList(detailsTabsRaw.examPattern, DEFAULT_PRODUCT_DETAILS_TABS.examPattern),
+      faqs: normalizeFaqList(detailsTabsRaw.faqs),
+    },
+  };
+};
+
+const parseAddons = (value: unknown): ProductDetailsContent => {
+  if (!value) return normalizeProductDetailsContent(undefined);
 
   if (typeof value === "string") {
     try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map((item) => (typeof item === "string" ? item.trim() : ""))
-          .filter((item) => item.length > 0);
-      }
+      return normalizeProductDetailsContent(JSON.parse(value));
     } catch {
-      return [];
+      return normalizeProductDetailsContent(value.split(",").map((item) => item.trim()));
     }
   }
 
-  return [];
+  return normalizeProductDetailsContent(value);
 };
 
 const toLinkedMockTest = (row: ProductMockTestRow) => ({
@@ -149,7 +282,7 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
       WHERE pmt.productId IN (${placeholders})
-      ORDER BY pmt.productId ASC, mt.createdAt DESC
+      ORDER BY pmt.productId ASC, pmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
   )) as ProductMockTestRow[];
@@ -180,7 +313,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
       LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
       WHERE pdmt.productId IN (${placeholders})
-      ORDER BY pdmt.productId ASC, mt.createdAt DESC
+      ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
   )) as ProductMockTestRow[];
@@ -434,6 +567,11 @@ productsRouter.use(async (_req, _res, next) => {
 
 productsRouter.get("/", async (req, res, next) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
+
     const filters = listPublicProductsSchema.parse(req.query);
     const studentUserId = resolveOptionalStudentUserId(req);
 

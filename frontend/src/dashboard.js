@@ -529,7 +529,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return String(input.value || "").trim();
   };
 
-  const startDashboardAttempt = async (mockTestId) => {
+  const startDashboardAttempt = async (mockTestId, { autoplay = false } = {}) => {
     const response = await fetch(`${API_BASE}/student/attempts`, {
       method: "POST",
       headers: {
@@ -550,8 +550,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const attemptPagePath = await resolveAttemptPagePath();
-    const separator = attemptPagePath.includes("?") ? "&" : "?";
-    window.location.href = `${attemptPagePath}${separator}attemptId=${encodeURIComponent(attemptId)}`;
+    const params = new URLSearchParams();
+    params.set("attemptId", String(attemptId));
+    if (autoplay) params.set("autoplay", "1");
+    window.location.href = `${attemptPagePath}?${params.toString()}`;
   };
 
   const normalizeDemoLessonUrl = (value) => {
@@ -563,7 +565,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `./${raw}`;
   };
 
-  const openDashboardLessonByMockTestContext = async (mockTestId) => {
+  const openDashboardLessonByMockTestContext = async (mockTestId, { autoplay = false } = {}) => {
     const response = await fetch(
       `${API_BASE}/student/mock-tests/${encodeURIComponent(mockTestId)}/lesson-context`,
       {
@@ -583,6 +585,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams();
     params.set("lessonId", lessonId);
     if (chapterId) params.set("chapterId", chapterId);
+    if (autoplay) params.set("autoplay", "1");
     window.location.href = `${lessonPlayerPath}?${params.toString()}`;
     return true;
   };
@@ -630,7 +633,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const loadDashboardProducts = async () => {
     if (!(dashProductsCatalog instanceof HTMLElement)) return;
-    const response = await fetch(`${API_BASE}/products`, {
+    const requestUrl = `${API_BASE}/products?_t=${Date.now()}`;
+    const response = await fetch(requestUrl, {
+      cache: "no-store",
       headers: token
         ? {
             Authorization: `Bearer ${token}`,
@@ -875,7 +880,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
           if (mockTestId) {
             setProductsStatus("Opening demo lesson...");
-            const opened = await openDashboardLessonByMockTestContext(mockTestId);
+            const opened = await openDashboardLessonByMockTestContext(mockTestId, { autoplay: true });
             if (opened) return;
           }
 
@@ -888,7 +893,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           if (mockTestId) {
             setProductsStatus("Starting demo attempt...");
-            await startDashboardAttempt(mockTestId);
+            await startDashboardAttempt(mockTestId, { autoplay: true });
             return;
           }
 
