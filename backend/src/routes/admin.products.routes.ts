@@ -8,6 +8,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
+import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
 
@@ -345,10 +346,7 @@ const mimeTypeToExtension: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const productsUploadDir = path.resolve(
-  __dirname,
-  "../../../frontend/public/uploads/products"
-);
+const productsUploadDir = path.join(resolvePublicAssetsDir(), "uploads", "products");
 
 const parseDataUrl = (dataUrl: string): { mimeType: string; buffer: Buffer } => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -456,7 +454,7 @@ adminProductsRouter.post(
       await writeFile(absoluteFilePath, buffer);
 
       res.status(201).json({
-        thumbnailUrl: `./public/uploads/products/${fileName}`,
+        thumbnailUrl: `/public/uploads/products/${fileName}`,
       });
     } catch (error) {
       next(error);

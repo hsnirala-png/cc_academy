@@ -132,13 +132,25 @@ export const apiRequest = async ({
   });
 
   let payload = {};
+  let textPayload = "";
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     payload = await response.json();
+  } else {
+    textPayload = await response.text().catch(() => "");
   }
 
   if (!response.ok) {
-    let message = payload.message || "Request failed";
+    let message = payload.message || "";
+    if (!message && response.status === 413) {
+      message = "Upload request is too large for the server/proxy. Increase VPS upload limit (for Nginx, set client_max_body_size).";
+    }
+    if (!message && textPayload) {
+      message = textPayload.slice(0, 200).trim();
+    }
+    if (!message) {
+      message = "Request failed";
+    }
     const raw = String(message || "");
     const lower = raw.toLowerCase();
     if (

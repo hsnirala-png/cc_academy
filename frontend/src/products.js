@@ -144,6 +144,27 @@ const resolveAttemptPagePath = async () => {
   return candidates[0];
 };
 
+const resolveLessonPlayerPagePath = async () => {
+  const currentPath = window.location.pathname || "";
+  const prefersExtensionless = currentPath.endsWith("/products");
+  const candidates = prefersExtensionless
+    ? ["./lesson-player", "./lesson-player.html"]
+    : ["./lesson-player.html", "./lesson-player"];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, { cache: "no-store" });
+      if (response.ok) {
+        return candidate;
+      }
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  return candidates[0];
+};
+
 const resolveCheckoutPagePath = async () => {
   const currentPath = window.location.pathname || "";
   const prefersExtensionless = currentPath.endsWith("/products");
@@ -770,6 +791,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = `${attemptPagePath}${separator}attemptId=${encodeURIComponent(attemptId)}`;
   };
 
+  const normalizeDemoLessonUrl = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    if (raw.startsWith("/")) return raw;
+    if (raw.startsWith("./") || raw.startsWith("../")) return raw;
+    return `./${raw}`;
+  };
+
+  const openLessonByMockTestContext = async (mockTestId) => {
+    if (!isStudentLoggedIn || !token) {
+      window.location.href = "./index.html#home";
+      return false;
+    }
+
+    const response = await fetch(
+      `${API_BASE}/student/mock-tests/${encodeURIComponent(mockTestId)}/lesson-context`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || "Unable to open lesson.");
+    }
+
+    const lessonId = String(payload?.lesson?.id || "").trim();
+    if (!lessonId) return false;
+
+    const chapterId = String(payload?.lesson?.chapter?.id || "").trim();
+    const lessonPagePath = await resolveLessonPlayerPagePath();
+    const params = new URLSearchParams();
+    params.set("lessonId", lessonId);
+    if (chapterId) params.set("chapterId", chapterId);
+    window.location.href = `${lessonPagePath}?${params.toString()}`;
+    return true;
+  };
   const toCurrency = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
   const applyFilters = () => {
@@ -803,6 +863,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const linkedTests = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
     const firstDemo = demoTests.find((item) => String(item?.id || "").trim()) || null;
     const demoId = String(firstDemo?.id || "").trim();
+    const demoLessonTitle = String(product?.demoLessonTitle || "").trim();
+    const demoLessonUrl = String(product?.demoLessonUrl || "").trim();
     const premiumUnlocked = Boolean(product?.isPremiumUnlocked);
 
     const premiumTests = linkedTests.filter((item) => {
@@ -821,27 +883,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     const items = [];
-    if (!firstDemo) return items;
 
-    items.push({
-      id: demoId,
-      title: String(firstDemo.title || "Demo Lesson"),
-      accessType: "DEMO",
-      unlocked: true,
-    });
+    if (demoLessonUrl) {
+      items.push({
+        id: demoLessonUrl,
+        title: demoLessonTitle || "Demo Lesson",
+        accessType: "DEMO",
+        unlocked: true,
+        action: "OPEN_DEMO_URL",
+        ctaLabel: "Play Lesson",
+      });
+    }
+
+    if (firstDemo) {
+      items.push({
+        id: demoId,
+        title: String(firstDemo.title || "Demo Lesson"),
+        accessType: "DEMO",
+        unlocked: true,
+        action: "OPEN_LESSON_OR_ATTEMPT",
+        ctaLabel: "Play Lesson",
+      });
+    }
 
     uniquePremium.forEach((item) => {
+      const accessCode = String(item?.accessCode || "MOCK")
+        .trim()
+        .toUpperCase();
+      const isLessonLinked = accessCode === "LESSON";
       items.push({
         id: String(item?.id || "").trim(),
         title: String(item?.title || "Premium Lesson"),
         accessType: "PREMIUM",
         unlocked: premiumUnlocked,
+        action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
+        ctaLabel: isLessonLinked ? "Play Lesson" : "Attempt Test",
       });
     });
 
     return items;
   };
-
   const renderLearningTable = (product) => {
     const items = buildLearningItems(product);
     if (!items.length) {
@@ -872,11 +953,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                       <button
                         type="button"
                         class="${item.unlocked ? "btn-secondary" : "btn-ghost"}"
-                        data-start-learning-test="${escapeHtml(item.id)}"
+                        data-start-learning-id="${escapeHtml(item.id)}"
+                        data-start-learning-action="${escapeHtml(item.action || "ATTEMPT_TEST")}"
                         data-learning-locked="${item.unlocked ? "false" : "true"}"
                         ${item.unlocked ? "" : 'disabled title="Buy premium product to unlock."'}
                       >
-                        ${item.unlocked ? "Attempt Test" : "Premium Required"}
+                        ${item.unlocked ? escapeHtml(item.ctaLabel || "Start") : "Premium Required"}
                       </button>
                     </td>
                   </tr>
@@ -1366,14 +1448,32 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        const learningButton = target.closest("[data-start-learning-test]");
+        const learningButton = target.closest("[data-start-learning-id]");
         if (learningButton instanceof HTMLElement) {
-          const mockTestId = learningButton.getAttribute("data-start-learning-test");
-          if (!mockTestId) return;
+          const learningId = String(learningButton.getAttribute("data-start-learning-id") || "").trim();
+          const learningAction = String(
+            learningButton.getAttribute("data-start-learning-action") || "ATTEMPT_TEST"
+          ).trim();
+          const locked = learningButton.getAttribute("data-learning-locked") === "true";
+          if (!learningId || locked) return;
 
           try {
+            if (learningAction === "OPEN_DEMO_URL") {
+              const resolved = normalizeDemoLessonUrl(learningId);
+              if (!resolved) throw new Error("Demo lesson URL is not configured.");
+              setMessage("Opening demo lesson...");
+              window.location.href = resolved;
+              return;
+            }
+
+            if (learningAction === "OPEN_LESSON_OR_ATTEMPT") {
+              setMessage("Opening lesson...");
+              const opened = await openLessonByMockTestContext(learningId);
+              if (opened) return;
+            }
+
             setMessage("Starting learning attempt...");
-            await startLearningAttempt(mockTestId);
+            await startLearningAttempt(learningId);
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to start learning.";
             setMessage(message, "error");
@@ -1468,3 +1568,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
+

@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
 
-const LESSON_AUDIO_DIR = path.join(process.cwd(), "public", "audio", "lessons");
+const LESSON_AUDIO_DIR = path.join(resolvePublicAssetsDir(), "audio", "lessons");
 
 const normalizeLessonId = (lessonId: string): string => {
   const normalized = String(lessonId || "").trim();

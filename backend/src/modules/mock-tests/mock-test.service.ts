@@ -31,6 +31,19 @@ const shuffle = <T>(items: T[]): T[] => {
 
 const toIso = (date: Date | null): string | null => (date ? date.toISOString() : null);
 
+const normalizeLessonAssetUrl = (value: string | null | undefined): string | null => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) return raw;
+  if (raw.startsWith("/public/")) return raw;
+  if (raw.startsWith("/audio/") || raw.startsWith("/transcripts/")) return `/public${raw}`;
+  if (raw.startsWith("./public/")) return `/${raw.slice(2)}`;
+  if (raw.startsWith("public/")) return `/${raw}`;
+  if (raw.startsWith("./")) return `/${raw.slice(2)}`;
+  if (raw.startsWith("/")) return raw;
+  return `/${raw}`;
+};
+
 const resolveRequiredQuestions = (subject: MockSubject, activeQuestionCount: number): number => {
   const safeActiveCount = Math.max(0, Math.floor(Number(activeQuestionCount) || 0));
   if (safeActiveCount <= 0) return 0;
@@ -1155,7 +1168,7 @@ export const mockTestService = {
   },
 
   async getLessonContextForMockTest(mockTestId: string) {
-    const lesson = await prisma.lesson.findFirst({
+    const lessons = await prisma.lesson.findMany({
       where: {
         assessmentTestId: mockTestId,
       },
@@ -1178,17 +1191,43 @@ export const mockTestService = {
       },
     });
 
-    if (!lesson) return null;
+    if (!lessons.length) return null;
+
+    const scoreLesson = (lesson: (typeof lessons)[number]) => {
+      let score = 0;
+      const hasAudio = Boolean(normalizeLessonAssetUrl(lesson.audioUrl));
+      const hasVideo = Boolean(normalizeLessonAssetUrl(lesson.videoUrl));
+      const hasTranscript = Boolean(
+        normalizeLessonAssetUrl(lesson.transcriptUrl) ||
+          String(lesson.transcriptText || "").trim() ||
+          (Array.isArray(lesson.transcriptSegments) && lesson.transcriptSegments.length)
+      );
+
+      if (lesson.chapter.course.isActive) score += 8;
+      if (hasAudio) score += 100;
+      if (hasVideo) score += 40;
+      if (hasTranscript) score += 20;
+      if (Number(lesson.audioDurationMs || 0) > 0) score += 10;
+      if (Number(lesson.durationSec || 0) > 0) score += 4;
+      return score;
+    };
+
+    const lesson = lessons
+      .map((item, index) => ({ item, score: scoreLesson(item), index }))
+      .sort((left, right) => {
+        if (left.score !== right.score) return right.score - left.score;
+        return left.index - right.index;
+      })[0].item;
 
     return {
       id: lesson.id,
       title: lesson.title,
       orderIndex: lesson.orderIndex,
       durationSec: lesson.durationSec,
-      videoUrl: lesson.videoUrl,
-      audioUrl: lesson.audioUrl,
+      videoUrl: normalizeLessonAssetUrl(lesson.videoUrl),
+      audioUrl: normalizeLessonAssetUrl(lesson.audioUrl),
       audioDurationMs: lesson.audioDurationMs,
-      transcriptUrl: lesson.transcriptUrl,
+      transcriptUrl: normalizeLessonAssetUrl(lesson.transcriptUrl),
       transcriptText: lesson.transcriptText,
       transcriptSegments: lesson.transcriptSegments,
       chapter: {

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { AppError } from "../utils/appError";
+import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
 import { prisma } from "../utils/prisma";
 import { ensureSliderStorageReady } from "../utils/sliderStorage";
 
@@ -142,7 +143,7 @@ const mimeTypeToExtension: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const slidersUploadDir = path.resolve(__dirname, "../../../frontend/public/uploads/sliders");
+const slidersUploadDir = path.join(resolvePublicAssetsDir(), "uploads", "sliders");
 
 const parseDataUrl = (dataUrl: string): { mimeType: string; buffer: Buffer } => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -202,7 +203,7 @@ adminSlidersRouter.post("/sliders/image-upload", ...ensureAdmin, async (req, res
     await writeFile(absoluteFilePath, buffer);
 
     res.status(201).json({
-      imageUrl: `./public/uploads/sliders/${fileName}`,
+      imageUrl: `/public/uploads/sliders/${fileName}`,
     });
   } catch (error) {
     next(error);

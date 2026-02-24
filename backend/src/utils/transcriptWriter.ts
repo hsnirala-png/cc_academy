@@ -1,8 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { TranscriptSegment } from "./transcriptGenerator";
+import { resolvePublicAssetsDir } from "./publicAssetsPath";
 
-const transcriptsDir = path.resolve(__dirname, "../../public/transcripts");
+const transcriptsDir = path.join(resolvePublicAssetsDir(), "transcripts");
 
 export const writeTranscriptJson = async (
   lessonId: string | number,
@@ -19,5 +20,5 @@ export const writeTranscriptJson = async (
   await mkdir(transcriptsDir, { recursive: true });
   await writeFile(filePath, JSON.stringify(segments, null, 2), "utf8");
 
-  return `/transcripts/${fileName}`;
+  return `/public/transcripts/${fileName}`;
 };
