@@ -130,18 +130,7 @@ const resolveAttemptPagePath = async () => {
     ? ["./mock-attempt", "./mock-attempt.html"]
     : ["./mock-attempt.html", "./mock-attempt"];
 
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(candidate, { cache: "no-store" });
-      if (response.ok) {
-        return candidate;
-      }
-    } catch {
-      // Try next candidate.
-    }
-  }
-
-  return candidates[0];
+  return resolvePagePathByMarker(candidates, "src/mock-attempt.js");
 };
 
 const resolveLessonPlayerPagePath = async () => {
@@ -151,18 +140,7 @@ const resolveLessonPlayerPagePath = async () => {
     ? ["./lesson-player", "./lesson-player.html"]
     : ["./lesson-player.html", "./lesson-player"];
 
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(candidate, { cache: "no-store" });
-      if (response.ok) {
-        return candidate;
-      }
-    } catch {
-      // Try next candidate.
-    }
-  }
-
-  return candidates[0];
+  return resolvePagePathByMarker(candidates, "src/lesson-player.js");
 };
 
 const resolveCheckoutPagePath = async () => {
@@ -172,12 +150,18 @@ const resolveCheckoutPagePath = async () => {
     ? ["./checkout", "./checkout.html"]
     : ["./checkout.html", "./checkout"];
 
+  return resolvePagePathByMarker(candidates, "src/checkout.js");
+};
+
+const resolvePagePathByMarker = async (candidates, marker) => {
   for (const candidate of candidates) {
     try {
       const response = await fetch(candidate, { cache: "no-store" });
-      if (response.ok) {
-        return candidate;
-      }
+      if (!response.ok) continue;
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("text/html")) return candidate;
+      const html = await response.text().catch(() => "");
+      if (!marker || html.includes(marker)) return candidate;
     } catch {
       // Try next candidate.
     }
@@ -911,17 +895,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const items = [];
 
-    if (demoLessonUrl) {
-      items.push({
-        id: demoLessonUrl,
-        title: demoLessonTitle || "Demo Lesson",
-        accessType: "DEMO",
-        unlocked: true,
-        action: "OPEN_DEMO_URL",
-        ctaLabel: "Play Lesson",
-      });
-    }
-
     if (firstDemo) {
       items.push({
         id: demoId,
@@ -929,6 +902,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_LESSON_OR_ATTEMPT",
+        ctaLabel: "Play Lesson",
+      });
+    } else if (demoLessonUrl) {
+      items.push({
+        id: demoLessonUrl,
+        title: demoLessonTitle || "Demo Lesson",
+        accessType: "DEMO",
+        unlocked: true,
+        action: "OPEN_DEMO_URL",
         ctaLabel: "Play Lesson",
       });
     }

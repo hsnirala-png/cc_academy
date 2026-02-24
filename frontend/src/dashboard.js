@@ -73,10 +73,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? ["./mock-attempt", "./mock-attempt.html"]
       : ["./mock-attempt.html", "./mock-attempt"];
 
+    return resolvePagePathByMarker(candidates, "src/mock-attempt.js");
+  };
+
+  const resolveLessonPlayerPagePath = async () => {
+    const candidates = isExtensionlessRoute()
+      ? ["./lesson-player", "./lesson-player.html"]
+      : ["./lesson-player.html", "./lesson-player"];
+
+    return resolvePagePathByMarker(candidates, "src/lesson-player.js");
+  };
+
+  const resolvePagePathByMarker = async (candidates, marker) => {
     for (const candidate of candidates) {
       try {
         const response = await fetch(candidate, { cache: "no-store" });
-        if (response.ok) return candidate;
+        if (!response.ok) continue;
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        if (!contentType.includes("text/html")) return candidate;
+        const html = await response.text().catch(() => "");
+        if (!marker || html.includes(marker)) return candidate;
       } catch {
         // Try next path.
       }
@@ -567,10 +583,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lessonId = String(payload?.lesson?.id || "").trim();
     if (!lessonId) return false;
     const chapterId = String(payload?.lesson?.chapter?.id || "").trim();
+    const lessonPlayerPath = await resolveLessonPlayerPagePath();
     const params = new URLSearchParams();
     params.set("lessonId", lessonId);
     if (chapterId) params.set("chapterId", chapterId);
-    window.location.href = `${getPagePath("lesson-player")}?${params.toString()}`;
+    window.location.href = `${lessonPlayerPath}?${params.toString()}`;
     return true;
   };
 
@@ -842,10 +859,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const lessonId = String(lessonBtn.getAttribute("data-dash-open-lesson") || "").trim();
         const chapterId = String(state.lessonOverview?.chapter?.id || "").trim();
         if (!lessonId) return;
+        const lessonPlayerPath = await resolveLessonPlayerPagePath();
         const params = new URLSearchParams();
         params.set("lessonId", lessonId);
         if (chapterId) params.set("chapterId", chapterId);
-        window.location.href = `${getPagePath("lesson-player")}?${params.toString()}`;
+        window.location.href = `${lessonPlayerPath}?${params.toString()}`;
       }
     });
   }
