@@ -463,9 +463,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const demoUrl = String(product?.demoLessonUrl || "").trim();
         const demoLabel = "Demo";
         const hasDemoAction = Boolean(demoMockTestId || demoUrl);
-        const courseType = String(product?.courseType || "")
-          .replaceAll("_", " ")
-          .trim();
+        const salePrice = Number(product?.salePrice || 0);
+        const listPrice = Number(product?.listPrice || 0);
+        const discountPercent =
+          listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
         return `
           <article class="dash-card dash-product-card">
             <div class="dash-product-thumb-wrap">
@@ -478,17 +479,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
             <p class="dash-k">${escapeHtml(product?.examCategory || "-")} | ${escapeHtml(product?.examName || "-")}</p>
             <p class="dash-v">${escapeHtml(product?.title || "Product")}</p>
-            <p class="dash-k">${escapeHtml(product?.languageMode || "Any language")} | ${escapeHtml(courseType || "-")}</p>
-            <p class="dash-k">Price: ${toCurrency(product?.salePrice)} (MRP ${toCurrency(product?.listPrice)})</p>
-            <p class="dash-k">Friend Code Discount: ${toCurrency(product?.referralDiscountAmount || 0)}</p>
-            <p class="dash-k">Access: ${Number(product?.accessDays || 0)} days</p>
-            <input
-              class="dash-ref-code-input"
-              type="text"
-              maxlength="40"
-              placeholder="Friend Student ID / referral code (optional)"
-              data-dash-referral-code
-            />
+            <p class="dash-k dash-rate-line">
+              Price:
+              <span class="dash-rate-sale">${toCurrency(salePrice)}</span>
+              <span class="dash-rate-mrp">MRP ${toCurrency(listPrice)}</span>
+              ${discountPercent > 0 ? `<span class="dash-rate-off">${discountPercent}% off</span>` : ""}
+            </p>
             <p class="dash-product-actions">
               <a class="btn-primary" href="${getProductsPagePath()}">Buy</a>
               <button class="btn-sky" type="button" data-dash-buy-product="${escapeHtml(id)}">Buy with Wallet</button>
