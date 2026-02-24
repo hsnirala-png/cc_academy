@@ -525,6 +525,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = `${attemptPagePath}${separator}attemptId=${encodeURIComponent(attemptId)}`;
   };
 
+  const normalizeDemoLessonUrl = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    if (raw.startsWith("/")) return raw;
+    if (raw.startsWith("./") || raw.startsWith("../")) return raw;
+    return `./${raw}`;
+  };
+
+  const openDashboardLessonByMockTestContext = async (mockTestId) => {
+    const response = await fetch(
+      `${API_BASE}/student/mock-tests/${encodeURIComponent(mockTestId)}/lesson-context`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || "Unable to open lesson.");
+    }
+    const lessonId = String(payload?.lesson?.id || "").trim();
+    if (!lessonId) return false;
+    const chapterId = String(payload?.lesson?.chapter?.id || "").trim();
+    const params = new URLSearchParams();
+    params.set("lessonId", lessonId);
+    if (chapterId) params.set("chapterId", chapterId);
+    window.location.href = `${getPagePath("lesson-player")}?${params.toString()}`;
+    return true;
+  };
+
   const loadDashboardLessonTests = async () => {
     if (!(dashLessonTests instanceof HTMLElement)) return;
 
@@ -808,28 +840,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       const demoTestBtn = target.closest("[data-dash-demo-test-id]");
       if (demoTestBtn instanceof HTMLElement) {
         const mockTestId = String(demoTestBtn.getAttribute("data-dash-demo-test-id") || "").trim();
-        if (mockTestId) {
-          try {
+        const demoUrl = String(demoTestBtn.getAttribute("data-dash-demo-url") || "").trim();
+        try {
+          if (mockTestId) {
+            setProductsStatus("Opening demo lesson...");
+            const opened = await openDashboardLessonByMockTestContext(mockTestId);
+            if (opened) return;
+          }
+
+          const resolvedDemoUrl = normalizeDemoLessonUrl(demoUrl);
+          if (resolvedDemoUrl) {
+            setProductsStatus("Opening demo lesson...");
+            window.location.href = resolvedDemoUrl;
+            return;
+          }
+
+          if (mockTestId) {
             setProductsStatus("Starting demo attempt...");
             await startDashboardAttempt(mockTestId);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : "Unable to start demo attempt.";
-            setProductsStatus(message, "error");
+            return;
           }
-          return;
-        }
-      }
-      const demoBtn = target.closest("[data-dash-demo-url]");
-      if (demoBtn instanceof HTMLElement) {
-        const demoUrl = String(demoBtn.getAttribute("data-dash-demo-url") || "").trim();
-        if (!demoUrl) return;
-        try {
-          const popup = window.open(demoUrl, "_blank", "noopener,noreferrer");
-          if (!popup) {
-            window.location.href = demoUrl;
-          }
-        } catch {
-          window.location.href = demoUrl;
+
+          throw new Error("Demo lesson is not configured yet.");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unable to open demo lesson.";
+          setProductsStatus(message, "error");
         }
         return;
       }
