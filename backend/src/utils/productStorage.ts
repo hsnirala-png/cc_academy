@@ -1,20 +1,25 @@
 import { prisma } from "./prisma";
+import { hasColumn, hasIndex } from "./schemaGuards";
 
 let isProductStorageReady = false;
 let productStoragePromise: Promise<void> | null = null;
 
 const ensureColumns = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `Product` ADD COLUMN `referralBonusAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("Product", "referralBonusAmount"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `referralBonusAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `Product` ADD COLUMN `referralDiscountAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("Product", "referralDiscountAmount"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `referralDiscountAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0"
+      )
+      .catch(() => undefined);
+  }
 
   await prisma
     .$executeRawUnsafe(
@@ -22,31 +27,39 @@ const ensureColumns = async (): Promise<void> => {
     )
     .catch(() => undefined);
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `Product` ADD COLUMN `demoLessonTitle` VARCHAR(191) NULL"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("Product", "demoLessonTitle"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `demoLessonTitle` VARCHAR(191) NULL"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `Product` ADD COLUMN `demoLessonUrl` VARCHAR(1000) NULL"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("Product", "demoLessonUrl"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `demoLessonUrl` VARCHAR(1000) NULL"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureIndexes = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `Product_isActive_examCategory_examName_courseType_languageMode_idx` ON `Product`(`isActive`, `examCategory`, `examName`, `courseType`, `languageMode`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("Product", "Product_isActive_examCategory_examName_courseType_languageMode_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `Product_isActive_examCategory_examName_courseType_languageMode_idx` ON `Product`(`isActive`, `examCategory`, `examName`, `courseType`, `languageMode`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `Product_createdBy_idx` ON `Product`(`createdBy`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("Product", "Product_createdBy_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `Product_createdBy_idx` ON `Product`(`createdBy`)"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureForeignKey = async (): Promise<void> => {
@@ -86,17 +99,21 @@ const ensureProductPurchaseTable = async (): Promise<void> => {
 };
 
 const ensureProductPurchaseColumns = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductPurchase` ADD COLUMN `walletUsed` DECIMAL(10, 2) NOT NULL DEFAULT 0"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("ProductPurchase", "walletUsed"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `walletUsed` DECIMAL(10, 2) NOT NULL DEFAULT 0"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductPurchase` ADD COLUMN `referralBonusCredited` DECIMAL(10, 2) NOT NULL DEFAULT 0"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("ProductPurchase", "referralBonusCredited"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `referralBonusCredited` DECIMAL(10, 2) NOT NULL DEFAULT 0"
+      )
+      .catch(() => undefined);
+  }
 
   await prisma
     .$executeRawUnsafe(
@@ -116,25 +133,31 @@ const ensureProductPurchaseColumns = async (): Promise<void> => {
     )
     .catch(() => undefined);
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductPurchase` ADD COLUMN `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
-    )
-    .catch(() => undefined);
+  if (!(await hasColumn("ProductPurchase", "createdAt"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureProductPurchaseIndexes = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `ProductPurchase_userId_createdAt_idx` ON `ProductPurchase`(`userId`, `createdAt`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("ProductPurchase", "ProductPurchase_userId_createdAt_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductPurchase_userId_createdAt_idx` ON `ProductPurchase`(`userId`, `createdAt`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `ProductPurchase_productId_createdAt_idx` ON `ProductPurchase`(`productId`, `createdAt`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("ProductPurchase", "ProductPurchase_productId_createdAt_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductPurchase_productId_createdAt_idx` ON `ProductPurchase`(`productId`, `createdAt`)"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureProductPurchaseForeignKeys = async (): Promise<void> => {

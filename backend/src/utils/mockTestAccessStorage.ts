@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { hasConstraint, hasIndex } from "./schemaGuards";
 
 let isMockTestAccessStorageReady = false;
 let mockTestAccessStoragePromise: Promise<void> | null = null;
@@ -14,11 +15,13 @@ const ensureMockTestAccessRuleTable = async (): Promise<void> => {
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `MockTestAccessRule` ADD CONSTRAINT `MockTestAccessRule_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("MockTestAccessRule", "MockTestAccessRule_mockTestId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestAccessRule` ADD CONSTRAINT `MockTestAccessRule_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureProductMockTestTable = async (): Promise<void> => {
@@ -31,23 +34,29 @@ const ensureProductMockTestTable = async (): Promise<void> => {
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `ProductMockTest_mockTestId_idx` ON `ProductMockTest`(`mockTestId`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("ProductMockTest", "ProductMockTest_mockTestId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductMockTest_mockTestId_idx` ON `ProductMockTest`(`mockTestId`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductMockTest` ADD CONSTRAINT `ProductMockTest_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("ProductMockTest", "ProductMockTest_productId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductMockTest` ADD CONSTRAINT `ProductMockTest_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductMockTest` ADD CONSTRAINT `ProductMockTest_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("ProductMockTest", "ProductMockTest_mockTestId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductMockTest` ADD CONSTRAINT `ProductMockTest_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureProductDemoMockTestTable = async (): Promise<void> => {
@@ -60,23 +69,29 @@ const ensureProductDemoMockTestTable = async (): Promise<void> => {
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `ProductDemoMockTest_mockTestId_idx` ON `ProductDemoMockTest`(`mockTestId`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("ProductDemoMockTest", "ProductDemoMockTest_mockTestId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductDemoMockTest_mockTestId_idx` ON `ProductDemoMockTest`(`mockTestId`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductDemoMockTest` ADD CONSTRAINT `ProductDemoMockTest_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("ProductDemoMockTest", "ProductDemoMockTest_productId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductDemoMockTest` ADD CONSTRAINT `ProductDemoMockTest_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `ProductDemoMockTest` ADD CONSTRAINT `ProductDemoMockTest_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("ProductDemoMockTest", "ProductDemoMockTest_mockTestId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductDemoMockTest` ADD CONSTRAINT `ProductDemoMockTest_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureStudentProductAccessTable = async (): Promise<void> => {
@@ -92,41 +107,53 @@ const ensureStudentProductAccessTable = async (): Promise<void> => {
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE UNIQUE INDEX `StudentProductAccess_userId_productId_key` ON `StudentProductAccess`(`userId`, `productId`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("StudentProductAccess", "StudentProductAccess_userId_productId_key"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE UNIQUE INDEX `StudentProductAccess_userId_productId_key` ON `StudentProductAccess`(`userId`, `productId`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `StudentProductAccess_productId_idx` ON `StudentProductAccess`(`productId`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("StudentProductAccess", "StudentProductAccess_productId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `StudentProductAccess_productId_idx` ON `StudentProductAccess`(`productId`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `StudentProductAccess_assignedBy_idx` ON `StudentProductAccess`(`assignedBy`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("StudentProductAccess", "StudentProductAccess_assignedBy_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `StudentProductAccess_assignedBy_idx` ON `StudentProductAccess`(`assignedBy`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("StudentProductAccess", "StudentProductAccess_userId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("StudentProductAccess", "StudentProductAccess_productId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_assignedBy_fkey` FOREIGN KEY (`assignedBy`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE"
-    )
-    .catch(() => undefined);
+  if (!(await hasConstraint("StudentProductAccess", "StudentProductAccess_assignedBy_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `StudentProductAccess` ADD CONSTRAINT `StudentProductAccess_assignedBy_fkey` FOREIGN KEY (`assignedBy`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 };
 
 export const ensureMockTestAccessStorageReady = async (): Promise<void> => {

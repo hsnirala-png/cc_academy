@@ -1,22 +1,31 @@
 import { prisma } from "./prisma";
+import { hasColumn, hasIndex } from "./schemaGuards";
 
 let isReferralStorageReady = false;
 let referralStoragePromise: Promise<void> | null = null;
 
 const ensureUserReferralColumns = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `User` ADD COLUMN `referralCode` VARCHAR(191) NULL")
-    .catch(() => undefined);
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `User` ADD COLUMN `referrerId` VARCHAR(191) NULL")
-    .catch(() => undefined);
+  if (!(await hasColumn("User", "referralCode"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `User` ADD COLUMN `referralCode` VARCHAR(191) NULL")
+      .catch(() => undefined);
+  }
+  if (!(await hasColumn("User", "referrerId"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `User` ADD COLUMN `referrerId` VARCHAR(191) NULL")
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe("CREATE UNIQUE INDEX `User_referralCode_key` ON `User`(`referralCode`)")
-    .catch(() => undefined);
-  await prisma
-    .$executeRawUnsafe("CREATE INDEX `User_referrerId_idx` ON `User`(`referrerId`)")
-    .catch(() => undefined);
+  if (!(await hasIndex("User", "User_referralCode_key"))) {
+    await prisma
+      .$executeRawUnsafe("CREATE UNIQUE INDEX `User_referralCode_key` ON `User`(`referralCode`)")
+      .catch(() => undefined);
+  }
+  if (!(await hasIndex("User", "User_referrerId_idx"))) {
+    await prisma
+      .$executeRawUnsafe("CREATE INDEX `User_referrerId_idx` ON `User`(`referrerId`)")
+      .catch(() => undefined);
+  }
 
   const fkRows = (await prisma.$queryRawUnsafe(
     `

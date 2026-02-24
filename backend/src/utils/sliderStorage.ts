@@ -1,9 +1,48 @@
 import { prisma } from "./prisma";
+import { hasColumn, hasIndex } from "./schemaGuards";
 
 let isSliderStorageReady = false;
 let sliderStoragePromise: Promise<void> | null = null;
 
 const ensureColumns = async (): Promise<void> => {
+  if (!(await hasColumn("Slider", "title"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `title` VARCHAR(191) NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Slider", "sortOrder"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Slider", "isActive"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Slider", "createdBy"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `createdBy` VARCHAR(191) NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Slider", "createdAt"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Slider` ADD COLUMN `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Slider", "updatedAt"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `updatedAt` DATETIME(3) NOT NULL")
+      .catch(() => undefined);
+  }
+
   await prisma
     .$executeRawUnsafe("ALTER TABLE `Slider` MODIFY COLUMN `pageKey` VARCHAR(120) NOT NULL")
     .catch(() => undefined);
@@ -16,43 +55,22 @@ const ensureColumns = async (): Promise<void> => {
     .$executeRawUnsafe("ALTER TABLE `Slider` MODIFY COLUMN `linkUrl` VARCHAR(1200) NULL")
     .catch(() => undefined);
 
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `title` VARCHAR(191) NULL")
-    .catch(() => undefined);
-
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0")
-    .catch(() => undefined);
-
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true")
-    .catch(() => undefined);
-
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `createdBy` VARCHAR(191) NULL")
-    .catch(() => undefined);
-
-  await prisma
-    .$executeRawUnsafe(
-      "ALTER TABLE `Slider` ADD COLUMN `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
-    )
-    .catch(() => undefined);
-
-  await prisma
-    .$executeRawUnsafe("ALTER TABLE `Slider` ADD COLUMN `updatedAt` DATETIME(3) NOT NULL")
-    .catch(() => undefined);
 };
 
 const ensureIndexes = async (): Promise<void> => {
-  await prisma
-    .$executeRawUnsafe(
-      "CREATE INDEX `Slider_pageKey_isActive_sortOrder_idx` ON `Slider`(`pageKey`, `isActive`, `sortOrder`)"
-    )
-    .catch(() => undefined);
+  if (!(await hasIndex("Slider", "Slider_pageKey_isActive_sortOrder_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `Slider_pageKey_isActive_sortOrder_idx` ON `Slider`(`pageKey`, `isActive`, `sortOrder`)"
+      )
+      .catch(() => undefined);
+  }
 
-  await prisma
-    .$executeRawUnsafe("CREATE INDEX `Slider_createdBy_idx` ON `Slider`(`createdBy`)")
-    .catch(() => undefined);
+  if (!(await hasIndex("Slider", "Slider_createdBy_idx"))) {
+    await prisma
+      .$executeRawUnsafe("CREATE INDEX `Slider_createdBy_idx` ON `Slider`(`createdBy`)")
+      .catch(() => undefined);
+  }
 };
 
 const ensureForeignKey = async (): Promise<void> => {
