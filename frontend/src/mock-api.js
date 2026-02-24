@@ -52,6 +52,15 @@ const readAuthFromStorage = (storage) => {
   return { token, user };
 };
 
+const normalizeRole = (value) => String(value || "").trim().toUpperCase();
+
+const resolveUserRole = (user, { defaultStudent = false } = {}) => {
+  if (!user || typeof user !== "object") return "";
+  const role = normalizeRole(user.role || user.userRole || user.user_type || user.accountType);
+  if (role) return role;
+  return defaultStudent ? "STUDENT" : "";
+};
+
 const getStoredAuth = () => {
   const localAuth = readAuthFromStorage(localStorage);
   const sessionAuth = readAuthFromStorage(sessionStorage);
@@ -87,26 +96,29 @@ export const goToAdminLogin = () => {
 export const requireRoleGuard = (role) => {
   const token = getStoredToken();
   const user = getStoredUser();
-  const allowedRoles = Array.isArray(role) ? role : [role];
-  if (!token || !user || !allowedRoles.includes(user.role)) {
+  const allowedRoles = (Array.isArray(role) ? role : [role]).map((item) => normalizeRole(item));
+  const userRole = resolveUserRole(user, { defaultStudent: allowedRoles.includes("STUDENT") });
+  if (!token || !user || !userRole || !allowedRoles.includes(userRole)) {
     clearAuth();
     if (allowedRoles.includes("ADMIN") && !allowedRoles.includes("STUDENT")) goToAdminLogin();
     else goToStudentLogin();
     return null;
   }
-  return { token, user };
+  return { token, user: { ...user, role: userRole } };
 };
 
 export const requireRoleGuardStrict = async (auth, role) => {
   const resolvedAuth = auth || requireRoleGuard(role);
   if (!resolvedAuth) return null;
-  const allowedRoles = Array.isArray(role) ? role : [role];
+  const allowedRoles = (Array.isArray(role) ? role : [role]).map((item) => normalizeRole(item));
   try {
     const payload = await apiRequest({
       path: "/me",
       token: resolvedAuth.token,
     });
-    const serverRole = String(payload?.user?.role || "");
+    const serverRole = resolveUserRole(payload?.user, {
+      defaultStudent: allowedRoles.includes("STUDENT"),
+    });
     if (!allowedRoles.includes(serverRole)) {
       clearAuth();
       if (allowedRoles.includes("ADMIN") && !allowedRoles.includes("STUDENT")) goToAdminLogin();
@@ -495,7 +507,9 @@ export const initHeaderBehavior = () => {
   });
 
   const storedUser = getStoredUser();
-  const hasStudentSession = Boolean(storedUser?.role === "STUDENT" && getStoredToken());
+  const hasStudentSession = Boolean(
+    resolveUserRole(storedUser, { defaultStudent: true }) === "STUDENT" && getStoredToken()
+  );
   if (hasStudentSession) {
     const dashboardPath = getStudentDashboardPath();
     const homeLinks = document.querySelectorAll("a[href]");

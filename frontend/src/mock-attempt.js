@@ -9,7 +9,7 @@ import {
   initHeaderBehavior,
   isDebugSyncEnabled,
   requireRoleGuard,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 const getAttemptId = () => {
   const params = new URLSearchParams(window.location.search);
@@ -1081,3 +1081,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 });
+

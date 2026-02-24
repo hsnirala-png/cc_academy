@@ -1,4 +1,4 @@
-import { apiRequest, clearAuth, escapeHtml, initHeaderBehavior, requireRoleGuard } from "./mock-api.js";
+import { apiRequest, clearAuth, escapeHtml, initHeaderBehavior, requireRoleGuard } from "./mock-api.js?v=2";
 
 const resolveAttemptPagePath = async () => {
   const currentPath = window.location.pathname || "";
@@ -273,3 +273,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setStatus(message, "error");
   }
 });
+

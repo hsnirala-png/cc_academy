@@ -8,7 +8,7 @@ import {
   isDebugSyncEnabled,
   requireRoleGuard,
   showConfirmDialog,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 const SAVE_INTERVAL_MS = 10000;
 const END_BUFFER_MS = 3000;

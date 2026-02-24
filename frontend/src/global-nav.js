@@ -8,6 +8,13 @@
   };
 
   const getStoredToken = () => localStorage.getItem("cc_token");
+  const resolveUserRole = (user, defaultStudent = false) => {
+    const role = String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")
+      .trim()
+      .toUpperCase();
+    if (role) return role;
+    return defaultStudent ? "STUDENT" : "";
+  };
 
   const getPathContext = () => {
     const pathname = String(window.location.pathname || "").toLowerCase();
@@ -35,12 +42,12 @@
 
   const isStudentSession = () => {
     const user = getStoredUser();
-    return Boolean(user?.role === "STUDENT" && getStoredToken());
+    return Boolean(resolveUserRole(user, true) === "STUDENT" && getStoredToken());
   };
 
   const isAdminSession = () => {
     const user = getStoredUser();
-    return Boolean(user?.role === "ADMIN" && getStoredToken());
+    return Boolean(resolveUserRole(user) === "ADMIN" && getStoredToken());
   };
 
   const getFallbackBackPath = () => {

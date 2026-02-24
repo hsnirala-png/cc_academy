@@ -11,7 +11,7 @@ import {
   initHeaderBehavior,
   requireRoleGuard,
   requireRoleGuardStrict,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 const SUBJECTS = [
   "PUNJABI",
@@ -863,3 +863,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setStatus(error.message || "Unable to load admin mock test panel", "error");
   }
 });
+

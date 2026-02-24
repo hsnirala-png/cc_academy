@@ -217,10 +217,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const auth = readStoredAuth();
     const token = auth.token;
     const user = auth.user;
+    const normalizedRole = String(
+      user?.role || user?.userRole || user?.user_type || user?.accountType || ""
+    )
+      .trim()
+      .toUpperCase();
+    const effectiveRole = normalizedRole || "STUDENT";
     return {
       token,
       user,
-      isStudentLoggedIn: Boolean(token && user?.role === "STUDENT"),
+      isStudentLoggedIn: Boolean(token && effectiveRole === "STUDENT"),
     };
   };
 

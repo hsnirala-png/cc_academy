@@ -10,7 +10,7 @@ import {
   formatDateTime,
   initHeaderBehavior,
   requireRoleGuard,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 const SUBJECTS_BY_EXAM = {
   PSTET_1: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "MATHS_EVS"],
@@ -419,3 +419,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setStatus(error.message || "Unable to load mock tests", "error");
   }
 });
+

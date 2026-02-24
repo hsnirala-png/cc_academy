@@ -5,7 +5,7 @@ import {
   formatDateTime,
   requireRoleGuard,
   requireRoleGuardStrict,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
@@ -314,3 +314,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(error.message || "Unable to load referral admin.", "error");
   }
 });
+

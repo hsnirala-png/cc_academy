@@ -7,7 +7,7 @@ import {
   formatDateTime,
   initHeaderBehavior,
   requireRoleGuard,
-} from "./mock-api.js";
+} from "./mock-api.js?v=2";
 
 const getQueryAttemptId = () => {
   const params = new URLSearchParams(window.location.search);
@@ -146,3 +146,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setStatus(error.message || "Unable to load history", "error");
   }
 });
+
