@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Products</title>
-    <link rel="stylesheet" href="./src/styles.css?v=14" />
+    <link rel="stylesheet" href="./src/styles.css?v=18" />
   </head>
   <body>
     <div class="admin-shell">
@@ -46,109 +46,259 @@
             <h2>Product Details</h2>
             <form id="productForm" class="admin-form">
               <input id="productId" type="hidden" />
-              <div class="admin-form-row">
-                <div class="admin-field">
-                  <label for="productTitle">Title</label>
-                  <input id="productTitle" required />
-                </div>
-                <div class="admin-field">
-                  <label for="productCategory">Exam Category</label>
-                  <input id="productCategory" placeholder="SSC / PSTET / Banking" required />
-                </div>
-                <div class="admin-field">
-                  <label for="productExamName">Exam</label>
-                  <input id="productExamName" placeholder="PSTET-1 / SSC CGL" required />
-                </div>
-                <div class="admin-field">
-                  <label for="productCourseType">Product Type</label>
-                  <select id="productCourseType">
-                    <option value="LIVE_CLASS">Live Classes</option>
-                    <option value="TEST_SERIES">Test Series</option>
-                    <option value="VIDEOS">Videos</option>
-                    <option value="EBOOKS">Ebooks</option>
-                    <option value="BOOKS">Books</option>
-                  </select>
-                </div>
+              <div class="admin-tabs" id="productFormTabs">
+                <button class="admin-tab-btn active" type="button" data-product-tab-btn="create">Create Product</button>
+                <button class="admin-tab-btn" type="button" data-product-tab-btn="attachments">Attachments</button>
+                <button class="admin-tab-btn" type="button" data-product-tab-btn="addons">Add-Ons</button>
               </div>
 
-              <div class="admin-form-row">
-                <div class="admin-field">
-                  <label for="productLanguageMode">Language</label>
-                  <select id="productLanguageMode">
-                    <option value="">Any language</option>
-                    <option value="Punjabi">Punjabi</option>
-                    <option value="English">English</option>
-                    <option value="Hindi">Hindi</option>
-                  </select>
-                </div>
-                <div class="admin-field">
-                  <label for="productListPrice">MRP</label>
-                  <input id="productListPrice" type="number" min="1" step="0.01" required />
-                </div>
-                <div class="admin-field">
-                  <label for="productSalePrice">Discount Price</label>
-                  <input id="productSalePrice" type="number" min="1" step="0.01" required />
-                </div>
-                <div class="admin-field">
-                  <label for="productReferralBonus">Referral Bonus (Rs)</label>
-                  <input id="productReferralBonus" type="number" min="0" step="0.01" />
-                </div>
-                <div class="admin-field">
-                  <label for="productReferralDiscount">Referral Friend Discount (Rs)</label>
-                  <input id="productReferralDiscount" type="number" min="0" step="0.01" />
-                </div>
-                <div class="admin-field">
-                  <label for="productAccessDays">Access (days)</label>
-                  <input id="productAccessDays" type="number" min="1" step="1" required />
-                </div>
-              </div>
-
-              <div class="admin-form-row">
-                <div class="admin-field">
-                  <label for="productValidityLabel">Validity Badge</label>
-                  <input id="productValidityLabel" placeholder="4X Validity / 6 Months Access" />
-                </div>
-              <div class="admin-field">
-                <label for="productThumbnailUrl">Thumbnail URL</label>
-                  <input
-                    id="productThumbnailUrl"
-                    placeholder="./public/PSTET_1.png or https://example.com/image.jpg"
-                  />
-                  <div class="thumbnail-upload-row">
-                    <input id="productThumbnailFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-                    <button id="uploadThumbnailBtn" class="btn-secondary" type="button">Upload Image</button>
+              <div class="admin-tab-panel active" data-product-tab-panel="create">
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="productTitle">Title</label>
+                    <input id="productTitle" required />
                   </div>
-                  <img id="productThumbnailPreview" class="admin-thumb-preview hidden" alt="Thumbnail preview" />
+                  <div class="admin-field">
+                    <label for="productCategory">Exam Category</label>
+                    <input id="productCategory" placeholder="SSC / PSTET / Banking" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productExamName">Exam</label>
+                    <input id="productExamName" placeholder="PSTET-1 / SSC CGL" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productCourseType">Product Type</label>
+                    <select id="productCourseType">
+                      <option value="LIVE_CLASS">Live Classes</option>
+                      <option value="TEST_SERIES">Test Series</option>
+                      <option value="VIDEOS">Videos</option>
+                      <option value="EBOOKS">Ebooks</option>
+                      <option value="BOOKS">Books</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="admin-field">
-                  <label>Attach Tests</label>
-                  <div id="productMockTestsWrap" class="admin-inline-checklist"></div>
-                </div>
-                <div class="admin-field">
-                  <label>Attach Demo Tests</label>
-                  <div id="productDemoMockTestsWrap" class="admin-inline-checklist"></div>
-                </div>
-                <div class="admin-field">
-                  <label for="productAddons">Product Highlights (one per line)</label>
-                  <textarea
-                    id="productAddons"
-                    rows="5"
-                    placeholder="Access to Structured Classes in Audio with Scroll Form&#10;Doubt Solving Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions (subject to availability).&#10;Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot&#10;Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject."
-                  ></textarea>
+
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="productLanguageMode">Language</label>
+                    <select id="productLanguageMode">
+                      <option value="">Any language</option>
+                      <option value="Punjabi">Punjabi</option>
+                      <option value="English">English</option>
+                      <option value="Hindi">Hindi</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="productListPrice">MRP</label>
+                    <input id="productListPrice" type="number" min="1" step="0.01" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productSalePrice">Discount Price</label>
+                    <input id="productSalePrice" type="number" min="1" step="0.01" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productReferralBonus">Referral Bonus (Rs)</label>
+                    <input id="productReferralBonus" type="number" min="0" step="0.01" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productReferralDiscount">Referral Friend Discount (Rs)</label>
+                    <input id="productReferralDiscount" type="number" min="0" step="0.01" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="productAccessDays">Access (days)</label>
+                    <input id="productAccessDays" type="number" min="1" step="1" required />
+                  </div>
                 </div>
               </div>
 
-              <div class="admin-field">
-                <label for="productDescription">Description</label>
-                <textarea id="productDescription" rows="3"></textarea>
+              <div class="admin-tab-panel" data-product-tab-panel="attachments">
+                <div class="admin-form-row attachments-top-row">
+                  <div class="admin-field attachment-thumbnail-field">
+                    <label for="productThumbnailUrl">Thumbnail URL</label>
+                    <input
+                      id="productThumbnailUrl"
+                      placeholder="./public/PSTET_1.png or https://example.com/image.jpg"
+                    />
+                    <div class="thumbnail-upload-row">
+                      <input id="productThumbnailFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                      <button id="uploadThumbnailBtn" class="btn-secondary" type="button">Upload Image</button>
+                    </div>
+                    <img id="productThumbnailPreview" class="admin-thumb-preview hidden" alt="Thumbnail preview" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="attachmentTypeFilter">Attachment Type</label>
+                    <select id="attachmentTypeFilter">
+                      <option value="DEMO">Demo</option>
+                      <option value="LESSON">Lesson</option>
+                      <option value="MOCK">Mock</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="attachmentTitleFilter">Test Title</label>
+                    <input id="attachmentTitleFilter" placeholder="Search by title" />
+                  </div>
+                </div>
+
+                <div class="admin-form-row attachments-filter-row">
+                  <div class="admin-field">
+                    <label for="attachmentCourseFilter">Course</label>
+                    <select id="attachmentCourseFilter"></select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="attachmentSubjectFilter">Subject</label>
+                    <select id="attachmentSubjectFilter"></select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="attachmentChapterFilter">Chapter</label>
+                    <select id="attachmentChapterFilter"></select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="attachmentLanguageFilter">Language</label>
+                    <select id="attachmentLanguageFilter"></select>
+                  </div>
+                </div>
+
+                <div class="admin-field">
+                  <label id="attachmentListLabel">Select Attachments</label>
+                  <div id="attachmentListWrap" class="admin-inline-checklist"></div>
+                  <div class="attachment-pagination">
+                    <button id="attachmentPrevPageBtn" class="table-btn" type="button">Previous</button>
+                    <span id="attachmentPageText">Page 1 / 1</span>
+                    <button id="attachmentNextPageBtn" class="table-btn" type="button">Next</button>
+                  </div>
+                </div>
               </div>
 
-              <div class="admin-actions">
-                <label class="admin-field inline-check">
-                  <input id="productIsActive" type="checkbox" checked />
-                  <span>Active</span>
-                </label>
-                <button id="productSubmitBtn" class="btn-primary" type="submit">Create Product</button>
+              <div class="admin-tab-panel" data-product-tab-panel="addons">
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="productValidityLabel">Validity Badge</label>
+                    <input id="productValidityLabel" placeholder="4X Validity / 6 Months Access" />
+                  </div>
+                  <div class="admin-field">
+                    <label class="admin-field inline-check" for="productIsActive" style="margin-top:1.65rem;">
+                      <input id="productIsActive" type="checkbox" checked />
+                      <span>Active</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="admin-addons-preview-shell">
+                  <section class="admin-addon-card">
+                    <div class="admin-addon-edit-row">
+                      <button class="table-btn edit" type="button" data-addon-edit-target="description">Edit</button>
+                    </div>
+                    <div id="adminProductDescriptionPreview"></div>
+                    <div class="admin-addon-editor hidden" data-addon-editor="description">
+                      <div class="admin-field">
+                        <label for="productDescription">Description</label>
+                        <textarea id="productDescription" rows="5"></textarea>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="admin-addon-card">
+                    <div class="admin-addon-edit-row">
+                      <button class="table-btn edit" type="button" data-addon-edit-target="salient">Edit</button>
+                    </div>
+                    <div id="adminProductSalientPreview"></div>
+                    <div class="admin-addon-editor hidden" data-addon-editor="salient">
+                      <div class="admin-field">
+                        <label for="productSalientFeatures">Salient Features (one per line)</label>
+                        <textarea
+                          id="productSalientFeatures"
+                          rows="4"
+                          placeholder="Audio Lesson&#10;Scroll with Audio&#10;Digital Test&#10;Timer Enable"
+                        ></textarea>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="admin-addon-card">
+                    <div class="admin-addon-edit-row">
+                      <button class="table-btn edit" type="button" data-addon-edit-target="highlights">Edit</button>
+                    </div>
+                    <div id="adminProductHighlightsPreview"></div>
+                    <div class="admin-addon-editor hidden" data-addon-editor="highlights">
+                      <div class="admin-field">
+                        <label for="productAddons">Product Highlights (one per line)</label>
+                        <textarea
+                          id="productAddons"
+                          rows="5"
+                          placeholder="Access to Structured Classes in Audio with Scroll Form&#10;Doubt Solving Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions (subject to availability).&#10;Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot&#10;Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject."
+                        ></textarea>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="admin-addon-card">
+                    <div class="admin-addon-edit-row">
+                      <button class="table-btn edit" type="button" data-addon-edit-target="exams">Edit</button>
+                    </div>
+                    <div id="adminProductExamsCoveredPreview"></div>
+                    <div class="admin-addon-editor hidden" data-addon-editor="exams">
+                      <div class="admin-field">
+                        <label for="productExamsCovered">Exams Covered (Title | Image URL per line)</label>
+                        <textarea
+                          id="productExamsCovered"
+                          rows="4"
+                          placeholder="PSTET | ./public/PSTET_7.png&#10;Punjab Teaching Exams | ./public/PSTET_8.png&#10;CTET | ./public/PSTET_10.png"
+                        ></textarea>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="admin-addon-card">
+                    <div class="admin-addon-edit-row">
+                      <button class="table-btn edit" type="button" data-addon-edit-target="details-tabs">Edit</button>
+                    </div>
+                    <div id="adminProductDetailsTabsPreview"></div>
+                    <div class="admin-addon-editor hidden" data-addon-editor="details-tabs">
+                      <div class="admin-form-row">
+                        <div class="admin-field">
+                          <label for="productOverview">Overview (one paragraph per line)</label>
+                          <textarea id="productOverview" rows="5"></textarea>
+                        </div>
+                        <div class="admin-field">
+                          <label for="productPackageIncludes">This Package Includes (one item per line)</label>
+                          <textarea id="productPackageIncludes" rows="5"></textarea>
+                        </div>
+                      </div>
+                      <div class="admin-form-row">
+                        <div class="admin-field">
+                          <label for="productStudyPlan">Study Plan (one item per line)</label>
+                          <textarea id="productStudyPlan" rows="5"></textarea>
+                        </div>
+                        <div class="admin-field">
+                          <label for="productSubjectsCovered">Subjects Covered (one item per line)</label>
+                          <textarea id="productSubjectsCovered" rows="5"></textarea>
+                        </div>
+                      </div>
+                      <div class="admin-form-row">
+                        <div class="admin-field">
+                          <label for="productExamPattern">Exam Pattern (one item per line)</label>
+                          <textarea id="productExamPattern" rows="5"></textarea>
+                        </div>
+                        <div class="admin-field">
+                          <label for="productFaqs">FAQs (Question | Answer per line)</label>
+                          <textarea
+                            id="productFaqs"
+                            rows="5"
+                            placeholder="Is this course suitable for beginners? | Yes, it starts from core concepts and moves to exam-level practice."
+                          ></textarea>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="admin-actions product-form-step-actions">
+                <button id="productTabSaveBtn" class="btn-secondary" type="button">Save</button>
+                <button id="productTabNextBtn" class="btn-ghost" type="button">Next</button>
+                <button id="productSubmitBtn" class="btn-primary" type="submit" disabled title="Save all tabs first">
+                  Create Product
+                </button>
                 <button id="productCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
               </div>
             </form>
@@ -193,7 +343,30 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-products.js?v=12"></script>
+    <div id="productLinksModal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="productLinksTitle">
+      <div class="admin-modal-backdrop" data-close-product-links></div>
+      <div class="admin-modal-card">
+        <div class="admin-modal-head">
+          <h3 id="productLinksTitle">Manage Product Links</h3>
+          <button id="closeProductLinksModalBtn" class="table-btn" type="button">Close</button>
+        </div>
+        <p id="productLinksSubtitle" class="admin-subtitle" style="margin-top:0.1rem;margin-bottom:0.7rem;"></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Name</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="productLinksTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-products.js?v=20"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

@@ -26,16 +26,49 @@ document.addEventListener("DOMContentLoaded", async () => {
   const thumbnailFileInput = document.querySelector("#productThumbnailFile");
   const uploadThumbnailBtn = document.querySelector("#uploadThumbnailBtn");
   const thumbnailPreview = document.querySelector("#productThumbnailPreview");
-  const productMockTestsWrap = document.querySelector("#productMockTestsWrap");
-  const productDemoMockTestsWrap = document.querySelector("#productDemoMockTestsWrap");
+  const attachmentTypeFilter = document.querySelector("#attachmentTypeFilter");
+  const attachmentCourseFilter = document.querySelector("#attachmentCourseFilter");
+  const attachmentSubjectFilter = document.querySelector("#attachmentSubjectFilter");
+  const attachmentChapterFilter = document.querySelector("#attachmentChapterFilter");
+  const attachmentTitleFilter = document.querySelector("#attachmentTitleFilter");
+  const attachmentLanguageFilter = document.querySelector("#attachmentLanguageFilter");
+  const attachmentListWrap = document.querySelector("#attachmentListWrap");
+  const attachmentListLabel = document.querySelector("#attachmentListLabel");
+  const attachmentPrevPageBtn = document.querySelector("#attachmentPrevPageBtn");
+  const attachmentNextPageBtn = document.querySelector("#attachmentNextPageBtn");
+  const attachmentPageText = document.querySelector("#attachmentPageText");
   const addonsInput = document.querySelector("#productAddons");
   const descriptionInput = document.querySelector("#productDescription");
+  const salientFeaturesInput = document.querySelector("#productSalientFeatures");
+  const examsCoveredInput = document.querySelector("#productExamsCovered");
+  const overviewInput = document.querySelector("#productOverview");
+  const packageIncludesInput = document.querySelector("#productPackageIncludes");
+  const studyPlanInput = document.querySelector("#productStudyPlan");
+  const subjectsCoveredInput = document.querySelector("#productSubjectsCovered");
+  const examPatternInput = document.querySelector("#productExamPattern");
+  const faqsInput = document.querySelector("#productFaqs");
+  const adminProductDescriptionPreview = document.querySelector("#adminProductDescriptionPreview");
+  const adminProductSalientPreview = document.querySelector("#adminProductSalientPreview");
+  const adminProductHighlightsPreview = document.querySelector("#adminProductHighlightsPreview");
+  const adminProductExamsCoveredPreview = document.querySelector("#adminProductExamsCoveredPreview");
+  const adminProductDetailsTabsPreview = document.querySelector("#adminProductDetailsTabsPreview");
+  const addonsEditButtons = Array.from(document.querySelectorAll("[data-addon-edit-target]"));
+  const addonsEditorPanels = Array.from(document.querySelectorAll("[data-addon-editor]"));
   const isActiveInput = document.querySelector("#productIsActive");
   const submitBtn = document.querySelector("#productSubmitBtn");
   const cancelBtn = document.querySelector("#productCancelBtn");
   const reloadBtn = document.querySelector("#reloadProductsBtn");
   const statusFilter = document.querySelector("#productsStatusFilter");
   const tableBody = document.querySelector("#productsTableBody");
+  const productTabButtons = Array.from(document.querySelectorAll("[data-product-tab-btn]"));
+  const productTabPanels = Array.from(document.querySelectorAll("[data-product-tab-panel]"));
+  const productTabSaveBtn = document.querySelector("#productTabSaveBtn");
+  const productTabNextBtn = document.querySelector("#productTabNextBtn");
+  const productLinksModal = document.querySelector("#productLinksModal");
+  const productLinksTitle = document.querySelector("#productLinksTitle");
+  const productLinksSubtitle = document.querySelector("#productLinksSubtitle");
+  const productLinksTableBody = document.querySelector("#productLinksTableBody");
+  const closeProductLinksModalBtn = document.querySelector("#closeProductLinksModalBtn");
 
   /** @type {Array<any>} */
   let products = [];
@@ -45,6 +78,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   let editingLinkedMockTests = [];
   /** @type {Array<any>} */
   let editingLinkedDemoMockTests = [];
+  const selectedDemoMockTestIds = new Set();
+  const selectedLessonMockTestIds = new Set();
+  const selectedMockMockTestIds = new Set();
+  const attachmentFilters = {
+    type: "DEMO",
+    course: "",
+    subject: "",
+    chapter: "",
+    title: "",
+    language: "",
+    page: 1,
+  };
+  const ATTACHMENT_PAGE_SIZE = 10;
+  /** @type {{ productId: string, mode: "demo" | "lessons" } | null} */
+  let activeLinksModal = null;
+  const PRODUCT_TAB_ORDER = ["create", "attachments", "addons"];
+  let activeProductTab = "create";
+  let activeAddonsDetailsTab = "overview";
+  const tabSavedState = {
+    create: false,
+    attachments: false,
+    addons: false,
+  };
   const FALLBACK_THUMB = "./public/PSTET_1.png";
   const REFERRAL_REWARD_SLABS = [
     { min: 299, max: 500, earn: 25, friendDiscount: 10 },
@@ -64,6 +120,104 @@ document.addEventListener("DOMContentLoaded", async () => {
     "Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot",
     "Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject.",
   ];
+  const DEFAULT_PRODUCT_DESCRIPTION =
+    "This course is designed to help students prepare with confidence using guided lessons, audio-scroll support, timed tests, and structured revision flow.";
+  const DEFAULT_VALIDITY_LABEL = "4X Validity / 6 Months Access";
+  const ADMISSION_CONTACT_NUMBER = "+91 62394-16404";
+  const ADMISSION_CONTACT_TEL = "+916239416404";
+  const DEFAULT_SALIENT_FEATURES = ["Audio Lesson", "Scroll with Audio", "Digital Test", "Timer Enable"];
+  const SALIENT_FEATURES = [
+    {
+      label: "Audio Lesson",
+      icon: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 12a8 8 0 0 1 16 0" />
+          <path d="M4 12v5a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 2Z" />
+          <path d="M20 12v5a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z" />
+        </svg>
+      `,
+    },
+    {
+      label: "Scroll with Audio",
+      icon: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h10" />
+          <path d="M4 10h8" />
+          <path d="M4 14h8" />
+          <path d="M15 11l4-3v8l-4-3v-2Z" />
+        </svg>
+      `,
+    },
+    {
+      label: "Digital Test",
+      icon: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 4h8l2 2v14H6V6l2-2Z" />
+          <path d="M9 9h6" />
+          <path d="m9 13 1.5 1.5L15 10" />
+        </svg>
+      `,
+    },
+    {
+      label: "Timer Enable",
+      icon: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 3h6" />
+          <circle cx="12" cy="13" r="8" />
+          <path d="M12 13V9" />
+          <path d="m12 13 3 2" />
+        </svg>
+      `,
+    },
+  ];
+  const DEFAULT_EXAMS_COVERED = [
+    { title: "PSTET", imageUrl: "./public/PSTET_7.png" },
+    { title: "Punjab Teaching Exams", imageUrl: "./public/PSTET_8.png" },
+    { title: "CTET", imageUrl: "./public/PSTET_10.png" },
+  ];
+  const DEFAULT_DETAILS_TABS = {
+    overview: [
+      "This program is designed for structured, exam-focused preparation with lesson-first learning flow.",
+      "Students can start with guided audio-scroll lessons and move to test attempts with full flexibility.",
+    ],
+    packageIncludes: [
+      "Audio-supported lessons with scroll content",
+      "Structured chapter-wise learning flow",
+      "Timed digital practice tests",
+      "Progress tracking and performance support",
+      "Quick revision support content",
+    ],
+    studyPlan: [
+      "Concept learning with guided lessons",
+      "Daily topic-wise practice",
+      "Mock-based revision cycle",
+      "Final strategy and exam readiness sessions",
+    ],
+    subjectsCovered: [
+      "Child Development & Pedagogy",
+      "Punjabi Language",
+      "English Language",
+      "Mathematics",
+      "Environmental Studies",
+      "Social Studies / Science",
+    ],
+    examPattern: [
+      "Objective MCQ-based practice",
+      "Timed attempts to simulate real exam pressure",
+      "Topic-level and full-length mixed tests",
+      "Performance review for speed and accuracy",
+    ],
+    faqs: [
+      {
+        q: "Is this course suitable for beginners?",
+        a: "Yes. It starts from core concepts and progressively moves toward test-level practice.",
+      },
+      {
+        q: "Can I attempt tests while audio is running?",
+        a: "Yes. The learning flow supports moving to attempts and returning to lesson playback when needed.",
+      },
+    ],
+  };
 
   const goAdminLogin = () => {
     window.location.href = "./admin-login.html";
@@ -76,11 +230,333 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (type) messageEl.classList.add(type);
   };
 
-  const parseAddonsInput = () =>
-    String(addonsInput?.value || "")
+  const parseLineList = (value) =>
+    String(value || "")
       .split(/\r?\n|,/)
       .map((item) => item.replace(/^[\u2022\-*]+\s*/, "").trim())
       .filter(Boolean);
+
+  const parseExamsCoveredInput = () =>
+    String(examsCoveredInput?.value || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [titlePart, imagePart] = line.split("|");
+        const title = String(titlePart || "").trim();
+        const imageUrl = String(imagePart || "").trim();
+        if (!title) return null;
+        return {
+          title,
+          imageUrl: imageUrl || "./public/PSTET_7.png",
+        };
+      })
+      .filter(Boolean);
+
+  const parseFaqsInput = () =>
+    String(faqsInput?.value || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [qPart, ...aParts] = line.split("|");
+        const q = String(qPart || "").trim();
+        const a = String(aParts.join("|") || "").trim();
+        if (!q || !a) return null;
+        return { q, a };
+      })
+      .filter(Boolean);
+
+  const normalizeLineList = (value, fallback) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...fallback];
+  };
+
+  const normalizeExamsCovered = (value) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const title = String(item.title || "").trim();
+        const imageUrl = String(item.imageUrl || "").trim();
+        if (!title) return null;
+        return {
+          title,
+          imageUrl: imageUrl || "./public/PSTET_7.png",
+        };
+      })
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...DEFAULT_EXAMS_COVERED];
+  };
+
+  const normalizeFaqs = (value) => {
+    const source = Array.isArray(value) ? value : [];
+    const cleaned = source
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const q = String(item.q || "").trim();
+        const a = String(item.a || "").trim();
+        if (!q || !a) return null;
+        return { q, a };
+      })
+      .filter(Boolean);
+    return cleaned.length ? cleaned : [...DEFAULT_DETAILS_TABS.faqs];
+  };
+
+  const normalizeProductContent = (value) => {
+    const raw =
+      value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const detailsTabs =
+      raw.detailsTabs && typeof raw.detailsTabs === "object" && !Array.isArray(raw.detailsTabs)
+        ? raw.detailsTabs
+        : {};
+
+    const highlightsSource = Array.isArray(value) ? value : raw.highlights;
+    return {
+      highlights: normalizeLineList(highlightsSource, DEFAULT_PRODUCT_HIGHLIGHTS),
+      salientFeatures: normalizeLineList(raw.salientFeatures, DEFAULT_SALIENT_FEATURES),
+      examsCovered: normalizeExamsCovered(raw.examsCovered),
+      detailsTabs: {
+        overview: normalizeLineList(detailsTabs.overview, DEFAULT_DETAILS_TABS.overview),
+        packageIncludes: normalizeLineList(detailsTabs.packageIncludes, DEFAULT_DETAILS_TABS.packageIncludes),
+        studyPlan: normalizeLineList(detailsTabs.studyPlan, DEFAULT_DETAILS_TABS.studyPlan),
+        subjectsCovered: normalizeLineList(detailsTabs.subjectsCovered, DEFAULT_DETAILS_TABS.subjectsCovered),
+        examPattern: normalizeLineList(detailsTabs.examPattern, DEFAULT_DETAILS_TABS.examPattern),
+        faqs: normalizeFaqs(detailsTabs.faqs),
+      },
+    };
+  };
+
+  const renderPstetBulletList = (items) => `
+    <ul class="product-pstet-list">
+      ${(Array.isArray(items) ? items : []).map((item) => `<li>${escapeHtml(String(item || ""))}</li>`).join("")}
+    </ul>
+  `;
+
+  const renderPstetFaqList = (items) => `
+    <div class="product-pstet-faqs">
+      ${(Array.isArray(items) ? items : [])
+        .map((item) => {
+          const q = String(item?.q || "").trim();
+          const a = String(item?.a || "").trim();
+          if (!q || !a) return "";
+          return `
+            <article class="product-pstet-faq-item">
+              <h5>${escapeHtml(q)}</h5>
+              <p>${escapeHtml(a)}</p>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+
+  const renderProductDescriptionPreview = (description) => `
+    <section class="product-description-section">
+      <h4>Descriptions of Product</h4>
+      <p>${escapeHtml(description || DEFAULT_PRODUCT_DESCRIPTION)}</p>
+    </section>
+  `;
+
+  const renderSalientFeaturesPreview = (content) => `
+    <section class="product-salient-features">
+      <h4>Salient <span>Features</span></h4>
+      <div class="product-salient-grid">
+        ${(Array.isArray(content?.salientFeatures) ? content.salientFeatures : [])
+          .map((label, index) => {
+            const fallbackIcon = SALIENT_FEATURES[index % SALIENT_FEATURES.length]?.icon || "";
+            return `
+              <article class="product-salient-item">
+                <span class="product-salient-icon">${fallbackIcon}</span>
+                <span>${escapeHtml(label)}</span>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+      <div class="product-contact-card">
+        <span class="product-contact-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M6.5 3.5h3l1.4 4.3-1.9 1.9a16 16 0 0 0 5.2 5.2l1.9-1.9 4.3 1.4v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.5 5.7 2 2 0 0 1 6.5 3.5Z" />
+          </svg>
+        </span>
+        <p>
+          For Admission Enquiry Call at
+          <a href="tel:${ADMISSION_CONTACT_TEL}">${ADMISSION_CONTACT_NUMBER}</a>
+        </p>
+      </div>
+    </section>
+  `;
+
+  const renderProductHighlightsPreview = (content) => `
+    <section class="product-highlights">
+      <h4>Product <span>Highlights</span></h4>
+      <ul class="product-highlights-list">
+        ${(Array.isArray(content?.highlights) ? content.highlights : [])
+          .map(
+            (item) => `
+              <li>
+                <span class="product-highlight-check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="m5 12 4 4 10-10" />
+                  </svg>
+                </span>
+                <span>${escapeHtml(item)}</span>
+              </li>
+            `
+          )
+          .join("")}
+      </ul>
+    </section>
+  `;
+
+  const renderExamsCoveredPreview = (content) => `
+    <section class="product-exams-covered">
+      <h4>Exams <span>Covered</span></h4>
+      <div class="product-exams-grid">
+        ${(Array.isArray(content?.examsCovered) ? content.examsCovered : [])
+          .map((item) => {
+            const title = String(item?.title || "").trim();
+            const imageUrl = normalizeAssetUrl(item?.imageUrl || "./public/PSTET_7.png");
+            if (!title) return "";
+            return `
+              <article class="product-exam-item">
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" />
+                <p>${escapeHtml(title)}</p>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
+
+  const renderProductDetailsTabsPreview = (content) => {
+    const tabs = content?.detailsTabs || {};
+    return `
+      <section class="product-pstet-tabs" data-pstet-tabs>
+        <div class="product-pstet-tab-nav" role="tablist" aria-label="Course details tabs">
+          <button type="button" class="is-active" data-pstet-tab-btn="overview" aria-selected="true">Overview</button>
+          <button type="button" data-pstet-tab-btn="includes" aria-selected="false">This Package Includes</button>
+          <button type="button" data-pstet-tab-btn="plan" aria-selected="false">Study Plan</button>
+          <button type="button" data-pstet-tab-btn="subjects" aria-selected="false">Subjects Covered</button>
+          <button type="button" data-pstet-tab-btn="pattern" aria-selected="false">Exam Pattern</button>
+          <button type="button" data-pstet-tab-btn="faqs" aria-selected="false">FAQs</button>
+        </div>
+        <div class="product-pstet-tab-panels">
+          <section class="product-pstet-tab-panel is-active" data-pstet-tab-panel="overview">
+            ${(Array.isArray(tabs.overview) ? tabs.overview : []).map((para) => `<p>${escapeHtml(para)}</p>`).join("")}
+          </section>
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="includes">
+            ${renderPstetBulletList(Array.isArray(tabs.packageIncludes) ? tabs.packageIncludes : [])}
+          </section>
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="plan">
+            ${renderPstetBulletList(Array.isArray(tabs.studyPlan) ? tabs.studyPlan : [])}
+          </section>
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="subjects">
+            ${renderPstetBulletList(Array.isArray(tabs.subjectsCovered) ? tabs.subjectsCovered : [])}
+          </section>
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="pattern">
+            ${renderPstetBulletList(Array.isArray(tabs.examPattern) ? tabs.examPattern : [])}
+          </section>
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="faqs">
+            ${renderPstetFaqList(Array.isArray(tabs.faqs) ? tabs.faqs : [])}
+          </section>
+        </div>
+      </section>
+    `;
+  };
+
+  const activatePstetTab = (tabsContainer, tabId) => {
+    if (!(tabsContainer instanceof HTMLElement)) return;
+    const buttons = Array.from(tabsContainer.querySelectorAll("[data-pstet-tab-btn]"));
+    const panels = Array.from(tabsContainer.querySelectorAll("[data-pstet-tab-panel]"));
+    if (!buttons.length || !panels.length) return;
+
+    buttons.forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const active = btn.getAttribute("data-pstet-tab-btn") === tabId;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+
+    panels.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      const active = panel.getAttribute("data-pstet-tab-panel") === tabId;
+      panel.classList.toggle("is-active", active);
+    });
+  };
+
+  const closeAllAddonEditors = () => {
+    addonsEditorPanels.forEach((panel) => {
+      if (panel instanceof HTMLElement) panel.classList.add("hidden");
+    });
+    addonsEditButtons.forEach((btn) => {
+      if (btn instanceof HTMLButtonElement) btn.textContent = "Edit";
+    });
+  };
+
+  const toggleAddonEditor = (targetKey) => {
+    const editor = document.querySelector(`[data-addon-editor="${targetKey}"]`);
+    if (!(editor instanceof HTMLElement)) return;
+    const button = addonsEditButtons.find(
+      (btn) => btn instanceof HTMLButtonElement && btn.getAttribute("data-addon-edit-target") === targetKey
+    );
+    const shouldOpen = editor.classList.contains("hidden");
+    closeAllAddonEditors();
+    if (!shouldOpen) return;
+    editor.classList.remove("hidden");
+    if (button instanceof HTMLButtonElement) button.textContent = "Done";
+    const firstField = editor.querySelector("input, textarea, select");
+    if (firstField instanceof HTMLElement) firstField.focus();
+  };
+
+  const renderAddonsPreview = () => {
+    const content = normalizeProductContent(buildProductContentFromForm());
+    if (adminProductDescriptionPreview instanceof HTMLElement) {
+      adminProductDescriptionPreview.innerHTML = renderProductDescriptionPreview(
+        String(descriptionInput?.value || "").trim() || DEFAULT_PRODUCT_DESCRIPTION
+      );
+    }
+    if (adminProductSalientPreview instanceof HTMLElement) {
+      adminProductSalientPreview.innerHTML = renderSalientFeaturesPreview(content);
+    }
+    if (adminProductHighlightsPreview instanceof HTMLElement) {
+      adminProductHighlightsPreview.innerHTML = renderProductHighlightsPreview(content);
+    }
+    if (adminProductExamsCoveredPreview instanceof HTMLElement) {
+      adminProductExamsCoveredPreview.innerHTML = renderExamsCoveredPreview(content);
+    }
+    if (adminProductDetailsTabsPreview instanceof HTMLElement) {
+      adminProductDetailsTabsPreview.innerHTML = renderProductDetailsTabsPreview(content);
+      activatePstetTab(adminProductDetailsTabsPreview, activeAddonsDetailsTab);
+    }
+  };
+
+  const formatExamsCoveredForInput = (items) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => {
+        const title = String(item?.title || "").trim();
+        const imageUrl = String(item?.imageUrl || "").trim();
+        if (!title) return "";
+        return `${title} | ${imageUrl || "./public/PSTET_7.png"}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+
+  const formatFaqsForInput = (items) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => {
+        const q = String(item?.q || "").trim();
+        const a = String(item?.a || "").trim();
+        if (!q || !a) return "";
+        return `${q} | ${a}`;
+      })
+      .filter(Boolean)
+      .join("\n");
 
   const normalizeAssetUrl = (input) => {
     const raw = String(input || "").trim();
@@ -115,75 +591,196 @@ document.addEventListener("DOMContentLoaded", async () => {
       reader.readAsDataURL(file);
     });
 
-  const selectedMockTestIds = (targetWrap) => {
-    if (!(targetWrap instanceof HTMLElement)) return [];
-    return Array.from(
-      targetWrap.querySelectorAll('input[type="checkbox"][data-mock-test-id]:checked')
-    )
-      .map((input) => String(input.getAttribute("data-mock-test-id") || "").trim())
-      .filter(Boolean);
+  const normalizeAttachmentType = (value) => {
+    const code = String(value || "").trim().toUpperCase();
+    if (code === "DEMO" || code === "LESSON" || code === "MOCK") return code;
+    return "MOCK";
   };
 
-  const renderMockTestChecklist = (targetWrap, selectedIds = [], linkedTestsFromEdit = []) => {
-    if (!(targetWrap instanceof HTMLElement)) return;
-    const checkboxPrefix =
-      targetWrap.id === "productDemoMockTestsWrap" ? "product-demo-mock-test" : "product-mock-test";
+  const getSelectedSetByAttachmentType = (type) => {
+    if (type === "DEMO") return selectedDemoMockTestIds;
+    if (type === "LESSON") return selectedLessonMockTestIds;
+    return selectedMockMockTestIds;
+  };
 
-    const selectedSet = new Set((selectedIds || []).map((item) => String(item || "").trim()));
-    const publishedTests = mockTests.filter((test) => Boolean(test?.isActive));
-    const missingSelectedFromEdit = (linkedTestsFromEdit || [])
-      .map((item) => ({
-        id: String(item?.id || "").trim(),
-        title: String(item?.title || "Untitled"),
-        examType: String(item?.examType || ""),
-        subject: String(item?.subject || ""),
-        accessCode: String(item?.accessCode || "DEMO"),
-        isActive: Boolean(item?.isActive),
-      }))
-      .filter(
-        (test) =>
-          test.id &&
-          selectedSet.has(test.id) &&
-          !publishedTests.some((published) => String(published?.id || "").trim() === test.id)
-      );
-    const testsToRender = [...publishedTests, ...missingSelectedFromEdit];
+  const toAttachmentTestRecord = (item) => ({
+    id: String(item?.id || "").trim(),
+    title: String(item?.title || "Untitled"),
+    examType: String(item?.examType || "").trim(),
+    subject: String(item?.subject || "").trim(),
+    accessCode: normalizeAttachmentType(item?.accessCode),
+    languageMode: String(item?.languageMode || "").trim(),
+    courseTitle: String(item?.courseTitle || "").trim(),
+    chapterTitle: String(item?.chapterTitle || "").trim(),
+    lessonTitle: String(item?.lessonTitle || "").trim(),
+  });
 
-    if (!testsToRender.length) {
-      targetWrap.innerHTML =
-        '<p style="margin:0;color:#666;">No published tests found. Publish tests first.</p>';
-      return;
+  const getAttachmentTypeMatch = (type, accessCode) => {
+    if (type === "DEMO") return accessCode === "DEMO";
+    if (type === "LESSON") return accessCode === "LESSON";
+    return accessCode === "MOCK";
+  };
+
+  const getAttachmentCandidates = (type) => {
+    const normalizedType = normalizeAttachmentType(type);
+    const baseRows = (Array.isArray(mockTests) ? mockTests : [])
+      .map((item) => toAttachmentTestRecord(item))
+      .filter((item) => item.id && getAttachmentTypeMatch(normalizedType, item.accessCode));
+
+    const linkedFallbackSource = normalizedType === "DEMO" ? editingLinkedDemoMockTests : editingLinkedMockTests;
+    const linkedFallback = (Array.isArray(linkedFallbackSource) ? linkedFallbackSource : [])
+      .map((item) => toAttachmentTestRecord(item))
+      .filter((item) => item.id && getAttachmentTypeMatch(normalizedType, item.accessCode));
+
+    const mergedMap = new Map();
+    [...baseRows, ...linkedFallback].forEach((item) => {
+      if (!item.id) return;
+      if (!mergedMap.has(item.id)) mergedMap.set(item.id, item);
+    });
+    return Array.from(mergedMap.values());
+  };
+
+  const fillFilterSelect = (selectEl, values, currentValue, allLabel) => {
+    if (!(selectEl instanceof HTMLSelectElement)) return "";
+    const unique = Array.from(
+      new Set(
+        values
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    selectEl.innerHTML = [
+      `<option value="">${escapeHtml(allLabel)}</option>`,
+      ...unique.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`),
+    ].join("");
+
+    if (currentValue && unique.includes(currentValue)) {
+      selectEl.value = currentValue;
+      return currentValue;
+    }
+    selectEl.value = "";
+    return "";
+  };
+
+  const renderAttachmentList = () => {
+    const selectedType = normalizeAttachmentType(attachmentFilters.type);
+    const candidates = getAttachmentCandidates(selectedType);
+    if (attachmentListLabel instanceof HTMLElement) {
+      attachmentListLabel.textContent = `Select ${selectedType} Attachments`;
     }
 
-    targetWrap.innerHTML = testsToRender
-      .map((test) => {
-        const testId = String(test.id || "").trim();
-        const inputId = `${checkboxPrefix}-${testId}`;
-        const checked = selectedSet.has(testId) ? "checked" : "";
-        const isPublished = Boolean(test?.isActive);
-        const subtitle = [
-          String(test.examType || "").trim(),
-          String(test.subject || "").trim(),
-          String(test.accessCode || "DEMO").trim(),
-          isPublished ? "Published" : "Unpublished (already linked)",
-        ]
-          .filter(Boolean)
-          .join(" | ");
-        return `
-          <label class="filter-option" for="${escapeHtml(inputId)}">
-            <input
-              id="${escapeHtml(inputId)}"
-              type="checkbox"
-              data-mock-test-id="${escapeHtml(testId)}"
-              ${checked}
-            />
-            <span>
-              <strong>${escapeHtml(test.title || "Untitled")}</strong>
-              <small style="display:block;color:#666;">${escapeHtml(subtitle)}</small>
-            </span>
-          </label>
-        `;
-      })
-      .join("");
+    attachmentFilters.course = fillFilterSelect(
+      attachmentCourseFilter,
+      candidates.map((item) => item.courseTitle),
+      attachmentFilters.course,
+      "All Courses"
+    );
+    attachmentFilters.subject = fillFilterSelect(
+      attachmentSubjectFilter,
+      candidates.map((item) => item.subject),
+      attachmentFilters.subject,
+      "All Subjects"
+    );
+    attachmentFilters.chapter = fillFilterSelect(
+      attachmentChapterFilter,
+      candidates.map((item) => item.chapterTitle),
+      attachmentFilters.chapter,
+      "All Chapters"
+    );
+    attachmentFilters.language = fillFilterSelect(
+      attachmentLanguageFilter,
+      candidates.map((item) => item.languageMode),
+      attachmentFilters.language,
+      "All Languages"
+    );
+
+    const titleSearch = String(attachmentFilters.title || "").trim().toLowerCase();
+    const filtered = candidates.filter((item) => {
+      if (attachmentFilters.course && item.courseTitle !== attachmentFilters.course) return false;
+      if (attachmentFilters.subject && item.subject !== attachmentFilters.subject) return false;
+      if (attachmentFilters.chapter && item.chapterTitle !== attachmentFilters.chapter) return false;
+      if (attachmentFilters.language && item.languageMode !== attachmentFilters.language) return false;
+      if (!titleSearch) return true;
+      return item.title.toLowerCase().includes(titleSearch);
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ATTACHMENT_PAGE_SIZE));
+    attachmentFilters.page = Math.min(Math.max(1, Number(attachmentFilters.page || 1)), totalPages);
+    const pageStart = (attachmentFilters.page - 1) * ATTACHMENT_PAGE_SIZE;
+    const pageRows = filtered.slice(pageStart, pageStart + ATTACHMENT_PAGE_SIZE);
+    const selectedSet = getSelectedSetByAttachmentType(selectedType);
+
+    if (attachmentListWrap instanceof HTMLElement) {
+      if (!pageRows.length) {
+        attachmentListWrap.innerHTML =
+          '<p style="margin:0;color:#666;">No entries found for selected filters.</p>';
+      } else {
+        attachmentListWrap.innerHTML = pageRows
+          .map((item) => {
+            const inputId = `attachment-${selectedType.toLowerCase()}-${item.id}`;
+            const subtitle = [
+              item.courseTitle ? `Course: ${item.courseTitle}` : "",
+              item.chapterTitle ? `Chapter: ${item.chapterTitle}` : "",
+              item.lessonTitle ? `Lesson: ${item.lessonTitle}` : "",
+              item.subject ? `Subject: ${item.subject}` : "",
+              item.languageMode ? `Language: ${item.languageMode}` : "",
+            ]
+              .filter(Boolean)
+              .join(" | ");
+
+            return `
+              <label class="filter-option" for="${escapeHtml(inputId)}">
+                <input
+                  id="${escapeHtml(inputId)}"
+                  type="checkbox"
+                  data-attachment-test-id="${escapeHtml(item.id)}"
+                  data-attachment-type="${escapeHtml(selectedType)}"
+                  ${selectedSet.has(item.id) ? "checked" : ""}
+                />
+                <span>
+                  <strong class="attachment-item-title">${escapeHtml(item.title)}</strong>
+                  <small class="attachment-item-meta">${escapeHtml(subtitle || "-")}</small>
+                </span>
+              </label>
+            `;
+          })
+          .join("");
+      }
+    }
+
+    if (attachmentPageText instanceof HTMLElement) {
+      attachmentPageText.textContent = `Page ${attachmentFilters.page} / ${totalPages}`;
+    }
+    if (attachmentPrevPageBtn instanceof HTMLButtonElement) {
+      attachmentPrevPageBtn.disabled = attachmentFilters.page <= 1;
+    }
+    if (attachmentNextPageBtn instanceof HTMLButtonElement) {
+      attachmentNextPageBtn.disabled = attachmentFilters.page >= totalPages;
+    }
+  };
+
+  const syncAttachmentSelectionsFromProduct = (product) => {
+    selectedDemoMockTestIds.clear();
+    selectedLessonMockTestIds.clear();
+    selectedMockMockTestIds.clear();
+    const demoRows = Array.isArray(product?.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
+    demoRows.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (id) selectedDemoMockTestIds.add(id);
+    });
+
+    const linkedRows = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
+    linkedRows.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (!id) return;
+      const code = normalizeAttachmentType(item?.accessCode);
+      if (code === "LESSON") {
+        selectedLessonMockTestIds.add(id);
+      } else {
+        selectedMockMockTestIds.add(id);
+      }
+    });
   };
 
   const resetForm = () => {
@@ -195,12 +792,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (cancelBtn) cancelBtn.classList.add("hidden");
     editingLinkedMockTests = [];
     editingLinkedDemoMockTests = [];
-    renderMockTestChecklist(productMockTestsWrap, []);
-    renderMockTestChecklist(productDemoMockTestsWrap, []);
+    selectedDemoMockTestIds.clear();
+    selectedLessonMockTestIds.clear();
+    selectedMockMockTestIds.clear();
+    attachmentFilters.type = "DEMO";
+    attachmentFilters.course = "";
+    attachmentFilters.subject = "";
+    attachmentFilters.chapter = "";
+    attachmentFilters.title = "";
+    attachmentFilters.language = "";
+    attachmentFilters.page = 1;
+    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
+    renderAttachmentList();
     if (addonsInput) addonsInput.value = DEFAULT_PRODUCT_HIGHLIGHTS.join("\n");
+    if (descriptionInput) descriptionInput.value = DEFAULT_PRODUCT_DESCRIPTION;
+    if (validityInput) validityInput.value = DEFAULT_VALIDITY_LABEL;
+    if (salientFeaturesInput) salientFeaturesInput.value = DEFAULT_SALIENT_FEATURES.join("\n");
+    if (examsCoveredInput) examsCoveredInput.value = formatExamsCoveredForInput(DEFAULT_EXAMS_COVERED);
+    if (overviewInput) overviewInput.value = DEFAULT_DETAILS_TABS.overview.join("\n");
+    if (packageIncludesInput) packageIncludesInput.value = DEFAULT_DETAILS_TABS.packageIncludes.join("\n");
+    if (studyPlanInput) studyPlanInput.value = DEFAULT_DETAILS_TABS.studyPlan.join("\n");
+    if (subjectsCoveredInput) subjectsCoveredInput.value = DEFAULT_DETAILS_TABS.subjectsCovered.join("\n");
+    if (examPatternInput) examPatternInput.value = DEFAULT_DETAILS_TABS.examPattern.join("\n");
+    if (faqsInput) faqsInput.value = formatFaqsForInput(DEFAULT_DETAILS_TABS.faqs);
     setThumbnailPreview("");
+    activeAddonsDetailsTab = "overview";
+    closeAllAddonEditors();
+    renderAddonsPreview();
     autoWireReferralRewards();
+    activeProductTab = "create";
+    markAllTabsSaved(false);
   };
+
+  const buildProductContentFromForm = () => ({
+    highlights: parseLineList(addonsInput?.value || ""),
+    salientFeatures: parseLineList(salientFeaturesInput?.value || ""),
+    examsCovered: parseExamsCoveredInput(),
+    detailsTabs: {
+      overview: parseLineList(overviewInput?.value || ""),
+      packageIncludes: parseLineList(packageIncludesInput?.value || ""),
+      studyPlan: parseLineList(studyPlanInput?.value || ""),
+      subjectsCovered: parseLineList(subjectsCoveredInput?.value || ""),
+      examPattern: parseLineList(examPatternInput?.value || ""),
+      faqs: parseFaqsInput(),
+    },
+  });
 
   const payloadFromForm = () => ({
     title: titleInput?.value?.trim() || "",
@@ -215,9 +852,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     accessDays: accessDaysInput?.value ? Number(accessDaysInput.value) : 0,
     validityLabel: validityInput?.value?.trim() || undefined,
     thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
-    mockTestIds: selectedMockTestIds(productMockTestsWrap),
-    demoMockTestIds: selectedMockTestIds(productDemoMockTestsWrap),
-    addons: parseAddonsInput(),
+    mockTestIds: Array.from(new Set([...selectedLessonMockTestIds, ...selectedMockMockTestIds])),
+    demoMockTestIds: Array.from(selectedDemoMockTestIds),
+    addons: buildProductContentFromForm(),
     description: descriptionInput?.value?.trim() || undefined,
     isActive: Boolean(isActiveInput?.checked),
   });
@@ -250,6 +887,254 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  const updateTabUi = () => {
+    productTabButtons.forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const tabId = String(btn.getAttribute("data-product-tab-btn") || "");
+      btn.classList.toggle("active", tabId === activeProductTab);
+      btn.classList.toggle("saved", Boolean(tabSavedState[tabId]));
+      const suffix = tabSavedState[tabId] ? " (Saved)" : "";
+      const baseLabel = String(btn.textContent || "").replace(/\s+\(Saved\)$/i, "");
+      btn.textContent = `${baseLabel}${suffix}`;
+    });
+
+    productTabPanels.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      const tabId = String(panel.getAttribute("data-product-tab-panel") || "");
+      panel.classList.toggle("active", tabId === activeProductTab);
+    });
+
+    const allSaved = PRODUCT_TAB_ORDER.every((key) => Boolean(tabSavedState[key]));
+    if (submitBtn instanceof HTMLButtonElement) {
+      submitBtn.disabled = !allSaved;
+      submitBtn.title = allSaved ? "" : "Save all tabs first";
+    }
+  };
+
+  const setTabSaved = (tabId, saved) => {
+    if (!PRODUCT_TAB_ORDER.includes(tabId)) return;
+    tabSavedState[tabId] = Boolean(saved);
+    updateTabUi();
+  };
+
+  const markAllTabsSaved = (saved) => {
+    PRODUCT_TAB_ORDER.forEach((tabId) => {
+      tabSavedState[tabId] = Boolean(saved);
+    });
+    updateTabUi();
+  };
+
+  const switchProductTab = (tabId) => {
+    if (!PRODUCT_TAB_ORDER.includes(tabId)) return;
+    activeProductTab = tabId;
+    updateTabUi();
+  };
+
+  const getFieldValue = (input) => String(input?.value || "").trim();
+
+  const validateCreateTab = () => {
+    const listPrice = Number(listPriceInput?.value || 0);
+    const salePrice = Number(salePriceInput?.value || 0);
+    const referralDiscount = Number(referralDiscountInput?.value || 0);
+    const accessDays = Number(accessDaysInput?.value || 0);
+    const referralBonus = Number(referralBonusInput?.value || 0);
+
+    if (!getFieldValue(titleInput)) return "Title is required.";
+    if (!getFieldValue(categoryInput)) return "Exam Category is required.";
+    if (!getFieldValue(examInput)) return "Exam is required.";
+    if (!getFieldValue(courseTypeInput)) return "Product Type is required.";
+    if (!(listPrice > 0)) return "MRP must be greater than 0.";
+    if (!(salePrice > 0)) return "Discount Price must be greater than 0.";
+    if (!(accessDays > 0)) return "Access days must be greater than 0.";
+    if (referralBonus < 0) return "Referral Bonus cannot be negative.";
+    if (referralDiscount < 0) return "Referral Friend Discount cannot be negative.";
+    if (referralDiscount > salePrice) return "Referral friend discount cannot be greater than Discount Price.";
+    return "";
+  };
+
+  const validateTab = (tabId) => {
+    if (tabId === "create") return validateCreateTab();
+    return "";
+  };
+
+  const saveCurrentTab = () => {
+    const errorMessage = validateTab(activeProductTab);
+    if (errorMessage) {
+      setMessage(errorMessage, "error");
+      return false;
+    }
+    setTabSaved(activeProductTab, true);
+    setMessage(`Saved ${activeProductTab} tab.`, "success");
+    return true;
+  };
+
+  const goToNextTab = () => {
+    const index = PRODUCT_TAB_ORDER.indexOf(activeProductTab);
+    if (index < 0) return;
+    const next = PRODUCT_TAB_ORDER[Math.min(index + 1, PRODUCT_TAB_ORDER.length - 1)];
+    switchProductTab(next);
+  };
+
+  const getProductById = (productId) => products.find((item) => String(item?.id || "") === String(productId || ""));
+
+  const getLinkedTestsByMode = (product, mode) => {
+    if (!product || typeof product !== "object") return [];
+    if (mode === "demo") return Array.isArray(product.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
+    return Array.isArray(product.linkedMockTests) ? product.linkedMockTests : [];
+  };
+
+  const toAccessCode = (value) => String(value || "DEMO").trim().toUpperCase();
+
+  const getAvailableTestsByMode = (mode) => {
+    const source = Array.isArray(mockTests) ? mockTests : [];
+    return source.filter((item) => {
+      const code = toAccessCode(item?.accessCode);
+      if (mode === "demo") return code === "DEMO";
+      return code !== "DEMO";
+    });
+  };
+
+  const getMergedTestsForModal = (product, mode) => {
+    const linked = getLinkedTestsByMode(product, mode);
+    const linkedById = new Map(
+      linked
+        .map((item) => [String(item?.id || "").trim(), item])
+        .filter(([id]) => Boolean(id))
+    );
+    const available = getAvailableTestsByMode(mode);
+
+    const rows = [];
+    available.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (!id) return;
+      rows.push({
+        id,
+        title: String(item?.title || "Untitled"),
+        linked: linkedById.has(id),
+      });
+    });
+
+    linked.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (!id) return;
+      if (rows.some((row) => row.id === id)) return;
+      rows.push({
+        id,
+        title: String(item?.title || "Untitled"),
+        linked: true,
+      });
+    });
+
+    return rows;
+  };
+
+  const closeLinksModal = () => {
+    activeLinksModal = null;
+    if (productLinksModal instanceof HTMLElement) {
+      productLinksModal.classList.add("hidden");
+      productLinksModal.setAttribute("aria-hidden", "true");
+    }
+    if (productLinksTableBody instanceof HTMLElement) {
+      productLinksTableBody.innerHTML = "";
+    }
+  };
+
+  const renderLinksModal = () => {
+    if (!activeLinksModal) return;
+    const product = getProductById(activeLinksModal.productId);
+    if (!product) {
+      closeLinksModal();
+      return;
+    }
+
+    const mode = activeLinksModal.mode;
+    const modeLabel = mode === "demo" ? "Demo" : "Lessons";
+    if (productLinksTitle instanceof HTMLElement) {
+      productLinksTitle.textContent = `${modeLabel} Links`;
+    }
+    if (productLinksSubtitle instanceof HTMLElement) {
+      productLinksSubtitle.textContent = `${product.title || "Product"} - ${modeLabel}`;
+    }
+
+    const rows = getMergedTestsForModal(product, mode);
+    if (!(productLinksTableBody instanceof HTMLElement)) return;
+    if (!rows.length) {
+      productLinksTableBody.innerHTML =
+        '<tr><td colspan="3" style="text-align:center;color:#666;">No tests available for this section.</td></tr>';
+      return;
+    }
+
+    productLinksTableBody.innerHTML = rows
+      .map(
+        (item, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(item.title)}</td>
+            <td>
+              <button
+                class="table-btn ${item.linked ? "delete" : "edit"}"
+                type="button"
+                data-links-action="${item.linked ? "remove" : "add"}"
+                data-links-mode="${escapeHtml(mode)}"
+                data-links-product-id="${escapeHtml(String(product.id || ""))}"
+                data-links-test-id="${escapeHtml(item.id)}"
+              >
+                ${item.linked ? "Remove" : "Add"}
+              </button>
+            </td>
+          </tr>
+        `
+      )
+      .join("");
+  };
+
+  const openLinksModal = (productId, mode) => {
+    const product = getProductById(productId);
+    if (!product) return;
+    activeLinksModal = { productId: String(productId), mode };
+    if (productLinksModal instanceof HTMLElement) {
+      productLinksModal.classList.remove("hidden");
+      productLinksModal.setAttribute("aria-hidden", "false");
+    }
+    renderLinksModal();
+  };
+
+  const applyLinkAction = async ({ productId, mode, testId, action }) => {
+    const product = getProductById(productId);
+    if (!product) return;
+
+    const linkedDemo = getLinkedTestsByMode(product, "demo");
+    const linkedLessons = getLinkedTestsByMode(product, "lessons");
+    const demoIds = linkedDemo.map((item) => String(item?.id || "").trim()).filter(Boolean);
+    const lessonIds = linkedLessons.map((item) => String(item?.id || "").trim()).filter(Boolean);
+
+    const nextDemoIds = [...demoIds];
+    const nextLessonIds = [...lessonIds];
+    const targetList = mode === "demo" ? nextDemoIds : nextLessonIds;
+    const has = targetList.includes(testId);
+
+    if (action === "add" && !has) targetList.push(testId);
+    if (action === "remove" && has) {
+      const idx = targetList.indexOf(testId);
+      if (idx >= 0) targetList.splice(idx, 1);
+    }
+
+    const data = await apiRequest({
+      path: `/admin/products/${encodeURIComponent(String(productId))}`,
+      method: "PATCH",
+      token,
+      body: {
+        mockTestIds: nextLessonIds,
+        demoMockTestIds: nextDemoIds,
+      },
+    });
+    const updated = data?.product || null;
+    if (!updated) return;
+    products = products.map((item) => (item.id === updated.id ? updated : item));
+    renderProducts();
+    renderLinksModal();
+  };
+
   const renderProducts = () => {
     if (!tableBody) return;
     if (!products.length) {
@@ -269,6 +1154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const linkedDemoTests = Array.isArray(product.linkedDemoMockTests)
           ? product.linkedDemoMockTests
           : [];
+        const productId = String(product.id || "");
 
         return `
           <tr>
@@ -292,32 +1178,26 @@ document.addEventListener("DOMContentLoaded", async () => {
               </small>
             </td>
             <td>
-              ${
-                linkedTests.length
-                  ? `<div style="margin-bottom:${linkedDemoTests.length ? "0.5rem" : "0"};"><small style="color:#666;">Tests</small>${linkedTests
-                      .map(
-                        (test) =>
-                          `<div><strong>${escapeHtml(test.title || "-")}</strong> <small>(${escapeHtml(
-                            test.accessCode || "DEMO"
-                          )})</small></div>`
-                      )
-                      .join("")}</div>`
-                  : linkedDemoTests.length
-                    ? ""
-                    : "-"
-              }
-              ${
-                linkedDemoTests.length
-                  ? `<div><small style="color:#666;">Demo</small>${linkedDemoTests
-                      .map(
-                        (test) =>
-                          `<div><strong>${escapeHtml(test.title || "-")}</strong> <small>(${escapeHtml(
-                            test.accessCode || "DEMO"
-                          )})</small></div>`
-                      )
-                      .join("")}</div>`
-                  : ""
-              }
+              <div class="admin-linked-summary">
+                <button
+                  class="table-link-btn"
+                  type="button"
+                  data-open-links-modal="true"
+                  data-links-product-id="${escapeHtml(productId)}"
+                  data-links-mode="demo"
+                >
+                  Demo-${linkedDemoTests.length}
+                </button>
+                <button
+                  class="table-link-btn"
+                  type="button"
+                  data-open-links-modal="true"
+                  data-links-product-id="${escapeHtml(productId)}"
+                  data-links-mode="lessons"
+                >
+                  Lessons-${linkedTests.length}
+                </button>
+              </div>
             </td>
             <td>${toCurrency(product.referralBonusAmount || 0)}</td>
             <td>${toCurrency(product.referralDiscountAmount || 0)}</td>
@@ -358,40 +1238,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (referralBonusInput) referralBonusInput.value = String(product.referralBonusAmount ?? 0);
     if (referralDiscountInput) referralDiscountInput.value = String(product.referralDiscountAmount ?? 0);
     if (accessDaysInput) accessDaysInput.value = String(product.accessDays ?? "");
-    if (validityInput) validityInput.value = product.validityLabel || "";
+    if (validityInput) validityInput.value = product.validityLabel || DEFAULT_VALIDITY_LABEL;
     if (thumbnailInput) thumbnailInput.value = product.thumbnailUrl || "";
     setThumbnailPreview(product.thumbnailUrl || "");
-    if (addonsInput) addonsInput.value = (product.addons || []).join("\n");
-    if (descriptionInput) descriptionInput.value = product.description || "";
+    const productContent = normalizeProductContent(product.addons);
+    if (addonsInput) addonsInput.value = productContent.highlights.join("\n");
+    if (salientFeaturesInput) salientFeaturesInput.value = productContent.salientFeatures.join("\n");
+    if (examsCoveredInput) examsCoveredInput.value = formatExamsCoveredForInput(productContent.examsCovered);
+    if (overviewInput) overviewInput.value = productContent.detailsTabs.overview.join("\n");
+    if (packageIncludesInput) packageIncludesInput.value = productContent.detailsTabs.packageIncludes.join("\n");
+    if (studyPlanInput) studyPlanInput.value = productContent.detailsTabs.studyPlan.join("\n");
+    if (subjectsCoveredInput) subjectsCoveredInput.value = productContent.detailsTabs.subjectsCovered.join("\n");
+    if (examPatternInput) examPatternInput.value = productContent.detailsTabs.examPattern.join("\n");
+    if (faqsInput) faqsInput.value = formatFaqsForInput(productContent.detailsTabs.faqs);
+    if (descriptionInput) descriptionInput.value = product.description || DEFAULT_PRODUCT_DESCRIPTION;
     if (isActiveInput) isActiveInput.checked = Boolean(product.isActive);
+    activeAddonsDetailsTab = "overview";
+    closeAllAddonEditors();
+    renderAddonsPreview();
 
     const linkedTests = Array.isArray(product.linkedMockTests) ? product.linkedMockTests : [];
     const linkedDemoTests = Array.isArray(product.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
     editingLinkedMockTests = linkedTests;
     editingLinkedDemoMockTests = linkedDemoTests;
-    renderMockTestChecklist(
-      productMockTestsWrap,
-      linkedTests.map((item) => String(item?.id || "").trim()).filter(Boolean),
-      editingLinkedMockTests
-    );
-    renderMockTestChecklist(
-      productDemoMockTestsWrap,
-      linkedDemoTests.map((item) => String(item?.id || "").trim()).filter(Boolean),
-      editingLinkedDemoMockTests
-    );
+    syncAttachmentSelectionsFromProduct(product);
+    attachmentFilters.type = "DEMO";
+    attachmentFilters.page = 1;
+    attachmentFilters.course = "";
+    attachmentFilters.subject = "";
+    attachmentFilters.chapter = "";
+    attachmentFilters.title = "";
+    attachmentFilters.language = "";
+    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
+    renderAttachmentList();
 
     if (submitBtn) submitBtn.textContent = "Update Product";
     if (cancelBtn) cancelBtn.classList.remove("hidden");
+    activeProductTab = "create";
+    markAllTabsSaved(true);
+    switchProductTab("create");
     form?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const loadMockTests = async () => {
-    const selected = selectedMockTestIds(productMockTestsWrap);
-    const selectedDemo = selectedMockTestIds(productDemoMockTestsWrap);
     const data = await apiRequest({ path: "/admin/products/mock-tests", token });
     mockTests = Array.isArray(data?.mockTests) ? data.mockTests : [];
-    renderMockTestChecklist(productMockTestsWrap, selected, editingLinkedMockTests);
-    renderMockTestChecklist(productDemoMockTestsWrap, selectedDemo, editingLinkedDemoMockTests);
+    renderAttachmentList();
   };
 
   const loadProducts = async () => {
@@ -409,10 +1302,102 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  const getTabIdFromElement = (element) => {
+    if (!(element instanceof HTMLElement)) return "";
+    const panel = element.closest("[data-product-tab-panel]");
+    if (!(panel instanceof HTMLElement)) return "";
+    return String(panel.getAttribute("data-product-tab-panel") || "");
+  };
+
+  if (form) {
+    const invalidateTabOnEdit = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const tabId = getTabIdFromElement(target);
+      if (!PRODUCT_TAB_ORDER.includes(tabId)) return;
+      if (!tabSavedState[tabId]) return;
+      setTabSaved(tabId, false);
+    };
+    form.addEventListener("input", invalidateTabOnEdit);
+    form.addEventListener("change", invalidateTabOnEdit);
+  }
+
+  productTabButtons.forEach((btn) => {
+    if (!(btn instanceof HTMLButtonElement)) return;
+    btn.addEventListener("click", () => {
+      const tabId = String(btn.getAttribute("data-product-tab-btn") || "");
+      switchProductTab(tabId);
+      setMessage("");
+    });
+  });
+
+  if (productTabSaveBtn instanceof HTMLButtonElement) {
+    productTabSaveBtn.addEventListener("click", () => {
+      saveCurrentTab();
+    });
+  }
+
+  if (productTabNextBtn instanceof HTMLButtonElement) {
+    productTabNextBtn.addEventListener("click", () => {
+      goToNextTab();
+      setMessage("");
+    });
+  }
+
+  addonsEditButtons.forEach((btn) => {
+    if (!(btn instanceof HTMLButtonElement)) return;
+    btn.addEventListener("click", () => {
+      const targetKey = String(btn.getAttribute("data-addon-edit-target") || "").trim();
+      if (!targetKey) return;
+      toggleAddonEditor(targetKey);
+    });
+  });
+
+  if (adminProductDetailsTabsPreview instanceof HTMLElement) {
+    adminProductDetailsTabsPreview.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const tabBtn = target.closest("[data-pstet-tab-btn]");
+      if (!(tabBtn instanceof HTMLButtonElement)) return;
+      const tabId = String(tabBtn.getAttribute("data-pstet-tab-btn") || "").trim();
+      if (!tabId) return;
+      activeAddonsDetailsTab = tabId;
+      activatePstetTab(adminProductDetailsTabsPreview, tabId);
+    });
+  }
+
+  const addonsPreviewInputs = [
+    addonsInput,
+    descriptionInput,
+    salientFeaturesInput,
+    examsCoveredInput,
+    overviewInput,
+    packageIncludesInput,
+    studyPlanInput,
+    subjectsCoveredInput,
+    examPatternInput,
+    faqsInput,
+  ];
+  addonsPreviewInputs.forEach((input) => {
+    if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLTextAreaElement)) return;
+    input.addEventListener("input", () => {
+      renderAddonsPreview();
+    });
+    input.addEventListener("change", () => {
+      renderAddonsPreview();
+    });
+  });
+
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       setMessage("");
+
+      const allSaved = PRODUCT_TAB_ORDER.every((key) => Boolean(tabSavedState[key]));
+      if (!allSaved) {
+        setMessage("Please save all tabs before submitting.", "error");
+        return;
+      }
 
       const payload = payloadFromForm();
       if (
@@ -496,6 +1481,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (attachmentTypeFilter instanceof HTMLSelectElement) {
+    attachmentTypeFilter.addEventListener("change", () => {
+      attachmentFilters.type = normalizeAttachmentType(attachmentTypeFilter.value);
+      attachmentFilters.course = "";
+      attachmentFilters.subject = "";
+      attachmentFilters.chapter = "";
+      attachmentFilters.title = "";
+      attachmentFilters.language = "";
+      attachmentFilters.page = 1;
+      if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentCourseFilter instanceof HTMLSelectElement) {
+    attachmentCourseFilter.addEventListener("change", () => {
+      attachmentFilters.course = String(attachmentCourseFilter.value || "").trim();
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentSubjectFilter instanceof HTMLSelectElement) {
+    attachmentSubjectFilter.addEventListener("change", () => {
+      attachmentFilters.subject = String(attachmentSubjectFilter.value || "").trim();
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentChapterFilter instanceof HTMLSelectElement) {
+    attachmentChapterFilter.addEventListener("change", () => {
+      attachmentFilters.chapter = String(attachmentChapterFilter.value || "").trim();
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentLanguageFilter instanceof HTMLSelectElement) {
+    attachmentLanguageFilter.addEventListener("change", () => {
+      attachmentFilters.language = String(attachmentLanguageFilter.value || "").trim();
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentTitleFilter instanceof HTMLInputElement) {
+    attachmentTitleFilter.addEventListener("input", () => {
+      attachmentFilters.title = String(attachmentTitleFilter.value || "");
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentPrevPageBtn instanceof HTMLButtonElement) {
+    attachmentPrevPageBtn.addEventListener("click", () => {
+      attachmentFilters.page = Math.max(1, Number(attachmentFilters.page || 1) - 1);
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentNextPageBtn instanceof HTMLButtonElement) {
+    attachmentNextPageBtn.addEventListener("click", () => {
+      attachmentFilters.page = Number(attachmentFilters.page || 1) + 1;
+      renderAttachmentList();
+    });
+  }
+
+  if (attachmentListWrap instanceof HTMLElement) {
+    attachmentListWrap.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const testId = String(target.getAttribute("data-attachment-test-id") || "").trim();
+      const type = normalizeAttachmentType(target.getAttribute("data-attachment-type"));
+      if (!testId) return;
+      const setRef = getSelectedSetByAttachmentType(type);
+      if (target.checked) setRef.add(testId);
+      else setRef.delete(testId);
+    });
+  }
+
   if (uploadThumbnailBtn) {
     uploadThumbnailBtn.addEventListener("click", async () => {
       if (!(thumbnailFileInput instanceof HTMLInputElement)) return;
@@ -559,6 +1625,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
 
+      const openLinksBtn = target.closest("[data-open-links-modal='true']");
+      if (openLinksBtn instanceof HTMLElement) {
+        const productId = String(openLinksBtn.getAttribute("data-links-product-id") || "").trim();
+        const modeRaw = String(openLinksBtn.getAttribute("data-links-mode") || "").trim().toLowerCase();
+        if (!productId) return;
+        const mode = modeRaw === "demo" ? "demo" : "lessons";
+        openLinksModal(productId, mode);
+        return;
+      }
+
       const editId = target.getAttribute("data-edit-product");
       if (editId) {
         const product = products.find((item) => item.id === editId);
@@ -602,6 +1678,52 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+
+  if (productLinksModal instanceof HTMLElement) {
+    productLinksModal.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      if (target.hasAttribute("data-close-product-links")) {
+        closeLinksModal();
+        return;
+      }
+
+      const actionBtn = target.closest("[data-links-action]");
+      if (!(actionBtn instanceof HTMLElement)) return;
+
+      const productId = String(actionBtn.getAttribute("data-links-product-id") || "").trim();
+      const modeRaw = String(actionBtn.getAttribute("data-links-mode") || "").trim().toLowerCase();
+      const action = String(actionBtn.getAttribute("data-links-action") || "").trim().toLowerCase();
+      const testId = String(actionBtn.getAttribute("data-links-test-id") || "").trim();
+      if (!productId || !testId) return;
+      const mode = modeRaw === "demo" ? "demo" : "lessons";
+      if (action !== "add" && action !== "remove") return;
+
+      try {
+        actionBtn.setAttribute("disabled", "disabled");
+        await applyLinkAction({ productId, mode, testId, action });
+      } catch (error) {
+        setMessage(error.message || "Unable to update links.", "error");
+      } finally {
+        actionBtn.removeAttribute("disabled");
+      }
+    });
+  }
+
+  if (closeProductLinksModalBtn instanceof HTMLButtonElement) {
+    closeProductLinksModalBtn.addEventListener("click", () => {
+      closeLinksModal();
+    });
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!activeLinksModal) return;
+    closeLinksModal();
+  });
+
+  updateTabUi();
 
   try {
     setMessage("Loading products...");

@@ -91,6 +91,10 @@ a {
   transform: translateY(-50%);
   height: auto;
   object-fit: contain;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
   transition: opacity 0.2s ease;
 }
 
@@ -1621,6 +1625,25 @@ h1 {
   font-size: 0.9rem;
 }
 
+.product-description-section {
+  border: 1px solid #cfe0ff;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.62rem 0.68rem;
+}
+
+.product-description-section h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.product-description-section p {
+  margin: 0;
+  color: #1f2a44;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .product-salient-features {
   margin-top: 0.55rem;
 }
@@ -2473,6 +2496,25 @@ h1 {
   color: #667085;
 }
 
+.product-play-icon-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.product-play-icon-btn > span[aria-hidden="true"] {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
 .product-demo-tests {
   margin-top: 0.7rem;
   padding: 0.6rem 0.65rem;
@@ -2559,6 +2601,48 @@ h1 {
 
 .admin-inline-checklist .filter-option {
   margin: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.55rem;
+  padding: 0.36rem 0.3rem;
+}
+
+.admin-inline-checklist .filter-option + .filter-option {
+  border-top: 1px solid #edf2ff;
+}
+
+.admin-inline-checklist .filter-option input {
+  margin-top: 0.18rem;
+}
+
+.attachment-item-title {
+  display: block;
+  line-height: 1.3;
+}
+
+.attachment-item-meta {
+  display: block;
+  margin-top: 0.14rem;
+  color: #5b6e92;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.attachment-pagination {
+  margin-top: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.attachment-pagination span {
+  color: #4b5f83;
+  font-weight: 700;
+  min-width: 96px;
+  text-align: center;
 }
 
 .mock-wrap {
@@ -2663,17 +2747,31 @@ h1 {
 
 .lesson-player-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 1rem;
   align-items: start;
 }
 
-.lesson-video-card,
 .lesson-transcript-card {
   border: 1px solid var(--border);
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
+}
+
+.lesson-video-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  position: sticky;
+  top: 84px;
+  align-self: start;
+}
+
+.lesson-playback-shell {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .card-collapse-enabled {
@@ -2758,12 +2856,15 @@ h1 {
 }
 
 .lesson-player-actions {
-  margin-top: 0;
+  margin-top: 0.1rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.6rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.lesson-player-actions .btn-primary {
+  margin-left: auto;
 }
 
 .lesson-player-actions .tts-compact-select {
@@ -2774,6 +2875,7 @@ h1 {
   margin: 0;
   color: var(--muted);
   font-weight: 700;
+  min-width: 0;
 }
 
 .transcript-list {
@@ -3103,10 +3205,10 @@ h1 {
 }
 
 .attempt-lesson-ref {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: #fff;
-  padding: 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
   margin-bottom: 0.9rem;
 }
 
@@ -3263,6 +3365,15 @@ h1 {
   .mock-tests-grid {
     grid-template-columns: 1fr;
   }
+
+  .lesson-player-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-video-card {
+    position: sticky;
+    top: 76px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -3316,6 +3427,14 @@ h1 {
   .products-wrap {
     width: 94%;
     margin-top: 0.6rem;
+  }
+
+  .products-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .products-filters {
+    display: none;
   }
 
   .products-page .products-wrap {
@@ -3927,6 +4046,16 @@ h1 {
   color: #fff;
 }
 
+.admin-tab-btn.saved {
+  border-color: #2e8b57;
+  color: #2e8b57;
+}
+
+.admin-tab-btn.saved.active {
+  background: #2e8b57;
+  color: #fff;
+}
+
 .admin-tab-panel {
   display: none;
 }
@@ -4018,6 +4147,15 @@ h1 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
+}
+
+.attachments-top-row {
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.attachments-filter-row {
+  align-items: start;
 }
 
 .referral-link-row {
@@ -4126,6 +4264,36 @@ h1 {
   gap: 0.6rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.product-form-step-actions {
+  justify-content: flex-end;
+  margin-top: 0.9rem;
+}
+
+.admin-addons-preview-shell {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-addon-card {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-addon-edit-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-addon-editor {
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed #dbe6ff;
+}
+
+.admin-addon-editor .admin-form-row + .admin-form-row {
+  margin-top: 0.55rem;
 }
 
 .admin-actions select {
@@ -4239,6 +4407,64 @@ h1 {
   flex-wrap: wrap;
 }
 
+.admin-linked-summary {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.table-link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.admin-modal.hidden {
+  display: none;
+}
+
+.admin-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.admin-modal-card {
+  position: relative;
+  width: min(920px, 96vw);
+  max-height: min(82vh, 900px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem;
+}
+
+.admin-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.admin-modal-head h3 {
+  margin: 0;
+}
+
 .table-actions select {
   min-width: 170px;
   border: 1px solid var(--border);
@@ -4273,6 +4499,10 @@ h1 {
   .admin-form-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .attachments-top-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 680px) {
@@ -4295,6 +4525,10 @@ h1 {
   }
 
   .admin-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .attachments-top-row {
     grid-template-columns: 1fr;
   }
 
