@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const headerCourseSelectMobile = document.querySelector("#headerCourseSelectMobile");
   const homeLatestProductsGrid = document.querySelector("#homeLatestProductsGrid");
   const homeLatestProductsMessage = document.querySelector("#homeLatestProductsMessage");
+  const homeLatestViewAllLink = document.querySelector(".home-latest-view-all");
   const navLinks = document.querySelectorAll(".nav-links a");
   if (!header) return;
 
@@ -38,6 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
     transitionMs: 500,
     intervalMs: 5000,
   };
+  const homeProductsState = {
+    products: [],
+    windowStart: 0,
+    cardsPerView: 1,
+  };
+  const getHomeProductsCardsPerView = () => (window.matchMedia("(max-width: 680px)").matches ? 1 : 3);
 
   const normalizeSliderAssetUrl = (input) => {
     const raw = String(input || "").trim();
@@ -249,68 +256,128 @@ document.addEventListener("DOMContentLoaded", () => {
     if (type) homeLatestProductsMessage.classList.add(type);
   };
 
-  const renderHomeLatestProducts = (products) => {
+  const renderHomeLatestProductCard = (product) => {
+    const thumb = normalizeProductAssetUrl(product?.thumbnailUrl || "");
+    const title = String(product?.title || "Untitled course");
+    const language = String(product?.languageMode || "Multi");
+    const courseType = String(product?.courseType || "COURSE").replaceAll("_", " ");
+    const examCategory = String(product?.examCategory || "General");
+    const examName = String(product?.examName || "Course");
+    const salePrice = Number(product?.salePrice || 0);
+    const listPrice = Number(product?.listPrice || 0);
+    const discountPercent = getProductDiscountPercent(product);
+    const encodedProductId = encodeURIComponent(String(product?.id || "").trim());
+    const productLink = encodedProductId
+      ? `./products.html?productId=${encodedProductId}`
+      : "./products.html";
+    const checkoutLink = encodedProductId
+      ? `./products.html?checkoutProductId=${encodedProductId}`
+      : "./products.html";
+    const guestBuyLink = "./index.html?auth=login";
+    const buyNowLink = isStudentLoggedIn ? checkoutLink : guestBuyLink;
+
+    return `
+      <article class="home-latest-card">
+        <img
+          class="home-latest-thumb"
+          src="${escapeHtml(thumb)}"
+          alt="${escapeHtml(title)}"
+          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+        />
+        <div class="home-latest-body">
+          <p class="home-latest-tags">
+            <span>${escapeHtml(language)}</span>
+            <span>${escapeHtml(courseType)}</span>
+          </p>
+          <h3>${escapeHtml(title)}</h3>
+          <p class="home-latest-meta">${escapeHtml(examCategory)} | ${escapeHtml(examName)}</p>
+          <div class="home-latest-pricing">
+            <strong>${escapeHtml(toRupees(salePrice))}</strong>
+            ${listPrice > salePrice ? `<span class="home-latest-mrp">${escapeHtml(toRupees(listPrice))}</span>` : ""}
+            ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
+          </div>
+          <div class="home-latest-actions">
+            <a class="btn-secondary" href="${productLink}">Details</a>
+            <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
+          </div>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderHomeLatestProducts = (products = homeProductsState.products) => {
     if (!(homeLatestProductsGrid instanceof HTMLElement)) return;
-    if (!Array.isArray(products) || !products.length) {
+    homeLatestProductsGrid.classList.remove("catalog-window-host");
+    const rows = Array.isArray(products) ? products : [];
+    homeProductsState.products = rows;
+    if (!rows.length) {
       homeLatestProductsGrid.innerHTML =
         '<div class="home-latest-empty">No products available yet. Please check back soon.</div>';
       return;
     }
 
-    homeLatestProductsGrid.innerHTML = products
-      .map((product) => {
-        const thumb = normalizeProductAssetUrl(product?.thumbnailUrl || "");
-        const title = String(product?.title || "Untitled course");
-        const language = String(product?.languageMode || "Multi");
-        const courseType = String(product?.courseType || "COURSE").replaceAll("_", " ");
-        const examCategory = String(product?.examCategory || "General");
-        const examName = String(product?.examName || "Course");
-        const salePrice = Number(product?.salePrice || 0);
-        const listPrice = Number(product?.listPrice || 0);
-        const discountPercent = getProductDiscountPercent(product);
-        const encodedProductId = encodeURIComponent(String(product?.id || "").trim());
-        const productLink = encodedProductId
-          ? `./products.html?productId=${encodedProductId}`
-          : "./products.html";
-        const checkoutLink = encodedProductId
-          ? `./products.html?checkoutProductId=${encodedProductId}`
-          : "./products.html";
-        const guestBuyLink = "./index.html?auth=login";
-        const buyNowLink = isStudentLoggedIn ? checkoutLink : guestBuyLink;
+    const cardsPerView = getHomeProductsCardsPerView();
+    const isMobileView = cardsPerView === 1;
+    homeProductsState.cardsPerView = cardsPerView;
+    const maxWindowStart = Math.max(0, rows.length - cardsPerView);
+    homeProductsState.windowStart = Math.max(0, Math.min(homeProductsState.windowStart, maxWindowStart));
+    const visibleProducts = rows.slice(
+      homeProductsState.windowStart,
+      homeProductsState.windowStart + cardsPerView
+    );
+    const canPrev = homeProductsState.windowStart > 0;
+    const canNext = homeProductsState.windowStart + cardsPerView < rows.length;
+    const allProductsAnchorIndex = visibleProducts.length
+      ? Math.min(cardsPerView - 1, visibleProducts.length - 1)
+      : -1;
+    const prevSymbol = isMobileView ? "&#9650;" : "&lt;";
+    const nextSymbol = isMobileView ? "&#9660;" : "&gt;";
+    homeLatestProductsGrid.classList.add("catalog-window-host");
+    if (homeLatestViewAllLink instanceof HTMLElement) {
+      homeLatestViewAllLink.hidden = true;
+    }
 
-        return `
-          <article class="home-latest-card">
-            <img
-              class="home-latest-thumb"
-              src="${escapeHtml(thumb)}"
-              alt="${escapeHtml(title)}"
-              onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
-            />
-            <div class="home-latest-body">
-              <p class="home-latest-tags">
-                <span>${escapeHtml(language)}</span>
-                <span>${escapeHtml(courseType)}</span>
-              </p>
-              <h3>${escapeHtml(title)}</h3>
-              <p class="home-latest-meta">${escapeHtml(examCategory)} | ${escapeHtml(examName)}</p>
-              <div class="home-latest-pricing">
-                <strong>${escapeHtml(toRupees(salePrice))}</strong>
-                ${listPrice > salePrice ? `<span class="home-latest-mrp">${escapeHtml(toRupees(listPrice))}</span>` : ""}
-                ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
-              </div>
-              <div class="home-latest-actions">
-                <a class="btn-secondary" href="${productLink}">View Details</a>
-                <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
-              </div>
-            </div>
-          </article>
-        `;
-      })
-      .join("");
+    homeLatestProductsGrid.innerHTML = `
+      <div class="catalog-window">
+        <div class="catalog-window-nav ${isMobileView ? "is-mobile" : ""}" aria-label="Latest courses navigation">
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-home-product-nav="prev"
+            aria-label="Previous products"
+            ${canPrev ? "" : "disabled"}
+          >${prevSymbol}</button>
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-home-product-nav="next"
+            aria-label="Next products"
+            ${canNext ? "" : "disabled"}
+          >${nextSymbol}</button>
+        </div>
+        <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
+          ${visibleProducts
+            .map(
+              (product, index) => `
+                <div class="catalog-window-item">
+                  ${
+                    index === allProductsAnchorIndex
+                      ? '<a class="catalog-all-products-btn" href="./products.html">All products</a>'
+                      : ""
+                  }
+                  ${renderHomeLatestProductCard(product)}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
   };
 
   const loadHomeLatestProducts = async () => {
     if (!(homeLatestProductsGrid instanceof HTMLElement)) return;
+    homeLatestProductsGrid.classList.remove("catalog-window-host");
     setHomeLatestMessage("Loading latest courses...");
 
     try {
@@ -322,8 +389,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const allProducts = Array.isArray(payload?.products) ? payload.products : [];
       const activeProducts = allProducts.filter((item) => Boolean(item?.isActive));
-      const latestProducts = getLatestProducts(activeProducts.length ? activeProducts : allProducts, 4);
-      renderHomeLatestProducts(latestProducts);
+      const sourceProducts = activeProducts.length ? activeProducts : allProducts;
+      const latestProducts = getLatestProducts(sourceProducts, Math.max(1, sourceProducts.length));
+      homeProductsState.products = latestProducts;
+      homeProductsState.windowStart = 0;
+      renderHomeLatestProducts(homeProductsState.products);
       setHomeLatestMessage("");
     } catch {
       homeLatestProductsGrid.innerHTML =
@@ -1130,15 +1200,64 @@ document.addEventListener("DOMContentLoaded", () => {
     homeSliderTrack.addEventListener("mouseleave", () => startHomeSlider());
     void loadHomeSliderData();
   }
+  let homeProductsViewportTimerId = null;
+  const refreshHomeProductsViewport = () => {
+    const nextCardsPerView = getHomeProductsCardsPerView();
+    if (nextCardsPerView === homeProductsState.cardsPerView) return;
+    homeProductsState.cardsPerView = nextCardsPerView;
+    homeProductsState.windowStart = 0;
+    renderHomeLatestProducts(homeProductsState.products);
+  };
   if (homeLatestProductsGrid instanceof HTMLElement) {
+    homeLatestProductsGrid.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const navBtn = target.closest("[data-home-product-nav]");
+      if (!(navBtn instanceof HTMLElement)) return;
+      const direction = navBtn.getAttribute("data-home-product-nav");
+      const step = Math.max(1, homeProductsState.cardsPerView);
+      const maxWindowStart = Math.max(0, homeProductsState.products.length - step);
+      if (direction === "prev") {
+        homeProductsState.windowStart = Math.max(0, homeProductsState.windowStart - step);
+      } else if (direction === "next") {
+        homeProductsState.windowStart = Math.min(maxWindowStart, homeProductsState.windowStart + step);
+      } else {
+        return;
+      }
+      renderHomeLatestProducts(homeProductsState.products);
+    });
     void loadHomeLatestProducts();
   }
   enforceMobileHomeHeader();
   toggleHeaderLogo();
   window.addEventListener("scroll", toggleHeaderLogo, { passive: true });
   window.addEventListener("resize", enforceMobileHomeHeader, { passive: true });
+  window.addEventListener(
+    "resize",
+    () => {
+      if (homeProductsViewportTimerId) window.clearTimeout(homeProductsViewportTimerId);
+      homeProductsViewportTimerId = window.setTimeout(() => {
+        homeProductsViewportTimerId = null;
+        refreshHomeProductsViewport();
+      }, 120);
+    },
+    { passive: true }
+  );
   window.addEventListener("orientationchange", enforceMobileHomeHeader, { passive: true });
-  window.addEventListener("beforeunload", clearHomeSliderTimer);
+  window.addEventListener(
+    "orientationchange",
+    () => {
+      refreshHomeProductsViewport();
+    },
+    { passive: true }
+  );
+  window.addEventListener("beforeunload", () => {
+    clearHomeSliderTimer();
+    if (homeProductsViewportTimerId) {
+      window.clearTimeout(homeProductsViewportTimerId);
+      homeProductsViewportTimerId = null;
+    }
+  });
 
   if (menuToggle) {
     menuToggle.addEventListener("click", () => {

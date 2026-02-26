@@ -129,6 +129,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const state = {
     lessonOverview: null,
     productsCatalog: [],
+    productsWindowStart: 0,
+    productsCardsPerView: 1,
     sliderIndex: 0,
     sliderRealCount: 0,
     sliderLoopIndex: 0,
@@ -154,6 +156,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (headerReferEarnBtn instanceof HTMLAnchorElement) headerReferEarnBtn.href = referEarnPath;
   const getSliderTransition = () => Math.max(120, state.sliderTransitionMs);
   const getProductsPagePath = () => getPagePath("products");
+  const getProductsCardsPerView = () => (window.matchMedia("(max-width: 680px)").matches ? 1 : 3);
   const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
 
   const normalizeSliderAssetUrl = (input) => {
@@ -440,83 +443,136 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join("");
   };
 
+  const renderDashboardCatalogCard = (product) => {
+    const id = String(product?.id || "").trim();
+    const image = normalizeProductAssetUrl(product?.thumbnailUrl || "");
+    const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
+    const primaryDemoTest = demoTests.find((item) => String(item?.id || "").trim()) || null;
+    const demoMockTestId = String(primaryDemoTest?.id || "").trim();
+    const demoUrl = String(product?.demoLessonUrl || "").trim();
+    const demoLabel = "Demo";
+    const hasDemoAction = Boolean(demoMockTestId || demoUrl);
+    const salePrice = Number(product?.salePrice || 0);
+    const listPrice = Number(product?.listPrice || 0);
+    const title = String(product?.title || "Product");
+    const language = String(product?.languageMode || "Multi");
+    const courseType = String(product?.courseType || "COURSE").replaceAll("_", " ");
+    const examCategory = String(product?.examCategory || "-");
+    const examName = String(product?.examName || "-");
+    const discountPercent =
+      listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
+    const productsPagePath = getProductsPagePath();
+    const encodedProductId = id ? encodeURIComponent(id) : "";
+    const productDetailsLink = encodedProductId
+      ? `${productsPagePath}?productId=${encodedProductId}`
+      : productsPagePath;
+    const buyNowLink = encodedProductId
+      ? `${productsPagePath}?checkoutProductId=${encodedProductId}`
+      : productsPagePath;
+    return `
+      <article class="home-latest-card dash-product-card">
+        <img
+          class="home-latest-thumb"
+          src="${escapeHtml(image)}"
+          alt="${escapeHtml(title)}"
+          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+        />
+        <div class="home-latest-body">
+          <p class="home-latest-tags">
+            <span>${escapeHtml(language)}</span>
+            <span>${escapeHtml(courseType)}</span>
+          </p>
+          <h3>${escapeHtml(title)}</h3>
+          <p class="home-latest-meta">${escapeHtml(examCategory)} | ${escapeHtml(examName)}</p>
+          <div class="home-latest-pricing">
+            <strong>${toCurrency(salePrice)}</strong>
+            ${listPrice > salePrice ? `<span class="home-latest-mrp">${toCurrency(listPrice)}</span>` : ""}
+            ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
+          </div>
+          <div class="home-latest-actions dash-product-actions">
+            <a class="btn-secondary" href="${productDetailsLink}">Details</a>
+            <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
+            <button
+              class="btn-secondary"
+              data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
+              type="button"
+              data-dash-demo-url="${escapeHtml(demoUrl)}"
+              ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
+            >${escapeHtml(demoLabel)}</button>
+          </div>
+        </div>
+      </article>
+    `;
+  };
+
   const renderProductsCatalog = () => {
     if (!(dashProductsCatalog instanceof HTMLElement)) return;
+    dashProductsCatalog.classList.remove("catalog-window-host");
     const products = Array.isArray(state.productsCatalog) ? state.productsCatalog : [];
+    const productsPagePath = getProductsPagePath();
     if (!products.length) {
       dashProductsCatalog.innerHTML = `
         <article class="dash-card">
           <p class="dash-k">No products available right now.</p>
-          <p><a class="btn-primary" href="${getProductsPagePath()}">Buy</a></p>
+          <p><a class="btn-primary" href="${productsPagePath}">Buy</a></p>
         </article>
       `;
       return;
     }
 
-    dashProductsCatalog.innerHTML = products
-      .map((product) => {
-        const id = String(product?.id || "").trim();
-        const image = normalizeProductAssetUrl(product?.thumbnailUrl || "");
-        const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
-        const primaryDemoTest =
-          demoTests.find((item) => String(item?.id || "").trim()) || null;
-        const demoMockTestId = String(primaryDemoTest?.id || "").trim();
-        const demoUrl = String(product?.demoLessonUrl || "").trim();
-        const demoLabel = "Demo";
-        const hasDemoAction = Boolean(demoMockTestId || demoUrl);
-        const salePrice = Number(product?.salePrice || 0);
-        const listPrice = Number(product?.listPrice || 0);
-        const title = String(product?.title || "Product");
-        const language = String(product?.languageMode || "Multi");
-        const courseType = String(product?.courseType || "COURSE").replaceAll("_", " ");
-        const examCategory = String(product?.examCategory || "-");
-        const examName = String(product?.examName || "-");
-        const discountPercent =
-          listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
-        const productsPagePath = getProductsPagePath();
-        const encodedProductId = id ? encodeURIComponent(id) : "";
-        const productDetailsLink = encodedProductId
-          ? `${productsPagePath}?productId=${encodedProductId}`
-          : productsPagePath;
-        const buyNowLink = encodedProductId
-          ? `${productsPagePath}?checkoutProductId=${encodedProductId}`
-          : productsPagePath;
-        return `
-          <article class="home-latest-card dash-product-card">
-            <img
-              class="home-latest-thumb"
-              src="${escapeHtml(image)}"
-              alt="${escapeHtml(title)}"
-              onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
-            />
-            <div class="home-latest-body">
-              <p class="home-latest-tags">
-                <span>${escapeHtml(language)}</span>
-                <span>${escapeHtml(courseType)}</span>
-              </p>
-              <h3>${escapeHtml(title)}</h3>
-              <p class="home-latest-meta">${escapeHtml(examCategory)} | ${escapeHtml(examName)}</p>
-              <div class="home-latest-pricing">
-                <strong>${toCurrency(salePrice)}</strong>
-                ${listPrice > salePrice ? `<span class="home-latest-mrp">${toCurrency(listPrice)}</span>` : ""}
-                ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
-              </div>
-              <div class="home-latest-actions dash-product-actions">
-                <a class="btn-secondary" href="${productDetailsLink}">Details</a>
-                <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
-                <button
-                  class="btn-secondary"
-                  data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
-                  type="button"
-                  data-dash-demo-url="${escapeHtml(demoUrl)}"
-                  ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
-                >${escapeHtml(demoLabel)}</button>
-              </div>
-            </div>
-          </article>
-        `;
-      })
-      .join("");
+    const cardsPerView = getProductsCardsPerView();
+    const isMobileView = cardsPerView === 1;
+    state.productsCardsPerView = cardsPerView;
+    const maxWindowStart = Math.max(0, products.length - cardsPerView);
+    state.productsWindowStart = Math.max(0, Math.min(state.productsWindowStart, maxWindowStart));
+    const visibleProducts = products.slice(
+      state.productsWindowStart,
+      state.productsWindowStart + cardsPerView
+    );
+    const canPrev = state.productsWindowStart > 0;
+    const canNext = state.productsWindowStart + cardsPerView < products.length;
+    const allProductsAnchorIndex = visibleProducts.length
+      ? Math.min(cardsPerView - 1, visibleProducts.length - 1)
+      : -1;
+    const prevSymbol = isMobileView ? "&#9650;" : "&lt;";
+    const nextSymbol = isMobileView ? "&#9660;" : "&gt;";
+    dashProductsCatalog.classList.add("catalog-window-host");
+    dashProductsCatalog.innerHTML = `
+      <div class="catalog-window">
+        <div class="catalog-window-nav ${isMobileView ? "is-mobile" : ""}" aria-label="Product navigation">
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-dash-product-nav="prev"
+            aria-label="Previous products"
+            ${canPrev ? "" : "disabled"}
+          >${prevSymbol}</button>
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-dash-product-nav="next"
+            aria-label="Next products"
+            ${canNext ? "" : "disabled"}
+          >${nextSymbol}</button>
+        </div>
+        <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
+          ${visibleProducts
+            .map(
+              (product, index) => `
+                <div class="catalog-window-item">
+                  ${
+                    index === allProductsAnchorIndex
+                      ? `<a class="catalog-all-products-btn" href="${productsPagePath}">All products</a>`
+                      : ""
+                  }
+                  ${renderDashboardCatalogCard(product)}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
   };
 
   const startDashboardAttempt = async (mockTestId, { autoplay = false } = {}) => {
@@ -623,6 +679,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const loadDashboardProducts = async () => {
     if (!(dashProductsCatalog instanceof HTMLElement)) return;
+    dashProductsCatalog.classList.remove("catalog-window-host");
     const requestUrl = `${API_BASE}/products?_t=${Date.now()}`;
     const response = await fetch(requestUrl, {
       cache: "no-store",
@@ -638,7 +695,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     state.productsCatalog = Array.isArray(payload?.products) ? payload.products : [];
     renderProductsCatalog();
-    setProductsStatus(`Showing ${state.productsCatalog.length} catalog product(s).`, "success");
+    const visibleCount = Math.min(getProductsCardsPerView(), state.productsCatalog.length);
+    setProductsStatus(`Showing ${visibleCount} of ${state.productsCatalog.length} catalog product(s).`, "success");
   };
 
   if (header) {
@@ -664,6 +722,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const closeMenu = () => {
     if (header) header.classList.remove("menu-open");
     if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+  };
+
+  let productsViewportTimerId = null;
+  const refreshProductsViewport = () => {
+    const nextCardsPerView = getProductsCardsPerView();
+    if (nextCardsPerView === state.productsCardsPerView) return;
+    state.productsCardsPerView = nextCardsPerView;
+    state.productsWindowStart = 0;
+    renderProductsCatalog();
   };
 
   if (menuToggle && header) {
@@ -696,6 +763,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("pageshow", () => {
     closeMenu();
   });
+
+  window.addEventListener(
+    "resize",
+    () => {
+      if (productsViewportTimerId) window.clearTimeout(productsViewportTimerId);
+      productsViewportTimerId = window.setTimeout(() => {
+        productsViewportTimerId = null;
+        refreshProductsViewport();
+      }, 120);
+    },
+    { passive: true }
+  );
+  window.addEventListener(
+    "orientationchange",
+    () => {
+      refreshProductsViewport();
+    },
+    { passive: true }
+  );
 
   const dashboardPath = getPagePath("dashboard");
   const homeLinks = document.querySelectorAll("a[href]");
@@ -895,6 +981,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     dashProductsCatalog.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const navBtn = target.closest("[data-dash-product-nav]");
+      if (navBtn instanceof HTMLElement) {
+        const direction = navBtn.getAttribute("data-dash-product-nav");
+        const step = Math.max(1, state.productsCardsPerView);
+        const maxWindowStart = Math.max(0, state.productsCatalog.length - step);
+        if (direction === "prev") {
+          state.productsWindowStart = Math.max(0, state.productsWindowStart - step);
+          renderProductsCatalog();
+        } else if (direction === "next") {
+          state.productsWindowStart = Math.min(maxWindowStart, state.productsWindowStart + step);
+          renderProductsCatalog();
+        }
+        return;
+      }
       const demoTestBtn = target.closest("[data-dash-demo-test-id]");
       if (demoTestBtn instanceof HTMLElement) {
         const mockTestId = String(demoTestBtn.getAttribute("data-dash-demo-test-id") || "").trim();
@@ -1037,6 +1137,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (state.sliderTimerId) {
       window.clearInterval(state.sliderTimerId);
       state.sliderTimerId = null;
+    }
+    if (productsViewportTimerId) {
+      window.clearTimeout(productsViewportTimerId);
+      productsViewportTimerId = null;
     }
   });
 

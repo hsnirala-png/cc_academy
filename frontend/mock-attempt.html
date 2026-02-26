@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Attempt</title>
-    <link rel="stylesheet" href="./src/styles.css?v=26" />
+    <link rel="stylesheet" href="./src/styles.css?v=29" />
   </head>
   <body>
     <header class="site-header">
@@ -36,13 +36,11 @@
         <a id="backToTestsBtn" class="btn-ghost" href="./mock-tests.html">Back to Tests</a>
       </div>
 
+      <section class="attempt-transcript-actions">
+        <button id="playTranscriptBtn" class="btn-ghost" type="button">Play Transcript</button>
+      </section>
+
       <section id="attemptLessonRef" class="attempt-lesson-ref hidden">
-        <div class="attempt-lesson-head">
-          <h2>Lesson Audio</h2>
-          <p id="attemptLessonMeta" class="mock-subtitle">-</p>
-        </div>
-        <audio id="attemptLessonAudio" controls class="attempt-lesson-media"></audio>
-        <video id="attemptLessonVideo" controls class="attempt-lesson-media hidden"></video>
         <div class="attempt-lesson-transcript-wrap">
           <h3>Transcript</h3>
           <div id="attemptLessonTranscript" class="attempt-lesson-transcript"></div>
@@ -119,7 +117,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/mock-attempt.js?v=18"></script>
+    <script type="module" src="./src/mock-attempt.js?v=21"></script>
       <script src="./src/global-nav.js?v=2"></script>
   </body>
 </html>
