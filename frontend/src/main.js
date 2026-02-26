@@ -300,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="home-latest-actions">
             <a class="btn-secondary" href="${productLink}">Details</a>
-            <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
+            <a class="btn-primary" href="${buyNowLink}">Buy</a>
           </div>
         </div>
       </article>

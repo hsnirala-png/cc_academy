@@ -956,7 +956,7 @@ h1 {
 }
 
 .dash-products-grid.catalog-window-host .home-latest-card {
-  grid-template-columns: minmax(150px, 48%) minmax(0, 1fr);
+  grid-template-columns: minmax(142px, 46%) minmax(0, 1fr);
   min-height: 196px;
 }
 
@@ -972,6 +972,42 @@ h1 {
 
 .dash-products-grid.catalog-window-host .home-latest-body {
   padding: 0.5rem 0.56rem 0.56rem;
+}
+
+@media (min-width: 681px) {
+  .dash-products-grid.catalog-window-host .home-latest-card {
+    height: 196px;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-thumb {
+    align-self: stretch;
+    height: 100%;
+    min-height: 196px;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-body {
+    gap: 0.24rem;
+    padding: 0.44rem 0.5rem 0.48rem;
+    align-content: start;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-body h3 {
+    font-size: 0.96rem;
+    line-height: 1.22;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-meta {
+    font-size: 0.8rem;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-pricing strong {
+    font-size: 1.06rem;
+  }
+
+  .dash-products-grid.catalog-window-host .home-latest-mrp,
+  .dash-products-grid.catalog-window-host .home-latest-off {
+    font-size: 0.8rem;
+  }
 }
 
 .catalog-all-products-btn {

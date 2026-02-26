@@ -493,7 +493,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           </div>
           <div class="home-latest-actions dash-product-actions">
             <a class="btn-secondary" href="${productDetailsLink}">Details</a>
-            <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
+            <a class="btn-primary" href="${buyNowLink}">Buy</a>
             <button
               class="btn-secondary"
               data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
