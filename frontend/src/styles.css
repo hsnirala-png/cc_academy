@@ -93,6 +93,13 @@ a {
   font-weight: 700;
 }
 
+.brand:focus,
+.brand:focus-visible,
+.brand:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .brand-logo {
   position: absolute;
   top: 50%;
@@ -943,14 +950,18 @@ h1 {
 }
 
 .dash-products-grid.catalog-window-host .home-latest-card {
-  grid-template-columns: minmax(120px, 44%) minmax(0, 1fr);
+  grid-template-columns: minmax(150px, 48%) minmax(0, 1fr);
   min-height: 196px;
 }
 
 .dash-products-grid.catalog-window-host .home-latest-thumb {
-  min-height: 196px;
+  align-self: start;
+  height: auto;
+  min-height: 0;
   aspect-ratio: auto;
   object-fit: contain;
+  object-position: center;
+  background: #eef4ff;
 }
 
 .dash-products-grid.catalog-window-host .home-latest-body {
