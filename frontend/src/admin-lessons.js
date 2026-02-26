@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonAssessmentTestIdInput = document.querySelector("#lessonAssessmentTestId");
   const lessonSubmitBtn = document.querySelector("#lessonSubmitBtn");
   const lessonCancelBtn = document.querySelector("#lessonCancelBtn");
+  const lessonInlineSaveBtn = document.querySelector("#lessonInlineSaveBtn");
   const lessonsTableBody = document.querySelector("#lessonsTableBody");
   const btnPreviewVoice = document.querySelector("#btnPreviewVoice");
   const btnGenerateVoice = document.querySelector("#btnGenerateVoice");
@@ -3015,12 +3016,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       const currentLessonId = lessonIdInput?.value?.trim() || "";
       lessonSelectIdInput.value = currentLessonId || "";
     }
+    const hasCourse = Boolean(lessonCourseIdInput?.value?.trim() || state.selectedCourseId);
+    const hasSubject = Boolean(lessonChapterIdInput?.value?.trim() || state.selectedChapterId);
+    const canCreate = hasCourse && hasSubject;
     if (btnCreateNewLesson instanceof HTMLButtonElement) {
-      const hasCourse = Boolean(lessonCourseIdInput?.value?.trim() || state.selectedCourseId);
-      const hasSubject = Boolean(lessonChapterIdInput?.value?.trim() || state.selectedChapterId);
-      const canCreate = hasCourse && hasSubject;
       btnCreateNewLesson.disabled = !canCreate;
       btnCreateNewLesson.title = canCreate ? "Start creating a new lesson." : "Select course and subject first.";
+    }
+    if (lessonInlineSaveBtn instanceof HTMLButtonElement) {
+      lessonInlineSaveBtn.disabled = !canCreate;
+      lessonInlineSaveBtn.title = canCreate ? "Save chapter in selected subject." : "Select course and subject first.";
     }
     setMockContextLabels();
   };
