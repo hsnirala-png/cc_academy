@@ -43,8 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     products: [],
     windowStart: 0,
     cardsPerView: 1,
+    isMobileView: false,
   };
-  const getHomeProductsCardsPerView = () => (window.matchMedia("(max-width: 680px)").matches ? 1 : 3);
+  const getHomeProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
+  const getHomeProductsCardsPerView = () => 3;
 
   const normalizeSliderAssetUrl = (input) => {
     const raw = String(input || "").trim();
@@ -316,22 +318,46 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const cardsPerView = getHomeProductsCardsPerView();
-    const isMobileView = cardsPerView === 1;
+    const isMobileView = getHomeProductsIsMobileView();
+    const cardsPerView = Math.min(getHomeProductsCardsPerView(), rows.length);
     homeProductsState.cardsPerView = cardsPerView;
+    homeProductsState.isMobileView = isMobileView;
     const maxWindowStart = Math.max(0, rows.length - cardsPerView);
-    homeProductsState.windowStart = Math.max(0, Math.min(homeProductsState.windowStart, maxWindowStart));
-    const visibleProducts = rows.slice(
-      homeProductsState.windowStart,
-      homeProductsState.windowStart + cardsPerView
-    );
-    const canPrev = homeProductsState.windowStart > 0;
-    const canNext = homeProductsState.windowStart + cardsPerView < rows.length;
+    if (isMobileView) {
+      homeProductsState.windowStart = 0;
+    } else {
+      homeProductsState.windowStart = Math.max(0, Math.min(homeProductsState.windowStart, maxWindowStart));
+    }
+    const visibleProducts = isMobileView
+      ? rows.slice(0, cardsPerView)
+      : rows.slice(homeProductsState.windowStart, homeProductsState.windowStart + cardsPerView);
+    const canPrev = !isMobileView && homeProductsState.windowStart > 0;
+    const canNext = !isMobileView && homeProductsState.windowStart + cardsPerView < rows.length;
     const allProductsAnchorIndex = visibleProducts.length
-      ? Math.min(cardsPerView - 1, visibleProducts.length - 1)
+      ? isMobileView
+        ? 0
+        : Math.min(cardsPerView - 1, visibleProducts.length - 1)
       : -1;
-    const prevSymbol = isMobileView ? "&#9650;" : "&lt;";
-    const nextSymbol = isMobileView ? "&#9660;" : "&gt;";
+    const navMarkup = isMobileView
+      ? ""
+      : `
+        <div class="catalog-window-nav" aria-label="Latest courses navigation">
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-home-product-nav="prev"
+            aria-label="Previous products"
+            ${canPrev ? "" : "disabled"}
+          >&lt;</button>
+          <button
+            type="button"
+            class="catalog-nav-btn"
+            data-home-product-nav="next"
+            aria-label="Next products"
+            ${canNext ? "" : "disabled"}
+          >&gt;</button>
+        </div>
+      `;
     homeLatestProductsGrid.classList.add("catalog-window-host");
     if (homeLatestViewAllLink instanceof HTMLElement) {
       homeLatestViewAllLink.hidden = true;
@@ -339,22 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     homeLatestProductsGrid.innerHTML = `
       <div class="catalog-window">
-        <div class="catalog-window-nav ${isMobileView ? "is-mobile" : ""}" aria-label="Latest courses navigation">
-          <button
-            type="button"
-            class="catalog-nav-btn"
-            data-home-product-nav="prev"
-            aria-label="Previous products"
-            ${canPrev ? "" : "disabled"}
-          >${prevSymbol}</button>
-          <button
-            type="button"
-            class="catalog-nav-btn"
-            data-home-product-nav="next"
-            aria-label="Next products"
-            ${canNext ? "" : "disabled"}
-          >${nextSymbol}</button>
-        </div>
+        ${navMarkup}
         <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
           ${visibleProducts
             .map(
@@ -1202,9 +1213,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   let homeProductsViewportTimerId = null;
   const refreshHomeProductsViewport = () => {
-    const nextCardsPerView = getHomeProductsCardsPerView();
-    if (nextCardsPerView === homeProductsState.cardsPerView) return;
-    homeProductsState.cardsPerView = nextCardsPerView;
+    const nextIsMobileView = getHomeProductsIsMobileView();
+    if (nextIsMobileView === homeProductsState.isMobileView) return;
+    homeProductsState.isMobileView = nextIsMobileView;
     homeProductsState.windowStart = 0;
     renderHomeLatestProducts(homeProductsState.products);
   };

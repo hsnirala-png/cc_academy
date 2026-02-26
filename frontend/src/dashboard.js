@@ -131,6 +131,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     productsCatalog: [],
     productsWindowStart: 0,
     productsCardsPerView: 1,
+    productsIsMobileView: false,
     sliderIndex: 0,
     sliderRealCount: 0,
     sliderLoopIndex: 0,
@@ -156,7 +157,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (headerReferEarnBtn instanceof HTMLAnchorElement) headerReferEarnBtn.href = referEarnPath;
   const getSliderTransition = () => Math.max(120, state.sliderTransitionMs);
   const getProductsPagePath = () => getPagePath("products");
-  const getProductsCardsPerView = () => (window.matchMedia("(max-width: 680px)").matches ? 1 : 3);
+  const getProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
+  const getProductsCardsPerView = () => 3;
   const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
 
   const normalizeSliderAssetUrl = (input) => {
@@ -520,41 +522,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const cardsPerView = getProductsCardsPerView();
-    const isMobileView = cardsPerView === 1;
+    const isMobileView = getProductsIsMobileView();
+    const cardsPerView = Math.min(getProductsCardsPerView(), products.length);
     state.productsCardsPerView = cardsPerView;
+    state.productsIsMobileView = isMobileView;
     const maxWindowStart = Math.max(0, products.length - cardsPerView);
-    state.productsWindowStart = Math.max(0, Math.min(state.productsWindowStart, maxWindowStart));
-    const visibleProducts = products.slice(
-      state.productsWindowStart,
-      state.productsWindowStart + cardsPerView
-    );
-    const canPrev = state.productsWindowStart > 0;
-    const canNext = state.productsWindowStart + cardsPerView < products.length;
+    if (isMobileView) {
+      state.productsWindowStart = 0;
+    } else {
+      state.productsWindowStart = Math.max(0, Math.min(state.productsWindowStart, maxWindowStart));
+    }
+    const visibleProducts = isMobileView
+      ? products.slice(0, cardsPerView)
+      : products.slice(state.productsWindowStart, state.productsWindowStart + cardsPerView);
+    const canPrev = !isMobileView && state.productsWindowStart > 0;
+    const canNext = !isMobileView && state.productsWindowStart + cardsPerView < products.length;
     const allProductsAnchorIndex = visibleProducts.length
-      ? Math.min(cardsPerView - 1, visibleProducts.length - 1)
+      ? isMobileView
+        ? 0
+        : Math.min(cardsPerView - 1, visibleProducts.length - 1)
       : -1;
-    const prevSymbol = isMobileView ? "&#9650;" : "&lt;";
-    const nextSymbol = isMobileView ? "&#9660;" : "&gt;";
-    dashProductsCatalog.classList.add("catalog-window-host");
-    dashProductsCatalog.innerHTML = `
-      <div class="catalog-window">
-        <div class="catalog-window-nav ${isMobileView ? "is-mobile" : ""}" aria-label="Product navigation">
+    const navMarkup = isMobileView
+      ? ""
+      : `
+        <div class="catalog-window-nav" aria-label="Product navigation">
           <button
             type="button"
             class="catalog-nav-btn"
             data-dash-product-nav="prev"
             aria-label="Previous products"
             ${canPrev ? "" : "disabled"}
-          >${prevSymbol}</button>
+          >&lt;</button>
           <button
             type="button"
             class="catalog-nav-btn"
             data-dash-product-nav="next"
             aria-label="Next products"
             ${canNext ? "" : "disabled"}
-          >${nextSymbol}</button>
+          >&gt;</button>
         </div>
+      `;
+    dashProductsCatalog.classList.add("catalog-window-host");
+    dashProductsCatalog.innerHTML = `
+      <div class="catalog-window">
+        ${navMarkup}
         <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
           ${visibleProducts
             .map(
@@ -726,9 +737,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let productsViewportTimerId = null;
   const refreshProductsViewport = () => {
-    const nextCardsPerView = getProductsCardsPerView();
-    if (nextCardsPerView === state.productsCardsPerView) return;
-    state.productsCardsPerView = nextCardsPerView;
+    const nextIsMobileView = getProductsIsMobileView();
+    if (nextIsMobileView === state.productsIsMobileView) return;
+    state.productsIsMobileView = nextIsMobileView;
     state.productsWindowStart = 0;
     renderProductsCatalog();
   };

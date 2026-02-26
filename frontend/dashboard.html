@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Student Dashboard</title>
-    <link rel="stylesheet" href="./src/styles.css?v=30" />
+    <link rel="stylesheet" href="./src/styles.css?v=31" />
     <style>
       .dash-wrap {
         width: min(960px, 92%);
@@ -401,9 +401,23 @@
       }
 
       .dash-product-actions {
-        display: flex;
-        gap: 0.55rem;
-        flex-wrap: wrap;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0.34rem;
+      }
+
+      .dash-product-actions .btn-secondary,
+      .dash-product-actions .btn-primary,
+      .dash-product-actions .btn-sky {
+        width: 100%;
+        min-width: 0;
+        text-align: center;
+        white-space: nowrap;
+        border-radius: 9px;
+        padding: 0.38rem 0.24rem;
+        font-size: 0.74rem;
+        line-height: 1.08;
       }
 
       .dash-rate-line {
@@ -537,22 +551,11 @@
           font-size: 0.74rem;
         }
 
-        .dash-product-actions {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 0.34rem;
-        }
-
         .dash-product-actions .btn-secondary,
         .dash-product-actions .btn-primary,
         .dash-product-actions .btn-sky {
-          width: 100%;
-          white-space: nowrap;
-          text-align: center;
-          border-radius: 9px;
-          padding: 0.36rem 0.3rem;
-          font-size: 0.73rem;
-          line-height: 1.1;
+          padding: 0.34rem 0.22rem;
+          font-size: 0.71rem;
         }
 
         .fb-side-actions {
@@ -811,7 +814,7 @@
         </div>
       </section>
     </main>
-    <script src="./src/dashboard.js?v=33"></script>
+    <script src="./src/dashboard.js?v=34"></script>
     <script src="./src/global-nav.js?v=2"></script>
   </body>
 </html>
