@@ -12,7 +12,8 @@ import {
 
 const SAVE_INTERVAL_MS = 10000;
 const END_BUFFER_MS = 3000;
-const TRANSCRIPT_SEGMENT_DURATION_MS = 3000;
+const TRANSCRIPT_MIN_SEGMENT_MS = 2500;
+const TRANSCRIPT_APPROX_CHAR_MS = 35;
 
 const parseTimecode = (value) => {
   const text = String(value || "").trim();
@@ -109,31 +110,64 @@ const buildTextTranscriptSegments = (transcriptText) => {
   const normalized = String(transcriptText || "").replace(/\r\n?/g, "\n").trim();
   if (!normalized) return [];
 
-  const sentences = normalized
-    .split(/\n+/)
-    .flatMap((line) => line.match(/[^.?!]+[.?!]?/g) ?? [])
-    .map((sentence) => sentence.trim())
+  const parts = normalized
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
     .filter(Boolean);
+  const blocks = parts.length ? parts : [normalized];
+  const totalChars = Math.max(1, normalized.length);
+  const estimatedTotalMs = Math.max(
+    blocks.length * TRANSCRIPT_MIN_SEGMENT_MS,
+    totalChars * TRANSCRIPT_APPROX_CHAR_MS
+  );
 
-  return sentences.map((sentence, index) => {
-    const startMs = index * TRANSCRIPT_SEGMENT_DURATION_MS;
+  let cursorMs = 0;
+  return blocks.map((block, index) => {
+    const ratio = Math.max(0.08, block.length / totalChars);
+    const remainingBlocks = blocks.length - index;
+    const remainingMs = Math.max(TRANSCRIPT_MIN_SEGMENT_MS, estimatedTotalMs - cursorMs);
+    const estimatedMs = Math.max(
+      TRANSCRIPT_MIN_SEGMENT_MS,
+      Math.round(estimatedTotalMs * ratio)
+    );
+    const allocatedMs =
+      remainingBlocks === 1
+        ? remainingMs
+        : Math.min(remainingMs - TRANSCRIPT_MIN_SEGMENT_MS * (remainingBlocks - 1), estimatedMs);
+    const startMs = cursorMs;
+    const endMs = startMs + Math.max(TRANSCRIPT_MIN_SEGMENT_MS, allocatedMs);
+    cursorMs = endMs;
     return {
       startMs,
-      endMs: startMs + TRANSCRIPT_SEGMENT_DURATION_MS,
-      text: sentence,
+      endMs,
+      text: block,
     };
   });
 };
 
-const normalizeAssetUrl = (input) => {
+const buildAssetUrlCandidates = (input) => {
   const raw = String(input || "").trim();
-  if (!raw) return "";
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  if (raw.startsWith("/")) return `${API_BASE}${raw}`;
-  return `${API_BASE}/${raw.replace(/^\.\//, "")}`;
-};
+  if (!raw) return [];
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return [raw];
 
-const normalizeTranscriptUrl = (input) => normalizeAssetUrl(input);
+  const sameOrigin = window.location.origin || "";
+  if (raw.startsWith("/public/")) {
+    const sameOriginUrl = sameOrigin ? `${sameOrigin}${raw}` : "";
+    const apiUrl = API_BASE ? `${API_BASE}${raw}` : sameOriginUrl;
+    return Array.from(new Set([sameOriginUrl, apiUrl].filter(Boolean)));
+  }
+
+  if (raw.startsWith("/")) {
+    const apiUrl = API_BASE ? `${API_BASE}${raw}` : "";
+    const sameOriginUrl = sameOrigin ? `${sameOrigin}${raw}` : "";
+    return Array.from(new Set([apiUrl, sameOriginUrl].filter(Boolean)));
+  }
+
+  const relative = raw.replace(/^\.\//, "");
+  const apiUrl = API_BASE ? `${API_BASE}/${relative}` : "";
+  const sameOriginUrl = sameOrigin ? `${sameOrigin}/${relative}` : "";
+  return Array.from(new Set([apiUrl, sameOriginUrl].filter(Boolean)));
+};
 
 const getQueryParam = (key) => {
   const params = new URLSearchParams(window.location.search);
@@ -196,6 +230,49 @@ const getScrollResponseRate = (value) => {
   return 5.5;
 };
 
+const configureMediaSource = (mediaEl, candidates, options = {}) => {
+  if (!(mediaEl instanceof HTMLMediaElement)) return;
+  const { onFinalError } = options;
+  const urls = Array.from(new Set((candidates || []).filter(Boolean)));
+  const fallbackStateKey = "__ccFallbackState";
+  const previousState = mediaEl[fallbackStateKey];
+  if (previousState?.onError) {
+    mediaEl.removeEventListener("error", previousState.onError);
+  }
+
+  if (!urls.length) {
+    mediaEl.removeAttribute("src");
+    mediaEl.load();
+    mediaEl[fallbackStateKey] = null;
+    return;
+  }
+
+  const state = {
+    index: 0,
+    onError: null,
+  };
+
+  const applyCurrent = () => {
+    mediaEl.src = urls[state.index];
+    mediaEl.load();
+  };
+
+  state.onError = () => {
+    if (state.index + 1 < urls.length) {
+      state.index += 1;
+      applyCurrent();
+      return;
+    }
+    if (typeof onFinalError === "function") {
+      onFinalError();
+    }
+  };
+
+  mediaEl.addEventListener("error", state.onError);
+  mediaEl[fallbackStateKey] = state;
+  applyCurrent();
+};
+
 const startAssessmentAttempt = async (token, mockTestId, lessonStartMs = 0, { autoplay = false } = {}) => {
   const response = await apiRequest({
     path: "/student/attempts",
@@ -246,6 +323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     lesson: null,
     completionThresholdSec: 0,
     transcriptSegments: [],
+    transcriptRawText: "",
     activeTranscriptIndex: -1,
     lastSavedPositionMs: 0,
     hasVideo: false,
@@ -348,6 +426,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderTranscript = () => {
     if (!transcriptListEl) return;
+    const rawTranscript = String(state.transcriptRawText || "").replace(/\r\n?/g, "\n").trim();
+    if (rawTranscript) {
+      transcriptListEl.innerHTML = `<p class="transcript-full-paragraph">${escapeHtml(rawTranscript)}</p>`;
+      state.transcriptScrollVirtual = Number(transcriptListEl.scrollTop || 0);
+      return;
+    }
     if (!state.transcriptSegments.length) {
       transcriptListEl.innerHTML = '<p class="lesson-transcript-empty">Transcript not available.</p>';
       return;
@@ -601,33 +685,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadTranscript = async (transcriptUrl, transcriptText) => {
-    const normalized = normalizeTranscriptUrl(transcriptUrl);
-    if (!normalized) {
+    const candidates = buildAssetUrlCandidates(transcriptUrl);
+    if (!candidates.length) {
       return buildTextTranscriptSegments(transcriptText);
     }
 
-    const response = await fetch(normalized, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Unable to load transcript.");
+    for (const url of candidates) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json") || url.toLowerCase().endsWith(".json")) {
+          const payload = await response.json();
+          const parsed = parseJsonSegments(payload);
+          if (parsed.length) return parsed;
+          continue;
+        }
+
+        const rawText = await response.text();
+        if (rawText.trim().startsWith("WEBVTT")) {
+          const parsed = parseVttSegments(rawText);
+          if (parsed.length) return parsed;
+          continue;
+        }
+
+        try {
+          const payload = JSON.parse(rawText);
+          const parsed = parseJsonSegments(payload);
+          if (parsed.length) return parsed;
+        } catch {
+          // Try next candidate.
+        }
+      } catch {
+        // Try next candidate.
+      }
     }
 
-    const contentType = response.headers.get("content-type") || "";
-    if (contentType.includes("application/json") || normalized.toLowerCase().endsWith(".json")) {
-      const payload = await response.json();
-      return parseJsonSegments(payload);
-    }
-
-    const rawText = await response.text();
-    if (rawText.trim().startsWith("WEBVTT")) {
-      return parseVttSegments(rawText);
-    }
-
-    try {
-      const payload = JSON.parse(rawText);
-      return parseJsonSegments(payload);
-    } catch {
-      return [];
-    }
+    return buildTextTranscriptSegments(transcriptText);
   };
 
   const stopSyncLoop = () => {
@@ -811,27 +906,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonMetaEl.textContent = `${courseTitle} | ${chapterTitle} | ${durationMin} min`;
     }
 
-    const videoUrl = normalizeAssetUrl(payload?.lesson?.videoUrl);
-    const audioUrl = normalizeAssetUrl(payload?.lesson?.audioUrl);
-    state.hasVideo = Boolean(videoUrl);
-    state.hasAudio = Boolean(audioUrl);
+    const videoUrlCandidates = buildAssetUrlCandidates(payload?.lesson?.videoUrl);
+    const audioUrlCandidates = buildAssetUrlCandidates(payload?.lesson?.audioUrl);
+    state.hasVideo = videoUrlCandidates.length > 0;
+    state.hasAudio = audioUrlCandidates.length > 0;
 
     if (videoEl instanceof HTMLVideoElement) {
-      if (state.hasVideo) {
-        videoEl.src = videoUrl;
-      } else {
-        videoEl.removeAttribute("src");
-      }
-      videoEl.load();
+      configureMediaSource(videoEl, videoUrlCandidates, {
+        onFinalError: () => setStatus("Video failed to load for this lesson.", "error"),
+      });
     }
 
     if (audioEl instanceof HTMLAudioElement) {
-      if (state.hasAudio) {
-        audioEl.src = audioUrl;
-      } else {
-        audioEl.removeAttribute("src");
-      }
-      audioEl.load();
+      configureMediaSource(audioEl, audioUrlCandidates, {
+        onFinalError: () =>
+          setStatus(
+            "Audio failed to load. Re-upload or regenerate lesson audio from Admin.",
+            "error"
+          ),
+      });
     }
 
     const resumeMs = state.lastSavedPositionMs;
@@ -848,11 +941,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    state.transcriptRawText = String(payload?.lesson?.transcriptText || "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
     const inlineSegments = parseJsonSegments(payload?.lesson?.transcriptSegments);
     state.transcriptSegments =
       inlineSegments.length > 0
         ? inlineSegments
-        : await loadTranscript(payload?.lesson?.transcriptUrl, payload?.lesson?.transcriptText);
+        : await loadTranscript(payload?.lesson?.transcriptUrl, state.transcriptRawText);
+    if (!state.transcriptSegments.length && state.transcriptRawText) {
+      state.transcriptSegments = buildTextTranscriptSegments(state.transcriptRawText);
+    }
 
     state.activeTranscriptIndex = -1;
     renderTranscript();

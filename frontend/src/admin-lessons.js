@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnPreviewVoice = document.querySelector("#btnPreviewVoice");
   const btnGenerateVoice = document.querySelector("#btnGenerateVoice");
   const btnCreateNewLesson = document.querySelector("#btnCreateNewLesson");
+  const btnPlaySelectedLessonAudio = document.querySelector("#btnPlaySelectedLessonAudio");
   const btnRefreshCustomVoices = document.querySelector("#btnRefreshCustomVoices");
   const btnCreateVoiceClone = document.querySelector("#btnCreateVoiceClone");
   const voiceCloneSection = document.querySelector("#voiceCloneSection");
@@ -427,7 +428,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const raw = String(input || "").trim();
     if (!raw) return "";
     if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-    if (raw.startsWith("/")) return `${API_BASE}${raw}`;
+    if (raw.startsWith("/public/")) {
+      return `${window.location.origin}${raw}`;
+    }
+    if (raw.startsWith("/")) return API_BASE ? `${API_BASE}${raw}` : `${window.location.origin}${raw}`;
     return `${API_BASE}/${raw.replace(/^\.\//, "")}`;
   };
 
@@ -2876,6 +2880,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const setMockContextLabels = () => {
+    const hasSelectedMockLesson = Boolean(
+      state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim()
+    );
+    if (btnPlaySelectedLessonAudio instanceof HTMLButtonElement) {
+      btnPlaySelectedLessonAudio.disabled = !hasSelectedMockLesson;
+      btnPlaySelectedLessonAudio.title = hasSelectedMockLesson
+        ? "Open selected chapter audio preview."
+        : "Select a chapter first.";
+    }
     if (!lessonMockContext) {
       setLessonQuestionBankVisibility();
       return;
@@ -4902,8 +4915,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedChapterId = selectedChapterId;
       renderCourses();
       renderChapters();
-      const lessonId = lessonIdInput?.value || "";
-      const editingLesson = lessonId ? state.lessons.find((item) => item.id === lessonId) : null;
+      let lessonId = lessonIdInput?.value?.trim() || "";
+      if (!lessonId && shouldSaveTestWithLesson) {
+        lessonId = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
+        if (lessonId && lessonIdInput instanceof HTMLInputElement) {
+          lessonIdInput.value = lessonId;
+        }
+      }
+      const editingLesson = lessonId
+        ? state.lessons.find((item) => item.id === lessonId) ||
+          state.mockLessons.find((item) => item.id === lessonId) ||
+          null
+        : null;
       const requestedOrderIndex = lessonOrderIndexInput?.value ? Number(lessonOrderIndexInput.value) : 0;
       const selectedUploadFile =
         lessonUploadedAudioInput instanceof HTMLInputElement
@@ -4926,9 +4949,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
 
+      const fallbackLessonTitle = String(editingLesson?.title || selectedMockLesson()?.title || "").trim();
       const payload = {
         chapterId: selectedChapterId,
-        title: lessonTitleInput?.value?.trim() || "",
+        title: lessonTitleInput?.value?.trim() || fallbackLessonTitle,
         orderIndex:
           requestedOrderIndex ||
           Number(editingLesson?.orderIndex || 0) ||
@@ -4940,6 +4964,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         durationSec: lessonDurationSecInput?.value ? Number(lessonDurationSecInput.value) : 0,
         assessmentTestId: lessonAssessmentTestIdInput?.value || null,
       };
+
+      if (!lessonTitleInput?.value?.trim() && payload.title && lessonTitleInput instanceof HTMLInputElement) {
+        lessonTitleInput.value = payload.title;
+      }
 
       if (!payload.title) {
         setMessage("Lesson title is required.", "error");
@@ -5067,6 +5095,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (btnCreateNewLesson) {
     btnCreateNewLesson.addEventListener("click", () => {
       startCreateNewLessonMode();
+    });
+  }
+
+  if (btnPlaySelectedLessonAudio instanceof HTMLButtonElement) {
+    btnPlaySelectedLessonAudio.addEventListener("click", async () => {
+      const selectedLessonId = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
+      if (!selectedLessonId) {
+        setMessage("Select course, subject, and chapter first.", "error");
+        return;
+      }
+
+      let lesson =
+        state.mockLessons.find((item) => item.id === selectedLessonId) ||
+        state.lessons.find((item) => item.id === selectedLessonId) ||
+        null;
+
+      if (!lesson && state.selectedMockChapterId) {
+        try {
+          await loadMockLessons(state.selectedMockChapterId);
+          lesson =
+            state.mockLessons.find((item) => item.id === selectedLessonId) ||
+            state.lessons.find((item) => item.id === selectedLessonId) ||
+            null;
+        } catch (error) {
+          setMessage(error.message || "Unable to load selected chapter audio.", "error");
+          return;
+        }
+      }
+
+      if (!lesson) {
+        setMessage("Selected chapter was not found. Reload chapter list and try again.", "error");
+        return;
+      }
+
+      setMessage("Opening chapter audio preview...");
+      openLessonPreview(lesson, { productionMode: true });
     });
   }
 

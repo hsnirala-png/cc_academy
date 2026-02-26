@@ -17,10 +17,17 @@ import { referralsRouter } from "./routes/referrals.routes";
 import { slidersRouter } from "./routes/sliders.routes";
 import { studentMockTestsRouter } from "./routes/student.mock-tests.routes";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import { resolvePublicAssetsDir } from "./utils/publicAssetsPath";
 
 const app = express();
-app.use(express.static(path.join(process.cwd(), "public")));
-app.use("/public", express.static(path.join(process.cwd(), "public")));
+const backendPublicDir = path.join(process.cwd(), "public");
+const sharedPublicAssetsDir = resolvePublicAssetsDir();
+
+app.use(express.static(backendPublicDir));
+if (sharedPublicAssetsDir !== backendPublicDir) {
+  app.use(express.static(sharedPublicAssetsDir));
+}
+app.use("/public", express.static(sharedPublicAssetsDir));
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
