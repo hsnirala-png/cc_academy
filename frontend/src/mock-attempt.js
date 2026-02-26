@@ -30,6 +30,13 @@ const getAutoPlayFromQuery = () => {
   return /^(1|true|yes)$/i.test(String(params.get("autoplay") || "").trim());
 };
 
+const getAttemptQuestionIndexFromQuery = () => {
+  const params = new URLSearchParams(window.location.search);
+  const raw = Number(params.get("attemptQuestionIndex") ?? params.get("questionIndex"));
+  if (!Number.isFinite(raw)) return -1;
+  return Math.max(0, Math.floor(raw));
+};
+
 const isExtensionlessRoute = () => {
   const pathname = (window.location.pathname || "").toLowerCase();
   return Boolean(pathname) && !pathname.endsWith(".html") && pathname !== "/";
@@ -45,6 +52,7 @@ const getMockTestsPagePath = (role = "STUDENT") => {
 };
 
 const getMockAttemptPagePath = () => getPagePath("mock-attempt");
+const getLessonPlayerPagePath = () => getPagePath("lesson-player");
 
 const TRANSCRIPT_SEGMENT_DURATION_MS = 3000;
 
@@ -195,18 +203,30 @@ const transcriptFromSegments = (payload) => {
     .join("\n");
 };
 
+const normalizeTranscriptForAttemptDisplay = (value) =>
+  String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard(["STUDENT", "ADMIN"]);
   if (!auth) return;
   const { token, user } = auth;
   initHeaderBehavior();
   const attemptId = getAttemptId();
+  const attemptQuestionIndexFromQuery = getAttemptQuestionIndexFromQuery();
   const lessonStartMsFromQuery = getLessonStartMsFromQuery();
   if (!attemptId) {
     window.location.href = getMockTestsPagePath(user?.role || "STUDENT");
     return;
   }
   const lessonPlaybackStorageKey = `ccacademy_attempt_lesson_playback_${attemptId}`;
+  const attemptQuestionStorageKey = `ccacademy_attempt_question_state_${attemptId}`;
 
   const titleEl = document.querySelector("#attemptTitle");
   const statusEl = document.querySelector("#attemptStatus");
@@ -232,6 +252,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const stopAttemptCloseBtn = document.querySelector("#stopAttemptCloseBtn");
   const stopAttemptCancelBtn = document.querySelector("#stopAttemptCancelBtn");
   const stopAttemptConfirmBtn = document.querySelector("#stopAttemptConfirmBtn");
+  const playTranscriptBtn = document.querySelector("#playTranscriptBtn");
   const lessonRefWrap = document.querySelector("#attemptLessonRef");
   const lessonMetaEl = document.querySelector("#attemptLessonMeta");
   const lessonAudioEl = document.querySelector("#attemptLessonAudio");
@@ -257,6 +278,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     closedSource: "",
     lastSyncLogAt: 0,
     lastSyncLogKey: "",
+    lastQuestionStatePersistAt: 0,
+    resumeQuestionIndex: attemptQuestionIndexFromQuery,
     autoPlayRequested: getAutoPlayFromQuery(),
     autoPlayAttempted: false,
   };
@@ -379,6 +402,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  const sanitizeQuestionIndex = (rawIndex) => {
+    const safe = Number(rawIndex);
+    if (!Number.isFinite(safe)) return 0;
+    const bounded = Math.max(0, Math.floor(safe));
+    if (!state.questions.length) return bounded;
+    return Math.min(state.questions.length - 1, bounded);
+  };
+
+  const readAttemptQuestionState = () => {
+    try {
+      const raw = window.localStorage.getItem(attemptQuestionStorageKey);
+      if (!raw) return -1;
+      const parsed = JSON.parse(raw);
+      const index = Number(parsed?.index);
+      return Number.isFinite(index) && index >= 0 ? Math.floor(index) : -1;
+    } catch {
+      return -1;
+    }
+  };
+
+  const clearAttemptQuestionState = () => {
+    try {
+      window.localStorage.removeItem(attemptQuestionStorageKey);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const persistAttemptQuestionState = ({ force = false } = {}) => {
+    if (state.isSubmitted || !state.questions.length) return;
+    const now = Date.now();
+    if (!force && now - Number(state.lastQuestionStatePersistAt || 0) < 250) return;
+    state.lastQuestionStatePersistAt = now;
+    try {
+      window.localStorage.setItem(
+        attemptQuestionStorageKey,
+        JSON.stringify({
+          index: sanitizeQuestionIndex(state.currentIndex),
+          updatedAt: now,
+        }),
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
   const pauseLessonPlayers = () => {
     if (lessonAudioEl instanceof HTMLAudioElement) lessonAudioEl.pause();
     if (lessonVideoEl instanceof HTMLVideoElement) lessonVideoEl.pause();
@@ -481,6 +550,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadLessonTranscriptSegments = async () => {
+    const hasEmbeddedLessonUi =
+      lessonTranscriptEl instanceof HTMLElement ||
+      lessonAudioEl instanceof HTMLAudioElement ||
+      lessonVideoEl instanceof HTMLVideoElement;
+    if (!hasEmbeddedLessonUi) {
+      state.lessonTranscriptSegments = [];
+      return;
+    }
+
     const lesson = state.lessonContext;
     if (!lesson) {
       state.lessonTranscriptSegments = [];
@@ -562,30 +640,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonTranscriptEl instanceof HTMLElement) {
       state.lessonTranscriptNodes = [];
       state.activeLessonTranscriptIndex = -1;
-      if (!state.lessonTranscriptSegments.length) {
-        const transcriptText = String(lesson?.transcriptText || "").trim();
-        const fromSegments = transcriptFromSegments(lesson?.transcriptSegments);
-        lessonTranscriptEl.innerHTML = `<p class="lesson-transcript-empty">${escapeHtml(
-          transcriptText || fromSegments || "Transcript not available."
-        )}</p>`;
-      } else {
-        lessonTranscriptEl.innerHTML = state.lessonTranscriptSegments
-          .map(
-            (segment, index) => `
-              <button
-                type="button"
-                class="transcript-inline-segment"
-                data-attempt-segment-index="${index}"
-              >
-                ${escapeHtml(segment.text)}
-              </button>
-            `
-          )
-          .join("");
-        state.lessonTranscriptNodes = Array.from(
-          lessonTranscriptEl.querySelectorAll("[data-attempt-segment-index]")
-        );
-      }
+      const transcriptText = String(lesson?.transcriptText || "")
+        .replace(/\r\n?/g, "\n")
+        .trim();
+      const fromSegments = transcriptFromSegments(lesson?.transcriptSegments).trim();
+      const fromLoadedSegments = state.lessonTranscriptSegments
+        .map((segment) => String(segment?.text || "").trim())
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+      const fullTranscript = transcriptText || fromSegments || fromLoadedSegments || "";
+      const normalizedTranscript = normalizeTranscriptForAttemptDisplay(fullTranscript);
+      lessonTranscriptEl.innerHTML = normalizedTranscript
+        ? `<p class="attempt-transcript-full">${escapeHtml(normalizedTranscript)}</p>`
+        : '<p class="lesson-transcript-empty">Transcript not available.</p>';
     }
 
     const audioUrl = normalizeAssetUrl(lesson?.audioUrl);
@@ -746,6 +814,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (prevBtn) {
       prevBtn.disabled = state.currentIndex <= 0 || (!state.isSubmitted && isTimeOver());
     }
+    if (playTranscriptBtn instanceof HTMLButtonElement) {
+      const hasLesson = Boolean(String(state.lessonContext?.id || "").trim());
+      playTranscriptBtn.disabled = state.isSubmitted || isTimeOver() || !hasLesson || state.isFinalizing;
+    }
   };
 
   const openStopModal = () => {
@@ -787,6 +859,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (prevBtn) prevBtn.disabled = state.currentIndex <= 0 || (!state.isSubmitted && isTimeOver());
+    persistAttemptQuestionState();
     updateProgress();
   };
 
@@ -821,11 +894,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     state.attempt = attemptMeta.attempt;
     state.questions = questionsData.questions || [];
-    state.currentIndex = 0;
+    const savedQuestionIndex = readAttemptQuestionState();
+    const requestedQuestionIndex =
+      Number.isFinite(Number(state.resumeQuestionIndex)) && Number(state.resumeQuestionIndex) >= 0
+        ? Number(state.resumeQuestionIndex)
+        : savedQuestionIndex;
+    state.currentIndex = sanitizeQuestionIndex(requestedQuestionIndex >= 0 ? requestedQuestionIndex : 0);
     state.isSubmitted = state.attempt?.status === "SUBMITTED";
     initLessonPlaybackMemory();
     if (state.isSubmitted) {
       clearLessonPlaybackState();
+      clearAttemptQuestionState();
+    } else {
+      persistAttemptQuestionState({ force: true });
     }
 
     const mockTest = state.attempt?.mockTest;
@@ -843,6 +924,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.lessonContext = lessonPayload?.lesson || null;
     } catch {
       state.lessonContext = null;
+    }
+    if (playTranscriptBtn instanceof HTMLButtonElement) {
+      const hasLesson = Boolean(String(state.lessonContext?.id || "").trim());
+      playTranscriptBtn.disabled = !hasLesson || state.isSubmitted;
+      playTranscriptBtn.title = hasLesson ? "Open lesson transcript and return to this test." : "Transcript not linked.";
     }
     await loadLessonTranscriptSegments();
     renderLessonContext();
@@ -901,6 +987,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     clearTimer();
     pauseLessonPlayers();
     clearLessonPlaybackState();
+    clearAttemptQuestionState();
     setStatus("Attempt submitted successfully.", "success");
 
     const details = await apiRequest({
@@ -980,6 +1067,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (stopAttemptModal) {
     stopAttemptModal.addEventListener("click", (event) => {
       if (event.target === stopAttemptModal) closeStopModal();
+    });
+  }
+
+  if (playTranscriptBtn instanceof HTMLButtonElement) {
+    playTranscriptBtn.addEventListener("click", () => {
+      if (state.isSubmitted || state.isFinalizing) return;
+      if (isTimeOver()) {
+        setStatus("Time is over. Submit or stop the attempt.", "error");
+        return;
+      }
+
+      const lessonId = String(state.lessonContext?.id || "").trim();
+      if (!lessonId) {
+        setStatus("Transcript is not linked for this test.", "error");
+        return;
+      }
+
+      pauseLessonPlayers();
+      persistLessonPlaybackState({ force: true });
+      persistAttemptQuestionState({ force: true });
+
+      const params = new URLSearchParams();
+      params.set("lessonId", lessonId);
+      const chapterId = String(state.lessonContext?.chapter?.id || "").trim();
+      if (chapterId) {
+        params.set("chapterId", chapterId);
+      }
+      params.set("attemptId", attemptId);
+      params.set("attemptQuestionIndex", String(sanitizeQuestionIndex(state.currentIndex)));
+      const playbackMs = Math.max(0, Math.round(Number(state.lessonPlaybackMs || state.lessonStartMs || 0)));
+      if (playbackMs > 0) {
+        params.set("lessonStartMs", String(playbackMs));
+      }
+      params.set("autoplay", "1");
+
+      window.location.href = `${getLessonPlayerPagePath()}?${params.toString()}`;
     });
   }
 
@@ -1108,6 +1231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     clearTimer();
     if (!state.isSubmitted) {
       persistLessonPlaybackState({ force: true });
+      persistAttemptQuestionState({ force: true });
     }
   });
 });

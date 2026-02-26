@@ -942,6 +942,21 @@ h1 {
   min-width: 0;
 }
 
+.dash-products-grid.catalog-window-host .home-latest-card {
+  grid-template-columns: minmax(120px, 44%) minmax(0, 1fr);
+  min-height: 196px;
+}
+
+.dash-products-grid.catalog-window-host .home-latest-thumb {
+  min-height: 196px;
+  aspect-ratio: auto;
+  object-fit: cover;
+}
+
+.dash-products-grid.catalog-window-host .home-latest-body {
+  padding: 0.5rem 0.56rem 0.56rem;
+}
+
 .catalog-all-products-btn {
   position: absolute;
   top: -1.95rem;
@@ -3459,7 +3474,7 @@ h1 {
 
 .attempt-transcript-full {
   margin: 0;
-  white-space: pre-wrap;
+  white-space: normal;
   line-height: 1.7;
 }
 
