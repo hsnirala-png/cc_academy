@@ -260,6 +260,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     includeDefaultOffer: true,
     referralInput: "",
     appliedReferralCode: "",
+    useWalletBalance: false,
+    walletUseInput: "",
+    walletBalance: 0,
+    walletEligible: false,
     preview: null,
     busy: false,
     friendMessage: "",
@@ -278,6 +282,9 @@ document.addEventListener("DOMContentLoaded", async () => {
    *  sponsorInput: HTMLInputElement,
    *  sponsorApplyBtn: HTMLButtonElement,
    *  sponsorMessage: HTMLElement,
+   *  walletToggle: HTMLInputElement,
+   *  walletInput: HTMLInputElement,
+   *  walletHelp: HTMLElement,
    *  orderImage: HTMLImageElement,
    *  orderTitle: HTMLElement,
    *  orderMeta: HTMLElement,
@@ -285,6 +292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
    *  subtotalValue: HTMLElement,
    *  tokenDiscountValue: HTMLElement,
    *  friendDiscountValue: HTMLElement,
+   *  walletUsedValue: HTMLElement,
    *  payableValue: HTMLElement,
    *  continueBtn: HTMLButtonElement,
    * }} */
@@ -293,6 +301,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   const toSafeNumber = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const sanitizeWalletAmountInput = (value) => {
+    const raw = String(value || "");
+    const cleaned = raw.replace(/[^0-9.]/g, "");
+    const firstDotIndex = cleaned.indexOf(".");
+    const normalized =
+      firstDotIndex === -1
+        ? cleaned
+        : `${cleaned.slice(0, firstDotIndex + 1)}${cleaned.slice(firstDotIndex + 1).replaceAll(".", "")}`;
+    const [whole, fraction = ""] = normalized.split(".");
+    const wholePart = whole.replace(/^0+(\d)/, "$1");
+    const fractionPart = fraction.slice(0, 2);
+    if (normalized.includes(".")) {
+      return `${wholePart || "0"}.${fractionPart}`;
+    }
+    return wholePart || "";
+  };
+
+  const INELIGIBLE_WALLET_BALANCE_MESSAGE = "Attention: Refer your friends to earn wallet balance";
+
+  const getRequestedWalletUseAmount = () => {
+    if (!checkoutState.useWalletBalance) return 0;
+    const numeric = Math.max(0, toSafeNumber(checkoutState.walletUseInput));
+    return Number(numeric.toFixed(2));
   };
 
   const getDiscountPercentForProduct = (product) => {
@@ -354,7 +387,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pricing = checkoutState.preview?.pricing || resolveCheckoutFallbackPricing();
     const defaultDiscount = Math.max(0, toSafeNumber(pricing.defaultOfferDiscount));
     const friendDiscount = Math.max(0, toSafeNumber(pricing.friendDiscountApplied));
-    const totalDiscount = defaultDiscount + friendDiscount;
+    const walletAvailable = Math.max(0, toSafeNumber(pricing.walletAvailable));
+    const walletUsed = Math.max(0, toSafeNumber(pricing.walletUsed));
+    const payableBeforeWallet = Math.max(
+      0,
+      toSafeNumber(
+        pricing.payableBeforeWallet !== undefined && pricing.payableBeforeWallet !== null
+          ? pricing.payableBeforeWallet
+          : pricing.payableAmount
+      )
+    );
+    const walletEligible = walletAvailable > 0 && payableBeforeWallet > 0;
+    const totalDiscount = defaultDiscount + friendDiscount + walletUsed;
     const payable = Math.max(0, toSafeNumber(pricing.payableAmount));
     const currentPrice = Math.max(0, toSafeNumber(pricing.currentPrice));
     const listPrice = Math.max(0, toSafeNumber(pricing.listPrice));
@@ -371,6 +415,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     checkoutModal.subtotalValue.textContent = toCurrency(listPrice);
     checkoutModal.tokenDiscountValue.textContent = `- ${toCurrency(defaultDiscount)}`;
     checkoutModal.friendDiscountValue.textContent = `- ${toCurrency(friendDiscount)}`;
+    checkoutModal.walletUsedValue.textContent = `- ${toCurrency(walletUsed)}`;
     checkoutModal.payableValue.textContent = toCurrency(payable);
     checkoutModal.tokenValue.textContent = `${discountPercent}%`;
     checkoutModal.tokenCode.textContent = offerCode;
@@ -383,6 +428,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       : `Apply token to unlock ${discountPercent}% off`;
     checkoutModal.sponsorInput.value = checkoutState.referralInput;
     checkoutModal.sponsorApplyBtn.textContent = "Apply";
+    checkoutState.walletBalance = walletAvailable;
+    checkoutState.walletEligible = walletEligible;
+    if (!checkoutState.walletEligible && checkoutState.useWalletBalance) {
+      checkoutState.useWalletBalance = false;
+      checkoutState.walletUseInput = "";
+    }
+    checkoutModal.walletToggle.checked = checkoutState.useWalletBalance;
+    checkoutModal.walletToggle.disabled = checkoutState.busy || !checkoutState.walletEligible;
+    checkoutModal.walletInput.disabled =
+      checkoutState.busy || !checkoutState.walletEligible || !checkoutState.useWalletBalance;
+    checkoutModal.walletInput.value = checkoutState.useWalletBalance ? checkoutState.walletUseInput : "";
+    checkoutModal.walletHelp.textContent = checkoutState.walletEligible
+      ? `Available balance: ${toCurrency(walletAvailable)} | Max usable now: ${toCurrency(
+          Math.min(payableBeforeWallet, walletAvailable)
+        )}`
+      : INELIGIBLE_WALLET_BALANCE_MESSAGE;
     setCheckoutFriendMessage(checkoutState.friendMessage, checkoutState.friendMessageType);
     checkoutModal.continueBtn.disabled = checkoutState.busy;
     checkoutModal.continueBtn.textContent = checkoutState.busy ? "Processing..." : "Continue";
@@ -390,6 +451,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hasDiscount = totalDiscount > 0;
     checkoutModal.tokenDiscountValue.parentElement.style.display = hasDiscount || defaultDiscount > 0 ? "flex" : "none";
     checkoutModal.friendDiscountValue.parentElement.style.display = hasDiscount || friendDiscount > 0 ? "flex" : "none";
+    checkoutModal.walletUsedValue.parentElement.style.display =
+      checkoutState.useWalletBalance || walletUsed > 0 ? "flex" : "none";
   };
 
   const setCheckoutBusy = (busy) => {
@@ -410,6 +473,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const includeDefaultOffer = options.includeDefaultOffer !== false;
     const referralCode = String(options.referralCode || "").trim();
+    const walletUseAmount = Math.max(0, toSafeNumber(options.walletUseAmount));
 
     const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/checkout-preview`, {
       method: "POST",
@@ -420,6 +484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       body: JSON.stringify({
         includeDefaultOffer,
         referralCode: referralCode || undefined,
+        walletUseAmount: walletUseAmount > 0 ? walletUseAmount : undefined,
       }),
     });
 
@@ -435,12 +500,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!productId) return;
     setCheckoutBusy(true);
     try {
+      const requestedWalletUseAmount = getRequestedWalletUseAmount();
       const payload = await loadCheckoutPreview(productId, {
         includeDefaultOffer: checkoutState.includeDefaultOffer,
         referralCode: checkoutState.appliedReferralCode,
+        walletUseAmount: requestedWalletUseAmount,
       });
       checkoutState.preview = payload || null;
       checkoutState.appliedReferralCode = String(payload?.offers?.appliedReferralCode || "").trim();
+      checkoutState.walletBalance = Math.max(0, toSafeNumber(payload?.pricing?.walletAvailable));
+      const resolvedWalletUsed = Math.max(0, toSafeNumber(payload?.pricing?.walletUsed));
+      if (checkoutState.useWalletBalance) {
+        checkoutState.walletUseInput = resolvedWalletUsed > 0 ? String(resolvedWalletUsed) : "";
+      } else {
+        checkoutState.walletUseInput = "";
+      }
       renderCheckoutModal();
     } finally {
       setCheckoutBusy(false);
@@ -533,7 +607,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <p class="product-checkout-offer-help" data-checkout-offer-help></p>
             </article>
             <article class="product-checkout-friend-card">
-              <label for="checkoutSponsorInput">Your friends gift you discount</label>
+              <label for="checkoutSponsorInput">Your friend gift you discount</label>
               <div class="product-checkout-friend-row">
                 <input
                   id="checkoutSponsorInput"
@@ -546,6 +620,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <button type="button" data-checkout-sponsor-apply>Apply</button>
               </div>
               <p class="product-checkout-friend-message" data-checkout-sponsor-message></p>
+            </article>
+            <article class="product-checkout-wallet-card">
+              <label for="checkoutWalletAmount">Use Your Wallet Balance</label>
+              <div class="product-checkout-wallet-row">
+                <label class="product-checkout-wallet-check" for="checkoutWalletToggle">
+                  <input id="checkoutWalletToggle" type="checkbox" data-checkout-wallet-toggle />
+                  Auto
+                </label>
+                <input
+                  id="checkoutWalletAmount"
+                  class="product-checkout-wallet-input"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  placeholder="Fill Amount"
+                  data-checkout-wallet-input
+                />
+              </div>
+              <p class="product-checkout-friend-message" data-checkout-wallet-help></p>
             </article>
           </section>
           <section class="product-checkout-right">
@@ -571,6 +664,10 @@ document.addEventListener("DOMContentLoaded", async () => {
               <span>Discount (Friend)</span>
               <strong data-checkout-friend-discount></strong>
             </div>
+            <div class="product-checkout-detail-row">
+              <span>Wallet Balance Used</span>
+              <strong data-checkout-wallet-used></strong>
+            </div>
             <div class="product-checkout-detail-row total">
               <span>To Pay</span>
               <strong data-checkout-payable></strong>
@@ -594,6 +691,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sponsorInput = root.querySelector("[data-checkout-sponsor-input]");
     const sponsorApplyBtn = root.querySelector("[data-checkout-sponsor-apply]");
     const sponsorMessage = root.querySelector("[data-checkout-sponsor-message]");
+    const walletToggle = root.querySelector("[data-checkout-wallet-toggle]");
+    const walletInput = root.querySelector("[data-checkout-wallet-input]");
+    const walletHelp = root.querySelector("[data-checkout-wallet-help]");
     const orderImage = root.querySelector("[data-checkout-order-image]");
     const orderTitle = root.querySelector("[data-checkout-order-title]");
     const orderMeta = root.querySelector("[data-checkout-order-meta]");
@@ -601,6 +701,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const subtotalValue = root.querySelector("[data-checkout-subtotal]");
     const tokenDiscountValue = root.querySelector("[data-checkout-token-discount]");
     const friendDiscountValue = root.querySelector("[data-checkout-friend-discount]");
+    const walletUsedValue = root.querySelector("[data-checkout-wallet-used]");
     const payableValue = root.querySelector("[data-checkout-payable]");
     const continueBtn = root.querySelector("[data-checkout-continue]");
 
@@ -615,6 +716,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       !(sponsorInput instanceof HTMLInputElement) ||
       !(sponsorApplyBtn instanceof HTMLButtonElement) ||
       !(sponsorMessage instanceof HTMLElement) ||
+      !(walletToggle instanceof HTMLInputElement) ||
+      !(walletInput instanceof HTMLInputElement) ||
+      !(walletHelp instanceof HTMLElement) ||
       !(orderImage instanceof HTMLImageElement) ||
       !(orderTitle instanceof HTMLElement) ||
       !(orderMeta instanceof HTMLElement) ||
@@ -622,6 +726,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       !(subtotalValue instanceof HTMLElement) ||
       !(tokenDiscountValue instanceof HTMLElement) ||
       !(friendDiscountValue instanceof HTMLElement) ||
+      !(walletUsedValue instanceof HTMLElement) ||
       !(payableValue instanceof HTMLElement) ||
       !(continueBtn instanceof HTMLButtonElement)
     ) {
@@ -688,6 +793,85 @@ document.addEventListener("DOMContentLoaded", async () => {
       await applyFriendDiscount();
     });
 
+    const applyWalletUsage = async () => {
+      if (checkoutState.busy || !checkoutState.product) return;
+      if (!checkoutState.walletEligible) {
+        checkoutState.useWalletBalance = false;
+        checkoutState.walletUseInput = "";
+        renderCheckoutModal();
+        setCheckoutFriendMessage(INELIGIBLE_WALLET_BALANCE_MESSAGE, "error");
+        return;
+      }
+      const requestedAmount = getRequestedWalletUseAmount();
+      if (checkoutState.useWalletBalance && requestedAmount <= 0) {
+        setCheckoutFriendMessage("Enter wallet amount or uncheck wallet usage.", "error");
+        return;
+      }
+      try {
+        await refreshCheckoutPreview();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to apply wallet balance.";
+        setCheckoutFriendMessage(message, "error");
+      }
+    };
+
+    walletToggle.addEventListener("change", async () => {
+      if (walletToggle.checked && !checkoutState.walletEligible) {
+        checkoutState.useWalletBalance = false;
+        checkoutState.walletUseInput = "";
+        walletToggle.checked = false;
+        renderCheckoutModal();
+        setCheckoutFriendMessage(INELIGIBLE_WALLET_BALANCE_MESSAGE, "error");
+        return;
+      }
+      checkoutState.useWalletBalance = walletToggle.checked;
+      if (checkoutState.useWalletBalance) {
+        const pricing = checkoutState.preview?.pricing || resolveCheckoutFallbackPricing();
+        const payableBeforeWallet = Math.max(
+          0,
+          toSafeNumber(
+            pricing.payableBeforeWallet !== undefined && pricing.payableBeforeWallet !== null
+              ? pricing.payableBeforeWallet
+              : pricing.payableAmount
+          )
+        );
+        const autoWalletUse = Math.min(payableBeforeWallet, checkoutState.walletBalance);
+        checkoutState.walletUseInput = autoWalletUse > 0 ? String(Number(autoWalletUse.toFixed(2))) : "";
+      } else {
+        checkoutState.walletUseInput = "";
+      }
+      renderCheckoutModal();
+      await applyWalletUsage();
+    });
+
+    walletInput.addEventListener("input", () => {
+      if (!checkoutState.walletEligible) {
+        checkoutState.useWalletBalance = false;
+        checkoutState.walletUseInput = "";
+        walletInput.value = "";
+        renderCheckoutModal();
+        setCheckoutFriendMessage(INELIGIBLE_WALLET_BALANCE_MESSAGE, "error");
+        return;
+      }
+      const nextValue = sanitizeWalletAmountInput(walletInput.value);
+      walletInput.value = nextValue;
+      checkoutState.walletUseInput = nextValue;
+      const numeric = Math.max(0, toSafeNumber(nextValue));
+      checkoutState.useWalletBalance = numeric > 0 || walletToggle.checked;
+      renderCheckoutModal();
+    });
+
+    walletInput.addEventListener("blur", async () => {
+      if (!checkoutState.useWalletBalance) return;
+      await applyWalletUsage();
+    });
+
+    walletInput.addEventListener("keydown", async (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      await applyWalletUsage();
+    });
+
     continueBtn.addEventListener("click", async () => {
       if (checkoutState.busy || !checkoutState.product) return;
       setCheckoutBusy(true);
@@ -700,6 +884,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           nextUrl.searchParams.set("referralCode", checkoutState.appliedReferralCode);
         } else {
           nextUrl.searchParams.delete("referralCode");
+        }
+        const walletUseAmount = getRequestedWalletUseAmount();
+        if (walletUseAmount > 0) {
+          nextUrl.searchParams.set("walletUseAmount", String(Number(walletUseAmount.toFixed(2))));
+        } else {
+          nextUrl.searchParams.delete("walletUseAmount");
         }
         closeCheckoutModal();
         window.location.href = nextUrl.toString();
@@ -729,6 +919,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       sponsorInput,
       sponsorApplyBtn,
       sponsorMessage,
+      walletToggle,
+      walletInput,
+      walletHelp,
       orderImage,
       orderTitle,
       orderMeta,
@@ -736,6 +929,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       subtotalValue,
       tokenDiscountValue,
       friendDiscountValue,
+      walletUsedValue,
       payableValue,
       continueBtn,
     };
@@ -759,6 +953,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     checkoutState.includeDefaultOffer = getDiscountPercentForProduct(product) > 0;
     checkoutState.referralInput = String(seededReferralCode || "").trim().toUpperCase();
     checkoutState.appliedReferralCode = checkoutState.referralInput;
+    checkoutState.useWalletBalance = false;
+    checkoutState.walletUseInput = "";
+    checkoutState.walletBalance = 0;
     checkoutState.preview = null;
     checkoutState.friendMessage = "";
     checkoutState.friendMessageType = "";

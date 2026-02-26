@@ -8,6 +8,15 @@
   --page-bg: #f5f8ff;
   --border: #dbe6ff;
   --shadow: 0 10px 30px rgba(15, 83, 189, 0.12);
+  --catalog-card-thumb-size: 168px;
+  --catalog-card-thumb-size-md: 154px;
+  --catalog-card-thumb-size-sm: 118px;
+  --catalog-card-content-size: 300px;
+  --catalog-card-width: calc(var(--catalog-card-thumb-size) + var(--catalog-card-content-size));
+  --catalog-card-width-md: calc(var(--catalog-card-thumb-size-md) + var(--catalog-card-content-size));
+  --catalog-card-width-sm: calc(var(--catalog-card-thumb-size-sm) + var(--catalog-card-content-size));
+  --catalog-card-body-pad-y: 0.58rem;
+  --catalog-card-body-pad-x: 0.62rem;
 }
 
 *,
@@ -732,13 +741,20 @@ h1 {
 
 .home-latest-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, var(--catalog-card-width)), var(--catalog-card-width))
+  );
+  justify-content: start;
   gap: 0.85rem;
 }
 
 .home-latest-card {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-columns: var(--catalog-card-thumb-size) minmax(0, 1fr);
+  width: min(100%, var(--catalog-card-width));
+  min-height: var(--catalog-card-thumb-size);
+  justify-self: start;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: #fff;
@@ -748,7 +764,7 @@ h1 {
 .home-latest-thumb {
   width: 100%;
   height: 100%;
-  min-height: 168px;
+  min-height: var(--catalog-card-thumb-size);
   aspect-ratio: 1 / 1;
   object-fit: cover;
   object-position: center;
@@ -757,7 +773,7 @@ h1 {
 
 .home-latest-body {
   min-width: 0;
-  padding: 0.7rem 0.75rem;
+  padding: var(--catalog-card-body-pad-y) var(--catalog-card-body-pad-x);
   display: grid;
   gap: 0.3rem;
   align-content: start;
@@ -816,14 +832,15 @@ h1 {
 }
 
 .home-latest-actions {
-  margin-top: 0.4rem;
+  margin-top: 0.35rem;
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
 }
 
 .home-latest-actions .btn-secondary,
-.home-latest-actions .btn-primary {
+.home-latest-actions .btn-primary,
+.home-latest-actions .btn-sky {
   padding: 0.45rem 0.72rem;
   border-radius: 10px;
   font-size: 0.84rem;
@@ -2132,6 +2149,47 @@ h1 {
   color: #2f8a48;
 }
 
+.product-checkout-wallet-card {
+  margin-top: 0.7rem;
+  border-top: 1px dashed #c8d6f2;
+  padding-top: 0.65rem;
+}
+
+.product-checkout-wallet-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.product-checkout-wallet-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #34466d;
+  cursor: pointer;
+}
+
+.product-checkout-wallet-check input {
+  margin: 0;
+}
+
+.product-checkout-wallet-input {
+  width: 100%;
+  border: 1px solid #c7d5f2;
+  border-radius: 10px;
+  padding: 0.58rem 0.62rem;
+  font: inherit;
+}
+
+.product-checkout-wallet-input:disabled {
+  background: #f6f8fc;
+  color: #8691a9;
+}
+
 .product-checkout-right h4 {
   margin: 0 0 0.45rem;
   font-size: 1.02rem;
@@ -3326,11 +3384,20 @@ h1 {
 
 @media (max-width: 980px) {
   .home-latest-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(min(100%, var(--catalog-card-width-md)), var(--catalog-card-width-md))
+    );
   }
 
   .home-latest-card {
-    grid-template-columns: 154px minmax(0, 1fr);
+    grid-template-columns: var(--catalog-card-thumb-size-md) minmax(0, 1fr);
+    width: min(100%, var(--catalog-card-width-md));
+    min-height: var(--catalog-card-thumb-size-md);
+  }
+
+  .home-latest-thumb {
+    min-height: var(--catalog-card-thumb-size-md);
   }
 
   .products-layout {
@@ -3391,15 +3458,17 @@ h1 {
   }
 
   .home-latest-card {
-    grid-template-columns: 118px minmax(0, 1fr);
+    grid-template-columns: var(--catalog-card-thumb-size-sm) minmax(0, 1fr);
+    width: min(100%, var(--catalog-card-width-sm));
+    min-height: var(--catalog-card-thumb-size-sm);
   }
 
   .home-latest-thumb {
-    min-height: 118px;
+    min-height: var(--catalog-card-thumb-size-sm);
   }
 
   .home-latest-body {
-    padding: 0.52rem 0.55rem 0.58rem;
+    padding: 0.5rem 0.54rem 0.56rem;
   }
 
   .home-latest-body h3 {

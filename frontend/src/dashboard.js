@@ -465,68 +465,57 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hasDemoAction = Boolean(demoMockTestId || demoUrl);
         const salePrice = Number(product?.salePrice || 0);
         const listPrice = Number(product?.listPrice || 0);
+        const title = String(product?.title || "Product");
+        const language = String(product?.languageMode || "Multi");
+        const courseType = String(product?.courseType || "COURSE").replaceAll("_", " ");
+        const examCategory = String(product?.examCategory || "-");
+        const examName = String(product?.examName || "-");
         const discountPercent =
           listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
+        const productsPagePath = getProductsPagePath();
+        const encodedProductId = id ? encodeURIComponent(id) : "";
+        const productDetailsLink = encodedProductId
+          ? `${productsPagePath}?productId=${encodedProductId}`
+          : productsPagePath;
+        const buyNowLink = encodedProductId
+          ? `${productsPagePath}?checkoutProductId=${encodedProductId}`
+          : productsPagePath;
         return `
-          <article class="dash-card dash-product-card">
-            <div class="dash-product-thumb-wrap">
-              <img
-                class="dash-product-thumb"
-                src="${escapeHtml(image)}"
-                alt="${escapeHtml(product?.title || "Product")}"
-                onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
-              />
+          <article class="home-latest-card dash-product-card">
+            <img
+              class="home-latest-thumb"
+              src="${escapeHtml(image)}"
+              alt="${escapeHtml(title)}"
+              onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+            />
+            <div class="home-latest-body">
+              <p class="home-latest-tags">
+                <span>${escapeHtml(language)}</span>
+                <span>${escapeHtml(courseType)}</span>
+              </p>
+              <h3>${escapeHtml(title)}</h3>
+              <p class="home-latest-meta">${escapeHtml(examCategory)} | ${escapeHtml(examName)}</p>
+              <div class="home-latest-pricing">
+                <strong>${toCurrency(salePrice)}</strong>
+                ${listPrice > salePrice ? `<span class="home-latest-mrp">${toCurrency(listPrice)}</span>` : ""}
+                ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
+              </div>
+              <div class="home-latest-actions dash-product-actions">
+                <a class="btn-secondary" href="${productDetailsLink}">View Details</a>
+                <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
+                <button
+                  class="btn-secondary"
+                  data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
+                  type="button"
+                  data-dash-demo-url="${escapeHtml(demoUrl)}"
+                  ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
+                >${escapeHtml(demoLabel)}</button>
+              </div>
             </div>
-            <p class="dash-k">${escapeHtml(product?.examCategory || "-")} | ${escapeHtml(product?.examName || "-")}</p>
-            <p class="dash-v">${escapeHtml(product?.title || "Product")}</p>
-            <p class="dash-k dash-rate-line">
-              Price:
-              <span class="dash-rate-sale">${toCurrency(salePrice)}</span>
-              <span class="dash-rate-mrp">MRP ${toCurrency(listPrice)}</span>
-              ${discountPercent > 0 ? `<span class="dash-rate-off">${discountPercent}% off</span>` : ""}
-            </p>
-            <p class="dash-product-actions">
-              <a class="btn-primary" href="${getProductsPagePath()}">Buy</a>
-              <button class="btn-sky" type="button" data-dash-buy-product="${escapeHtml(id)}">Buy with Wallet</button>
-              <button
-                class="btn-secondary"
-                data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
-                type="button"
-                data-dash-demo-url="${escapeHtml(demoUrl)}"
-                ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
-              >${escapeHtml(demoLabel)}</button>
-            </p>
           </article>
         `;
       })
       .join("");
-  };
-
-  const buyDashboardProduct = async (productId, referralCode = "") => {
-    const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/buy-with-wallet`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        referralCode: String(referralCode || "").trim() || undefined,
-      }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.message || "Unable to purchase product.");
-    }
-    return payload;
-  };
-
-  const getDashboardReferralCode = (targetElement) => {
-    if (!(targetElement instanceof HTMLElement)) return "";
-    const card = targetElement.closest(".dash-product-card");
-    if (!(card instanceof HTMLElement)) return "";
-    const input = card.querySelector("[data-dash-referral-code]");
-    if (!(input instanceof HTMLInputElement)) return "";
-    return String(input.value || "").trim();
   };
 
   const startDashboardAttempt = async (mockTestId, { autoplay = false } = {}) => {
@@ -903,25 +892,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           setProductsStatus(message, "error");
         }
         return;
-      }
-      const buyBtn = target.closest("[data-dash-buy-product]");
-      if (!(buyBtn instanceof HTMLElement)) return;
-      const productId = String(buyBtn.getAttribute("data-dash-buy-product") || "").trim();
-      if (!productId) return;
-      const referralCode = getDashboardReferralCode(buyBtn);
-      try {
-        setProductsStatus("Purchasing product...");
-        const payload = await buyDashboardProduct(productId, referralCode);
-        const savedAmount = Number(payload?.purchase?.referralDiscountApplied || 0);
-        if (savedAmount > 0) {
-          setProductsStatus(`Product purchased successfully. You saved ${toCurrency(savedAmount)}.`, "success");
-        } else {
-          setProductsStatus("Product purchased successfully.", "success");
-        }
-        await loadDashboardProducts();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to purchase product.";
-        setProductsStatus(message, "error");
       }
     });
   }

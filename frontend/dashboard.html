@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Student Dashboard</title>
-    <link rel="stylesheet" href="./src/styles.css?v=24" />
+    <link rel="stylesheet" href="./src/styles.css?v=26" />
     <style>
       .dash-wrap {
         width: min(960px, 92%);
@@ -388,29 +388,16 @@
       .dash-products-grid {
         margin-top: 0.8rem;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(min(100%, var(--catalog-card-width)), var(--catalog-card-width))
+        );
+        justify-content: start;
+        gap: 0.85rem;
       }
 
       .dash-product-card {
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
-      }
-
-      .dash-product-thumb-wrap {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .dash-product-thumb {
-        width: min(300px, 100%);
-        aspect-ratio: 1 / 1;
-        object-fit: cover;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: #f4f7ff;
+        padding: 0;
       }
 
       .dash-product-actions {
@@ -450,10 +437,10 @@
 
       .btn-sky {
         border: 1px solid #7fc8ff;
-        border-radius: 12px;
+        border-radius: 10px;
         background: #54b6ff;
         color: #fff;
-        padding: 0.62rem 1.12rem;
+        padding: 0.45rem 0.72rem;
         font-weight: 700;
         cursor: pointer;
       }
@@ -742,7 +729,7 @@
         </div>
       </section>
     </main>
-    <script src="./src/dashboard.js?v=28"></script>
+    <script src="./src/dashboard.js?v=30"></script>
     <script src="./src/global-nav.js?v=2"></script>
   </body>
 </html>
