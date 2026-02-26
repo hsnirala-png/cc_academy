@@ -4980,6 +4980,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         let successMessage = shouldSaveTestWithLesson ? "Test content saved." : "Lesson saved.";
         let testSavedWithLesson = false;
         let testSaveErrorMessage = "";
+        let csvImportedWithLesson = false;
+        let csvImportErrorMessage = "";
+        let csvImportResult = null;
+        const hasPendingCsvImport =
+          shouldSaveTestWithLesson &&
+          lessonBulkImportCsvFileInput instanceof HTMLInputElement &&
+          Boolean(lessonBulkImportCsvFileInput.files?.length);
         if (lessonId) {
           const updated = await apiRequest({
             path: `/admin/lesson-items/${encodeURIComponent(lessonId)}`,
@@ -5024,6 +5031,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
             testSavedWithLesson = true;
             setPendingTestChanges(false);
+            if (hasPendingCsvImport) {
+              try {
+                setMessage("Test saved. Uploading CSV questions...");
+                csvImportResult = await handleLessonCsvBulkImport();
+                csvImportedWithLesson = true;
+                if (lessonBulkImportCsvFileInput instanceof HTMLInputElement) {
+                  lessonBulkImportCsvFileInput.value = "";
+                }
+                if (lessonBulkImportReplaceExistingInput instanceof HTMLInputElement) {
+                  lessonBulkImportReplaceExistingInput.checked = false;
+                }
+                await Promise.all([
+                  loadMockQuestions(state.selectedMockTestId),
+                  loadMockTestsAdmin(),
+                  loadAssessments(),
+                ]);
+              } catch (csvError) {
+                csvImportErrorMessage =
+                  csvError instanceof Error ? csvError.message : "Unable to import CSV questions.";
+              }
+            }
           } catch (testError) {
             testSaveErrorMessage =
               testError instanceof Error ? testError.message : "Unable to save and attach test.";
@@ -5032,10 +5060,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const finalMessage = testSaveErrorMessage
           ? `${successMessage} But test was not saved: ${testSaveErrorMessage}`
+          : csvImportErrorMessage
+            ? `${successMessage} Test saved and attached. But CSV import failed: ${csvImportErrorMessage}`
+            : csvImportedWithLesson && csvImportResult
+              ? `${successMessage} Test saved and attached. CSV import added ${csvImportResult.createdCount}/${csvImportResult.totalRows} questions.`
           : testSavedWithLesson
             ? `${successMessage} Test saved and attached.`
             : successMessage;
-        const finalType = testSaveErrorMessage ? "error" : "success";
+        const finalType = testSaveErrorMessage || csvImportErrorMessage ? "error" : "success";
         if (savedLessonId) {
           if (lessonSelectIdInput instanceof HTMLSelectElement) {
             lessonSelectIdInput.value = savedLessonId;
