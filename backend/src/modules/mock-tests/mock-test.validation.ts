@@ -84,6 +84,29 @@ export const adminBulkImportQuestionsSchema = z.object({
   replaceExisting: z.boolean().optional(),
 });
 
+const mockTestSectionTypeSchema = z.enum([
+  "COMPREHENSION",
+  "GENERAL_MCQ",
+  "GRAMMAR",
+  "MATH_FORMULA",
+  "SCIENCE_EQUATION",
+  "CUSTOM",
+]);
+
+export const adminCreateMockTestSectionSchema = z.object({
+  sectionLabel: z.string().trim().min(1).max(120),
+  sectionType: mockTestSectionTypeSchema.default("GENERAL_MCQ"),
+  transcriptText: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
+  audioUrl: z.preprocess(parseEmptyAsUndefined, z.string().trim().max(512).optional()),
+  questionLimit: z.coerce.number().int().min(1).max(5000).optional(),
+  sortOrder: z.coerce.number().int().min(0).max(100000).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const adminUpdateMockTestSectionSchema = adminCreateMockTestSectionSchema
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, "No section updates provided");
+
 export const adminAttemptsFilterSchema = z.object({
   examType: z.preprocess(parseEmptyAsUndefined, z.enum(["PSTET_1", "PSTET_2"]).optional()),
   subject: z.preprocess(

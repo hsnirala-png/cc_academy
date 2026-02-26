@@ -128,8 +128,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionTargetCountInput = document.querySelector("#lessonQuestionTargetCount");
   const lessonQuestionSectionFilterInput = document.querySelector("#lessonQuestionSectionFilter");
   const lessonQuestionSectionSummary = document.querySelector("#lessonQuestionSectionSummary");
+  const lessonSectionForm = document.querySelector("#lessonSectionForm");
+  const lessonSectionIdInput = document.querySelector("#lessonSectionId");
+  const lessonSectionTypeInput = document.querySelector("#lessonSectionType");
+  const lessonSectionLabelInput = document.querySelector("#lessonSectionLabel");
+  const lessonSectionQuestionLimitInput = document.querySelector("#lessonSectionQuestionLimit");
+  const lessonSectionAudioUrlInput = document.querySelector("#lessonSectionAudioUrl");
+  const lessonSectionTranscriptInput = document.querySelector("#lessonSectionTranscript");
+  const lessonSectionSaveBtn = document.querySelector("#lessonSectionSaveBtn");
+  const lessonSectionCancelBtn = document.querySelector("#lessonSectionCancelBtn");
+  const lessonSectionsTableBody = document.querySelector("#lessonSectionsTableBody");
   const lessonQuestionForm = document.querySelector("#lessonQuestionForm");
   const lessonQuestionIdInput = document.querySelector("#lessonQuestionId");
+  const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
+  const lessonQuestionPassageTextInput = document.querySelector("#lessonQuestionPassageText");
+  const lessonQuestionFormulaWrap = document.querySelector("#lessonQuestionFormulaWrap");
+  const lessonQuestionFormulaTextInput = document.querySelector("#lessonQuestionFormulaText");
+  const lessonQuestionEquationWrap = document.querySelector("#lessonQuestionEquationWrap");
+  const lessonQuestionEquationTextInput = document.querySelector("#lessonQuestionEquationText");
   const lessonQuestionTextInput = document.querySelector("#lessonQuestionText");
   const lessonQuestionSectionInput = document.querySelector("#lessonQuestionSection");
   const lessonOptionAInput = document.querySelector("#lessonOptionA");
@@ -235,6 +251,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedMockChapterId: "",
     selectedMockLessonId: "",
     selectedMockTestId: "",
+    mockTestSections: [],
     mockQuestions: [],
     hasPendingTestChanges: false,
     testsMode: "create",
@@ -2013,11 +2030,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     "Math Formulas",
     "Science Equations",
   ];
+  const SECTION_TYPE_LABELS = {
+    COMPREHENSION: "Comprehension",
+    GENERAL_MCQ: "General MCQs",
+    GRAMMAR: "Grammar",
+    MATH_FORMULA: "Math Formulas",
+    SCIENCE_EQUATION: "Science Equations",
+    CUSTOM: "Custom",
+  };
+  const SECTION_TYPE_FROM_LABEL = {
+    Comprehension: "COMPREHENSION",
+    "General MCQs": "GENERAL_MCQ",
+    Grammar: "GRAMMAR",
+    "Math Formulas": "MATH_FORMULA",
+    "Science Equations": "SCIENCE_EQUATION",
+  };
   const CSV_TEMPLATE_DEFAULT_SECTION = {
     general: "General MCQs",
     comprehension: "Comprehension",
     math: "Math Formulas",
     science: "Science Equations",
+  };
+  const normalizeSectionType = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (
+      [
+        "COMPREHENSION",
+        "GENERAL_MCQ",
+        "GRAMMAR",
+        "MATH_FORMULA",
+        "SCIENCE_EQUATION",
+        "CUSTOM",
+      ].includes(normalized)
+    ) {
+      return normalized;
+    }
+    return "GENERAL_MCQ";
   };
   const getCsvTemplateFormat = () => {
     const raw = String(lessonCsvTemplateFormatInput?.value || "general").toLowerCase();
@@ -2035,11 +2083,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     const normalized = String(value || "").trim();
     return normalized ? normalized.slice(0, 120) : "";
   };
+  const getSectionMetaByLabel = (sectionLabel) => {
+    const normalizedLabel = normalizeQuestionSectionLabel(sectionLabel);
+    if (!normalizedLabel) return null;
+    return (
+      state.mockTestSections.find(
+        (item) => normalizeQuestionSectionLabel(item?.sectionLabel) === normalizedLabel
+      ) || null
+    );
+  };
+  const structuredQuestionTextFromParts = ({
+    sectionType,
+    questionText,
+    passageText,
+    formulaText,
+    equationText,
+    fallbackTranscript,
+  }) => {
+    const normalizedQuestion = String(questionText || "").trim();
+    const normalizedPassage = String(passageText || "").trim() || String(fallbackTranscript || "").trim();
+    const normalizedFormula = String(formulaText || "").trim() || String(fallbackTranscript || "").trim();
+    const normalizedEquation = String(equationText || "").trim() || String(fallbackTranscript || "").trim();
+    if (!normalizedQuestion) return "";
+    const type = normalizeSectionType(sectionType);
+    if (type === "COMPREHENSION" && normalizedPassage) {
+      return `Passage:\n${normalizedPassage}\n\nQuestion: ${normalizedQuestion}`.trim();
+    }
+    if (type === "MATH_FORMULA" && normalizedFormula) {
+      return `Formula: ${normalizedFormula}\n\nQuestion: ${normalizedQuestion}`.trim();
+    }
+    if (type === "SCIENCE_EQUATION" && normalizedEquation) {
+      return `Equation: ${normalizedEquation}\n\nQuestion: ${normalizedQuestion}`.trim();
+    }
+    return normalizedQuestion;
+  };
   const getQuestionSectionOptions = () => {
+    const fromSectionConfig = state.mockTestSections
+      .map((section) => normalizeQuestionSectionLabel(section?.sectionLabel))
+      .filter(Boolean);
     const fromQuestions = state.mockQuestions
       .map((question) => normalizeQuestionSectionLabel(question?.sectionLabel))
       .filter(Boolean);
     const options = [...DEFAULT_QUESTION_SECTIONS];
+    fromSectionConfig.forEach((label) => {
+      if (!options.includes(label)) {
+        options.push(label);
+      }
+    });
     fromQuestions.forEach((label) => {
       if (!options.includes(label)) {
         options.push(label);
@@ -2077,7 +2167,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     if (lessonQuestionSectionInput instanceof HTMLSelectElement) {
-      const previous = normalizeQuestionSectionLabel(lessonQuestionSectionInput.value) || sectionOptions[0] || "";
+      const configuredDefault =
+        normalizeQuestionSectionLabel(state.mockTestSections?.[0]?.sectionLabel) || sectionOptions[0] || "";
+      const previous = normalizeQuestionSectionLabel(lessonQuestionSectionInput.value) || configuredDefault;
       lessonQuestionSectionInput.innerHTML = renderSelectOptions(previous, false);
       lessonQuestionSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
     }
@@ -2118,7 +2210,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `${label}: ${total}`;
       })
       .join(" | ");
-    lessonQuestionSectionSummary.textContent = `Section-wise count: ${sectionSummary}`;
+    const totalActive = state.mockQuestions.filter((question) => Boolean(question?.isActive)).length;
+    const target = requiredQuestionsForLesson();
+    lessonQuestionSectionSummary.textContent = `Section-wise count: ${sectionSummary} | Total: ${totalActive}/${target}`;
   };
   const isMockScopeReady = () =>
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
@@ -2670,6 +2764,169 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionIsActiveInput instanceof HTMLInputElement) lessonQuestionIsActiveInput.checked = true;
     if (lessonQuestionSubmitBtn instanceof HTMLButtonElement) lessonQuestionSubmitBtn.textContent = "Add Question";
     if (lessonQuestionCancelBtn instanceof HTMLButtonElement) lessonQuestionCancelBtn.classList.add("hidden");
+    if (lessonQuestionPassageTextInput instanceof HTMLTextAreaElement) lessonQuestionPassageTextInput.value = "";
+    if (lessonQuestionFormulaTextInput instanceof HTMLInputElement) lessonQuestionFormulaTextInput.value = "";
+    if (lessonQuestionEquationTextInput instanceof HTMLInputElement) lessonQuestionEquationTextInput.value = "";
+    toggleQuestionStructuredFields();
+  };
+
+  const resetLessonSectionForm = () => {
+    if (!(lessonSectionForm instanceof HTMLFormElement)) return;
+    lessonSectionForm.reset();
+    if (lessonSectionIdInput instanceof HTMLInputElement) lessonSectionIdInput.value = "";
+    if (lessonSectionTypeInput instanceof HTMLSelectElement) {
+      lessonSectionTypeInput.value = "COMPREHENSION";
+    }
+    if (lessonSectionQuestionLimitInput instanceof HTMLInputElement) {
+      const suggested = Math.max(1, Math.floor(requiredQuestionsForLesson() / 3));
+      lessonSectionQuestionLimitInput.value = String(suggested || 10);
+    }
+    if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
+      lessonSectionSaveBtn.textContent = "Save Section";
+    }
+    if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
+      lessonSectionCancelBtn.classList.add("hidden");
+    }
+  };
+
+  const renderLessonSections = () => {
+    if (!(lessonSectionsTableBody instanceof HTMLElement)) return;
+    if (!state.mockTestSections.length) {
+      lessonSectionsTableBody.innerHTML = "<tr><td colspan='5'>No sections yet.</td></tr>";
+      return;
+    }
+    lessonSectionsTableBody.innerHTML = state.mockTestSections
+      .map((section) => {
+        const label = normalizeQuestionSectionLabel(section?.sectionLabel);
+        const activeCount = state.mockQuestions.filter(
+          (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === label
+        ).length;
+        return `
+      <tr>
+        <td>${escapeHtml(label || "-")}</td>
+        <td>${escapeHtml(SECTION_TYPE_LABELS[normalizeSectionType(section?.sectionType)] || "-")}</td>
+        <td>${Number(section?.questionLimit || 0) || "-"}</td>
+        <td>${activeCount}</td>
+        <td>
+          <div class="table-actions">
+            <button type="button" class="table-btn edit" data-edit-lesson-section="${section.id}">Edit</button>
+            <button type="button" class="table-btn delete" data-delete-lesson-section="${section.id}">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+      })
+      .join("");
+  };
+
+  const loadMockTestSections = async (mockTestId) => {
+    if (!mockTestId) {
+      state.mockTestSections = [];
+      renderLessonSections();
+      renderQuestionSectionControls();
+      return;
+    }
+    const response = await apiRequest({
+      path: `/admin/mock-tests/${encodeURIComponent(mockTestId)}/sections`,
+      token,
+    });
+    state.mockTestSections = response.sections || [];
+    renderLessonSections();
+    renderQuestionSectionControls();
+    toggleQuestionStructuredFields();
+  };
+
+  const buildLessonSectionPayload = () => {
+    const sectionType = normalizeSectionType(lessonSectionTypeInput?.value);
+    const sectionLabel = normalizeQuestionSectionLabel(lessonSectionLabelInput?.value);
+    const transcriptText = String(lessonSectionTranscriptInput?.value || "").trim();
+    const audioUrl = String(lessonSectionAudioUrlInput?.value || "").trim();
+    const questionLimit = Math.max(1, Math.floor(Number(lessonSectionQuestionLimitInput?.value || 0)));
+    if (!sectionLabel) {
+      throw new Error("Section name is required.");
+    }
+    if (!Number.isFinite(questionLimit) || questionLimit < 1) {
+      throw new Error("Section question limit must be 1 or greater.");
+    }
+    return {
+      sectionType,
+      sectionLabel,
+      transcriptText: transcriptText || undefined,
+      audioUrl: audioUrl || undefined,
+      questionLimit,
+      isActive: true,
+    };
+  };
+
+  const saveMockTestSection = async () => {
+    if (!state.selectedMockTestId) {
+      throw new Error("Create or attach a test before saving sections.");
+    }
+    const payload = buildLessonSectionPayload();
+    const sectionId = String(lessonSectionIdInput?.value || "").trim();
+    if (sectionId) {
+      await apiRequest({
+        path: `/admin/mock-test-sections/${encodeURIComponent(sectionId)}`,
+        method: "PATCH",
+        token,
+        body: payload,
+      });
+      return;
+    }
+    await apiRequest({
+      path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/sections`,
+      method: "POST",
+      token,
+      body: payload,
+    });
+  };
+
+  const openLessonSectionForEdit = (section) => {
+    if (!section) return;
+    if (lessonSectionIdInput instanceof HTMLInputElement) {
+      lessonSectionIdInput.value = String(section.id || "");
+    }
+    if (lessonSectionTypeInput instanceof HTMLSelectElement) {
+      lessonSectionTypeInput.value = normalizeSectionType(section.sectionType);
+    }
+    if (lessonSectionLabelInput instanceof HTMLInputElement) {
+      lessonSectionLabelInput.value = String(section.sectionLabel || "");
+    }
+    if (lessonSectionQuestionLimitInput instanceof HTMLInputElement) {
+      const nextLimit = Math.max(1, Number(section.questionLimit || 1));
+      lessonSectionQuestionLimitInput.value = String(nextLimit);
+    }
+    if (lessonSectionAudioUrlInput instanceof HTMLInputElement) {
+      lessonSectionAudioUrlInput.value = String(section.audioUrl || "");
+    }
+    if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
+      lessonSectionTranscriptInput.value = String(section.transcriptText || "");
+    }
+    if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
+      lessonSectionSaveBtn.textContent = "Update Section";
+    }
+    if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
+      lessonSectionCancelBtn.classList.remove("hidden");
+    }
+  };
+
+  const toggleQuestionStructuredFields = () => {
+    const sectionLabel = normalizeQuestionSectionLabel(lessonQuestionSectionInput?.value);
+    const sectionMeta = getSectionMetaByLabel(sectionLabel);
+    const sectionType = normalizeSectionType(sectionMeta?.sectionType || SECTION_TYPE_FROM_LABEL[sectionLabel]);
+    if (lessonQuestionPassageWrap instanceof HTMLElement) {
+      lessonQuestionPassageWrap.classList.toggle("hidden", sectionType !== "COMPREHENSION");
+    }
+    if (lessonQuestionFormulaWrap instanceof HTMLElement) {
+      lessonQuestionFormulaWrap.classList.toggle("hidden", sectionType !== "MATH_FORMULA");
+    }
+    if (lessonQuestionEquationWrap instanceof HTMLElement) {
+      lessonQuestionEquationWrap.classList.toggle("hidden", sectionType !== "SCIENCE_EQUATION");
+    }
+    if (sectionMeta && lessonQuestionPassageTextInput instanceof HTMLTextAreaElement && sectionType === "COMPREHENSION") {
+      if (!lessonQuestionPassageTextInput.value.trim() && String(sectionMeta.transcriptText || "").trim()) {
+        lessonQuestionPassageTextInput.value = String(sectionMeta.transcriptText || "").trim();
+      }
+    }
   };
 
   const resetLessonQuestionEditForm = () => {
@@ -2802,6 +3059,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     return fallback;
   };
 
+  const ensureQuestionTargetCapacity = (incomingCount = 1) => {
+    const incoming = Math.max(0, Math.floor(Number(incomingCount) || 0));
+    if (!incoming) return;
+    const target = requiredQuestionsForLesson();
+    const activeCount = state.mockQuestions.filter((item) => Boolean(item?.isActive)).length;
+    if (activeCount + incoming > target) {
+      throw new Error(
+        `Question limit exceeded. Target is ${target}, existing active questions are ${activeCount}, incoming ${incoming}.`
+      );
+    }
+  };
+
   const updateLessonQuestionCountWarning = () => {
     if (!(lessonQuestionCountWarning instanceof HTMLElement)) return;
     if (!isMockScopeReady()) {
@@ -2835,6 +3104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(lessonQuestionsTableBody instanceof HTMLElement)) return;
     renderQuestionSectionControls();
     updateQuestionSectionSummary();
+    renderLessonSections();
     const filteredQuestions = visibleMockQuestions();
     if (!state.mockQuestions.length) {
       lessonQuestionsTableBody.innerHTML = "<tr><td colspan='8'>No questions yet.</td></tr>";
@@ -2918,6 +3188,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? "Persist current question set with selected test and chapter."
         : "Select chapter and test first.";
     }
+    if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
+      const canSaveSection = shouldShow && Boolean(state.selectedMockTestId);
+      lessonSectionSaveBtn.disabled = !canSaveSection;
+      lessonSectionSaveBtn.title = canSaveSection
+        ? "Save or update section for selected test."
+        : "Create or select a test first.";
+    }
   };
 
   const setPendingTestChanges = (value) => {
@@ -2978,7 +3255,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const normalizeCsvRows = (rows, options = {}) => {
-    const { defaultSectionLabel = "" } = options;
+    const { defaultSectionLabel = "", sectionLookup = new Map() } = options;
     if (!rows.length) {
       throw new Error("CSV file is empty.");
     }
@@ -2991,21 +3268,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         .trim();
     const findHeaderIndex = (headers, aliases) =>
       aliases.map((alias) => headers.indexOf(alias)).find((index) => index >= 0) ?? -1;
-    const buildCsvQuestionText = ({ questionText, passageText, formulaText, equationText }) => {
+    const buildCsvQuestionText = ({
+      questionText,
+      passageText,
+      formulaText,
+      equationText,
+      sectionType,
+      fallbackTranscript,
+    }) => {
       const normalizedQuestion = String(questionText || "").trim();
       const normalizedPassage = String(passageText || "").trim();
       const normalizedFormula = String(formulaText || "").trim();
       const normalizedEquation = String(equationText || "").trim();
-      const hasPrefixBlocks = Boolean(normalizedPassage || normalizedFormula || normalizedEquation);
-      if (!hasPrefixBlocks) {
-        return normalizedQuestion;
-      }
-      const blocks = [];
-      if (normalizedPassage) blocks.push(`Passage:\n${normalizedPassage}`);
-      if (normalizedFormula) blocks.push(`Formula: ${normalizedFormula}`);
-      if (normalizedEquation) blocks.push(`Equation: ${normalizedEquation}`);
-      if (normalizedQuestion) blocks.push(`Question: ${normalizedQuestion}`);
-      return blocks.join("\n\n").trim();
+      return structuredQuestionTextFromParts({
+        sectionType,
+        questionText: normalizedQuestion,
+        passageText: normalizedPassage,
+        formulaText: normalizedFormula,
+        equationText: normalizedEquation,
+        fallbackTranscript,
+      });
     };
     const header = rows[0].map((cell) => normalizeHeaderKey(cell));
     const headerQuestionIndex = findHeaderIndex(header, ["questiontext", "question", "prompt"]);
@@ -3068,11 +3350,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         normalizeQuestionSectionLabel(sectionLabelRaw) ||
         normalizeQuestionSectionLabel(defaultSectionLabel) ||
         DEFAULT_QUESTION_SECTIONS[0];
+      const sectionMeta = sectionLookup.get(sectionLabel) || null;
+      const sectionType = normalizeSectionType(
+        sectionMeta?.sectionType || SECTION_TYPE_FROM_LABEL[sectionLabel]
+      );
       const questionText = buildCsvQuestionText({
         questionText: rawQuestionText,
         passageText,
         formulaText,
         equationText,
+        sectionType,
+        fallbackTranscript: sectionMeta?.transcriptText || "",
       });
 
       if (!rawQuestionText || !optionA || !optionB || !optionC || !optionD) {
@@ -3769,8 +4057,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.mockChapters = [];
       state.mockLessons = [];
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
     }
     renderCourses();
     renderChapterCourseOptions();
@@ -3877,11 +4168,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     resetLessonQuestionForm();
     syncQuestionTargetCountForSelectedTest({ force: forceQuestionCount });
     try {
-      await loadMockQuestions(state.selectedMockTestId);
+      await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestSections(state.selectedMockTestId)]);
+      resetLessonSectionForm();
     } catch (error) {
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       renderLessonQuestions();
+      renderLessonSections();
       if (!silent) {
         setMessage(error.message || "Unable to load questions for selected test.", "error");
       }
@@ -3890,6 +4184,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMockTestsAdmin();
     updateLessonSelectedTestHint();
     setLessonQuestionBankVisibility();
+    if (state.selectedMockTestId && lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
+      lessonSectionTranscriptInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      lessonSectionTranscriptInput.focus();
+    }
     if (!silent && state.selectedMockTestId) {
       setMessage("Question section ready for selected test.", "success");
     }
@@ -3901,8 +4199,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (state.selectedMockTestId && !state.mockTestsAdmin.some((item) => item.id === state.selectedMockTestId)) {
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
     }
     renderAttachExistingTestOptions();
     renderMockTestsAdmin();
@@ -3917,8 +4218,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedMockLessonId = "";
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
       renderMockChapterOptions();
       renderMockLessonOptions();
       setMockContextLabels();
@@ -3939,8 +4243,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.mockLessons = [];
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
     }
 
     renderMockChapterOptions();
@@ -3956,8 +4263,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedMockLessonId = "";
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
       renderMockLessonOptions();
       setMockContextLabels();
       syncMockTaxonomyFromScope({ force: true });
@@ -3974,8 +4284,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedMockLessonId = "";
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
     }
     renderMockLessonOptions();
     syncMockTaxonomyFromScope({ force: true });
@@ -4020,14 +4333,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const createOrUpdateLessonQuestion = async () => {
     if (!state.selectedMockTestId) throw new Error("Create or attach a test before adding questions.");
+    const sectionLabel =
+      normalizeQuestionSectionLabel(lessonQuestionSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
+    const sectionMeta = getSectionMetaByLabel(sectionLabel);
+    const sectionType = normalizeSectionType(sectionMeta?.sectionType || SECTION_TYPE_FROM_LABEL[sectionLabel]);
+    const plainQuestionText = lessonQuestionTextInput?.value?.trim() || "";
+    const builtQuestionText = structuredQuestionTextFromParts({
+      sectionType,
+      questionText: plainQuestionText,
+      passageText: lessonQuestionPassageTextInput?.value?.trim() || "",
+      formulaText: lessonQuestionFormulaTextInput?.value?.trim() || "",
+      equationText: lessonQuestionEquationTextInput?.value?.trim() || "",
+      fallbackTranscript: sectionMeta?.transcriptText || "",
+    });
     const payload = {
-      questionText: lessonQuestionTextInput?.value?.trim() || "",
+      questionText: builtQuestionText,
       optionA: lessonOptionAInput?.value?.trim() || "",
       optionB: lessonOptionBInput?.value?.trim() || "",
       optionC: lessonOptionCInput?.value?.trim() || "",
       optionD: lessonOptionDInput?.value?.trim() || "",
-      sectionLabel:
-        normalizeQuestionSectionLabel(lessonQuestionSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0],
+      sectionLabel,
       correctOption: lessonCorrectOptionInput?.value || "A",
       explanation: lessonQuestionExplanationInput?.value?.trim() || undefined,
       isActive: Boolean(lessonQuestionIsActiveInput?.checked),
@@ -4042,6 +4367,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       throw new Error("All question and options fields are required.");
     }
+    ensureQuestionTargetCapacity(1);
 
     await apiRequest({
       path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
@@ -4062,6 +4388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
+    ensureQuestionTargetCapacity(lines.length);
     for (const line of lines) {
       const parts = line.split("|").map((item) => item.trim());
       if (parts.length < 6) {
@@ -4106,14 +4433,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const csvText = await file.text();
     const parsedRows = parseCsvText(csvText);
-    const rows = normalizeCsvRows(parsedRows, { defaultSectionLabel: defaultSection });
+    const sectionLookup = new Map(
+      state.mockTestSections.map((section) => [normalizeQuestionSectionLabel(section.sectionLabel), section])
+    );
+    const rows = normalizeCsvRows(parsedRows, {
+      defaultSectionLabel: defaultSection,
+      sectionLookup,
+    });
+    const replaceExisting = Boolean(lessonBulkImportReplaceExistingInput?.checked);
+    if (replaceExisting) {
+      const target = requiredQuestionsForLesson();
+      if (rows.length > target) {
+        throw new Error(`CSV rows exceed target limit. Target ${target}, CSV rows ${rows.length}.`);
+      }
+    } else {
+      ensureQuestionTargetCapacity(rows.length);
+    }
     const response = await apiRequest({
       path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions/import-csv`,
       method: "POST",
       token,
       body: {
         rows,
-        replaceExisting: Boolean(lessonBulkImportReplaceExistingInput?.checked),
+        replaceExisting,
       },
     });
     return response?.result || { createdCount: rows.length, totalRows: rows.length };
@@ -4987,11 +5329,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedMockTestId = "";
       state.mockLessons = [];
       state.mockQuestions = [];
+      state.mockTestSections = [];
       if (lessonMockTestIdInput instanceof HTMLInputElement) lessonMockTestIdInput.value = "";
       if (lessonMockSubmitBtn instanceof HTMLButtonElement) lessonMockSubmitBtn.textContent = "Publish Test";
       if (lessonMockCancelBtn instanceof HTMLButtonElement) lessonMockCancelBtn.classList.add("hidden");
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
       renderMockCourseOptions();
       renderMockLessonOptions();
       try {
@@ -5010,11 +5355,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedMockLessonId = "";
       state.selectedMockTestId = "";
       state.mockQuestions = [];
+      state.mockTestSections = [];
       if (lessonMockTestIdInput instanceof HTMLInputElement) lessonMockTestIdInput.value = "";
       if (lessonMockSubmitBtn instanceof HTMLButtonElement) lessonMockSubmitBtn.textContent = "Publish Test";
       if (lessonMockCancelBtn instanceof HTMLButtonElement) lessonMockCancelBtn.classList.add("hidden");
       resetLessonQuestionForm();
+      resetLessonSectionForm();
       renderLessonQuestions();
+      renderLessonSections();
       renderMockChapterOptions();
       try {
         await loadMockLessons(nextChapterId);
@@ -5757,6 +6105,73 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (lessonSectionTypeInput instanceof HTMLSelectElement) {
+    lessonSectionTypeInput.addEventListener("change", () => {
+      const sectionType = normalizeSectionType(lessonSectionTypeInput.value);
+      if (lessonSectionLabelInput instanceof HTMLInputElement && !lessonSectionLabelInput.value.trim()) {
+        lessonSectionLabelInput.value = SECTION_TYPE_LABELS[sectionType] || "Section";
+      }
+    });
+  }
+
+  if (lessonSectionForm instanceof HTMLFormElement) {
+    lessonSectionForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        setMessage("Saving section...");
+        await saveMockTestSection();
+        await loadMockTestSections(state.selectedMockTestId);
+        resetLessonSectionForm();
+        setMessage("Section saved.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to save section.", "error");
+      }
+    });
+  }
+
+  if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
+    lessonSectionCancelBtn.addEventListener("click", () => {
+      resetLessonSectionForm();
+      setMessage("");
+    });
+  }
+
+  if (lessonSectionsTableBody instanceof HTMLElement) {
+    lessonSectionsTableBody.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const editId = target.getAttribute("data-edit-lesson-section");
+      if (editId) {
+        const section = state.mockTestSections.find((item) => item.id === editId);
+        if (section) {
+          openLessonSectionForEdit(section);
+        }
+        return;
+      }
+      const deleteId = target.getAttribute("data-delete-lesson-section");
+      if (!deleteId) return;
+      const confirmed = window.confirm("Delete this section?");
+      if (!confirmed) return;
+      try {
+        await apiRequest({
+          path: `/admin/mock-test-sections/${encodeURIComponent(deleteId)}`,
+          method: "DELETE",
+          token,
+        });
+        await Promise.all([loadMockTestSections(state.selectedMockTestId), loadMockQuestions(state.selectedMockTestId)]);
+        setMessage("Section deleted.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to delete section.", "error");
+      }
+    });
+  }
+
+  if (lessonQuestionSectionInput instanceof HTMLSelectElement) {
+    lessonQuestionSectionInput.addEventListener("change", () => {
+      toggleQuestionStructuredFields();
+    });
+  }
+
   if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
       renderLessonQuestions();
@@ -6229,6 +6644,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMockChapterOptions();
     renderMockLessonOptions();
     renderQuestionSectionControls();
+    renderLessonSections();
+    resetLessonSectionForm();
+    toggleQuestionStructuredFields();
     syncCsvSectionByTemplate({ force: true });
     updateQuestionSectionSummary();
     setContextLabels();

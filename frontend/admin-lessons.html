@@ -523,8 +523,77 @@
               </div>
               <p id="lessonQuestionSectionSummary" class="admin-subtitle" style="margin: 0.2rem 0 0.5rem"></p>
 
+              <form id="lessonSectionForm" class="admin-form" style="margin-bottom: 0.9rem">
+                <input id="lessonSectionId" type="hidden" />
+                <h4 style="margin: 0 0 0.4rem">Section Setup</h4>
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label for="lessonSectionType">Section Type</label>
+                    <select id="lessonSectionType">
+                      <option value="COMPREHENSION">Comprehension</option>
+                      <option value="GENERAL_MCQ">General MCQ</option>
+                      <option value="GRAMMAR">Grammar</option>
+                      <option value="MATH_FORMULA">Math Formula</option>
+                      <option value="SCIENCE_EQUATION">Science Equation</option>
+                      <option value="CUSTOM">Custom</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonSectionLabel">Section Name</label>
+                    <input id="lessonSectionLabel" placeholder="e.g. Comprehension - Set 1" required />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonSectionQuestionLimit">Section Question Limit</label>
+                    <input id="lessonSectionQuestionLimit" type="number" min="1" max="5000" step="1" value="10" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonSectionAudioUrl">Section Audio URL (optional)</label>
+                    <input id="lessonSectionAudioUrl" placeholder="https://... or /public/audio/..." />
+                  </div>
+                </div>
+                <div class="admin-field">
+                  <label for="lessonSectionTranscript">Section Transcript / Passage</label>
+                  <textarea
+                    id="lessonSectionTranscript"
+                    rows="4"
+                    placeholder="Add transcript/passage for this section."
+                  ></textarea>
+                </div>
+                <div class="admin-actions">
+                  <button id="lessonSectionSaveBtn" class="btn-secondary" type="submit">Save Section</button>
+                  <button id="lessonSectionCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+                </div>
+              </form>
+
+              <div class="admin-table-wrap" style="margin-bottom: 0.9rem">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Section</th>
+                      <th>Type</th>
+                      <th>Limit</th>
+                      <th>Questions</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lessonSectionsTableBody"></tbody>
+                </table>
+              </div>
+
               <form id="lessonQuestionForm" class="admin-form">
                 <input id="lessonQuestionId" type="hidden" />
+                <div id="lessonQuestionPassageWrap" class="admin-field hidden">
+                  <label for="lessonQuestionPassageText">Passage / Paragraph</label>
+                  <textarea id="lessonQuestionPassageText" rows="4"></textarea>
+                </div>
+                <div id="lessonQuestionFormulaWrap" class="admin-field hidden">
+                  <label for="lessonQuestionFormulaText">Math Formula</label>
+                  <input id="lessonQuestionFormulaText" placeholder="e.g. a^2 + b^2 = c^2" />
+                </div>
+                <div id="lessonQuestionEquationWrap" class="admin-field hidden">
+                  <label for="lessonQuestionEquationText">Science Equation</label>
+                  <input id="lessonQuestionEquationText" placeholder="e.g. 6CO2 + 6H2O -> C6H12O6 + 6O2" />
+                </div>
                 <div class="admin-field">
                   <label for="lessonQuestionText">Question Text</label>
                   <textarea id="lessonQuestionText" required></textarea>
@@ -944,7 +1013,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=76"></script>
+    <script type="module" src="./src/admin-lessons.js?v=77"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

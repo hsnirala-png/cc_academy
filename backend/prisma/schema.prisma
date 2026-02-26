@@ -278,6 +278,7 @@ model MockTest {
   createdBy   String
   createdByUser User       @relation("MockTestsCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
   questions   Question[]
+  sections    MockTestSection[]
   attempts    Attempt[]
   linkedLessons Lesson[]
   createdAt   DateTime     @default(now())
@@ -285,6 +286,24 @@ model MockTest {
 
   @@index([examType, subject, streamChoice, isActive])
   @@index([createdBy])
+}
+
+model MockTestSection {
+  id            String    @id @default(cuid())
+  mockTestId    String
+  sectionLabel  String    @db.VarChar(120)
+  sectionType   String    @default("GENERAL_MCQ") @db.VarChar(60)
+  transcriptText String?  @db.LongText
+  audioUrl      String?   @db.VarChar(512)
+  questionLimit Int       @default(10)
+  sortOrder     Int       @default(0)
+  isActive      Boolean   @default(true)
+  mockTest      MockTest  @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([mockTestId, sectionLabel])
+  @@index([mockTestId, sortOrder, isActive])
 }
 
 model Question {

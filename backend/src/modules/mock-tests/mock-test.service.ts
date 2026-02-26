@@ -19,6 +19,13 @@ import { getRequiredQuestionCount, validateMockTestRule } from "./mock-test.rule
 
 type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI";
 type AccessCode = "DEMO" | "MOCK" | "LESSON";
+type MockTestSectionType =
+  | "COMPREHENSION"
+  | "GENERAL_MCQ"
+  | "GRAMMAR"
+  | "MATH_FORMULA"
+  | "SCIENCE_EQUATION"
+  | "CUSTOM";
 
 const shuffle = <T>(items: T[]): T[] => {
   const copy = [...items];
@@ -61,6 +68,23 @@ const normalizeAccessCode = (value: unknown): AccessCode => {
 const normalizeSectionLabel = (value: unknown): string | null => {
   const normalized = String(value ?? "").trim();
   return normalized ? normalized.slice(0, 120) : null;
+};
+
+const normalizeSectionType = (value: unknown): MockTestSectionType => {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (
+    [
+      "COMPREHENSION",
+      "GENERAL_MCQ",
+      "GRAMMAR",
+      "MATH_FORMULA",
+      "SCIENCE_EQUATION",
+      "CUSTOM",
+    ].includes(normalized)
+  ) {
+    return normalized as MockTestSectionType;
+  }
+  return "GENERAL_MCQ";
 };
 
 const loadMockTestAccessMap = async (mockTestIds: string[]) => {
@@ -260,6 +284,25 @@ const serializeQuestion = (item: {
   updatedAt: item.updatedAt.toISOString(),
 });
 
+const serializeMockTestSection = (item: {
+  id: string;
+  mockTestId: string;
+  sectionLabel: string;
+  sectionType: string;
+  transcriptText: string | null;
+  audioUrl: string | null;
+  questionLimit: number;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}) => ({
+  ...item,
+  sectionType: normalizeSectionType(item.sectionType),
+  createdAt: item.createdAt.toISOString(),
+  updatedAt: item.updatedAt.toISOString(),
+});
+
 type AdminAttemptFilters = {
   examType?: ExamType;
   subject?: MockSubject;
@@ -318,6 +361,43 @@ const ensureMockTestExists = async (mockTestId: string) => {
     throw new AppError("Mock test not found", 404);
   }
   return mockTest;
+};
+
+const ensureQuestionLimitForSection = async (input: {
+  mockTestId: string;
+  sectionLabel: string | null;
+  incomingCount: number;
+  excludeQuestionId?: string;
+}) => {
+  const normalizedLabel = normalizeSectionLabel(input.sectionLabel);
+  if (!normalizedLabel) return;
+  const incomingCount = Math.max(1, Math.floor(Number(input.incomingCount) || 1));
+  const section = await prisma.mockTestSection.findFirst({
+    where: {
+      mockTestId: input.mockTestId,
+      sectionLabel: normalizedLabel,
+      isActive: true,
+    },
+  });
+  if (!section || Number(section.questionLimit || 0) <= 0) return;
+  const existingCount = await prisma.question.count({
+    where: {
+      mockTestId: input.mockTestId,
+      sectionLabel: normalizedLabel,
+      isActive: true,
+      ...(input.excludeQuestionId
+        ? {
+            NOT: { id: input.excludeQuestionId },
+          }
+        : {}),
+    },
+  });
+  if (existingCount + incomingCount > section.questionLimit) {
+    throw new AppError(
+      `Section "${normalizedLabel}" question limit exceeded (${existingCount}/${section.questionLimit}).`,
+      409
+    );
+  }
 };
 
 const ensureAttemptOwner = async (attemptId: string, userId: string) => {
@@ -613,6 +693,121 @@ export const mockTestService = {
     }
   },
 
+  async listSections(mockTestId: string) {
+    await ensureMockTestExists(mockTestId);
+    const sections = await prisma.mockTestSection.findMany({
+      where: { mockTestId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    return sections.map(serializeMockTestSection);
+  },
+
+  async createSection(
+    mockTestId: string,
+    input: {
+      sectionLabel: string;
+      sectionType?: MockTestSectionType;
+      transcriptText?: string;
+      audioUrl?: string;
+      questionLimit?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    }
+  ) {
+    await ensureMockTestExists(mockTestId);
+    const sectionLabel = normalizeSectionLabel(input.sectionLabel);
+    if (!sectionLabel) {
+      throw new AppError("Section label is required.", 400);
+    }
+    const sectionType = normalizeSectionType(input.sectionType);
+    const section = await prisma.mockTestSection.upsert({
+      where: {
+        mockTestId_sectionLabel: {
+          mockTestId,
+          sectionLabel,
+        },
+      },
+      create: {
+        mockTestId,
+        sectionLabel,
+        sectionType,
+        transcriptText: input.transcriptText?.trim() || null,
+        audioUrl: normalizeLessonAssetUrl(input.audioUrl) || null,
+        questionLimit: Math.max(1, Math.floor(Number(input.questionLimit || 10))),
+        sortOrder: Math.max(0, Math.floor(Number(input.sortOrder || 0))),
+        isActive: input.isActive ?? true,
+      },
+      update: {
+        sectionType,
+        transcriptText: input.transcriptText?.trim() || null,
+        audioUrl: normalizeLessonAssetUrl(input.audioUrl) || null,
+        questionLimit: Math.max(1, Math.floor(Number(input.questionLimit || 10))),
+        sortOrder: Math.max(0, Math.floor(Number(input.sortOrder || 0))),
+        isActive: input.isActive ?? true,
+      },
+    });
+    return serializeMockTestSection(section);
+  },
+
+  async updateSection(
+    sectionId: string,
+    updates: Partial<{
+      sectionLabel: string;
+      sectionType: MockTestSectionType;
+      transcriptText?: string;
+      audioUrl?: string;
+      questionLimit: number;
+      sortOrder: number;
+      isActive: boolean;
+    }>
+  ) {
+    const existing = await prisma.mockTestSection.findUnique({
+      where: { id: sectionId },
+    });
+    if (!existing) {
+      throw new AppError("Section not found", 404);
+    }
+    const nextLabel =
+      updates.sectionLabel === undefined
+        ? existing.sectionLabel
+        : normalizeSectionLabel(updates.sectionLabel);
+    if (!nextLabel) {
+      throw new AppError("Section label is required", 400);
+    }
+
+    const updated = await prisma.mockTestSection.update({
+      where: { id: sectionId },
+      data: {
+        sectionLabel: nextLabel,
+        sectionType:
+          updates.sectionType === undefined
+            ? undefined
+            : normalizeSectionType(updates.sectionType),
+        transcriptText:
+          updates.transcriptText === undefined ? undefined : updates.transcriptText?.trim() || null,
+        audioUrl:
+          updates.audioUrl === undefined ? undefined : normalizeLessonAssetUrl(updates.audioUrl) || null,
+        questionLimit:
+          updates.questionLimit === undefined
+            ? undefined
+            : Math.max(1, Math.floor(Number(updates.questionLimit || 1))),
+        sortOrder:
+          updates.sortOrder === undefined
+            ? undefined
+            : Math.max(0, Math.floor(Number(updates.sortOrder || 0))),
+        isActive: updates.isActive,
+      },
+    });
+
+    return serializeMockTestSection(updated);
+  },
+
+  async deleteSection(sectionId: string) {
+    await prisma.mockTestSection.delete({
+      where: { id: sectionId },
+    });
+  },
+
   async listQuestions(mockTestId: string) {
     await ensureMockTestExists(mockTestId);
     const questions = await prisma.question.findMany({
@@ -638,6 +833,12 @@ export const mockTestService = {
     }
   ) {
     await ensureMockTestExists(mockTestId);
+    const normalizedSectionLabel = normalizeSectionLabel(input.sectionLabel);
+    await ensureQuestionLimitForSection({
+      mockTestId,
+      sectionLabel: normalizedSectionLabel,
+      incomingCount: 1,
+    });
     const question = await prisma.question.create({
       data: {
         mockTestId,
@@ -648,7 +849,7 @@ export const mockTestService = {
         optionD: input.optionD,
         correctOption: input.correctOption,
         explanation: input.explanation,
-        sectionLabel: normalizeSectionLabel(input.sectionLabel),
+        sectionLabel: normalizedSectionLabel,
         isActive: input.isActive ?? true,
       },
     });
@@ -706,6 +907,50 @@ export const mockTestService = {
         });
       }
 
+      const incomingSectionCounts = new Map<string, number>();
+      payload.forEach((row) => {
+        const label = normalizeSectionLabel(row.sectionLabel);
+        if (!label) return;
+        incomingSectionCounts.set(label, Number(incomingSectionCounts.get(label) || 0) + 1);
+      });
+
+      const limitedSections = await tx.mockTestSection.findMany({
+        where: {
+          mockTestId,
+          isActive: true,
+          questionLimit: { gt: 0 },
+          sectionLabel: { in: Array.from(incomingSectionCounts.keys()) },
+        },
+      });
+      if (limitedSections.length) {
+        const existingBySection = replaceExisting
+          ? new Map<string, number>()
+          : new Map(
+              (
+                await tx.question.groupBy({
+                  by: ["sectionLabel"],
+                  where: {
+                    mockTestId,
+                    isActive: true,
+                    sectionLabel: { in: limitedSections.map((item) => item.sectionLabel) },
+                  },
+                  _count: { _all: true },
+                })
+              ).map((row) => [String(row.sectionLabel || ""), Number(row._count?._all || 0)])
+            );
+        for (const section of limitedSections) {
+          const incoming = Number(incomingSectionCounts.get(section.sectionLabel) || 0);
+          if (!incoming) continue;
+          const existing = Number(existingBySection.get(section.sectionLabel) || 0);
+          if (existing + incoming > section.questionLimit) {
+            throw new AppError(
+              `Section "${section.sectionLabel}" question limit exceeded (${existing}/${section.questionLimit}).`,
+              409
+            );
+          }
+        }
+      }
+
       const created = await tx.question.createMany({
         data: payload,
       });
@@ -740,6 +985,17 @@ export const mockTestService = {
     if (!existing) {
       throw new AppError("Question not found", 404);
     }
+    const nextSectionLabel =
+      updates.sectionLabel === undefined ? existing.sectionLabel : normalizeSectionLabel(updates.sectionLabel);
+    const nextIsActive = updates.isActive === undefined ? existing.isActive : updates.isActive;
+    if (nextIsActive && nextSectionLabel) {
+      await ensureQuestionLimitForSection({
+        mockTestId: existing.mockTestId,
+        sectionLabel: nextSectionLabel,
+        incomingCount: 1,
+        excludeQuestionId: questionId,
+      });
+    }
 
     const updated = await prisma.question.update({
       where: { id: questionId },
@@ -751,10 +1007,7 @@ export const mockTestService = {
         optionD: updates.optionD,
         correctOption: updates.correctOption,
         explanation: updates.explanation,
-        sectionLabel:
-          updates.sectionLabel === undefined
-            ? undefined
-            : normalizeSectionLabel(updates.sectionLabel),
+        sectionLabel: updates.sectionLabel === undefined ? undefined : nextSectionLabel,
         isActive: updates.isActive,
       },
     });

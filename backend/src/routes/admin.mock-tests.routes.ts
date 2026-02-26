@@ -8,8 +8,10 @@ import {
   adminAttemptsFilterSchema,
   adminBulkImportQuestionsSchema,
   adminCreateMockTestSchema,
+  adminCreateMockTestSectionSchema,
   adminCreateQuestionSchema,
   adminUpdateMockTestSchema,
+  adminUpdateMockTestSectionSchema,
   adminUpdateQuestionSchema,
 } from "../modules/mock-tests/mock-test.validation";
 
@@ -85,11 +87,49 @@ adminMockTestsRouter.get("/mock-tests/:id/questions", ...ensureAdmin, async (req
   }
 });
 
+adminMockTestsRouter.get("/mock-tests/:id/sections", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const sections = await mockTestService.listSections(req.params.id);
+    res.json({ sections });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.post("/mock-tests/:id/sections", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = adminCreateMockTestSectionSchema.parse(req.body);
+    const section = await mockTestService.createSection(req.params.id, input);
+    res.status(201).json({ section });
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminMockTestsRouter.post("/mock-tests/:id/questions", ...ensureAdmin, async (req, res, next) => {
   try {
     const input = adminCreateQuestionSchema.parse(req.body);
     const question = await mockTestService.createQuestion(req.params.id, input);
     res.status(201).json({ question });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.patch("/mock-test-sections/:id", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const updates = adminUpdateMockTestSectionSchema.parse(req.body);
+    const section = await mockTestService.updateSection(req.params.id, updates);
+    res.json({ section });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.delete("/mock-test-sections/:id", ...ensureAdmin, async (req, res, next) => {
+  try {
+    await mockTestService.deleteSection(req.params.id);
+    res.json({ message: "Section deleted" });
   } catch (error) {
     next(error);
   }

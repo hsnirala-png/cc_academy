@@ -174,6 +174,12 @@ const getQueryParam = (key) => {
   return params.get(key) || "";
 };
 
+const getQueryNonNegativeInt = (key) => {
+  const value = Number(getQueryParam(key));
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
+};
+
 const isExtensionlessRoute = () => {
   const pathname = (window.location.pathname || "").toLowerCase();
   return Boolean(pathname) && !pathname.endsWith(".html") && pathname !== "/";
@@ -273,21 +279,36 @@ const configureMediaSource = (mediaEl, candidates, options = {}) => {
   applyCurrent();
 };
 
-const startAssessmentAttempt = async (token, mockTestId, lessonStartMs = 0, { autoplay = false } = {}) => {
-  const response = await apiRequest({
-    path: "/student/attempts",
-    method: "POST",
-    token,
-    body: { mockTestId },
-  });
-
-  const attemptId = response?.attempt?.id;
+const startAssessmentAttempt = async (
+  token,
+  mockTestId,
+  {
+    lessonStartMs = 0,
+    autoplay = false,
+    existingAttemptId = "",
+    attemptQuestionIndex = null,
+  } = {}
+) => {
+  let attemptId = String(existingAttemptId || "").trim();
+  if (!attemptId) {
+    const response = await apiRequest({
+      path: "/student/attempts",
+      method: "POST",
+      token,
+      body: { mockTestId },
+    });
+    attemptId = String(response?.attempt?.id || "").trim();
+  }
   if (!attemptId) {
     throw new Error("Unable to start assessment.");
   }
 
   const params = new URLSearchParams();
   params.set("attemptId", String(attemptId));
+  const normalizedQuestionIndex = Number(attemptQuestionIndex);
+  if (Number.isFinite(normalizedQuestionIndex) && normalizedQuestionIndex >= 0) {
+    params.set("attemptQuestionIndex", String(Math.floor(normalizedQuestionIndex)));
+  }
   const safeStartMs = Math.max(0, Math.round(Number(lessonStartMs || 0)));
   if (safeStartMs > 0) {
     params.set("lessonStartMs", String(safeStartMs));
@@ -320,6 +341,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const state = {
     lessonId: getQueryParam("lessonId"),
     chapterId: getQueryParam("chapterId"),
+    returnAttemptId: getQueryParam("attemptId"),
+    returnAttemptQuestionIndex:
+      getQueryNonNegativeInt("attemptQuestionIndex") ?? getQueryNonNegativeInt("questionIndex"),
     lesson: null,
     completionThresholdSec: 0,
     transcriptSegments: [],
@@ -986,9 +1010,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!confirmed) return;
 
       try {
-        setStatus("Starting test attempt...");
+        setStatus(state.returnAttemptId ? "Returning to test..." : "Starting test attempt...");
         const lessonStartMs = getPlayerCurrentMs();
-        await startAssessmentAttempt(token, testId, lessonStartMs, { autoplay: true });
+        await startAssessmentAttempt(token, testId, {
+          lessonStartMs,
+          autoplay: true,
+          existingAttemptId: state.returnAttemptId || "",
+          attemptQuestionIndex: state.returnAttemptQuestionIndex,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to start assessment.";
         setStatus(message, "error");
