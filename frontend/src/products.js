@@ -146,6 +146,12 @@ const resolveCheckoutPagePath = async () => {
   return resolvePagePathByMarker(candidates, "src/checkout.js");
 };
 
+const getProductsPagePath = () => {
+  const currentPath = window.location.pathname || "";
+  const prefersExtensionless = currentPath.endsWith("/products");
+  return prefersExtensionless ? "./products" : "./products.html";
+};
+
 const resolvePagePathByMarker = async (candidates, marker) => {
   for (const candidate of candidates) {
     try {
@@ -223,7 +229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   };
 
-  /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null}} */
+  /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null, selectedProductId: string}} */
   const state = {
     products: [],
     filtered: [],
@@ -235,6 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     examSearch: "",
     minPrice: null,
     maxPrice: null,
+    selectedProductId: "",
   };
 
   const escapeHtml = (value) =>
@@ -253,7 +260,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const pageParams = new URLSearchParams(window.location.search);
+  const productIdFromLink = String(pageParams.get("productId") || "").trim();
   const checkoutProductIdFromLink = String(pageParams.get("checkoutProductId") || "").trim();
+  state.selectedProductId = productIdFromLink || checkoutProductIdFromLink;
 
   const checkoutState = {
     product: null,
@@ -1069,6 +1078,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const buildLearningItems = (product) => {
+    const productId = String(product?.id || "").trim();
     const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
     const linkedTests = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
     const firstDemo = demoTests.find((item) => String(item?.id || "").trim()) || null;
@@ -1096,6 +1106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (firstDemo) {
       items.push({
+        productId,
         id: demoId,
         title: String(firstDemo.title || "Demo Lesson"),
         accessType: "DEMO",
@@ -1105,6 +1116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     } else if (demoLessonUrl) {
       items.push({
+        productId,
         id: demoLessonUrl,
         title: demoLessonTitle || "Demo Lesson",
         accessType: "DEMO",
@@ -1120,6 +1132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         .toUpperCase();
       const isLessonLinked = accessCode === "LESSON";
       items.push({
+        productId,
         id: String(item?.id || "").trim(),
         title: String(item?.title || "Premium Lesson"),
         accessType: "PREMIUM",
@@ -1154,14 +1167,14 @@ document.addEventListener("DOMContentLoaded", async () => {
               .map((item, index) => {
                 const action = item.action || "ATTEMPT_TEST";
                 const playAction = isPlayAction(action);
+                const isLocked = !item.unlocked;
                 const buttonClass = item.unlocked
                   ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}`
-                  : "btn-ghost";
-                const buttonLabel = item.unlocked
-                  ? playAction
+                  : "btn-secondary product-play-icon-btn is-locked";
+                const buttonLabel =
+                  playAction || isLocked
                     ? '<span aria-hidden="true">&#9654;</span><span class="sr-only">Play lesson</span>'
-                    : escapeHtml(item.ctaLabel || "Start")
-                  : "Premium Required";
+                    : escapeHtml(item.ctaLabel || "Start");
 
                 return `
                   <tr>
@@ -1175,15 +1188,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         type="button"
                         class="${buttonClass}"
                         data-start-learning-id="${escapeHtml(item.id)}"
+                        data-learning-product-id="${escapeHtml(item.productId || "")}"
                         data-start-learning-action="${escapeHtml(action)}"
-                        data-learning-locked="${item.unlocked ? "false" : "true"}"
-                        ${
-                          item.unlocked
-                            ? playAction
-                              ? 'aria-label="Play lesson"'
-                              : ""
-                            : 'disabled title="Buy premium product to unlock."'
-                        }
+                        data-learning-locked="${isLocked ? "true" : "false"}"
+                        ${playAction || isLocked ? 'aria-label="Play lesson"' : ""}
+                        ${isLocked ? 'aria-disabled="true" title="Buy premium product to unlock."' : ""}
                       >
                         ${buttonLabel}
                       </button>
@@ -1397,6 +1406,123 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   };
 
+  const createProductPageHref = (productId = "", checkoutProductId = "") => {
+    const params = new URLSearchParams();
+    const safeProductId = String(productId || "").trim();
+    const safeCheckoutId = String(checkoutProductId || "").trim();
+    if (safeProductId) params.set("productId", safeProductId);
+    if (safeCheckoutId) params.set("checkoutProductId", safeCheckoutId);
+    const search = params.toString();
+    return `${getProductsPagePath()}${search ? `?${search}` : ""}`;
+  };
+
+  const navigateToProductCheckout = (productId) => {
+    const safeProductId = String(productId || "").trim();
+    if (!safeProductId) return;
+    window.location.href = createProductPageHref(safeProductId, safeProductId);
+  };
+
+  const renderProductCatalogCard = (product) => {
+    const thumb = normalizeAssetUrl(product.thumbnailUrl);
+    const productId = String(product.id || "").trim();
+    const discount = Number(product.discountPercent || 0);
+    const detailsHref = createProductPageHref(productId, "");
+    const buyHref = createProductPageHref(productId, productId);
+    return `
+      <article class="home-latest-card product-catalog-card">
+        <img
+          class="home-latest-thumb"
+          src="${escapeHtml(thumb)}"
+          alt="${escapeHtml(product.title)}"
+          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+        />
+        <div class="home-latest-body">
+          <p class="home-latest-tags">
+            <span>${escapeHtml(product.languageMode || "Multi")}</span>
+            <span>${escapeHtml(String(product.courseType || "COURSE").replaceAll("_", " "))}</span>
+          </p>
+          <h3>${escapeHtml(product.title || "Product")}</h3>
+          <p class="home-latest-meta">${escapeHtml(product.examCategory || "-")} | ${escapeHtml(product.examName || "-")}</p>
+          <div class="home-latest-pricing">
+            <strong>${toCurrency(product.salePrice)}</strong>
+            <span class="home-latest-mrp">${toCurrency(product.listPrice)}</span>
+            <span class="home-latest-off">(${discount}% off)</span>
+          </div>
+          <div class="home-latest-actions">
+            <a class="btn-secondary" href="${detailsHref}">Details</a>
+            <a class="btn-primary" href="${buyHref}">Buy</a>
+          </div>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderProductDetailStack = (product) => {
+    const thumb = normalizeAssetUrl(product.thumbnailUrl);
+    const detailsContent = normalizeProductDetailsContent(product.addons);
+    const highlights = detailsContent.highlights;
+    const productId = String(product.id || "").trim();
+    const referralFriendDiscount = Number(product.referralDiscountAmount || 0);
+    return `
+      <div class="product-card-stack">
+        <article class="product-card product-card-wide">
+        ${product.validityLabel ? `<span class="product-badge">${escapeHtml(product.validityLabel)}</span>` : ""}
+        <div class="product-main">
+          <img
+            class="product-thumb"
+            src="${escapeHtml(thumb)}"
+            alt="${escapeHtml(product.title)}"
+            onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+          />
+          <div class="product-body">
+            <p class="product-tags">
+              <span>${escapeHtml(product.languageMode || "Multi")}</span>
+              <span>${escapeHtml(String(product.courseType).replaceAll("_", " "))}</span>
+            </p>
+            <h3>${escapeHtml(product.title)}</h3>
+            <p class="product-meta">${escapeHtml(product.examCategory)} | ${escapeHtml(product.examName)}</p>
+            <div class="product-pricing">
+              <strong>${toCurrency(product.salePrice)}</strong>
+              <span class="product-mrp">${toCurrency(product.listPrice)}</span>
+              <span class="product-off">${product.discountPercent || 0}% off</span>
+            </div>
+            <p class="product-access">Referral Bonus: ${toCurrency(product.referralBonusAmount || 0)}</p>
+            <p class="product-access">
+              Friend Code Discount: ${toCurrency(referralFriendDiscount)}
+            </p>
+            <p class="product-access">${product.accessDays} days access</p>
+            <div class="product-actions">
+              <button
+                type="button"
+                class="btn-primary"
+                data-buy-product="${escapeHtml(productId)}"
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                class="btn-sky"
+                data-buy-wallet-product="${escapeHtml(productId)}"
+              >
+                Buy with Wallet
+              </button>
+            </div>
+          </div>
+        </div>
+        <aside class="product-open-wrap product-side">
+          <h4>Table Of Content</h4>
+          ${renderLearningTable(product)}
+        </aside>
+        </article>
+        ${renderProductDescription(product.description)}
+        ${renderSalientFeatures(detailsContent)}
+        ${renderProductHighlights(highlights)}
+        ${renderExamsCovered(detailsContent)}
+        ${renderProductDetailsTabs(detailsContent)}
+      </div>
+    `;
+  };
+
   const renderProductCards = () => {
     if (!productsGrid) return;
     if (!state.filtered.length) {
@@ -1406,73 +1532,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    productsGrid.innerHTML = state.filtered
-      .map((product) => {
-        const thumb = normalizeAssetUrl(product.thumbnailUrl);
-        const detailsContent = normalizeProductDetailsContent(product.addons);
-        const highlights = detailsContent.highlights;
-        const productId = String(product.id || "").trim();
-        const referralFriendDiscount = Number(product.referralDiscountAmount || 0);
-        return `
-          <div class="product-card-stack">
-            <article class="product-card product-card-wide">
-            ${product.validityLabel ? `<span class="product-badge">${escapeHtml(product.validityLabel)}</span>` : ""}
-            <div class="product-main">
-              <img
-                class="product-thumb"
-                src="${escapeHtml(thumb)}"
-                alt="${escapeHtml(product.title)}"
-                onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
-              />
-              <div class="product-body">
-                <p class="product-tags">
-                  <span>${escapeHtml(product.languageMode || "Multi")}</span>
-                  <span>${escapeHtml(String(product.courseType).replaceAll("_", " "))}</span>
-                </p>
-                <h3>${escapeHtml(product.title)}</h3>
-                <p class="product-meta">${escapeHtml(product.examCategory)} | ${escapeHtml(product.examName)}</p>
-                <div class="product-pricing">
-                  <strong>${toCurrency(product.salePrice)}</strong>
-                  <span class="product-mrp">${toCurrency(product.listPrice)}</span>
-                  <span class="product-off">${product.discountPercent || 0}% off</span>
-                </div>
-                <p class="product-access">Referral Bonus: ${toCurrency(product.referralBonusAmount || 0)}</p>
-                <p class="product-access">
-                  Friend Code Discount: ${toCurrency(referralFriendDiscount)}
-                </p>
-                <p class="product-access">${product.accessDays} days access</p>
-                <div class="product-actions">
-                  <button
-                    type="button"
-                    class="btn-primary"
-                    data-buy-product="${escapeHtml(productId)}"
-                  >
-                    Buy
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-sky"
-                    data-buy-wallet-product="${escapeHtml(productId)}"
-                  >
-                    Buy with Wallet
-                  </button>
-                </div>
-              </div>
-            </div>
-            <aside class="product-open-wrap product-side">
-              <h4>Table Of Content</h4>
-              ${renderLearningTable(product)}
-            </aside>
-            </article>
-            ${renderProductDescription(product.description)}
-            ${renderSalientFeatures(detailsContent)}
-            ${renderProductHighlights(highlights)}
-            ${renderExamsCovered(detailsContent)}
-            ${renderProductDetailsTabs(detailsContent)}
-          </div>
-        `;
-      })
-      .join("");
+    const singleProductView = Boolean(state.selectedProductId);
+    productsGrid.classList.toggle("products-grid-catalog", !singleProductView);
+    productsGrid.classList.toggle("products-grid-details", singleProductView);
+    productsGrid.innerHTML = singleProductView
+      ? state.filtered.map((product) => renderProductDetailStack(product)).join("")
+      : state.filtered.map((product) => renderProductCatalogCard(product)).join("");
 
     if (productsCountText) productsCountText.textContent = `${state.filtered.length} products`;
   };
@@ -1555,7 +1620,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const renderAll = () => {
-    applyFilters();
+    if (state.selectedProductId) {
+      const selected = state.products.find(
+        (item) => String(item?.id || "").trim() === state.selectedProductId
+      );
+      if (selected) {
+        state.filtered = [selected];
+      } else {
+        state.selectedProductId = "";
+        applyFilters();
+      }
+    } else {
+      applyFilters();
+    }
     renderProductCards();
     renderCategoryFilters();
     renderExamFilters();
@@ -1741,11 +1818,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         const learningButton = target.closest("[data-start-learning-id]");
         if (learningButton instanceof HTMLElement) {
           const learningId = String(learningButton.getAttribute("data-start-learning-id") || "").trim();
+          const learningProductId = String(
+            learningButton.getAttribute("data-learning-product-id") || ""
+          ).trim();
           const learningAction = String(
             learningButton.getAttribute("data-start-learning-action") || "ATTEMPT_TEST"
           ).trim();
           const locked = learningButton.getAttribute("data-learning-locked") === "true";
-          if (!learningId || locked) return;
+          if (!learningId) return;
+          if (locked) {
+            navigateToProductCheckout(learningProductId);
+            return;
+          }
 
           try {
             if (learningAction === "OPEN_DEMO_URL") {
@@ -1846,6 +1930,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         await openCheckoutModal(checkoutProductIdFromLink);
       } finally {
         const nextUrl = new URL(window.location.href);
+        if (!String(nextUrl.searchParams.get("productId") || "").trim()) {
+          nextUrl.searchParams.set("productId", checkoutProductIdFromLink);
+        }
         nextUrl.searchParams.delete("checkoutProductId");
         const nextSearch = nextUrl.searchParams.toString();
         window.history.replaceState(
@@ -1863,5 +1950,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
-
-
