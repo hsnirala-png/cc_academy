@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const checkoutSubtotal = document.querySelector("#checkoutSubtotal");
   const checkoutCouponDiscount = document.querySelector("#checkoutCouponDiscount");
   const checkoutFriendDiscount = document.querySelector("#checkoutFriendDiscount");
+  const checkoutWalletUsed = document.querySelector("#checkoutWalletUsed");
   const checkoutToPay = document.querySelector("#checkoutToPay");
   const checkoutPayNowBtn = document.querySelector("#checkoutPayNowBtn");
 
@@ -70,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     !(checkoutSubtotal instanceof HTMLElement) ||
     !(checkoutCouponDiscount instanceof HTMLElement) ||
     !(checkoutFriendDiscount instanceof HTMLElement) ||
+    !(checkoutWalletUsed instanceof HTMLElement) ||
     !(checkoutToPay instanceof HTMLElement) ||
     !(checkoutPayNowBtn instanceof HTMLButtonElement)
   ) {
@@ -102,6 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     product: null,
     includeDefaultOffer: String(params.get("includeDefaultOffer") || "1").toLowerCase() !== "0",
     referralCode: String(params.get("referralCode") || "").trim().toUpperCase(),
+    walletUseAmount: Math.max(0, toSafeNumber(params.get("walletUseAmount"))),
     pricing: null,
     busy: false,
   };
@@ -146,6 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       body: JSON.stringify({
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
+        walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
       }),
     });
     const payload = await response.json().catch(() => ({}));
@@ -154,6 +158,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     state.pricing = payload?.pricing || null;
     state.referralCode = String(payload?.offers?.appliedReferralCode || "").trim();
+    state.walletUseAmount = Math.max(0, toSafeNumber(payload?.pricing?.walletUsed));
   };
 
   const createPaymentOrder = async (amountRupees) => {
@@ -201,6 +206,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       body: JSON.stringify({
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
+        walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
       }),
     });
     const payload = await response.json().catch(() => ({}));
@@ -271,6 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentPrice = toSafeNumber(pricing.currentPrice || product.salePrice || product.listPrice);
     const couponDiscount = toSafeNumber(pricing.defaultOfferDiscount);
     const friendDiscount = toSafeNumber(pricing.friendDiscountApplied);
+    const walletUsed = toSafeNumber(pricing.walletUsed);
     const toPay = toSafeNumber(pricing.payableAmount || currentPrice);
 
     checkoutProductThumb.src = normalizeAssetUrl(product.thumbnailUrl);
@@ -299,6 +306,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     checkoutSubtotal.textContent = toCurrency(listPrice);
     checkoutCouponDiscount.textContent = `- ${toCurrency(couponDiscount)}`;
     checkoutFriendDiscount.textContent = `- ${toCurrency(friendDiscount)}`;
+    checkoutWalletUsed.textContent = `- ${toCurrency(walletUsed)}`;
+    checkoutWalletUsed.parentElement.style.display = walletUsed > 0 ? "flex" : "none";
     checkoutToPay.textContent = toCurrency(toPay);
   };
 

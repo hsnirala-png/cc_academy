@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const header = document.querySelector(".site-header");
   const menuToggle = document.querySelector(".menu-toggle");
   const navLinks = document.querySelectorAll(".nav-links a");
+  const mobileMenuLogoutLink = document.querySelector("#mobileMenuLogoutLink");
   const readStoredAuth = () => {
     const parseAuth = (storage) => {
       const token = storage.getItem("cc_token");
@@ -501,7 +502,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
               </div>
               <div class="home-latest-actions dash-product-actions">
-                <a class="btn-secondary" href="${productDetailsLink}">View Details</a>
+                <a class="btn-secondary" href="${productDetailsLink}">Details</a>
                 <a class="btn-primary" href="${buyNowLink}">Buy Now</a>
                 <button
                   class="btn-secondary"
@@ -660,6 +661,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("scroll", toggleHeaderLogo, { passive: true });
   }
 
+  const closeMenu = () => {
+    if (header) header.classList.remove("menu-open");
+    if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+  };
+
   if (menuToggle && header) {
     menuToggle.addEventListener("click", () => {
       const isOpen = header.classList.toggle("menu-open");
@@ -669,9 +675,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   navLinks.forEach((link) => {
     link.addEventListener("click", () => {
-      if (header) header.classList.remove("menu-open");
-      if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+      closeMenu();
     });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!header || !menuToggle) return;
+    if (!header.classList.contains("menu-open")) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (header.contains(target)) return;
+    closeMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeMenu();
+  });
+
+  window.addEventListener("pageshow", () => {
+    closeMenu();
   });
 
   const dashboardPath = getPagePath("dashboard");
@@ -689,9 +712,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     link.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
+      closeMenu();
       window.location.href = dashboardPath;
     });
   });
+
+  if (mobileMenuLogoutLink instanceof HTMLAnchorElement) {
+    mobileMenuLogoutLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeMenu();
+      clearAuth();
+      goToHome();
+    });
+  }
 
   if (dashCoverBtn) {
     dashCoverBtn.addEventListener("click", (event) => {
@@ -994,6 +1027,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
+      closeMenu();
       clearAuth();
       goToHome();
     });

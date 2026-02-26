@@ -832,8 +832,17 @@ document.addEventListener("DOMContentLoaded", () => {
     return candidates[0];
   };
 
+  const closeHeaderMenus = () => {
+    header.classList.remove("menu-open");
+    header.classList.remove("mobile-search-open");
+    header.classList.remove("mobile-courses-open");
+    if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+    if (mobileSearchToggle) mobileSearchToggle.setAttribute("aria-expanded", "false");
+  };
+
   const openModal = (tab) => {
     if (!authModal) return;
+    closeHeaderMenus();
     authModal.classList.add("open");
     authModal.setAttribute("aria-hidden", "false");
     if (tab === "login") activateLogin();
@@ -1165,6 +1174,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  document.addEventListener("click", (event) => {
+    if (!header.classList.contains("menu-open")) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (header.contains(target)) return;
+    closeHeaderMenus();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeHeaderMenus();
+  });
+
+  window.addEventListener("pageshow", () => {
+    closeHeaderMenus();
+  });
+
   [headerCourseSelect, headerCourseSelectMobile].forEach((selectEl) => {
     if (!(selectEl instanceof HTMLSelectElement)) return;
     selectEl.addEventListener("change", () => navigateByCourse(selectEl.value));
@@ -1172,11 +1198,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   navLinks.forEach((link) => {
     link.addEventListener("click", () => {
-      header.classList.remove("menu-open");
-      header.classList.remove("mobile-search-open");
-      header.classList.remove("mobile-courses-open");
-      if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
-      if (mobileSearchToggle) mobileSearchToggle.setAttribute("aria-expanded", "false");
+      closeHeaderMenus();
     });
   });
 
@@ -1230,6 +1252,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!(button instanceof HTMLElement)) return;
     button.addEventListener("click", (event) => {
       event.preventDefault();
+      closeHeaderMenus();
       window.location.href = "./refer-earn-public.html";
     });
   });
@@ -1253,7 +1276,19 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("change", () => clearFieldError(input));
   });
 
+  const passwordShowIcon = String.fromCodePoint(0x1f441);
+  const passwordHideIcon = String.fromCodePoint(0x1f648);
+
   passwordToggles.forEach((toggle) => {
+    const targetId = toggle.getAttribute("data-target");
+    if (targetId) {
+      const input = document.getElementById(targetId);
+      if (input instanceof HTMLInputElement) {
+        const showing = input.type === "text";
+        toggle.textContent = showing ? passwordHideIcon : passwordShowIcon;
+      }
+    }
+
     toggle.addEventListener("click", () => {
       const targetId = toggle.getAttribute("data-target");
       if (!targetId) return;
@@ -1262,7 +1297,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const showing = input.type === "text";
       input.type = showing ? "password" : "text";
-      toggle.textContent = showing ? "👁" : "🙈";
+      toggle.textContent = showing ? passwordShowIcon : passwordHideIcon;
       toggle.setAttribute("aria-label", showing ? "Show password" : "Hide password");
       toggle.setAttribute("title", showing ? "Show password" : "Hide password");
     });

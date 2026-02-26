@@ -432,6 +432,13 @@ const buyWithWalletSchema = z.object({
     }
     return value;
   }, z.boolean().optional()),
+  walletUseAmount: z.preprocess(
+    (value) => {
+      if (value === undefined || value === null || value === "") return undefined;
+      return value;
+    },
+    z.coerce.number().nonnegative().optional()
+  ),
 });
 
 const REFERRAL_DISCOUNT_SLABS = [
@@ -553,6 +560,22 @@ const buildOfferPricing = (product: CheckoutProductRow, includeDefaultOffer: boo
     friendDiscountConfigured,
     friendDiscountApplied,
     payableAmount,
+  };
+};
+
+const resolveWalletAdjustment = (payableAmount: number, walletBalance: number, walletUseAmount?: number) => {
+  const payableBeforeWallet = normalizeAmount(Math.max(0, payableAmount));
+  const walletAvailable = normalizeAmount(Math.max(0, walletBalance));
+  const walletRequested = normalizeAmount(Math.max(0, walletUseAmount ?? 0));
+  const walletUsed = normalizeAmount(Math.min(payableBeforeWallet, walletAvailable, walletRequested));
+  const payableAfterWallet = normalizeAmount(Math.max(0, payableBeforeWallet - walletUsed));
+
+  return {
+    walletAvailable,
+    walletRequested,
+    walletUsed,
+    payableBeforeWallet,
+    payableAfterWallet,
   };
 };
 
@@ -684,6 +707,8 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
     const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const walletBalance = await getWalletBalance(userId);
+    const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
 
     res.json({
       product: {
@@ -701,7 +726,11 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
         defaultOfferDiscount: pricing.defaultOfferDiscount,
         friendDiscountConfigured: pricing.friendDiscountConfigured,
         friendDiscountApplied: pricing.friendDiscountApplied,
-        payableAmount: pricing.payableAmount,
+        payableBeforeWallet: wallet.payableBeforeWallet,
+        walletAvailable: wallet.walletAvailable,
+        walletRequested: wallet.walletRequested,
+        walletUsed: wallet.walletUsed,
+        payableAmount: wallet.payableAfterWallet,
       },
     });
   } catch (error) {
@@ -742,12 +771,15 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
     }
 
     const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const walletBalance = await getWalletBalance(userId);
+    const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
     const referralBonusAmount = normalizeAmount(product.referralBonusAmount ?? 0);
     const bonusToCredit = purchaseReferrerId && referralBonusAmount > 0 ? referralBonusAmount : 0;
 
     const now = new Date();
     const purchaseId = randomUUID();
     const referralTxnId = randomUUID();
+    const walletTxnId = randomUUID();
 
     const statements = [
       prisma.$executeRawUnsafe(
@@ -767,12 +799,41 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         purchaseId,
         userId,
         productId,
-        pricing.payableAmount,
-        0,
+        wallet.payableAfterWallet,
+        wallet.walletUsed,
         bonusToCredit,
         now
       ),
     ];
+
+    if (wallet.walletUsed > 0) {
+      statements.push(
+        prisma.$executeRawUnsafe(
+          `
+            INSERT INTO ReferralTransaction
+            (
+              id,
+              userId,
+              amount,
+              type,
+              description,
+              purchaseId,
+              withdrawalId,
+              createdAt
+            )
+            VALUES (?, ?, ?, 'PRODUCT_PURCHASE', ?, ?, NULL, ?)
+          `,
+          walletTxnId,
+          userId,
+          -wallet.walletUsed,
+          friendOffer.appliedReferralCode
+            ? `Wallet used: ${String(product.title || "Product")} (code ${friendOffer.appliedReferralCode}, saved ${pricing.friendDiscountApplied.toFixed(2)})`
+            : `Wallet used: ${String(product.title || "Product")}`,
+          purchaseId,
+          now
+        )
+      );
+    }
 
     if (bonusToCredit > 0 && purchaseReferrerId) {
       statements.push(
@@ -802,14 +863,15 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
     }
 
     await prisma.$transaction(statements);
+    const nextWalletBalance = normalizeAmount(walletBalance - wallet.walletUsed);
 
     res.status(201).json({
       message: "Product purchased successfully.",
       purchase: {
         id: purchaseId,
         productId,
-        amountPaid: pricing.payableAmount,
-        walletUsed: 0,
+        amountPaid: wallet.payableAfterWallet,
+        walletUsed: wallet.walletUsed,
         listPrice: pricing.listPrice,
         currentPrice: pricing.currentPrice,
         defaultOfferApplied: includeDefaultOffer,
@@ -819,6 +881,7 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         referralBonusCredited: bonusToCredit,
         createdAt: now.toISOString(),
       },
+      walletBalance: nextWalletBalance,
     });
   } catch (error) {
     next(error);

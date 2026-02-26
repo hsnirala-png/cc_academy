@@ -96,6 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const PRODUCT_TAB_ORDER = ["create", "attachments", "addons"];
   let activeProductTab = "create";
   let activeAddonsDetailsTab = "overview";
+  let activeAddonsEditorTarget = "";
   const tabSavedState = {
     create: false,
     attachments: false,
@@ -330,114 +331,261 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   };
 
-  const renderPstetBulletList = (items) => `
-    <ul class="product-pstet-list">
-      ${(Array.isArray(items) ? items : []).map((item) => `<li>${escapeHtml(String(item || ""))}</li>`).join("")}
-    </ul>
-  `;
+  const ensureEditableRows = (items, fallback = [""]) => {
+    const normalized = (Array.isArray(items) ? items : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    if (normalized.length) return normalized;
+    return Array.isArray(fallback) && fallback.length ? fallback : [""];
+  };
 
-  const renderPstetFaqList = (items) => `
-    <div class="product-pstet-faqs">
-      ${(Array.isArray(items) ? items : [])
-        .map((item) => {
-          const q = String(item?.q || "").trim();
-          const a = String(item?.a || "").trim();
-          if (!q || !a) return "";
-          return `
-            <article class="product-pstet-faq-item">
-              <h5>${escapeHtml(q)}</h5>
-              <p>${escapeHtml(a)}</p>
-            </article>
-          `;
-        })
-        .join("")}
-    </div>
-  `;
-
-  const renderProductDescriptionPreview = (description) => `
-    <section class="product-description-section">
-      <h4>Descriptions of Product</h4>
-      <p>${escapeHtml(description || DEFAULT_PRODUCT_DESCRIPTION)}</p>
-    </section>
-  `;
-
-  const renderSalientFeaturesPreview = (content) => `
-    <section class="product-salient-features">
-      <h4>Salient <span>Features</span></h4>
-      <div class="product-salient-grid">
-        ${(Array.isArray(content?.salientFeatures) ? content.salientFeatures : [])
-          .map((label, index) => {
-            const fallbackIcon = SALIENT_FEATURES[index % SALIENT_FEATURES.length]?.icon || "";
+  const renderPstetBulletList = (items, inlineEditKey = "") => {
+    const rows = inlineEditKey ? ensureEditableRows(items, [""]) : Array.isArray(items) ? items : [];
+    return `
+      <ul class="product-pstet-list ${inlineEditKey ? "is-inline-editing" : ""}">
+        ${rows
+          .map((item, index) => {
+            const text = String(item || "").trim();
+            if (!inlineEditKey) return `<li>${escapeHtml(text)}</li>`;
             return `
-              <article class="product-salient-item">
-                <span class="product-salient-icon">${fallbackIcon}</span>
-                <span>${escapeHtml(label)}</span>
-              </article>
+              <li>
+                <input
+                  class="admin-inline-edit-input"
+                  type="text"
+                  data-inline-edit="${escapeHtml(inlineEditKey)}"
+                  data-inline-index="${index}"
+                  value="${escapeHtml(text)}"
+                />
+              </li>
             `;
           })
-          .join("")}
-      </div>
-      <div class="product-contact-card">
-        <span class="product-contact-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path d="M6.5 3.5h3l1.4 4.3-1.9 1.9a16 16 0 0 0 5.2 5.2l1.9-1.9 4.3 1.4v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.5 5.7 2 2 0 0 1 6.5 3.5Z" />
-          </svg>
-        </span>
-        <p>
-          For Admission Enquiry Call at
-          <a href="tel:${ADMISSION_CONTACT_TEL}">${ADMISSION_CONTACT_NUMBER}</a>
-        </p>
-      </div>
-    </section>
-  `;
-
-  const renderProductHighlightsPreview = (content) => `
-    <section class="product-highlights">
-      <h4>Product <span>Highlights</span></h4>
-      <ul class="product-highlights-list">
-        ${(Array.isArray(content?.highlights) ? content.highlights : [])
-          .map(
-            (item) => `
-              <li>
-                <span class="product-highlight-check" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="m5 12 4 4 10-10" />
-                  </svg>
-                </span>
-                <span>${escapeHtml(item)}</span>
-              </li>
-            `
-          )
           .join("")}
       </ul>
-    </section>
-  `;
+    `;
+  };
 
-  const renderExamsCoveredPreview = (content) => `
-    <section class="product-exams-covered">
-      <h4>Exams <span>Covered</span></h4>
-      <div class="product-exams-grid">
-        ${(Array.isArray(content?.examsCovered) ? content.examsCovered : [])
-          .map((item) => {
-            const title = String(item?.title || "").trim();
-            const imageUrl = normalizeAssetUrl(item?.imageUrl || "./public/PSTET_7.png");
-            if (!title) return "";
+  const renderPstetFaqList = (items, editable = false) => {
+    const rows = editable
+      ? (Array.isArray(items) && items.length ? items : [{ q: "", a: "" }])
+      : Array.isArray(items)
+        ? items
+        : [];
+    return `
+      <div class="product-pstet-faqs ${editable ? "is-inline-editing" : ""}">
+        ${rows
+          .map((item, index) => {
+            const q = String(item?.q || "").trim();
+            const a = String(item?.a || "").trim();
+            if (!editable && (!q || !a)) return "";
+            if (!editable) {
+              return `
+                <article class="product-pstet-faq-item">
+                  <h5>${escapeHtml(q)}</h5>
+                  <p>${escapeHtml(a)}</p>
+                </article>
+              `;
+            }
             return `
-              <article class="product-exam-item">
-                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" />
-                <p>${escapeHtml(title)}</p>
+              <article class="product-pstet-faq-item" data-inline-faq-row="${index}">
+                <input
+                  class="admin-inline-edit-input"
+                  type="text"
+                  data-inline-edit="faq-q"
+                  value="${escapeHtml(q)}"
+                  placeholder="Question"
+                />
+                <textarea
+                  class="admin-inline-edit-textarea"
+                  rows="2"
+                  data-inline-edit="faq-a"
+                  placeholder="Answer"
+                >${escapeHtml(a)}</textarea>
               </article>
             `;
           })
           .join("")}
       </div>
-    </section>
-  `;
+    `;
+  };
 
-  const renderProductDetailsTabsPreview = (content) => {
-    const tabs = content?.detailsTabs || {};
+  const renderProductDescriptionPreview = (description, editable = false) => {
+    const text = String(description || DEFAULT_PRODUCT_DESCRIPTION).trim();
+    if (!editable) {
+      return `
+        <section class="product-description-section">
+          <h4>Descriptions of Product</h4>
+          <p>${escapeHtml(text)}</p>
+        </section>
+      `;
+    }
     return `
-      <section class="product-pstet-tabs" data-pstet-tabs>
+      <section class="product-description-section is-inline-editing">
+        <h4>Descriptions of Product</h4>
+        <textarea
+          class="admin-inline-edit-textarea"
+          rows="4"
+          data-inline-edit="description"
+          placeholder="Enter product description"
+        >${escapeHtml(text)}</textarea>
+      </section>
+    `;
+  };
+
+  const renderSalientFeaturesPreview = (content, editable = false) => {
+    const features = editable
+      ? ensureEditableRows(content?.salientFeatures, DEFAULT_SALIENT_FEATURES)
+      : Array.isArray(content?.salientFeatures)
+        ? content.salientFeatures
+        : [];
+    return `
+      <section class="product-salient-features ${editable ? "is-inline-editing" : ""}">
+        <h4>Salient <span>Features</span></h4>
+        <div class="product-salient-grid">
+          ${features
+            .map((label, index) => {
+              const fallbackIcon = SALIENT_FEATURES[index % SALIENT_FEATURES.length]?.icon || "";
+              const text = String(label || "").trim();
+              if (!editable) {
+                return `
+                  <article class="product-salient-item">
+                    <span class="product-salient-icon">${fallbackIcon}</span>
+                    <span>${escapeHtml(text)}</span>
+                  </article>
+                `;
+              }
+              return `
+                <article class="product-salient-item">
+                  <span class="product-salient-icon">${fallbackIcon}</span>
+                  <input
+                    class="admin-inline-edit-input"
+                    type="text"
+                    data-inline-edit="salient"
+                    data-inline-index="${index}"
+                    value="${escapeHtml(text)}"
+                  />
+                </article>
+              `;
+            })
+            .join("")}
+        </div>
+        <div class="product-contact-card">
+          <span class="product-contact-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6.5 3.5h3l1.4 4.3-1.9 1.9a16 16 0 0 0 5.2 5.2l1.9-1.9 4.3 1.4v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.5 5.7 2 2 0 0 1 6.5 3.5Z" />
+            </svg>
+          </span>
+          <p>
+            For Admission Enquiry Call at
+            <a href="tel:${ADMISSION_CONTACT_TEL}">${ADMISSION_CONTACT_NUMBER}</a>
+          </p>
+        </div>
+      </section>
+    `;
+  };
+
+  const renderProductHighlightsPreview = (content, editable = false) => {
+    const highlights = editable
+      ? ensureEditableRows(content?.highlights, DEFAULT_PRODUCT_HIGHLIGHTS)
+      : Array.isArray(content?.highlights)
+        ? content.highlights
+        : [];
+    return `
+      <section class="product-highlights ${editable ? "is-inline-editing" : ""}">
+        <h4>Product <span>Highlights</span></h4>
+        <ul class="product-highlights-list">
+          ${highlights
+            .map((item, index) => {
+              const text = String(item || "").trim();
+              if (!editable) {
+                return `
+                  <li>
+                    <span class="product-highlight-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="m5 12 4 4 10-10" />
+                      </svg>
+                    </span>
+                    <span>${escapeHtml(text)}</span>
+                  </li>
+                `;
+              }
+              return `
+                <li>
+                  <span class="product-highlight-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="m5 12 4 4 10-10" />
+                    </svg>
+                  </span>
+                  <input
+                    class="admin-inline-edit-input"
+                    type="text"
+                    data-inline-edit="highlights"
+                    data-inline-index="${index}"
+                    value="${escapeHtml(text)}"
+                  />
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+      </section>
+    `;
+  };
+
+  const renderExamsCoveredPreview = (content, editable = false) => {
+    const exams = editable
+      ? (Array.isArray(content?.examsCovered) && content.examsCovered.length ? content.examsCovered : DEFAULT_EXAMS_COVERED)
+      : Array.isArray(content?.examsCovered)
+        ? content.examsCovered
+        : [];
+    return `
+      <section class="product-exams-covered ${editable ? "is-inline-editing" : ""}">
+        <h4>Exams <span>Covered</span></h4>
+        <div class="product-exams-grid">
+          ${exams
+            .map((item, index) => {
+              const title = String(item?.title || "").trim();
+              const rawImageUrl = String(item?.imageUrl || "./public/PSTET_7.png").trim() || "./public/PSTET_7.png";
+              const imageUrl = normalizeAssetUrl(rawImageUrl);
+              if (!title && !editable) return "";
+              if (!editable) {
+                return `
+                  <article class="product-exam-item">
+                    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" />
+                    <p>${escapeHtml(title)}</p>
+                  </article>
+                `;
+              }
+              return `
+                <article class="product-exam-item" data-inline-exam-row="${index}">
+                  <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title || `Exam ${index + 1}`)}" />
+                  <input
+                    class="admin-inline-edit-input"
+                    type="text"
+                    data-inline-edit="exam-title"
+                    value="${escapeHtml(title)}"
+                    placeholder="Exam title"
+                  />
+                  <input
+                    class="admin-inline-edit-input"
+                    type="text"
+                    data-inline-edit="exam-image"
+                    value="${escapeHtml(rawImageUrl)}"
+                    placeholder="Image URL"
+                  />
+                </article>
+              `;
+            })
+            .join("")}
+        </div>
+      </section>
+    `;
+  };
+
+  const renderProductDetailsTabsPreview = (content, editable = false) => {
+    const tabs = content?.detailsTabs || {};
+    const overviewRows = editable ? ensureEditableRows(tabs.overview, DEFAULT_DETAILS_TABS.overview) : (Array.isArray(tabs.overview) ? tabs.overview : []);
+    return `
+      <section class="product-pstet-tabs ${editable ? "is-inline-editing" : ""}" data-pstet-tabs>
         <div class="product-pstet-tab-nav" role="tablist" aria-label="Course details tabs">
           <button type="button" class="is-active" data-pstet-tab-btn="overview" aria-selected="true">Overview</button>
           <button type="button" data-pstet-tab-btn="includes" aria-selected="false">This Package Includes</button>
@@ -448,22 +596,36 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         <div class="product-pstet-tab-panels">
           <section class="product-pstet-tab-panel is-active" data-pstet-tab-panel="overview">
-            ${(Array.isArray(tabs.overview) ? tabs.overview : []).map((para) => `<p>${escapeHtml(para)}</p>`).join("")}
+            ${overviewRows
+              .map((para, index) => {
+                const text = String(para || "").trim();
+                if (!editable) return `<p>${escapeHtml(text)}</p>`;
+                return `
+                  <textarea
+                    class="admin-inline-edit-textarea"
+                    rows="3"
+                    data-inline-edit="overview"
+                    data-inline-index="${index}"
+                    placeholder="Overview paragraph"
+                  >${escapeHtml(text)}</textarea>
+                `;
+              })
+              .join("")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="includes">
-            ${renderPstetBulletList(Array.isArray(tabs.packageIncludes) ? tabs.packageIncludes : [])}
+            ${renderPstetBulletList(Array.isArray(tabs.packageIncludes) ? tabs.packageIncludes : [], editable ? "includes" : "")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="plan">
-            ${renderPstetBulletList(Array.isArray(tabs.studyPlan) ? tabs.studyPlan : [])}
+            ${renderPstetBulletList(Array.isArray(tabs.studyPlan) ? tabs.studyPlan : [], editable ? "plan" : "")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="subjects">
-            ${renderPstetBulletList(Array.isArray(tabs.subjectsCovered) ? tabs.subjectsCovered : [])}
+            ${renderPstetBulletList(Array.isArray(tabs.subjectsCovered) ? tabs.subjectsCovered : [], editable ? "subjects" : "")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="pattern">
-            ${renderPstetBulletList(Array.isArray(tabs.examPattern) ? tabs.examPattern : [])}
+            ${renderPstetBulletList(Array.isArray(tabs.examPattern) ? tabs.examPattern : [], editable ? "pattern" : "")}
           </section>
           <section class="product-pstet-tab-panel" data-pstet-tab-panel="faqs">
-            ${renderPstetFaqList(Array.isArray(tabs.faqs) ? tabs.faqs : [])}
+            ${renderPstetFaqList(Array.isArray(tabs.faqs) ? tabs.faqs : [], editable)}
           </section>
         </div>
       </section>
@@ -490,27 +652,135 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
-  const closeAllAddonEditors = () => {
+  const readInlineFieldValue = (field) => {
+    if (!(field instanceof HTMLElement)) return "";
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      return String(field.value || "").trim();
+    }
+    return String(field.textContent || "").trim();
+  };
+
+  const readInlineValues = (container, selector) => {
+    if (!(container instanceof HTMLElement)) return [];
+    return Array.from(container.querySelectorAll(selector))
+      .map((item) => readInlineFieldValue(item))
+      .filter(Boolean);
+  };
+
+  const syncAddonEditorUi = () => {
     addonsEditorPanels.forEach((panel) => {
-      if (panel instanceof HTMLElement) panel.classList.add("hidden");
+      if (!(panel instanceof HTMLElement)) return;
+      panel.classList.add("hidden");
     });
     addonsEditButtons.forEach((btn) => {
-      if (btn instanceof HTMLButtonElement) btn.textContent = "Edit";
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const key = String(btn.getAttribute("data-addon-edit-target") || "").trim();
+      btn.textContent = activeAddonsEditorTarget === key ? "Done" : "Edit";
+      const card = btn.closest(".admin-addon-card");
+      if (card instanceof HTMLElement) {
+        card.classList.toggle("is-editing", activeAddonsEditorTarget === key);
+      }
     });
   };
 
+  const applyInlineAddonEdits = (targetKey) => {
+    if (!targetKey) return;
+
+    if (targetKey === "description" && descriptionInput instanceof HTMLTextAreaElement) {
+      const field = adminProductDescriptionPreview?.querySelector("[data-inline-edit='description']");
+      const value = readInlineFieldValue(field);
+      descriptionInput.value = value || DEFAULT_PRODUCT_DESCRIPTION;
+      return;
+    }
+
+    if (targetKey === "salient" && salientFeaturesInput instanceof HTMLTextAreaElement) {
+      const rows = readInlineValues(adminProductSalientPreview, "[data-inline-edit='salient']");
+      salientFeaturesInput.value = (rows.length ? rows : DEFAULT_SALIENT_FEATURES).join("\n");
+      return;
+    }
+
+    if (targetKey === "highlights" && addonsInput instanceof HTMLTextAreaElement) {
+      const rows = readInlineValues(adminProductHighlightsPreview, "[data-inline-edit='highlights']");
+      addonsInput.value = (rows.length ? rows : DEFAULT_PRODUCT_HIGHLIGHTS).join("\n");
+      return;
+    }
+
+    if (targetKey === "exams" && examsCoveredInput instanceof HTMLTextAreaElement) {
+      const rows = Array.from(adminProductExamsCoveredPreview?.querySelectorAll("[data-inline-exam-row]") || []);
+      const exams = rows
+        .map((row) => {
+          if (!(row instanceof HTMLElement)) return null;
+          const title = readInlineFieldValue(row.querySelector("[data-inline-edit='exam-title']"));
+          const imageUrl = readInlineFieldValue(row.querySelector("[data-inline-edit='exam-image']")) || "./public/PSTET_7.png";
+          if (!title) return null;
+          return { title, imageUrl };
+        })
+        .filter(Boolean);
+      examsCoveredInput.value = formatExamsCoveredForInput(exams.length ? exams : DEFAULT_EXAMS_COVERED);
+      return;
+    }
+
+    if (targetKey === "details-tabs") {
+      const overviewRows = readInlineValues(adminProductDetailsTabsPreview, "[data-inline-edit='overview']");
+      const includesRows = readInlineValues(adminProductDetailsTabsPreview, "[data-inline-edit='includes']");
+      const planRows = readInlineValues(adminProductDetailsTabsPreview, "[data-inline-edit='plan']");
+      const subjectsRows = readInlineValues(adminProductDetailsTabsPreview, "[data-inline-edit='subjects']");
+      const patternRows = readInlineValues(adminProductDetailsTabsPreview, "[data-inline-edit='pattern']");
+      const faqRows = Array.from(adminProductDetailsTabsPreview?.querySelectorAll("[data-inline-faq-row]") || [])
+        .map((row) => {
+          if (!(row instanceof HTMLElement)) return null;
+          const q = readInlineFieldValue(row.querySelector("[data-inline-edit='faq-q']"));
+          const a = readInlineFieldValue(row.querySelector("[data-inline-edit='faq-a']"));
+          if (!q || !a) return null;
+          return { q, a };
+        })
+        .filter(Boolean);
+
+      if (overviewInput instanceof HTMLTextAreaElement) {
+        overviewInput.value = (overviewRows.length ? overviewRows : DEFAULT_DETAILS_TABS.overview).join("\n");
+      }
+      if (packageIncludesInput instanceof HTMLTextAreaElement) {
+        packageIncludesInput.value = (includesRows.length ? includesRows : DEFAULT_DETAILS_TABS.packageIncludes).join("\n");
+      }
+      if (studyPlanInput instanceof HTMLTextAreaElement) {
+        studyPlanInput.value = (planRows.length ? planRows : DEFAULT_DETAILS_TABS.studyPlan).join("\n");
+      }
+      if (subjectsCoveredInput instanceof HTMLTextAreaElement) {
+        subjectsCoveredInput.value = (subjectsRows.length ? subjectsRows : DEFAULT_DETAILS_TABS.subjectsCovered).join("\n");
+      }
+      if (examPatternInput instanceof HTMLTextAreaElement) {
+        examPatternInput.value = (patternRows.length ? patternRows : DEFAULT_DETAILS_TABS.examPattern).join("\n");
+      }
+      if (faqsInput instanceof HTMLTextAreaElement) {
+        faqsInput.value = formatFaqsForInput(faqRows.length ? faqRows : DEFAULT_DETAILS_TABS.faqs);
+      }
+    }
+  };
+
+  const closeAllAddonEditors = () => {
+    activeAddonsEditorTarget = "";
+    syncAddonEditorUi();
+  };
+
   const toggleAddonEditor = (targetKey) => {
-    const editor = document.querySelector(`[data-addon-editor="${targetKey}"]`);
-    if (!(editor instanceof HTMLElement)) return;
-    const button = addonsEditButtons.find(
-      (btn) => btn instanceof HTMLButtonElement && btn.getAttribute("data-addon-edit-target") === targetKey
-    );
-    const shouldOpen = editor.classList.contains("hidden");
-    closeAllAddonEditors();
-    if (!shouldOpen) return;
-    editor.classList.remove("hidden");
-    if (button instanceof HTMLButtonElement) button.textContent = "Done";
-    const firstField = editor.querySelector("input, textarea, select");
+    if (!targetKey) return;
+
+    if (activeAddonsEditorTarget === targetKey) {
+      applyInlineAddonEdits(targetKey);
+      activeAddonsEditorTarget = "";
+    } else {
+      if (activeAddonsEditorTarget) {
+        applyInlineAddonEdits(activeAddonsEditorTarget);
+      }
+      activeAddonsEditorTarget = targetKey;
+    }
+
+    syncAddonEditorUi();
+    renderAddonsPreview();
+
+    if (!activeAddonsEditorTarget) return;
+    const previewBlock = document.querySelector(`[data-addon-preview="${activeAddonsEditorTarget}"]`);
+    const firstField = previewBlock?.querySelector("input, textarea, [contenteditable='true']");
     if (firstField instanceof HTMLElement) firstField.focus();
   };
 
@@ -518,20 +788,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     const content = normalizeProductContent(buildProductContentFromForm());
     if (adminProductDescriptionPreview instanceof HTMLElement) {
       adminProductDescriptionPreview.innerHTML = renderProductDescriptionPreview(
-        String(descriptionInput?.value || "").trim() || DEFAULT_PRODUCT_DESCRIPTION
+        String(descriptionInput?.value || "").trim() || DEFAULT_PRODUCT_DESCRIPTION,
+        activeAddonsEditorTarget === "description"
       );
     }
     if (adminProductSalientPreview instanceof HTMLElement) {
-      adminProductSalientPreview.innerHTML = renderSalientFeaturesPreview(content);
+      adminProductSalientPreview.innerHTML = renderSalientFeaturesPreview(content, activeAddonsEditorTarget === "salient");
     }
     if (adminProductHighlightsPreview instanceof HTMLElement) {
-      adminProductHighlightsPreview.innerHTML = renderProductHighlightsPreview(content);
+      adminProductHighlightsPreview.innerHTML = renderProductHighlightsPreview(
+        content,
+        activeAddonsEditorTarget === "highlights"
+      );
     }
     if (adminProductExamsCoveredPreview instanceof HTMLElement) {
-      adminProductExamsCoveredPreview.innerHTML = renderExamsCoveredPreview(content);
+      adminProductExamsCoveredPreview.innerHTML = renderExamsCoveredPreview(content, activeAddonsEditorTarget === "exams");
     }
     if (adminProductDetailsTabsPreview instanceof HTMLElement) {
-      adminProductDetailsTabsPreview.innerHTML = renderProductDetailsTabsPreview(content);
+      adminProductDetailsTabsPreview.innerHTML = renderProductDetailsTabsPreview(
+        content,
+        activeAddonsEditorTarget === "details-tabs"
+      );
       activatePstetTab(adminProductDetailsTabsPreview, activeAddonsDetailsTab);
     }
   };
@@ -839,25 +1116,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   });
 
-  const payloadFromForm = () => ({
-    title: titleInput?.value?.trim() || "",
-    examCategory: categoryInput?.value?.trim() || "",
-    examName: examInput?.value?.trim() || "",
-    courseType: courseTypeInput?.value || "LIVE_CLASS",
-    languageMode: languageInput?.value || undefined,
-    listPrice: listPriceInput?.value ? Number(listPriceInput.value) : 0,
-    salePrice: salePriceInput?.value ? Number(salePriceInput.value) : 0,
-    referralBonusAmount: referralBonusInput?.value ? Number(referralBonusInput.value) : 0,
-    referralDiscountAmount: referralDiscountInput?.value ? Number(referralDiscountInput.value) : 0,
-    accessDays: accessDaysInput?.value ? Number(accessDaysInput.value) : 0,
-    validityLabel: validityInput?.value?.trim() || undefined,
-    thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
-    mockTestIds: Array.from(new Set([...selectedLessonMockTestIds, ...selectedMockMockTestIds])),
-    demoMockTestIds: Array.from(selectedDemoMockTestIds),
-    addons: buildProductContentFromForm(),
-    description: descriptionInput?.value?.trim() || undefined,
-    isActive: Boolean(isActiveInput?.checked),
-  });
+  const payloadFromForm = () => {
+    if (activeAddonsEditorTarget) {
+      applyInlineAddonEdits(activeAddonsEditorTarget);
+    }
+    return {
+      title: titleInput?.value?.trim() || "",
+      examCategory: categoryInput?.value?.trim() || "",
+      examName: examInput?.value?.trim() || "",
+      courseType: courseTypeInput?.value || "LIVE_CLASS",
+      languageMode: languageInput?.value || undefined,
+      listPrice: listPriceInput?.value ? Number(listPriceInput.value) : 0,
+      salePrice: salePriceInput?.value ? Number(salePriceInput.value) : 0,
+      referralBonusAmount: referralBonusInput?.value ? Number(referralBonusInput.value) : 0,
+      referralDiscountAmount: referralDiscountInput?.value ? Number(referralDiscountInput.value) : 0,
+      accessDays: accessDaysInput?.value ? Number(accessDaysInput.value) : 0,
+      validityLabel: validityInput?.value?.trim() || undefined,
+      thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
+      mockTestIds: Array.from(new Set([...selectedLessonMockTestIds, ...selectedMockMockTestIds])),
+      demoMockTestIds: Array.from(selectedDemoMockTestIds),
+      addons: buildProductContentFromForm(),
+      description: descriptionInput?.value?.trim() || undefined,
+      isActive: Boolean(isActiveInput?.checked),
+    };
+  };
 
   const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
 
@@ -926,6 +1208,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const switchProductTab = (tabId) => {
     if (!PRODUCT_TAB_ORDER.includes(tabId)) return;
+    if (activeProductTab === "addons" && tabId !== "addons" && activeAddonsEditorTarget) {
+      applyInlineAddonEdits(activeAddonsEditorTarget);
+      activeAddonsEditorTarget = "";
+      syncAddonEditorUi();
+      renderAddonsPreview();
+    }
     activeProductTab = tabId;
     updateTabUi();
   };
@@ -958,6 +1246,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const saveCurrentTab = () => {
+    if (activeProductTab === "addons" && activeAddonsEditorTarget) {
+      applyInlineAddonEdits(activeAddonsEditorTarget);
+      activeAddonsEditorTarget = "";
+      syncAddonEditorUi();
+      renderAddonsPreview();
+    }
     const errorMessage = validateTab(activeProductTab);
     if (errorMessage) {
       setMessage(errorMessage, "error");

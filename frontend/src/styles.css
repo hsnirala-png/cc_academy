@@ -507,7 +507,7 @@ h1 {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  z-index: 100;
+  z-index: 1200;
 }
 
 .modal-overlay.open {
@@ -1009,15 +1009,15 @@ h1 {
   }
 
   .nav-links a:nth-child(1)::before {
-    content: "★";
+    content: "\2605";
   }
 
   .nav-links a:nth-child(2)::before {
-    content: "💬";
+    content: "\01F4AC";
   }
 
   .nav-links a:nth-child(3)::before {
-    content: "✉";
+    content: "\2709";
   }
 
   .nav-links a:nth-child(4)::before {
@@ -1250,7 +1250,7 @@ h1 {
   }
 
   .nav-links > a::after {
-    content: "›";
+    content: "\203A";
     color: var(--muted);
     font-weight: 700;
     margin-left: auto;
@@ -1659,6 +1659,54 @@ h1 {
   color: #1f2a44;
   font-size: 0.9rem;
   line-height: 1.6;
+}
+
+.admin-inline-edit-input,
+.admin-inline-edit-textarea {
+  width: 100%;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  background: #fff;
+  color: #18315f;
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+}
+
+.admin-inline-edit-textarea {
+  resize: vertical;
+}
+
+.product-description-section.is-inline-editing,
+.product-highlights.is-inline-editing,
+.product-exams-covered.is-inline-editing,
+.product-pstet-tabs.is-inline-editing {
+  background: #f4f8ff;
+}
+
+.product-salient-features.is-inline-editing .product-salient-item,
+.product-highlights.is-inline-editing .product-highlights-list li {
+  align-items: center;
+}
+
+.product-salient-features.is-inline-editing .admin-inline-edit-input,
+.product-highlights.is-inline-editing .admin-inline-edit-input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 28px;
+}
+
+.product-exams-covered.is-inline-editing .product-exam-item {
+  gap: 0.42rem;
+  padding: 0.5rem;
+}
+
+.product-pstet-list.is-inline-editing li::before {
+  margin-top: 0.8rem;
+}
+
+.product-pstet-faqs.is-inline-editing .product-pstet-faq-item {
+  background: #fff;
 }
 
 .product-salient-features {
@@ -4356,9 +4404,16 @@ h1 {
 }
 
 .admin-addon-editor {
+  display: none !important;
   margin-top: 0.15rem;
   padding-top: 0.55rem;
   border-top: 1px dashed #dbe6ff;
+}
+
+.admin-addon-card.is-editing .admin-addon-editor {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .admin-addon-editor .admin-form-row + .admin-form-row {

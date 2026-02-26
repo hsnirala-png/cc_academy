@@ -196,7 +196,7 @@ const getScrollResponseRate = (value) => {
   return 5.5;
 };
 
-const startAssessmentAttempt = async (token, mockTestId, lessonStartMs = 0) => {
+const startAssessmentAttempt = async (token, mockTestId, lessonStartMs = 0, { autoplay = false } = {}) => {
   const response = await apiRequest({
     path: "/student/attempts",
     method: "POST",
@@ -215,6 +215,9 @@ const startAssessmentAttempt = async (token, mockTestId, lessonStartMs = 0) => {
   if (safeStartMs > 0) {
     params.set("lessonStartMs", String(safeStartMs));
   }
+  if (autoplay) {
+    params.set("autoplay", "1");
+  }
   window.location.href = `${getPagePath("mock-attempt")}?${params.toString()}`;
 };
 
@@ -225,7 +228,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   initHeaderBehavior();
 
   const logoutBtn = document.querySelector("#logoutBtn");
-  const backToChapter = document.querySelector("#backToChapter");
   const lessonTitleEl = document.querySelector("#lessonTitle");
   const lessonMetaEl = document.querySelector("#lessonMeta");
   const playerStatusEl = document.querySelector("#playerStatus");
@@ -259,6 +261,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     scrollSpeed: "normal",
     lastTranscriptScrollAt: 0,
     transcriptScrollVirtual: 0,
+    autoPlayRequested: /^(1|true|yes)$/i.test(getQueryParam("autoplay")),
+    autoPlayAttempted: false,
   };
 
   const setStatus = (text, type) => {
@@ -505,6 +509,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     setProgressText();
   };
 
+  const attemptAutoPlayOnLoad = () => {
+    if (!state.autoPlayRequested || state.autoPlayAttempted) return;
+    const player = getActivePlayer();
+    if (!(player instanceof HTMLMediaElement)) return;
+    state.autoPlayAttempted = true;
+
+    const startPlayback = () => {
+      const playResult = player.play();
+      if (playResult && typeof playResult.then === "function") {
+        playResult.catch(() => {
+          setStatus("Tap play to start lesson audio.");
+        });
+      }
+    };
+
+    if (Number(player.readyState || 0) >= 2) {
+      startPlayback();
+      return;
+    }
+    player.addEventListener("canplay", startPlayback, { once: true });
+  };
+
   const saveProgress = async ({ force = false, completed = false, keepalive = false } = {}) => {
     if (!state.lessonId) return;
 
@@ -746,9 +772,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!state.lessonId) {
     setStatus("Lesson id is missing in URL.", "error");
     const fallbackLink = buildOverviewLink(state.chapterId, user?.role || "STUDENT");
-    if (backToChapter instanceof HTMLAnchorElement) {
-      backToChapter.href = fallbackLink;
-    }
     window.setTimeout(() => {
       window.location.href = fallbackLink;
     }, 300);
@@ -771,10 +794,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!state.chapterId && payload?.chapter?.id) {
       state.chapterId = payload.chapter.id;
-    }
-
-    if (backToChapter instanceof HTMLAnchorElement) {
-      backToChapter.href = buildOverviewLink(state.chapterId, user?.role || "STUDENT");
     }
 
     if (lessonTitleEl) {
@@ -843,6 +862,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.currentMode = initialMode;
     applyMode(initialMode, { preservePosition: false });
     setProgressText();
+    attemptAutoPlayOnLoad();
     setStatus("");
   } catch (error) {
     if (error?.status === 401) {
@@ -869,7 +889,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         setStatus("Starting test attempt...");
         const lessonStartMs = getPlayerCurrentMs();
-        await startAssessmentAttempt(token, testId, lessonStartMs);
+        await startAssessmentAttempt(token, testId, lessonStartMs, { autoplay: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to start assessment.";
         setStatus(message, "error");

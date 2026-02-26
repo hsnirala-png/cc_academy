@@ -25,6 +25,11 @@ const getLessonStartMsFromQuery = () => {
   return 0;
 };
 
+const getAutoPlayFromQuery = () => {
+  const params = new URLSearchParams(window.location.search);
+  return /^(1|true|yes)$/i.test(String(params.get("autoplay") || "").trim());
+};
+
 const isExtensionlessRoute = () => {
   const pathname = (window.location.pathname || "").toLowerCase();
   return Boolean(pathname) && !pathname.endsWith(".html") && pathname !== "/";
@@ -252,6 +257,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     closedSource: "",
     lastSyncLogAt: 0,
     lastSyncLogKey: "",
+    autoPlayRequested: getAutoPlayFromQuery(),
+    autoPlayAttempted: false,
   };
 
   const setStatus = (text, type) => {
@@ -617,6 +624,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonRefWrap.classList.remove("hidden");
   };
 
+  const attemptAutoPlayLesson = () => {
+    if (!state.autoPlayRequested || state.autoPlayAttempted || state.isSubmitted) return;
+    const player = getCurrentLessonPlayer();
+    if (!(player instanceof HTMLMediaElement)) return;
+    state.autoPlayAttempted = true;
+
+    const startPlayback = () => {
+      const playResult = player.play();
+      if (playResult && typeof playResult.then === "function") {
+        playResult.catch(() => {
+          setStatus("Tap play to start lesson audio.");
+        });
+      }
+    };
+
+    if (Number(player.readyState || 0) >= 2) {
+      startPlayback();
+      return;
+    }
+    player.addEventListener("canplay", startPlayback, { once: true });
+  };
+
   const showPostAttemptActions = () => {
     if (attemptPostActionsEl instanceof HTMLElement) {
       attemptPostActionsEl.classList.remove("hidden");
@@ -817,6 +846,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     await loadLessonTranscriptSegments();
     renderLessonContext();
+    attemptAutoPlayLesson();
 
     startCountdown();
     renderCurrentQuestion();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Products</title>
-    <link rel="stylesheet" href="./src/styles.css?v=18" />
+    <link rel="stylesheet" href="./src/styles.css?v=20" />
   </head>
   <body>
     <div class="admin-shell">
@@ -188,7 +188,7 @@
                     <div class="admin-addon-edit-row">
                       <button class="table-btn edit" type="button" data-addon-edit-target="description">Edit</button>
                     </div>
-                    <div id="adminProductDescriptionPreview"></div>
+                    <div id="adminProductDescriptionPreview" data-addon-preview="description"></div>
                     <div class="admin-addon-editor hidden" data-addon-editor="description">
                       <div class="admin-field">
                         <label for="productDescription">Description</label>
@@ -201,7 +201,7 @@
                     <div class="admin-addon-edit-row">
                       <button class="table-btn edit" type="button" data-addon-edit-target="salient">Edit</button>
                     </div>
-                    <div id="adminProductSalientPreview"></div>
+                    <div id="adminProductSalientPreview" data-addon-preview="salient"></div>
                     <div class="admin-addon-editor hidden" data-addon-editor="salient">
                       <div class="admin-field">
                         <label for="productSalientFeatures">Salient Features (one per line)</label>
@@ -218,7 +218,7 @@
                     <div class="admin-addon-edit-row">
                       <button class="table-btn edit" type="button" data-addon-edit-target="highlights">Edit</button>
                     </div>
-                    <div id="adminProductHighlightsPreview"></div>
+                    <div id="adminProductHighlightsPreview" data-addon-preview="highlights"></div>
                     <div class="admin-addon-editor hidden" data-addon-editor="highlights">
                       <div class="admin-field">
                         <label for="productAddons">Product Highlights (one per line)</label>
@@ -235,7 +235,7 @@
                     <div class="admin-addon-edit-row">
                       <button class="table-btn edit" type="button" data-addon-edit-target="exams">Edit</button>
                     </div>
-                    <div id="adminProductExamsCoveredPreview"></div>
+                    <div id="adminProductExamsCoveredPreview" data-addon-preview="exams"></div>
                     <div class="admin-addon-editor hidden" data-addon-editor="exams">
                       <div class="admin-field">
                         <label for="productExamsCovered">Exams Covered (Title | Image URL per line)</label>
@@ -252,7 +252,7 @@
                     <div class="admin-addon-edit-row">
                       <button class="table-btn edit" type="button" data-addon-edit-target="details-tabs">Edit</button>
                     </div>
-                    <div id="adminProductDetailsTabsPreview"></div>
+                    <div id="adminProductDetailsTabsPreview" data-addon-preview="details-tabs"></div>
                     <div class="admin-addon-editor hidden" data-addon-editor="details-tabs">
                       <div class="admin-form-row">
                         <div class="admin-field">
@@ -366,7 +366,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-products.js?v=20"></script>
+    <script type="module" src="./src/admin-products.js?v=22"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

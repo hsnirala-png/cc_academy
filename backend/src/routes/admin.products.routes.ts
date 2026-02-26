@@ -58,17 +58,53 @@ const optionalNonNegativeNumber = z.preprocess(
   z.coerce.number().min(0).optional()
 );
 
+const productTextListSchema = z.array(z.string().trim().min(1).max(500)).max(60);
+
+const productFaqItemSchema = z.object({
+  q: z.string().trim().min(1).max(220),
+  a: z.string().trim().min(1).max(2000),
+});
+
+const productExamCoveredItemSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  imageUrl: optionalTrimmedString(1000),
+});
+
+const productDetailsTabsSchema = z
+  .object({
+    overview: productTextListSchema.optional(),
+    packageIncludes: productTextListSchema.optional(),
+    studyPlan: productTextListSchema.optional(),
+    subjectsCovered: productTextListSchema.optional(),
+    examPattern: productTextListSchema.optional(),
+    faqs: z.array(productFaqItemSchema).max(40).optional(),
+  })
+  .partial();
+
+const structuredAddonsSchema = z
+  .object({
+    highlights: productTextListSchema.optional(),
+    salientFeatures: productTextListSchema.optional(),
+    examsCovered: z.array(productExamCoveredItemSchema).max(30).optional(),
+    detailsTabs: productDetailsTabsSchema.optional(),
+  })
+  .partial();
+
 const addonsSchema = z.preprocess((value) => {
   if (value === undefined || value === null || value === "") return undefined;
   if (Array.isArray(value)) return value;
   if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
   }
   return value;
-}, z.array(z.string().trim().min(1).max(120)).max(30).optional());
+}, z.union([z.array(z.string().trim().min(1).max(500)).max(60), structuredAddonsSchema]).optional());
 
 const createProductSchema = z.object({
   title: z.string().trim().min(2).max(180),
@@ -91,6 +127,85 @@ const createProductSchema = z.object({
   demoMockTestIds: z.array(z.string().trim().min(1)).max(200).optional(),
   isActive: optionalBoolean,
 });
+
+const DEFAULT_PRODUCT_HIGHLIGHTS = [
+  "Access to Structured Classes in Audio with Scroll Form",
+  "Doubt Solving Support via WhatsApp Chatbot, Telegram Groups, and Live Sessions (subject to availability).",
+  "Boost Your Preparation with Study Planner | Previous Papers | Preparation Tips - Via Email & WhatsApp Chatbot",
+  "Master PSTET with 10,000+ Carefully Curated MCQs for Every Subject.",
+];
+
+const DEFAULT_SALIENT_FEATURES = ["Audio Lesson", "Scroll with Audio", "Digital Test", "Timer Enable"];
+
+const DEFAULT_EXAMS_COVERED = [
+  { title: "PSTET", imageUrl: "./public/PSTET_7.png" },
+  { title: "Punjab Teaching Exams", imageUrl: "./public/PSTET_8.png" },
+  { title: "CTET", imageUrl: "./public/PSTET_10.png" },
+];
+
+const DEFAULT_PRODUCT_DETAILS_TABS = {
+  overview: [
+    "This program is designed for structured, exam-focused preparation with lesson-first learning flow.",
+    "Students can start with guided audio-scroll lessons and move to test attempts with full flexibility.",
+  ],
+  packageIncludes: [
+    "Audio-supported lessons with scroll content",
+    "Structured chapter-wise learning flow",
+    "Timed digital practice tests",
+    "Progress tracking and performance support",
+    "Quick revision support content",
+  ],
+  studyPlan: [
+    "Concept learning with guided lessons",
+    "Daily topic-wise practice",
+    "Mock-based revision cycle",
+    "Final strategy and exam readiness sessions",
+  ],
+  subjectsCovered: [
+    "Child Development & Pedagogy",
+    "Punjabi Language",
+    "English Language",
+    "Mathematics",
+    "Environmental Studies",
+    "Social Studies / Science",
+  ],
+  examPattern: [
+    "Objective MCQ-based practice",
+    "Timed attempts to simulate real exam pressure",
+    "Topic-level and full-length mixed tests",
+    "Performance review for speed and accuracy",
+  ],
+  faqs: [
+    {
+      q: "Is this course suitable for beginners?",
+      a: "Yes. It starts from core concepts and progressively moves toward test-level practice.",
+    },
+    {
+      q: "Can I attempt tests while audio is running?",
+      a: "Yes. The learning flow supports moving to attempts and returning to lesson playback when needed.",
+    },
+  ],
+};
+
+const DEFAULT_PRODUCT_DESCRIPTION =
+  "This course is designed to help students prepare with confidence using guided lessons, audio-scroll support, timed tests, and structured revision flow.";
+
+type ProductFaq = { q: string; a: string };
+type ProductExamCovered = { title: string; imageUrl: string };
+type ProductDetailsTabs = {
+  overview: string[];
+  packageIncludes: string[];
+  studyPlan: string[];
+  subjectsCovered: string[];
+  examPattern: string[];
+  faqs: ProductFaq[];
+};
+type ProductDetailsContent = {
+  highlights: string[];
+  salientFeatures: string[];
+  examsCovered: ProductExamCovered[];
+  detailsTabs: ProductDetailsTabs;
+};
 
 const updateProductSchema = createProductSchema
   .partial()
@@ -175,29 +290,86 @@ const toIso = (value: unknown): string => {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 };
 
-const parseAddons = (value: unknown): string[] => {
-  if (!value) return [];
+const normalizeTextList = (value: unknown, fallback: string[]): string[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return cleaned.length ? cleaned : [...fallback];
+};
 
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter((item) => item.length > 0);
-  }
+const normalizeFaqList = (value: unknown): ProductFaq[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const q = String((item as { q?: unknown }).q || "").trim();
+      const a = String((item as { a?: unknown }).a || "").trim();
+      if (!q || !a) return null;
+      return { q, a };
+    })
+    .filter((item): item is ProductFaq => Boolean(item));
+  return cleaned.length ? cleaned : [...DEFAULT_PRODUCT_DETAILS_TABS.faqs];
+};
+
+const normalizeExamsCoveredList = (value: unknown): ProductExamCovered[] => {
+  const source = Array.isArray(value) ? value : [];
+  const cleaned = source
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const title = String((item as { title?: unknown }).title || "").trim();
+      const imageUrl = String((item as { imageUrl?: unknown }).imageUrl || "").trim();
+      if (!title) return null;
+      return {
+        title,
+        imageUrl: imageUrl || "./public/PSTET_7.png",
+      };
+    })
+    .filter((item): item is ProductExamCovered => Boolean(item));
+  return cleaned.length ? cleaned : [...DEFAULT_EXAMS_COVERED];
+};
+
+const normalizeProductDetailsContent = (value: unknown): ProductDetailsContent => {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const detailsTabsRaw =
+    raw.detailsTabs && typeof raw.detailsTabs === "object" && !Array.isArray(raw.detailsTabs)
+      ? (raw.detailsTabs as Record<string, unknown>)
+      : {};
+
+  const highlightsSource = Array.isArray(value) ? value : raw.highlights;
+  return {
+    highlights: normalizeTextList(highlightsSource, DEFAULT_PRODUCT_HIGHLIGHTS),
+    salientFeatures: normalizeTextList(raw.salientFeatures, DEFAULT_SALIENT_FEATURES),
+    examsCovered: normalizeExamsCoveredList(raw.examsCovered),
+    detailsTabs: {
+      overview: normalizeTextList(detailsTabsRaw.overview, DEFAULT_PRODUCT_DETAILS_TABS.overview),
+      packageIncludes: normalizeTextList(
+        detailsTabsRaw.packageIncludes,
+        DEFAULT_PRODUCT_DETAILS_TABS.packageIncludes
+      ),
+      studyPlan: normalizeTextList(detailsTabsRaw.studyPlan, DEFAULT_PRODUCT_DETAILS_TABS.studyPlan),
+      subjectsCovered: normalizeTextList(
+        detailsTabsRaw.subjectsCovered,
+        DEFAULT_PRODUCT_DETAILS_TABS.subjectsCovered
+      ),
+      examPattern: normalizeTextList(detailsTabsRaw.examPattern, DEFAULT_PRODUCT_DETAILS_TABS.examPattern),
+      faqs: normalizeFaqList(detailsTabsRaw.faqs),
+    },
+  };
+};
+
+const parseAddons = (value: unknown): ProductDetailsContent => {
+  if (!value) return normalizeProductDetailsContent(undefined);
 
   if (typeof value === "string") {
     try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map((item) => (typeof item === "string" ? item.trim() : ""))
-          .filter((item) => item.length > 0);
-      }
+      return normalizeProductDetailsContent(JSON.parse(value));
     } catch {
-      return [];
+      return normalizeProductDetailsContent(value.split(",").map((item) => item.trim()));
     }
   }
 
-  return [];
+  return normalizeProductDetailsContent(value);
 };
 
 const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
@@ -235,7 +407,7 @@ const loadMockTestsByProductIds = async (productIds: string[]) => {
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
       WHERE pmt.productId IN (${placeholders})
-      ORDER BY pmt.productId ASC, mt.createdAt DESC
+      ORDER BY pmt.productId ASC, pmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
   )) as ProductMockTestRow[];
@@ -267,7 +439,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
       LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
       WHERE pdmt.productId IN (${placeholders})
-      ORDER BY pdmt.productId ASC, mt.createdAt DESC
+      ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
   )) as ProductDemoMockTestRow[];
@@ -401,20 +573,20 @@ const syncProductMockTests = async (productId: string, mockTestIds: string[]) =>
   await prisma.$executeRawUnsafe("DELETE FROM ProductMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
 
-  const now = new Date();
-  await Promise.all(
-    validIds.map((mockTestId) =>
-      prisma.$executeRawUnsafe(
-        `
-          INSERT INTO ProductMockTest (productId, mockTestId, createdAt)
-          VALUES (?, ?, ?)
-        `,
-        productId,
-        mockTestId,
-        now
-      )
-    )
-  );
+  const baseMs = Date.now();
+  for (let index = 0; index < validIds.length; index += 1) {
+    const mockTestId = validIds[index];
+    const createdAt = new Date(baseMs + index);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductMockTest (productId, mockTestId, createdAt)
+        VALUES (?, ?, ?)
+      `,
+      productId,
+      mockTestId,
+      createdAt
+    );
+  }
 };
 
 const syncProductDemoMockTests = async (productId: string, mockTestIds: string[]) => {
@@ -422,20 +594,20 @@ const syncProductDemoMockTests = async (productId: string, mockTestIds: string[]
   await prisma.$executeRawUnsafe("DELETE FROM ProductDemoMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
 
-  const now = new Date();
-  await Promise.all(
-    validIds.map((mockTestId) =>
-      prisma.$executeRawUnsafe(
-        `
-          INSERT INTO ProductDemoMockTest (productId, mockTestId, createdAt)
-          VALUES (?, ?, ?)
-        `,
-        productId,
-        mockTestId,
-        now
-      )
-    )
-  );
+  const baseMs = Date.now();
+  for (let index = 0; index < validIds.length; index += 1) {
+    const mockTestId = validIds[index];
+    const createdAt = new Date(baseMs + index);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductDemoMockTest (productId, mockTestId, createdAt)
+        VALUES (?, ?, ?)
+      `,
+      productId,
+      mockTestId,
+      createdAt
+    );
+  }
 };
 
 adminProductsRouter.post(
@@ -475,10 +647,26 @@ adminProductsRouter.get("/products/mock-tests", ...ensureAdmin, async (_req, res
           mt.languageMode,
           mt.isActive,
           COALESCE(mar.accessCode, 'DEMO') AS accessCode,
+          MIN(c.title) AS courseTitle,
+          MIN(ch.title) AS chapterTitle,
+          MIN(l.title) AS lessonTitle,
           mt.createdAt
         FROM MockTest mt
         LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
+        LEFT JOIN Lesson l ON l.assessmentTestId = mt.id
+        LEFT JOIN Chapter ch ON ch.id = l.chapterId
+        LEFT JOIN Course c ON c.id = ch.courseId
         WHERE mt.isActive = 1
+        GROUP BY
+          mt.id,
+          mt.title,
+          mt.examType,
+          mt.subject,
+          mt.streamChoice,
+          mt.languageMode,
+          mt.isActive,
+          mar.accessCode,
+          mt.createdAt
         ORDER BY mt.createdAt DESC
       `
     )) as Array<{
@@ -490,6 +678,9 @@ adminProductsRouter.get("/products/mock-tests", ...ensureAdmin, async (_req, res
       languageMode: string | null;
       isActive: number | boolean;
       accessCode: string | null;
+      courseTitle: string | null;
+      chapterTitle: string | null;
+      lessonTitle: string | null;
     }>;
 
     res.json({
@@ -502,6 +693,9 @@ adminProductsRouter.get("/products/mock-tests", ...ensureAdmin, async (_req, res
         languageMode: item.languageMode,
         isActive: toBoolean(item.isActive),
         accessCode: normalizeAccessCode(item.accessCode),
+        courseTitle: item.courseTitle || null,
+        chapterTitle: item.chapterTitle || null,
+        lessonTitle: item.lessonTitle || null,
       })),
     });
   } catch (error) {
@@ -615,6 +809,8 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
     const input = createProductSchema.parse(req.body);
     assertPricing(input.listPrice, input.salePrice);
     assertReferralDiscount(input.salePrice, input.referralDiscountAmount ?? 0);
+    const normalizedDescription = String(input.description || "").trim() || DEFAULT_PRODUCT_DESCRIPTION;
+    const normalizedAddons = normalizeProductDetailsContent(input.addons);
 
     const productId = randomUUID();
     const now = new Date();
@@ -654,14 +850,14 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
       input.courseType,
       input.languageMode ?? null,
       input.thumbnailUrl ?? null,
-      input.description ?? null,
+      normalizedDescription,
         input.listPrice,
         input.salePrice,
         input.referralBonusAmount ?? 0,
         input.referralDiscountAmount ?? 0,
         input.accessDays,
       input.validityLabel ?? null,
-      JSON.stringify(input.addons ?? []),
+      JSON.stringify(normalizedAddons),
       input.demoLessonTitle ?? null,
       input.demoLessonUrl ?? null,
       input.isActive ?? true,
@@ -725,7 +921,9 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
     }
     if (updates.accessDays !== undefined) setValue("accessDays", updates.accessDays);
     if (updates.validityLabel !== undefined) setValue("validityLabel", updates.validityLabel ?? null);
-    if (updates.addons !== undefined) setValue("addons", JSON.stringify(updates.addons ?? []));
+    if (updates.addons !== undefined) {
+      setValue("addons", JSON.stringify(normalizeProductDetailsContent(updates.addons)));
+    }
     if (updates.demoLessonTitle !== undefined) {
       setValue("demoLessonTitle", updates.demoLessonTitle ?? null);
     }

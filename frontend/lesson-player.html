@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lesson Player | Student</title>
-    <link rel="stylesheet" href="./src/styles.css?v=23" />
+    <link rel="stylesheet" href="./src/styles.css?v=26" />
   </head>
   <body>
     <header class="site-header">
@@ -39,7 +39,6 @@
 
     <main class="lesson-wrap">
       <section class="lesson-overview-head">
-        <a id="backToChapter" class="btn-ghost lesson-back-btn" href="./dashboard.html">Back to Dashboard</a>
         <h1 id="lessonTitle">Lesson Player</h1>
         <p id="lessonMeta" class="mock-subtitle">-</p>
       </section>
@@ -64,19 +63,20 @@
           <div id="transcriptList" class="transcript-list"></div>
         </article>
 
-        <article class="lesson-video-card">
-          <h2>Playback</h2>
-          <video id="lessonVideo" class="lesson-video" controls preload="metadata"></video>
-          <audio id="audioPlayer" controls style="width: 100%; display: none;"></audio>
-          <div class="lesson-player-actions">
-            <p id="progressInfo" class="lesson-progress-info">Progress: 0%</p>
-            <button id="startAssessmentBtn" class="btn-primary hidden" type="button">Attempt Test</button>
+        <article class="lesson-video-card" data-no-collapse="true">
+          <div class="lesson-playback-shell">
+            <video id="lessonVideo" class="lesson-video" controls preload="metadata"></video>
+            <audio id="audioPlayer" controls style="width: 100%; display: none"></audio>
+            <div class="lesson-player-actions">
+              <p id="progressInfo" class="lesson-progress-info">Progress: 0%</p>
+              <button id="startAssessmentBtn" class="btn-primary hidden" type="button">Attempt Test</button>
+            </div>
           </div>
         </article>
       </section>
     </main>
 
-    <script type="module" src="./src/lesson-player.js?v=19"></script>
+    <script type="module" src="./src/lesson-player.js?v=21"></script>
       <script src="./src/global-nav.js?v=2"></script>
   </body>
 </html>
