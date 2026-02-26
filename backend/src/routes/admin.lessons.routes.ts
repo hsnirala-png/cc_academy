@@ -10,6 +10,7 @@ import {
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { writeLessonAudio } from "../services/audioStorage";
+import { buildSegmentsFromTextAndDuration } from "../services/transcriptSegments";
 import { transcribeMp3WithTimestamps } from "../services/openaiTts";
 import { AppError } from "../utils/appError";
 import { prisma } from "../utils/prisma";
@@ -279,6 +280,21 @@ const computeTokenCoverage = (referenceText: string, spokenText: string): number
   return matched / referenceTokens.length;
 };
 
+const inferTranscriptionLanguageFromText = (value: string): string => {
+  const text = String(value || "");
+  if (!text) return "";
+  if (/[\u0A00-\u0A7F]/u.test(text)) return "pa";
+  if (/[\u0900-\u097F]/u.test(text)) return "hi";
+  if (/[\u0600-\u06FF]/u.test(text)) return "ur";
+  if (/[A-Za-z]/.test(text)) return "en";
+  return "";
+};
+
+const containsNonLatinScript = (value: string): boolean => {
+  const text = String(value || "");
+  return /[\u0A00-\u0A7F\u0900-\u097F\u0600-\u06FF]/u.test(text);
+};
+
 const buildAlignedTranscriptSegments = async (
   lessonId: string,
   audioBuffer: Buffer,
@@ -286,51 +302,49 @@ const buildAlignedTranscriptSegments = async (
   transcriptText: string,
   fallbackDurationMs: number
 ): Promise<Prisma.InputJsonValue> => {
+  const fallbackSegments = buildSegmentsFromTextAndDuration(transcriptText, fallbackDurationMs);
   try {
     const aligned = await transcribeMp3WithTimestamps(audioBuffer, transcriptText, {
       mimeType,
       fileName: `lesson-${lessonId}-upload.${resolveAudioExtension(mimeType)}`,
+      languageHint: inferTranscriptionLanguageFromText(transcriptText),
     });
-    if (!aligned.words.length) {
-      throw new AppError(
-        "Uploaded audio does not include word timestamps. Upload matching audio.",
-        422
-      );
-    }
-    const timelineItems = aligned.words;
+    const timelineItems = aligned.words.length ? aligned.words : aligned.segments;
     if (!timelineItems.length) {
-      throw new AppError(
-        "Uploaded audio could not be aligned with transcript. Please upload matching audio.",
-        422
-      );
+      return {
+        segments: fallbackSegments,
+        words: [],
+      } as Prisma.InputJsonValue;
     }
-    const spokenText = timelineItems
-      .map((item) => String(item.text || "").trim())
-      .filter(Boolean)
-      .join(" ");
-    const coverageScore = computeTokenCoverage(transcriptText, spokenText);
-    if (coverageScore !== null && coverageScore < 0.82) {
-      throw new AppError(
-        `Uploaded audio does not match transcript text (coverage ${(coverageScore * 100).toFixed(
-          1
-        )}%). Upload matching audio.`,
-        422
-      );
+    if (aligned.words.length && !containsNonLatinScript(transcriptText)) {
+      const spokenText = aligned.words
+        .map((item) => String(item.text || "").trim())
+        .filter(Boolean)
+        .join(" ");
+      const coverageScore = computeTokenCoverage(transcriptText, spokenText);
+      if (coverageScore !== null && coverageScore < 0.72) {
+        throw new AppError(
+          `Uploaded audio does not match transcript text (coverage ${(coverageScore * 100).toFixed(
+            1
+          )}%). Upload matching audio.`,
+          422
+        );
+      }
     }
 
     const alignedEndMs = Math.max(...timelineItems.map((item) => Math.round(Number(item?.endMs || 0))));
     if (fallbackDurationMs > 0 && Number.isFinite(alignedEndMs) && alignedEndMs > 0) {
       const durationGapRatio = Math.abs(alignedEndMs - fallbackDurationMs) / fallbackDurationMs;
       if (durationGapRatio > 0.22) {
-        throw new AppError(
-          "Uploaded audio timing does not match transcript timeline. Upload matching audio.",
-          422
-        );
+        return {
+          segments: fallbackSegments,
+          words: [],
+        } as Prisma.InputJsonValue;
       }
     }
 
     return {
-      segments: aligned.segments,
+      segments: aligned.segments.length ? aligned.segments : fallbackSegments,
       words: aligned.words,
     } as Prisma.InputJsonValue;
   } catch (alignmentError) {
@@ -338,10 +352,10 @@ const buildAlignedTranscriptSegments = async (
       throw alignmentError;
     }
     console.error(`Uploaded audio alignment failed for lesson ${lessonId}`, alignmentError);
-    throw new AppError(
-      "Uploaded audio could not be aligned with transcript. Please upload matching audio.",
-      422
-    );
+    return {
+      segments: fallbackSegments,
+      words: [],
+    } as Prisma.InputJsonValue;
   }
 };
 

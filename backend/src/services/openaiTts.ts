@@ -6,6 +6,12 @@ type GenerateSpeechOptions = {
   languageHint?: string;
 };
 
+type TranscriptionOptions = {
+  mimeType?: string;
+  fileName?: string;
+  languageHint?: string;
+};
+
 type CreateCustomVoiceInput = {
   name: string;
   description?: string;
@@ -115,6 +121,34 @@ const normalizeTimedItems = (rows: any[], textKeyCandidates: string[]): TimedTra
   return normalized.filter((row) => row.endMs > row.startMs);
 };
 
+const normalizeLanguageHint = (value: string): string => {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!raw || raw === "auto") return "";
+
+  const normalized = raw.replace(/_/g, "-");
+  const shortCode = normalized.split("-")[0];
+
+  if (["pa", "punjabi", "panjabi", "gurmukhi"].includes(shortCode) || normalized.includes("punjabi")) return "pa";
+  if (["hi", "hindi"].includes(shortCode) || normalized.includes("hindi")) return "hi";
+  if (["en", "english"].includes(shortCode) || normalized.includes("english")) return "en";
+  if (["ur", "urdu"].includes(shortCode) || normalized.includes("urdu")) return "ur";
+
+  if (/^[a-z]{2}$/.test(shortCode)) return shortCode;
+  return "";
+};
+
+const inferLanguageFromReferenceText = (value: string): string => {
+  const text = String(value || "");
+  if (!text) return "";
+  if (/[\u0A00-\u0A7F]/u.test(text)) return "pa";
+  if (/[\u0900-\u097F]/u.test(text)) return "hi";
+  if (/[\u0600-\u06FF]/u.test(text)) return "ur";
+  if (/[A-Za-z]/.test(text)) return "en";
+  return "";
+};
+
 export const generateSpeechMp3Buffer = async (
   text: string,
   options: GenerateSpeechOptions = {}
@@ -141,7 +175,7 @@ export const generateSpeechMp3Buffer = async (
 export const transcribeMp3WithTimestamps = async (
   mp3Buffer: Buffer,
   referenceText?: string,
-  options: { mimeType?: string; fileName?: string } = {}
+  options: TranscriptionOptions = {}
 ): Promise<{ segments: TimedTranscriptItem[]; words: TimedTranscriptItem[] }> => {
   if (!mp3Buffer?.length) {
     return { segments: [], words: [] };
@@ -157,6 +191,11 @@ export const transcribeMp3WithTimestamps = async (
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
   form.append("temperature", "0");
+  const transcriptionLanguage =
+    normalizeLanguageHint(options.languageHint || "") || inferLanguageFromReferenceText(referenceText || "");
+  if (transcriptionLanguage) {
+    form.append("language", transcriptionLanguage);
+  }
   const prompt = String(referenceText || "")
     .replace(/\s+/g, " ")
     .trim();

@@ -221,6 +221,7 @@ export const generateLessonAudio = async (req: Request, res: Response, next: Nex
       const aligned = await transcribeMp3WithTimestamps(generatedAudio.buffer, transcriptText, {
         mimeType: generatedAudio.mimeType,
         fileName: `lesson-audio.${generatedAudio.extension || "mp3"}`,
+        languageHint: body.languageHint,
       });
       if (!aligned.words.length) {
         throw new AppError(
