@@ -148,6 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonBulkImportCsvFileInput = document.querySelector("#lessonBulkImportCsvFile");
   const lessonBulkImportReplaceExistingInput = document.querySelector("#lessonBulkImportReplaceExisting");
   const lessonBulkImportCsvSectionInput = document.querySelector("#lessonBulkImportCsvSection");
+  const lessonCsvTemplateFormatInput = document.querySelector("#lessonCsvTemplateFormat");
   const lessonBulkImportCsvBtn = document.querySelector("#lessonBulkImportCsvBtn");
   const lessonSectionCsvSampleBtn = document.querySelector("#lessonSectionCsvSampleBtn");
   const lessonSaveTestBtn = document.querySelector("#lessonSaveTestBtn");
@@ -2005,7 +2006,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     MOCK: "MOCK",
     LESSON: "LESSON",
   };
-  const DEFAULT_QUESTION_SECTIONS = ["Comprehension", "Grammar", "General MCQs"];
+  const DEFAULT_QUESTION_SECTIONS = [
+    "Comprehension",
+    "Grammar",
+    "General MCQs",
+    "Math Formulas",
+    "Science Equations",
+  ];
+  const CSV_TEMPLATE_DEFAULT_SECTION = {
+    general: "General MCQs",
+    comprehension: "Comprehension",
+    math: "Math Formulas",
+    science: "Science Equations",
+  };
+  const getCsvTemplateFormat = () => {
+    const raw = String(lessonCsvTemplateFormatInput?.value || "general").toLowerCase();
+    return Object.prototype.hasOwnProperty.call(CSV_TEMPLATE_DEFAULT_SECTION, raw) ? raw : "general";
+  };
+  const syncCsvSectionByTemplate = (options = {}) => {
+    const { force = false } = options;
+    if (!(lessonBulkImportCsvSectionInput instanceof HTMLSelectElement)) return;
+    const format = getCsvTemplateFormat();
+    const recommendedSection = CSV_TEMPLATE_DEFAULT_SECTION[format] || DEFAULT_QUESTION_SECTIONS[0];
+    if (!force && normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput.value)) return;
+    lessonBulkImportCsvSectionInput.value = recommendedSection;
+  };
   const normalizeQuestionSectionLabel = (value) => {
     const normalized = String(value || "").trim();
     return normalized ? normalized.slice(0, 120) : "";
@@ -2964,9 +2989,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         .replaceAll(" ", "")
         .replaceAll("_", "")
         .trim();
+    const findHeaderIndex = (headers, aliases) =>
+      aliases.map((alias) => headers.indexOf(alias)).find((index) => index >= 0) ?? -1;
+    const buildCsvQuestionText = ({ questionText, passageText, formulaText, equationText }) => {
+      const normalizedQuestion = String(questionText || "").trim();
+      const normalizedPassage = String(passageText || "").trim();
+      const normalizedFormula = String(formulaText || "").trim();
+      const normalizedEquation = String(equationText || "").trim();
+      const hasPrefixBlocks = Boolean(normalizedPassage || normalizedFormula || normalizedEquation);
+      if (!hasPrefixBlocks) {
+        return normalizedQuestion;
+      }
+      const blocks = [];
+      if (normalizedPassage) blocks.push(`Passage:\n${normalizedPassage}`);
+      if (normalizedFormula) blocks.push(`Formula: ${normalizedFormula}`);
+      if (normalizedEquation) blocks.push(`Equation: ${normalizedEquation}`);
+      if (normalizedQuestion) blocks.push(`Question: ${normalizedQuestion}`);
+      return blocks.join("\n\n").trim();
+    };
     const header = rows[0].map((cell) => normalizeHeaderKey(cell));
+    const headerQuestionIndex = findHeaderIndex(header, ["questiontext", "question", "prompt"]);
     const looksLikeHeader =
-      header.includes("questiontext") &&
+      headerQuestionIndex >= 0 &&
       header.includes("optiona") &&
       header.includes("optionb") &&
       header.includes("optionc") &&
@@ -2974,7 +3018,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       header.includes("correctoption");
     const headerMap = looksLikeHeader
       ? {
-          questionText: header.indexOf("questiontext"),
+          questionText: headerQuestionIndex,
           optionA: header.indexOf("optiona"),
           optionB: header.indexOf("optionb"),
           optionC: header.indexOf("optionc"),
@@ -2982,6 +3026,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           correctOption: header.indexOf("correctoption"),
           explanation: header.indexOf("explanation"),
           isActive: header.indexOf("isactive"),
+          passage: findHeaderIndex(header, ["passage", "paragraph", "comprehension", "context"]),
+          formula: findHeaderIndex(header, ["formula", "mathformula", "math"]),
+          equation: findHeaderIndex(header, ["equation", "scienceequation", "science"]),
           sectionLabel: Math.max(
             header.indexOf("sectionlabel"),
             header.indexOf("section"),
@@ -3005,7 +3052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (row[indexToRead] || "").trim();
       };
 
-      const questionText = readByIndex(headerMap?.questionText, 0);
+      const rawQuestionText = readByIndex(headerMap?.questionText, 0);
       const optionA = readByIndex(headerMap?.optionA, 1);
       const optionB = readByIndex(headerMap?.optionB, 2);
       const optionC = readByIndex(headerMap?.optionC, 3);
@@ -3013,13 +3060,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       const correctOption = readByIndex(headerMap?.correctOption, 5).toUpperCase();
       const explanation = readByIndex(headerMap?.explanation, 6);
       const isActiveRaw = readByIndex(headerMap?.isActive, 7).toLowerCase();
+      const passageText = readByIndex(headerMap?.passage, -1);
+      const formulaText = readByIndex(headerMap?.formula, -1);
+      const equationText = readByIndex(headerMap?.equation, -1);
       const sectionLabelRaw = readByIndex(headerMap?.sectionLabel, 8);
       const sectionLabel =
         normalizeQuestionSectionLabel(sectionLabelRaw) ||
         normalizeQuestionSectionLabel(defaultSectionLabel) ||
         DEFAULT_QUESTION_SECTIONS[0];
+      const questionText = buildCsvQuestionText({
+        questionText: rawQuestionText,
+        passageText,
+        formulaText,
+        equationText,
+      });
 
-      if (!questionText || !optionA || !optionB || !optionC || !optionD) {
+      if (!rawQuestionText || !optionA || !optionB || !optionC || !optionD) {
         throw new Error(`CSV row ${index + 1} has empty required columns.`);
       }
       if (!["A", "B", "C", "D"].includes(correctOption)) {
@@ -3056,52 +3112,141 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const downloadLessonSectionCsvSample = () => {
+    const formatKey = getCsvTemplateFormat();
+    const formatDefaultSection = CSV_TEMPLATE_DEFAULT_SECTION[formatKey] || DEFAULT_QUESTION_SECTIONS[0];
     const selectedSection =
-      normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
-    const rows = [
-      [
-        "questionText",
-        "optionA",
-        "optionB",
-        "optionC",
-        "optionD",
-        "correctOption",
-        "explanation",
-        "isActive",
-        "sectionLabel",
-      ],
-      [
-        "Sample question 1",
-        "Option A",
-        "Option B",
-        "Option C",
-        "Option D",
-        "B",
-        "Sample explanation 1",
-        "TRUE",
-        selectedSection,
-      ],
-      [
-        "Sample question 2",
-        "Option A",
-        "Option B",
-        "Option C",
-        "Option D",
-        "A",
-        "Sample explanation 2",
-        "TRUE",
-        selectedSection,
-      ],
-    ];
+      normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) ||
+      normalizeQuestionSectionLabel(formatDefaultSection) ||
+      DEFAULT_QUESTION_SECTIONS[0];
+
+    let rows;
+    if (formatKey === "comprehension") {
+      rows = [
+        [
+          "passage",
+          "questionText",
+          "optionA",
+          "optionB",
+          "optionC",
+          "optionD",
+          "correctOption",
+          "explanation",
+          "isActive",
+          "sectionLabel",
+        ],
+        [
+          "Children learn language by listening, repetition, and meaningful interaction in class and home.",
+          "Which factor mostly improves comprehension in young learners?",
+          "Rote memorization only",
+          "Context-rich interaction",
+          "Silent reading only",
+          "Random worksheets",
+          "B",
+          "Meaningful context supports understanding.",
+          "TRUE",
+          selectedSection,
+        ],
+      ];
+    } else if (formatKey === "math") {
+      rows = [
+        [
+          "formula",
+          "questionText",
+          "optionA",
+          "optionB",
+          "optionC",
+          "optionD",
+          "correctOption",
+          "explanation",
+          "isActive",
+          "sectionLabel",
+        ],
+        [
+          "a^2 + b^2 = ?",
+          "For a right triangle, which expression is correct?",
+          "c^2",
+          "2ab",
+          "a + b",
+          "a - b",
+          "A",
+          "Pythagorean relation in right triangle.",
+          "TRUE",
+          selectedSection,
+        ],
+      ];
+    } else if (formatKey === "science") {
+      rows = [
+        [
+          "equation",
+          "questionText",
+          "optionA",
+          "optionB",
+          "optionC",
+          "optionD",
+          "correctOption",
+          "explanation",
+          "isActive",
+          "sectionLabel",
+        ],
+        [
+          "6CO2 + 6H2O -> C6H12O6 + 6O2",
+          "This equation represents which process?",
+          "Respiration",
+          "Photosynthesis",
+          "Fermentation",
+          "Combustion",
+          "B",
+          "Plants form glucose in photosynthesis.",
+          "TRUE",
+          selectedSection,
+        ],
+      ];
+    } else {
+      rows = [
+        [
+          "questionText",
+          "optionA",
+          "optionB",
+          "optionC",
+          "optionD",
+          "correctOption",
+          "explanation",
+          "isActive",
+          "sectionLabel",
+        ],
+        [
+          "Sample question 1",
+          "Option A",
+          "Option B",
+          "Option C",
+          "Option D",
+          "B",
+          "Sample explanation 1",
+          "TRUE",
+          selectedSection,
+        ],
+        [
+          "Sample question 2",
+          "Option A",
+          "Option B",
+          "Option C",
+          "Option D",
+          "A",
+          "Sample explanation 2",
+          "TRUE",
+          selectedSection,
+        ],
+      ];
+    }
     const csvContent = `${rows
       .map((row) => row.map((cell) => toCsvCell(cell)).join(","))
       .join("\n")}\n`;
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const fileSuffix = selectedSection.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const fileSuffix = String(formatKey || "general").toLowerCase().replace(/[^a-z0-9]+/g, "-");
     link.href = url;
-    link.download = `mock-test-import-template-${fileSuffix || "section"}.csv`;
+    link.download = `mock-test-import-template-${fileSuffix || "general"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -5755,10 +5900,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (lessonCsvTemplateFormatInput instanceof HTMLSelectElement) {
+    lessonCsvTemplateFormatInput.addEventListener("change", () => {
+      syncCsvSectionByTemplate({ force: true });
+      setMessage("Sample format changed. Default section updated.");
+    });
+  }
+
   if (lessonSectionCsvSampleBtn instanceof HTMLButtonElement) {
     lessonSectionCsvSampleBtn.addEventListener("click", () => {
       downloadLessonSectionCsvSample();
-      setMessage("Section sample CSV downloaded.", "success");
+      setMessage("Sample CSV downloaded.", "success");
     });
   }
 
@@ -6077,6 +6229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMockChapterOptions();
     renderMockLessonOptions();
     renderQuestionSectionControls();
+    syncCsvSectionByTemplate({ force: true });
     updateQuestionSectionSummary();
     setContextLabels();
     ensureSampleTranscriptText();

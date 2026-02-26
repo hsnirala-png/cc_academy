@@ -554,6 +554,8 @@
                       <option value="Comprehension">Comprehension</option>
                       <option value="Grammar">Grammar</option>
                       <option value="General MCQs">General MCQs</option>
+                      <option value="Math Formulas">Math Formulas</option>
+                      <option value="Science Equations">Science Equations</option>
                     </select>
                   </div>
                   <div class="admin-field">
@@ -592,6 +594,8 @@
                       <option value="Comprehension">Comprehension</option>
                       <option value="Grammar">Grammar</option>
                       <option value="General MCQs">General MCQs</option>
+                      <option value="Math Formulas">Math Formulas</option>
+                      <option value="Science Equations">Science Equations</option>
                     </select>
                   </div>
                   <button id="lessonBulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
@@ -600,11 +604,11 @@
 
               <div class="admin-field" style="margin-top: 0.75rem">
                 <label for="lessonBulkImportCsvFile">
-                  CSV Upload (questionText, optionA, optionB, optionC, optionD, correctOption, explanation, isActive,
-                  sectionLabel)
+                  CSV Upload (required: questionText/question, optionA, optionB, optionC, optionD, correctOption;
+                  optional: passage/paragraph, formula, equation, explanation, isActive, sectionLabel)
                 </label>
                 <p class="admin-subtitle" style="margin: 0.25rem 0 0.4rem">
-                  If a CSV file is selected, Create Lesson will also import it automatically.
+                  You can upload in parts multiple times to append questions. Use Replace existing only when needed.
                 </p>
                 <div class="admin-actions">
                   <input id="lessonBulkImportCsvFile" type="file" accept=".csv,text/csv" />
@@ -618,6 +622,17 @@
                       <option value="Comprehension">Comprehension</option>
                       <option value="Grammar">Grammar</option>
                       <option value="General MCQs">General MCQs</option>
+                      <option value="Math Formulas">Math Formulas</option>
+                      <option value="Science Equations">Science Equations</option>
+                    </select>
+                  </div>
+                  <div class="admin-field" style="margin: 0">
+                    <label for="lessonCsvTemplateFormat" style="margin-bottom: 0.2rem">Sample Format</label>
+                    <select id="lessonCsvTemplateFormat">
+                      <option value="general">General MCQ</option>
+                      <option value="comprehension">Comprehension (Paragraph)</option>
+                      <option value="math">Math (Formula)</option>
+                      <option value="science">Science (Equation)</option>
                     </select>
                   </div>
                   <button id="lessonBulkImportCsvBtn" class="btn-secondary" type="button">Upload CSV</button>
@@ -899,6 +914,8 @@
                 <option value="Comprehension">Comprehension</option>
                 <option value="Grammar">Grammar</option>
                 <option value="General MCQs">General MCQs</option>
+                <option value="Math Formulas">Math Formulas</option>
+                <option value="Science Equations">Science Equations</option>
               </select>
             </div>
             <div class="admin-field">
@@ -927,7 +944,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=75"></script>
+    <script type="module" src="./src/admin-lessons.js?v=76"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>
