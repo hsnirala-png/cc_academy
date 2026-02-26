@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Digital Lessons</title>
-    <link rel="stylesheet" href="./src/styles.css?v=20" />
+    <link rel="stylesheet" href="./src/styles.css?v=21" />
   </head>
   <body>
     <div class="admin-shell">
@@ -514,7 +514,14 @@
                   <label for="lessonQuestionTargetCount">Number of Questions</label>
                   <input id="lessonQuestionTargetCount" type="number" min="1" max="5000" step="1" value="30" />
                 </div>
+                <div class="admin-field">
+                  <label for="lessonQuestionSectionFilter">Section Filter</label>
+                  <select id="lessonQuestionSectionFilter">
+                    <option value="ALL">All Sections</option>
+                  </select>
+                </div>
               </div>
+              <p id="lessonQuestionSectionSummary" class="admin-subtitle" style="margin: 0.2rem 0 0.5rem"></p>
 
               <form id="lessonQuestionForm" class="admin-form">
                 <input id="lessonQuestionId" type="hidden" />
@@ -542,6 +549,14 @@
                 </div>
                 <div class="admin-form-row">
                   <div class="admin-field">
+                    <label for="lessonQuestionSection">Section</label>
+                    <select id="lessonQuestionSection">
+                      <option value="Comprehension">Comprehension</option>
+                      <option value="Grammar">Grammar</option>
+                      <option value="General MCQs">General MCQs</option>
+                    </select>
+                  </div>
+                  <div class="admin-field">
                     <label for="lessonCorrectOption">Correct Option</label>
                     <select id="lessonCorrectOption">
                       <option value="A">A</option>
@@ -568,14 +583,25 @@
               </form>
 
               <div class="admin-field">
-                <label for="lessonBulkImportText">Bulk Import (question|A|B|C|D|correct|explanation)</label>
+                <label for="lessonBulkImportText">Bulk Import (question|A|B|C|D|correct|explanation|section)</label>
                 <textarea id="lessonBulkImportText" rows="4"></textarea>
-                <button id="lessonBulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
+                <div class="admin-actions">
+                  <div class="admin-field" style="margin: 0">
+                    <label for="lessonBulkImportSection" style="margin-bottom: 0.2rem">Default Section</label>
+                    <select id="lessonBulkImportSection">
+                      <option value="Comprehension">Comprehension</option>
+                      <option value="Grammar">Grammar</option>
+                      <option value="General MCQs">General MCQs</option>
+                    </select>
+                  </div>
+                  <button id="lessonBulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
+                </div>
               </div>
 
               <div class="admin-field" style="margin-top: 0.75rem">
                 <label for="lessonBulkImportCsvFile">
-                  CSV Upload (questionText, optionA, optionB, optionC, optionD, correctOption, explanation, isActive)
+                  CSV Upload (questionText, optionA, optionB, optionC, optionD, correctOption, explanation, isActive,
+                  sectionLabel)
                 </label>
                 <p class="admin-subtitle" style="margin: 0.25rem 0 0.4rem">
                   If a CSV file is selected, Create Lesson will also import it automatically.
@@ -586,10 +612,18 @@
                     <input id="lessonBulkImportReplaceExisting" type="checkbox" />
                     <span>Replace existing questions</span>
                   </label>
+                  <div class="admin-field" style="margin: 0">
+                    <label for="lessonBulkImportCsvSection" style="margin-bottom: 0.2rem">Default Section</label>
+                    <select id="lessonBulkImportCsvSection">
+                      <option value="Comprehension">Comprehension</option>
+                      <option value="Grammar">Grammar</option>
+                      <option value="General MCQs">General MCQs</option>
+                    </select>
+                  </div>
                   <button id="lessonBulkImportCsvBtn" class="btn-secondary" type="button">Upload CSV</button>
-                  <a class="btn-ghost" href="./public/mock-test-import-template.csv" download>
+                  <button id="lessonSectionCsvSampleBtn" class="btn-ghost" type="button">
                     Download Sample CSV
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -602,6 +636,7 @@
                       <th>B</th>
                       <th>C</th>
                       <th>D</th>
+                      <th>Section</th>
                       <th>Correct</th>
                       <th>Actions</th>
                     </tr>
@@ -612,6 +647,9 @@
 
               <div class="admin-actions" style="margin-top: 0.75rem">
                 <button id="lessonSaveTestBtn" class="btn-primary" type="button">Create Lesson</button>
+                <button id="lessonSaveQuestionsWithTestBtn" class="btn-secondary" type="button">
+                  Save Questions With Test
+                </button>
               </div>
             </section>
 
@@ -856,6 +894,14 @@
           </div>
           <div class="admin-form-row">
             <div class="admin-field">
+              <label for="lessonQuestionEditSection">Section</label>
+              <select id="lessonQuestionEditSection">
+                <option value="Comprehension">Comprehension</option>
+                <option value="Grammar">Grammar</option>
+                <option value="General MCQs">General MCQs</option>
+              </select>
+            </div>
+            <div class="admin-field">
               <label for="lessonQuestionEditCorrect">Correct Option</label>
               <select id="lessonQuestionEditCorrect">
                 <option value="A">A</option>
@@ -881,7 +927,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=74"></script>
+    <script type="module" src="./src/admin-lessons.js?v=75"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

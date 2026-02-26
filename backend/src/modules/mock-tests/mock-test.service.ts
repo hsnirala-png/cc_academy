@@ -58,6 +58,11 @@ const normalizeAccessCode = (value: unknown): AccessCode => {
   return "DEMO";
 };
 
+const normalizeSectionLabel = (value: unknown): string | null => {
+  const normalized = String(value ?? "").trim();
+  return normalized ? normalized.slice(0, 120) : null;
+};
+
 const loadMockTestAccessMap = async (mockTestIds: string[]) => {
   if (!mockTestIds.length) return new Map<string, AccessCode>();
   const placeholders = mockTestIds.map(() => "?").join(", ");
@@ -245,6 +250,7 @@ const serializeQuestion = (item: {
   optionD: string;
   correctOption: MockOption;
   explanation: string | null;
+  sectionLabel: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -627,6 +633,7 @@ export const mockTestService = {
       optionD: string;
       correctOption: MockOption;
       explanation?: string;
+      sectionLabel?: string;
       isActive?: boolean;
     }
   ) {
@@ -641,6 +648,7 @@ export const mockTestService = {
         optionD: input.optionD,
         correctOption: input.correctOption,
         explanation: input.explanation,
+        sectionLabel: normalizeSectionLabel(input.sectionLabel),
         isActive: input.isActive ?? true,
       },
     });
@@ -658,6 +666,7 @@ export const mockTestService = {
       optionD: string;
       correctOption: MockOption;
       explanation?: string;
+      sectionLabel?: string;
       isActive?: boolean;
     }>,
     options?: {
@@ -676,6 +685,7 @@ export const mockTestService = {
       optionD: row.optionD.trim(),
       correctOption: row.correctOption,
       explanation: row.explanation?.trim() || null,
+      sectionLabel: normalizeSectionLabel(row.sectionLabel),
       isActive: row.isActive ?? true,
     }));
 
@@ -722,6 +732,7 @@ export const mockTestService = {
       optionD: string;
       correctOption: MockOption;
       explanation?: string;
+      sectionLabel?: string;
       isActive: boolean;
     }>
   ) {
@@ -740,6 +751,10 @@ export const mockTestService = {
         optionD: updates.optionD,
         correctOption: updates.correctOption,
         explanation: updates.explanation,
+        sectionLabel:
+          updates.sectionLabel === undefined
+            ? undefined
+            : normalizeSectionLabel(updates.sectionLabel),
         isActive: updates.isActive,
       },
     });

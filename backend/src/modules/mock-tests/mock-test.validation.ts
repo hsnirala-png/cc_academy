@@ -25,6 +25,11 @@ const optionalLanguageModeSchema = z.preprocess(
   z.enum(["PUNJABI", "ENGLISH", "HINDI"]).nullable().optional()
 );
 
+const optionalSectionLabelSchema = z.preprocess(
+  parseEmptyAsUndefined,
+  z.string().trim().max(120).optional()
+);
+
 export const adminCreateMockTestSchema = z.object({
   title: z.string().trim().min(2).max(180),
   examType: z.enum(["PSTET_1", "PSTET_2"]),
@@ -54,6 +59,7 @@ export const adminCreateQuestionSchema = z.object({
   optionD: z.string().trim().min(1),
   correctOption: z.enum(["A", "B", "C", "D"]),
   explanation: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
+  sectionLabel: optionalSectionLabelSchema,
   isActive: z.boolean().optional(),
 });
 
@@ -69,6 +75,7 @@ export const adminBulkImportQuestionRowSchema = z.object({
   optionD: z.string().trim().min(1),
   correctOption: z.enum(["A", "B", "C", "D"]),
   explanation: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
+  sectionLabel: optionalSectionLabelSchema,
   isActive: z.boolean().optional(),
 });
 

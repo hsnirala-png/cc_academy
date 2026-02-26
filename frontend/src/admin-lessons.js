@@ -126,9 +126,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonSelectedTestHint = document.querySelector("#lessonSelectedTestHint");
   const lessonQuestionCountWarning = document.querySelector("#lessonQuestionCountWarning");
   const lessonQuestionTargetCountInput = document.querySelector("#lessonQuestionTargetCount");
+  const lessonQuestionSectionFilterInput = document.querySelector("#lessonQuestionSectionFilter");
+  const lessonQuestionSectionSummary = document.querySelector("#lessonQuestionSectionSummary");
   const lessonQuestionForm = document.querySelector("#lessonQuestionForm");
   const lessonQuestionIdInput = document.querySelector("#lessonQuestionId");
   const lessonQuestionTextInput = document.querySelector("#lessonQuestionText");
+  const lessonQuestionSectionInput = document.querySelector("#lessonQuestionSection");
   const lessonOptionAInput = document.querySelector("#lessonOptionA");
   const lessonOptionBInput = document.querySelector("#lessonOptionB");
   const lessonOptionCInput = document.querySelector("#lessonOptionC");
@@ -140,11 +143,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionCancelBtn = document.querySelector("#lessonQuestionCancelBtn");
   const lessonQuestionsTableBody = document.querySelector("#lessonQuestionsTableBody");
   const lessonBulkImportTextInput = document.querySelector("#lessonBulkImportText");
+  const lessonBulkImportSectionInput = document.querySelector("#lessonBulkImportSection");
   const lessonBulkImportBtn = document.querySelector("#lessonBulkImportBtn");
   const lessonBulkImportCsvFileInput = document.querySelector("#lessonBulkImportCsvFile");
   const lessonBulkImportReplaceExistingInput = document.querySelector("#lessonBulkImportReplaceExisting");
+  const lessonBulkImportCsvSectionInput = document.querySelector("#lessonBulkImportCsvSection");
   const lessonBulkImportCsvBtn = document.querySelector("#lessonBulkImportCsvBtn");
+  const lessonSectionCsvSampleBtn = document.querySelector("#lessonSectionCsvSampleBtn");
   const lessonSaveTestBtn = document.querySelector("#lessonSaveTestBtn");
+  const lessonSaveQuestionsWithTestBtn = document.querySelector("#lessonSaveQuestionsWithTestBtn");
   const lessonMockTestsTableBody = document.querySelector("#lessonMockTestsTableBody");
   const lessonPreviewModal = document.querySelector("#lessonPreviewModal");
   const lessonPreviewClose = document.querySelector("#lessonPreviewClose");
@@ -194,6 +201,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditOptionBInput = document.querySelector("#lessonQuestionEditOptionB");
   const lessonQuestionEditOptionCInput = document.querySelector("#lessonQuestionEditOptionC");
   const lessonQuestionEditOptionDInput = document.querySelector("#lessonQuestionEditOptionD");
+  const lessonQuestionEditSectionInput = document.querySelector("#lessonQuestionEditSection");
   const lessonQuestionEditCorrectInput = document.querySelector("#lessonQuestionEditCorrect");
   const lessonQuestionEditExplanationInput = document.querySelector("#lessonQuestionEditExplanation");
   const lessonQuestionEditIsActiveInput = document.querySelector("#lessonQuestionEditIsActive");
@@ -1997,6 +2005,96 @@ document.addEventListener("DOMContentLoaded", async () => {
     MOCK: "MOCK",
     LESSON: "LESSON",
   };
+  const DEFAULT_QUESTION_SECTIONS = ["Comprehension", "Grammar", "General MCQs"];
+  const normalizeQuestionSectionLabel = (value) => {
+    const normalized = String(value || "").trim();
+    return normalized ? normalized.slice(0, 120) : "";
+  };
+  const getQuestionSectionOptions = () => {
+    const fromQuestions = state.mockQuestions
+      .map((question) => normalizeQuestionSectionLabel(question?.sectionLabel))
+      .filter(Boolean);
+    const options = [...DEFAULT_QUESTION_SECTIONS];
+    fromQuestions.forEach((label) => {
+      if (!options.includes(label)) {
+        options.push(label);
+      }
+    });
+    return options;
+  };
+  const currentQuestionSectionFilter = () =>
+    lessonQuestionSectionFilterInput instanceof HTMLSelectElement
+      ? String(lessonQuestionSectionFilterInput.value || "ALL")
+      : "ALL";
+  const activeQuestionSectionFilter = () => {
+    const filter = currentQuestionSectionFilter();
+    return filter === "ALL" ? "" : filter;
+  };
+  const visibleMockQuestions = () => {
+    const filter = activeQuestionSectionFilter();
+    if (!filter) return state.mockQuestions;
+    return state.mockQuestions.filter(
+      (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === filter
+    );
+  };
+  const renderQuestionSectionControls = () => {
+    const sectionOptions = getQuestionSectionOptions();
+    const renderSelectOptions = (selectedValue, includeAll = false) => {
+      const options = [];
+      if (includeAll) {
+        options.push('<option value="ALL">All Sections</option>');
+      }
+      sectionOptions.forEach((label) => {
+        const selected = selectedValue === label ? " selected" : "";
+        options.push(`<option value="${escapeHtml(label)}"${selected}>${escapeHtml(label)}</option>`);
+      });
+      return options.join("");
+    };
+
+    if (lessonQuestionSectionInput instanceof HTMLSelectElement) {
+      const previous = normalizeQuestionSectionLabel(lessonQuestionSectionInput.value) || sectionOptions[0] || "";
+      lessonQuestionSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonQuestionSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
+    }
+    if (lessonBulkImportSectionInput instanceof HTMLSelectElement) {
+      const previous = normalizeQuestionSectionLabel(lessonBulkImportSectionInput.value) || sectionOptions[0] || "";
+      lessonBulkImportSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonBulkImportSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
+    }
+    if (lessonBulkImportCsvSectionInput instanceof HTMLSelectElement) {
+      const previous = normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput.value) || sectionOptions[0] || "";
+      lessonBulkImportCsvSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonBulkImportCsvSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
+    }
+    if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
+      const previous = normalizeQuestionSectionLabel(lessonQuestionEditSectionInput.value) || sectionOptions[0] || "";
+      lessonQuestionEditSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonQuestionEditSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
+    }
+    if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
+      const previous = currentQuestionSectionFilter();
+      lessonQuestionSectionFilterInput.innerHTML = renderSelectOptions(previous, true);
+      lessonQuestionSectionFilterInput.value =
+        previous === "ALL" || sectionOptions.includes(previous) ? previous : "ALL";
+    }
+  };
+  const updateQuestionSectionSummary = () => {
+    if (!(lessonQuestionSectionSummary instanceof HTMLElement)) return;
+    if (!state.mockQuestions.length) {
+      lessonQuestionSectionSummary.textContent = "No questions added yet.";
+      return;
+    }
+    const sectionOptions = getQuestionSectionOptions();
+    const sectionSummary = sectionOptions
+      .map((label) => {
+        const total = state.mockQuestions.filter(
+          (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === label
+        ).length;
+        return `${label}: ${total}`;
+      })
+      .join(" | ");
+    lessonQuestionSectionSummary.textContent = `Section-wise count: ${sectionSummary}`;
+  };
   const isMockScopeReady = () =>
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
   const selectedMockTest = () =>
@@ -2539,6 +2637,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(lessonQuestionForm instanceof HTMLFormElement)) return;
     lessonQuestionForm.reset();
     if (lessonQuestionIdInput instanceof HTMLInputElement) lessonQuestionIdInput.value = "";
+    if (lessonQuestionSectionInput instanceof HTMLSelectElement) {
+      const defaultSection =
+        normalizeQuestionSectionLabel(lessonQuestionSectionInput.value) || DEFAULT_QUESTION_SECTIONS[0];
+      lessonQuestionSectionInput.value = defaultSection;
+    }
     if (lessonQuestionIsActiveInput instanceof HTMLInputElement) lessonQuestionIsActiveInput.checked = true;
     if (lessonQuestionSubmitBtn instanceof HTMLButtonElement) lessonQuestionSubmitBtn.textContent = "Add Question";
     if (lessonQuestionCancelBtn instanceof HTMLButtonElement) lessonQuestionCancelBtn.classList.add("hidden");
@@ -2548,6 +2651,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(lessonQuestionEditForm instanceof HTMLFormElement)) return;
     lessonQuestionEditForm.reset();
     if (lessonQuestionEditIdInput instanceof HTMLInputElement) lessonQuestionEditIdInput.value = "";
+    if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
+      const defaultSection =
+        normalizeQuestionSectionLabel(lessonQuestionEditSectionInput.value) || DEFAULT_QUESTION_SECTIONS[0];
+      lessonQuestionEditSectionInput.value = defaultSection;
+    }
     if (lessonQuestionEditCorrectInput instanceof HTMLSelectElement) lessonQuestionEditCorrectInput.value = "A";
     if (lessonQuestionEditIsActiveInput instanceof HTMLInputElement) {
       lessonQuestionEditIsActiveInput.checked = true;
@@ -2564,6 +2672,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const openLessonQuestionEditModal = (question) => {
     if (!(lessonQuestionEditModal instanceof HTMLElement)) return;
     if (!question) return;
+
+    renderQuestionSectionControls();
 
     if (lessonQuestionEditIdInput instanceof HTMLInputElement) {
       lessonQuestionEditIdInput.value = String(question.id || "");
@@ -2582,6 +2692,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (lessonQuestionEditOptionDInput instanceof HTMLInputElement) {
       lessonQuestionEditOptionDInput.value = String(question.optionD || "");
+    }
+    if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
+      lessonQuestionEditSectionInput.value =
+        normalizeQuestionSectionLabel(question.sectionLabel) || DEFAULT_QUESTION_SECTIONS[0];
     }
     if (lessonQuestionEditCorrectInput instanceof HTMLSelectElement) {
       lessonQuestionEditCorrectInput.value = String(question.correctOption || "A");
@@ -2606,6 +2720,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       optionB: lessonQuestionEditOptionBInput?.value?.trim() || "",
       optionC: lessonQuestionEditOptionCInput?.value?.trim() || "",
       optionD: lessonQuestionEditOptionDInput?.value?.trim() || "",
+      sectionLabel:
+        normalizeQuestionSectionLabel(lessonQuestionEditSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0],
       correctOption: lessonQuestionEditCorrectInput?.value || "A",
       explanation: lessonQuestionEditExplanationInput?.value?.trim() || undefined,
       isActive: Boolean(lessonQuestionEditIsActiveInput?.checked),
@@ -2692,12 +2808,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderLessonQuestions = () => {
     if (!(lessonQuestionsTableBody instanceof HTMLElement)) return;
+    renderQuestionSectionControls();
+    updateQuestionSectionSummary();
+    const filteredQuestions = visibleMockQuestions();
     if (!state.mockQuestions.length) {
-      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='7'>No questions yet.</td></tr>";
+      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='8'>No questions yet.</td></tr>";
       updateLessonQuestionCountWarning();
       return;
     }
-    lessonQuestionsTableBody.innerHTML = state.mockQuestions
+    if (!filteredQuestions.length) {
+      lessonQuestionsTableBody.innerHTML =
+        "<tr><td colspan='8'>No questions found for selected section filter.</td></tr>";
+      updateLessonQuestionCountWarning();
+      return;
+    }
+    lessonQuestionsTableBody.innerHTML = filteredQuestions
       .map(
         (question) => `
       <tr>
@@ -2706,6 +2831,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <td>${escapeHtml(question.optionB || "-")}</td>
         <td>${escapeHtml(question.optionC || "-")}</td>
         <td>${escapeHtml(question.optionD || "-")}</td>
+        <td>${escapeHtml(normalizeQuestionSectionLabel(question.sectionLabel) || "-")}</td>
         <td>${escapeHtml(question.correctOption || "-")}</td>
         <td>
           <div class="table-actions">
@@ -2759,6 +2885,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonSaveTestBtn.title = canSave
         ? "Create or update the lesson with transcript, test, and selected mode."
         : "Select course, subject, and chapter first.";
+    }
+    if (lessonSaveQuestionsWithTestBtn instanceof HTMLButtonElement) {
+      const canSave = shouldShow && Boolean(state.selectedMockTestId);
+      lessonSaveQuestionsWithTestBtn.disabled = !canSave;
+      lessonSaveQuestionsWithTestBtn.title = canSave
+        ? "Persist current question set with selected test and chapter."
+        : "Select chapter and test first.";
     }
   };
 
@@ -2819,12 +2952,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     return rows;
   };
 
-  const normalizeCsvRows = (rows) => {
+  const normalizeCsvRows = (rows, options = {}) => {
+    const { defaultSectionLabel = "" } = options;
     if (!rows.length) {
       throw new Error("CSV file is empty.");
     }
 
-    const header = rows[0].map((cell) => cell.toLowerCase().replaceAll(" ", ""));
+    const normalizeHeaderKey = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replaceAll(" ", "")
+        .replaceAll("_", "")
+        .trim();
+    const header = rows[0].map((cell) => normalizeHeaderKey(cell));
     const looksLikeHeader =
       header.includes("questiontext") &&
       header.includes("optiona") &&
@@ -2832,6 +2972,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       header.includes("optionc") &&
       header.includes("optiond") &&
       header.includes("correctoption");
+    const headerMap = looksLikeHeader
+      ? {
+          questionText: header.indexOf("questiontext"),
+          optionA: header.indexOf("optiona"),
+          optionB: header.indexOf("optionb"),
+          optionC: header.indexOf("optionc"),
+          optionD: header.indexOf("optiond"),
+          correctOption: header.indexOf("correctoption"),
+          explanation: header.indexOf("explanation"),
+          isActive: header.indexOf("isactive"),
+          sectionLabel: Math.max(
+            header.indexOf("sectionlabel"),
+            header.indexOf("section"),
+            header.indexOf("questionsection")
+          ),
+        }
+      : null;
 
     const dataRows = looksLikeHeader ? rows.slice(1) : rows;
     if (!dataRows.length) {
@@ -2843,14 +3000,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error(`CSV row ${index + 1} is invalid. Minimum 6 columns required.`);
       }
 
-      const questionText = (row[0] || "").trim();
-      const optionA = (row[1] || "").trim();
-      const optionB = (row[2] || "").trim();
-      const optionC = (row[3] || "").trim();
-      const optionD = (row[4] || "").trim();
-      const correctOption = (row[5] || "").trim().toUpperCase();
-      const explanation = (row[6] || "").trim();
-      const isActiveRaw = (row[7] || "").trim().toLowerCase();
+      const readByIndex = (explicitIndex, fallbackIndex) => {
+        const indexToRead = Number.isFinite(explicitIndex) && explicitIndex >= 0 ? explicitIndex : fallbackIndex;
+        return (row[indexToRead] || "").trim();
+      };
+
+      const questionText = readByIndex(headerMap?.questionText, 0);
+      const optionA = readByIndex(headerMap?.optionA, 1);
+      const optionB = readByIndex(headerMap?.optionB, 2);
+      const optionC = readByIndex(headerMap?.optionC, 3);
+      const optionD = readByIndex(headerMap?.optionD, 4);
+      const correctOption = readByIndex(headerMap?.correctOption, 5).toUpperCase();
+      const explanation = readByIndex(headerMap?.explanation, 6);
+      const isActiveRaw = readByIndex(headerMap?.isActive, 7).toLowerCase();
+      const sectionLabelRaw = readByIndex(headerMap?.sectionLabel, 8);
+      const sectionLabel =
+        normalizeQuestionSectionLabel(sectionLabelRaw) ||
+        normalizeQuestionSectionLabel(defaultSectionLabel) ||
+        DEFAULT_QUESTION_SECTIONS[0];
 
       if (!questionText || !optionA || !optionB || !optionC || !optionD) {
         throw new Error(`CSV row ${index + 1} has empty required columns.`);
@@ -2874,9 +3041,71 @@ document.addEventListener("DOMContentLoaded", async () => {
         optionD,
         correctOption,
         explanation: explanation || undefined,
+        sectionLabel,
         isActive,
       };
     });
+  };
+
+  const toCsvCell = (value) => {
+    const text = String(value ?? "");
+    if (text.includes(",") || text.includes('"') || text.includes("\n") || text.includes("\r")) {
+      return `"${text.replaceAll('"', '""')}"`;
+    }
+    return text;
+  };
+
+  const downloadLessonSectionCsvSample = () => {
+    const selectedSection =
+      normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
+    const rows = [
+      [
+        "questionText",
+        "optionA",
+        "optionB",
+        "optionC",
+        "optionD",
+        "correctOption",
+        "explanation",
+        "isActive",
+        "sectionLabel",
+      ],
+      [
+        "Sample question 1",
+        "Option A",
+        "Option B",
+        "Option C",
+        "Option D",
+        "B",
+        "Sample explanation 1",
+        "TRUE",
+        selectedSection,
+      ],
+      [
+        "Sample question 2",
+        "Option A",
+        "Option B",
+        "Option C",
+        "Option D",
+        "A",
+        "Sample explanation 2",
+        "TRUE",
+        selectedSection,
+      ],
+    ];
+    const csvContent = `${rows
+      .map((row) => row.map((cell) => toCsvCell(cell)).join(","))
+      .join("\n")}\n`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const fileSuffix = selectedSection.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.href = url;
+    link.download = `mock-test-import-template-${fileSuffix || "section"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const setMockContextLabels = () => {
@@ -3652,6 +3881,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       optionB: lessonOptionBInput?.value?.trim() || "",
       optionC: lessonOptionCInput?.value?.trim() || "",
       optionD: lessonOptionDInput?.value?.trim() || "",
+      sectionLabel:
+        normalizeQuestionSectionLabel(lessonQuestionSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0],
       correctOption: lessonCorrectOptionInput?.value || "A",
       explanation: lessonQuestionExplanationInput?.value?.trim() || undefined,
       isActive: Boolean(lessonQuestionIsActiveInput?.checked),
@@ -3678,7 +3909,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const handleLessonBulkImport = async () => {
     if (!state.selectedMockTestId) throw new Error("Create or attach a test before bulk import.");
     const text = lessonBulkImportTextInput?.value?.trim() || "";
-    if (!text) throw new Error("Paste lines in format: question|A|B|C|D|correct|explanation.");
+    if (!text) throw new Error("Paste lines in format: question|A|B|C|D|correct|explanation|section.");
+    const defaultSection =
+      normalizeQuestionSectionLabel(lessonBulkImportSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
 
     const lines = text
       .split("\n")
@@ -3689,11 +3922,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (parts.length < 6) {
         throw new Error(`Invalid line: ${line}`);
       }
-      const [questionText, optionA, optionB, optionC, optionD, correctOption, explanation] = parts;
+      const [questionText, optionA, optionB, optionC, optionD, correctOption, explanation, sectionLabelRaw] = parts;
       const normalized = correctOption.toUpperCase();
       if (!["A", "B", "C", "D"].includes(normalized)) {
         throw new Error(`Invalid correct option in line: ${line}`);
       }
+      const sectionLabel =
+        normalizeQuestionSectionLabel(sectionLabelRaw) ||
+        normalizeQuestionSectionLabel(defaultSection) ||
+        DEFAULT_QUESTION_SECTIONS[0];
       await apiRequest({
         path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
         method: "POST",
@@ -3706,6 +3943,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           optionD,
           correctOption: normalized,
           explanation,
+          sectionLabel,
           isActive: true,
         },
       });
@@ -3718,10 +3956,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!file) {
       throw new Error("Please choose a CSV file.");
     }
+    const defaultSection =
+      normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
 
     const csvText = await file.text();
     const parsedRows = parseCsvText(csvText);
-    const rows = normalizeCsvRows(parsedRows);
+    const rows = normalizeCsvRows(parsedRows, { defaultSectionLabel: defaultSection });
     const response = await apiRequest({
       path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions/import-csv`,
       method: "POST",
@@ -5372,6 +5612,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
+    lessonQuestionSectionFilterInput.addEventListener("change", () => {
+      renderLessonQuestions();
+    });
+  }
+
   if (lessonQuestionForm instanceof HTMLFormElement) {
     lessonQuestionForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -5509,11 +5755,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (lessonSectionCsvSampleBtn instanceof HTMLButtonElement) {
+    lessonSectionCsvSampleBtn.addEventListener("click", () => {
+      downloadLessonSectionCsvSample();
+      setMessage("Section sample CSV downloaded.", "success");
+    });
+  }
+
   if (lessonSaveTestBtn instanceof HTMLButtonElement) {
     lessonSaveTestBtn.addEventListener("click", () => {
       if (!(lessonForm instanceof HTMLFormElement)) return;
       setMessage("Creating lesson with test, transcript, and selected mode...");
       lessonForm.requestSubmit();
+    });
+  }
+
+  if (lessonSaveQuestionsWithTestBtn instanceof HTMLButtonElement) {
+    lessonSaveQuestionsWithTestBtn.addEventListener("click", async () => {
+      try {
+        setMessage("Saving questions with test...");
+        await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
+        await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestsAdmin(), loadAssessments()]);
+        setPendingTestChanges(false);
+        setMessage("Questions are saved with selected test.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to save questions with test.", "error");
+      }
     });
   }
 
@@ -5809,6 +6076,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLessons();
     renderMockChapterOptions();
     renderMockLessonOptions();
+    renderQuestionSectionControls();
+    updateQuestionSectionSummary();
     setContextLabels();
     ensureSampleTranscriptText();
     syncVoiceProviderUi();

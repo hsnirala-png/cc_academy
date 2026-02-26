@@ -297,6 +297,7 @@ model Question {
   optionD      String      @db.Text
   correctOption MockOption
   explanation  String?     @db.Text
+  sectionLabel String?     @db.VarChar(120)
   isActive     Boolean     @default(true)
   mockTest     MockTest    @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
   attemptQuestions AttemptQuestion[]
@@ -305,6 +306,7 @@ model Question {
   updatedAt    DateTime    @updatedAt
 
   @@index([mockTestId, isActive])
+  @@index([mockTestId, sectionLabel, isActive])
 }
 
 model Attempt {
