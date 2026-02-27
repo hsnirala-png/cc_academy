@@ -124,6 +124,40 @@ const upsertMockTestAccessCode = async (mockTestId: string, accessCode: AccessCo
     now,
     now
   );
+
+  // Keep product demo linkage aligned with current access code:
+  // any test marked DEMO should appear as free in product TOC.
+  try {
+    if (accessCode === "DEMO") {
+      await prisma.$executeRawUnsafe(
+        `
+          INSERT INTO ProductDemoMockTest (productId, mockTestId, createdAt)
+          SELECT pmt.productId, pmt.mockTestId, ?
+          FROM ProductMockTest pmt
+          WHERE pmt.mockTestId = ?
+          ON DUPLICATE KEY UPDATE
+            createdAt = ProductDemoMockTest.createdAt
+        `,
+        now,
+        mockTestId
+      );
+      return;
+    }
+
+    await prisma.$executeRawUnsafe(
+      `
+        DELETE FROM ProductDemoMockTest
+        WHERE mockTestId = ?
+      `,
+      mockTestId
+    );
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingDemoLinkTable =
+      (message.includes("1146") || message.includes("p2010")) &&
+      message.includes("productdemomocktest");
+    if (!missingDemoLinkTable) throw error;
+  }
 };
 
 const loadLinkedProductCountMap = async (mockTestIds: string[]) => {

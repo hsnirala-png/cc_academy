@@ -363,9 +363,9 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
   const placeholders = productIds.map(() => "?").join(", ");
   const rows = (await prisma.$queryRawUnsafe(
     `
-      SELECT
-        pdmt.productId,
-        pdmt.mockTestId,
+      SELECT DISTINCT
+        linked.productId,
+        linked.mockTestId,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -377,11 +377,39 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
           LIMIT 1
         ) AS mockTestAccessCode,
         mt.isActive AS mockTestIsActive
-      FROM ProductDemoMockTest pdmt
-      INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
-      WHERE pdmt.productId IN (${placeholders})
-      ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
+      FROM (
+        SELECT
+          pdmt.productId,
+          pdmt.mockTestId,
+          pdmt.createdAt AS linkCreatedAt
+        FROM ProductDemoMockTest pdmt
+        WHERE pdmt.productId IN (${placeholders})
+
+        UNION
+
+        SELECT
+          pmt.productId,
+          pmt.mockTestId,
+          pmt.createdAt AS linkCreatedAt
+        FROM ProductMockTest pmt
+        WHERE pmt.productId IN (${placeholders})
+          AND UPPER(
+            COALESCE(
+              (
+                SELECT mar2.accessCode
+                FROM MockTestAccessRule mar2
+                WHERE mar2.mockTestId = pmt.mockTestId
+                ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
+                LIMIT 1
+              ),
+              'DEMO'
+            )
+          ) LIKE 'DEMO%'
+      ) linked
+      INNER JOIN MockTest mt ON mt.id = linked.mockTestId
+      ORDER BY linked.productId ASC, linked.linkCreatedAt ASC, mt.createdAt ASC
     `,
+    ...productIds,
     ...productIds
   )) as ProductMockTestRow[];
 
