@@ -363,7 +363,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
   const placeholders = productIds.map(() => "?").join(", ");
   const rows = (await prisma.$queryRawUnsafe(
     `
-      SELECT DISTINCT
+      SELECT
         linked.productId,
         linked.mockTestId,
         mt.title AS mockTestTitle,
@@ -379,32 +379,39 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
         mt.isActive AS mockTestIsActive
       FROM (
         SELECT
-          pdmt.productId,
-          pdmt.mockTestId,
-          pdmt.createdAt AS linkCreatedAt
-        FROM ProductDemoMockTest pdmt
-        WHERE pdmt.productId IN (${placeholders})
+          rawLinks.productId,
+          rawLinks.mockTestId,
+          MIN(rawLinks.linkCreatedAt) AS linkCreatedAt
+        FROM (
+          SELECT
+            pdmt.productId,
+            pdmt.mockTestId,
+            pdmt.createdAt AS linkCreatedAt
+          FROM ProductDemoMockTest pdmt
+          WHERE pdmt.productId IN (${placeholders})
 
-        UNION
+          UNION ALL
 
-        SELECT
-          pmt.productId,
-          pmt.mockTestId,
-          pmt.createdAt AS linkCreatedAt
-        FROM ProductMockTest pmt
-        WHERE pmt.productId IN (${placeholders})
-          AND UPPER(
-            COALESCE(
-              (
-                SELECT mar2.accessCode
-                FROM MockTestAccessRule mar2
-                WHERE mar2.mockTestId = pmt.mockTestId
-                ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
-                LIMIT 1
-              ),
-              'DEMO'
-            )
-          ) LIKE 'DEMO%'
+          SELECT
+            pmt.productId,
+            pmt.mockTestId,
+            pmt.createdAt AS linkCreatedAt
+          FROM ProductMockTest pmt
+          WHERE pmt.productId IN (${placeholders})
+            AND UPPER(
+              COALESCE(
+                (
+                  SELECT mar2.accessCode
+                  FROM MockTestAccessRule mar2
+                  WHERE mar2.mockTestId = pmt.mockTestId
+                  ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
+                  LIMIT 1
+                ),
+                'DEMO'
+              )
+            ) LIKE 'DEMO%'
+        ) rawLinks
+        GROUP BY rawLinks.productId, rawLinks.mockTestId
       ) linked
       INNER JOIN MockTest mt ON mt.id = linked.mockTestId
       ORDER BY linked.productId ASC, linked.linkCreatedAt ASC, mt.createdAt ASC
