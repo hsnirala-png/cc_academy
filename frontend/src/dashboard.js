@@ -598,7 +598,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload?.message || "Unable to start attempt.");
+      const error = new Error(payload?.message || "Unable to start attempt.");
+      error.status = response.status;
+      error.code = payload?.code;
+      error.details = payload?.details;
+      throw error;
     }
 
     const attemptId = payload?.attempt?.id;
@@ -968,6 +972,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           setLessonTestStatus("Starting attempt...");
           await startDashboardAttempt(mockTestId);
         } catch (error) {
+          const code = String(error?.code || "").trim();
+          const details = error?.details || {};
+          if (code === "MOCK_REG_REQUIRED") {
+            const registrationUrl = String(details?.registrationPageUrl || "").trim();
+            if (registrationUrl) {
+              window.location.href = registrationUrl;
+              return;
+            }
+          }
+          if (code === "MOCK_ATTEMPTS_EXHAUSTED") {
+            const buyNowUrl = String(details?.buyNowUrl || "").trim();
+            if (buyNowUrl) {
+              window.location.href = buyNowUrl;
+              return;
+            }
+          }
           const message = error instanceof Error ? error.message : "Unable to start attempt.";
           setLessonTestStatus(message, "error");
         }
@@ -1032,6 +1052,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           throw new Error("Demo lesson is not configured yet.");
         } catch (error) {
+          const code = String(error?.code || "").trim();
+          const details = error?.details || {};
+          if (code === "MOCK_REG_REQUIRED") {
+            const registrationUrl = String(details?.registrationPageUrl || "").trim();
+            if (registrationUrl) {
+              window.location.href = registrationUrl;
+              return;
+            }
+          }
+          if (code === "MOCK_ATTEMPTS_EXHAUSTED") {
+            const buyNowUrl = String(details?.buyNowUrl || "").trim();
+            if (buyNowUrl) {
+              window.location.href = buyNowUrl;
+              return;
+            }
+          }
           const message = error instanceof Error ? error.message : "Unable to open demo lesson.";
           setProductsStatus(message, "error");
         }

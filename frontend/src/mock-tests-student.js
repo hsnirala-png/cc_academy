@@ -75,6 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     history: [],
     tests: [],
     availableLanguages: [],
+    activeRegistrationTestId: "",
   };
 
   if (headingName) {
@@ -135,6 +136,124 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 9000);
   };
 
+  const getRegistrationState = (mockTestId) => {
+    const test = state.tests.find((item) => item.id === mockTestId);
+    return test?.registration || null;
+  };
+
+  const resolveRegistrationBuyUrl = (registration) => {
+    const buyNowUrl = String(registration?.buyNowUrl || "").trim();
+    if (buyNowUrl) return buyNowUrl;
+    return "./products.html";
+  };
+
+  const ensureRegistrationModal = () => {
+    let modal = document.querySelector("#mockRegistrationModal");
+    if (!(modal instanceof HTMLElement)) {
+      modal = document.createElement("div");
+      modal.id = "mockRegistrationModal";
+      modal.className = "mock-registration-modal hidden";
+      modal.innerHTML = `
+        <div class="mock-registration-dialog" role="dialog" aria-modal="true" aria-labelledby="mockRegTitle">
+          <button type="button" class="mock-registration-close" data-close-reg-modal aria-label="Close">x</button>
+          <div id="mockRegBannerWrap" class="mock-registration-banner-wrap hidden">
+            <img id="mockRegBanner" alt="Mock registration banner" />
+          </div>
+          <h3 id="mockRegTitle">Mock Registration</h3>
+          <p id="mockRegDescription" class="dash-k"></p>
+          <p id="mockRegAttemptsInfo" class="dash-k"></p>
+          <form id="mockRegForm" class="mock-filter-grid">
+            <div class="field">
+              <label for="mockRegFullName">Full Name</label>
+              <input id="mockRegFullName" required />
+            </div>
+            <div class="field">
+              <label for="mockRegMobile">Mobile</label>
+              <input id="mockRegMobile" required />
+            </div>
+            <div class="field">
+              <label for="mockRegEmail">Email (optional)</label>
+              <input id="mockRegEmail" type="email" />
+            </div>
+            <div class="field filter-action">
+              <button class="btn-primary" type="submit">Register & Start</button>
+            </div>
+          </form>
+          <div class="mock-registration-actions">
+            <a id="mockRegPageLink" class="btn-ghost" href="./mock-test-registration.html">Open Full Registration Page</a>
+            <button id="mockRegBuyNowBtn" type="button" class="btn-secondary">Buy Mock</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    return modal;
+  };
+
+  const closeRegistrationModal = () => {
+    const modal = document.querySelector("#mockRegistrationModal");
+    if (modal instanceof HTMLElement) {
+      modal.classList.add("hidden");
+      state.activeRegistrationTestId = "";
+    }
+  };
+
+  const openRegistrationModal = (mockTestId) => {
+    const test = state.tests.find((item) => item.id === mockTestId);
+    if (!test?.registration) return;
+    const registration = test.registration;
+    const modal = ensureRegistrationModal();
+    state.activeRegistrationTestId = mockTestId;
+
+    const titleEl = modal.querySelector("#mockRegTitle");
+    const descEl = modal.querySelector("#mockRegDescription");
+    const attemptsEl = modal.querySelector("#mockRegAttemptsInfo");
+    const bannerWrap = modal.querySelector("#mockRegBannerWrap");
+    const banner = modal.querySelector("#mockRegBanner");
+    const fullNameInput = modal.querySelector("#mockRegFullName");
+    const mobileInput = modal.querySelector("#mockRegMobile");
+    const emailInput = modal.querySelector("#mockRegEmail");
+    const pageLink = modal.querySelector("#mockRegPageLink");
+    const buyNowBtn = modal.querySelector("#mockRegBuyNowBtn");
+
+    if (titleEl instanceof HTMLElement) titleEl.textContent = registration.title || test.title || "Mock Registration";
+    if (descEl instanceof HTMLElement) descEl.textContent = registration.description || "";
+    if (attemptsEl instanceof HTMLElement) {
+      if (registration.hasPaidAccess) {
+        attemptsEl.textContent = "Paid access detected. Unlimited attempts available.";
+      } else {
+        attemptsEl.textContent = `Free chances: ${registration.freeAttemptLimit} | Used: ${registration.usedAttempts} | Remaining: ${registration.remainingAttempts}`;
+      }
+    }
+    if (bannerWrap instanceof HTMLElement && banner instanceof HTMLImageElement) {
+      const imageUrl = String(registration.popupImageUrl || "").trim();
+      if (imageUrl) {
+        banner.src = imageUrl;
+        bannerWrap.classList.remove("hidden");
+      } else {
+        bannerWrap.classList.add("hidden");
+      }
+    }
+    if (fullNameInput instanceof HTMLInputElement) fullNameInput.value = user?.name || "";
+    if (mobileInput instanceof HTMLInputElement) mobileInput.value = user?.mobile || "";
+    if (emailInput instanceof HTMLInputElement) emailInput.value = user?.email || "";
+    if (pageLink instanceof HTMLAnchorElement) {
+      pageLink.href = registration.registrationPageUrl || `./mock-test-registration.html?mockTestId=${encodeURIComponent(mockTestId)}`;
+    }
+    if (buyNowBtn instanceof HTMLButtonElement) {
+      buyNowBtn.onclick = () => {
+        window.location.href = resolveRegistrationBuyUrl(registration);
+      };
+    }
+
+    const closeBtn = modal.querySelector("[data-close-reg-modal]");
+    if (closeBtn instanceof HTMLButtonElement) {
+      closeBtn.onclick = () => closeRegistrationModal();
+    }
+
+    modal.classList.remove("hidden");
+  };
+
   const getHistoryBadge = (mockTestId) => {
     const attempts = state.history.filter((item) => item.mockTestId === mockTestId);
     if (!attempts.length) {
@@ -158,6 +277,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     testsContainer.innerHTML = state.tests
       .map((test) => {
         const required = Number(test.requiredQuestions || 0) || REQUIRED_QUESTIONS_BY_SUBJECT[test.subject] || 30;
+        const registration = test.registration && test.registration.enabled ? test.registration : null;
+        const registrationLine = registration
+          ? registration.hasPaidAccess
+            ? `<p class="mock-test-meta">Registration: Paid access unlocked.</p>`
+            : `<p class="mock-test-meta">Registration: Free ${registration.freeAttemptLimit}, Used ${registration.usedAttempts}, Remaining ${registration.remainingAttempts}</p>`
+          : "";
+        const registrationActions = registration
+          ? `
+              <button class="btn-ghost" data-open-registration="${test.id}" type="button">
+                ${registration.isRegistered ? "Edit Registration" : "Register"}
+              </button>
+              <a class="btn-ghost" href="${escapeHtml(
+                registration.registrationPageUrl || `./mock-test-registration.html?mockTestId=${encodeURIComponent(test.id)}`
+              )}">Registration Page</a>
+            `
+          : "";
+
         return `
           <article class="mock-test-card">
             <h3>${escapeHtml(test.title)}</h3>
@@ -172,6 +308,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
             </p>
             <p class="mock-test-meta">Questions: ${required}</p>
+            ${registrationLine}
             <div class="mock-test-badges">
               <span class="chip ${test.isActive ? "active" : "inactive"}">${
           test.isActive ? "Active" : "Inactive"
@@ -179,6 +316,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${getHistoryBadge(test.id)}
             </div>
             <div class="mock-test-actions">
+              ${registrationActions}
               <button class="btn-primary" data-start-test="${test.id}" type="button">Start Attempt</button>
             </div>
           </article>
@@ -331,6 +469,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = `${attemptPagePath}${separator}attemptId=${encodeURIComponent(attemptId)}`;
   };
 
+  const registerForMockTest = async (mockTestId, payload) => {
+    await apiRequest({
+      path: `/student/mock-tests/${encodeURIComponent(mockTestId)}/register`,
+      method: "POST",
+      token,
+      body: payload,
+    });
+  };
+
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
       clearAuth();
@@ -387,16 +534,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     testsContainer.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const openRegistrationBtn = target.closest("[data-open-registration]");
+      if (openRegistrationBtn instanceof HTMLElement) {
+        const mockTestId = openRegistrationBtn.getAttribute("data-open-registration");
+        if (!mockTestId) return;
+        openRegistrationModal(mockTestId);
+        return;
+      }
+
       const startButton = target.closest("[data-start-test]");
       if (!(startButton instanceof HTMLElement)) return;
       const mockTestId = startButton.getAttribute("data-start-test");
       if (!mockTestId) return;
 
       try {
+        const registration = getRegistrationState(mockTestId);
+        if (registration?.enabled) {
+          if (!registration.isRegistered) {
+            setStatus("Please complete registration first.", "error");
+            openRegistrationModal(mockTestId);
+            return;
+          }
+          if (!registration.hasPaidAccess && Number(registration.remainingAttempts || 0) <= 0) {
+            setStatus("Free attempts completed. Please buy mock to continue.", "error");
+            window.location.href = resolveRegistrationBuyUrl(registration);
+            return;
+          }
+        }
+
         setStatus("Starting attempt...");
         await startAttempt(mockTestId);
       } catch (error) {
+        const payload = error?.payload || {};
+        const errorCode = String(payload?.code || "").trim();
+        if (errorCode === "MOCK_REG_REQUIRED") {
+          openRegistrationModal(mockTestId);
+        }
+        if (errorCode === "MOCK_ATTEMPTS_EXHAUSTED") {
+          const buyNowUrl = String(payload?.details?.buyNowUrl || "").trim();
+          if (buyNowUrl) {
+            window.location.href = buyNowUrl;
+            return;
+          }
+        }
         setStatus(error.message || "Unable to start attempt", "error");
+      }
+    });
+  }
+
+  const modal = ensureRegistrationModal();
+  if (modal instanceof HTMLElement) {
+    modal.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target === modal) {
+        closeRegistrationModal();
+      }
+    });
+  }
+
+  const modalForm = modal?.querySelector("#mockRegForm");
+  if (modalForm instanceof HTMLFormElement) {
+    modalForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const mockTestId = state.activeRegistrationTestId;
+      if (!mockTestId) return;
+      const fullNameInput = modalForm.querySelector("#mockRegFullName");
+      const mobileInput = modalForm.querySelector("#mockRegMobile");
+      const emailInput = modalForm.querySelector("#mockRegEmail");
+      try {
+        setStatus("Saving registration...");
+        await registerForMockTest(mockTestId, {
+          fullName: String(fullNameInput?.value || "").trim(),
+          mobile: String(mobileInput?.value || "").trim(),
+          email: String(emailInput?.value || "").trim() || undefined,
+        });
+        closeRegistrationModal();
+        await loadTests();
+        setStatus("Registration saved. Starting attempt...");
+        await startAttempt(mockTestId);
+      } catch (error) {
+        setStatus(error.message || "Unable to save registration", "error");
       }
     });
   }

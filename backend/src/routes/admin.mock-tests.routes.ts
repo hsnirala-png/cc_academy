@@ -1,9 +1,17 @@
 import { Role } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
 import { Router } from "express";
+import { z } from "zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { mockTestService } from "../modules/mock-tests/mock-test.service";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
+import { ensureMockTestRegistrationStorageReady } from "../utils/mockTestRegistrationStorage";
+import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
+import { prisma } from "../utils/prisma";
+import { AppError } from "../utils/appError";
 import {
   adminAttemptsFilterSchema,
   adminBulkImportQuestionsSchema,
@@ -18,11 +26,425 @@ import {
 export const adminMockTestsRouter = Router();
 
 const ensureAdmin = [requireAuth, requireRole(Role.ADMIN)] as const;
+const mockRegistrationUploadDir = path.join(resolvePublicAssetsDir(), "uploads", "mock-registrations");
+const baseNow = () => new Date();
+
+const toBoolean = (value: unknown): boolean => {
+  if (typeof value === "boolean") return value;
+  return Number(value) === 1;
+};
+
+const parseDataUrl = (dataUrl: string) => {
+  const match = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([a-zA-Z0-9+/=]+)$/.exec(dataUrl.trim());
+  if (!match) {
+    throw new AppError("Invalid image format. Use PNG, JPG, JPEG, or WEBP.", 400);
+  }
+  const mimeType = match[1];
+  const base64 = match[2];
+  const buffer = Buffer.from(base64, "base64");
+  return { mimeType, buffer };
+};
+
+const mimeTypeToExtension: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/webp": "webp",
+};
+
+const uploadBannerSchema = z.object({
+  dataUrl: z.string().trim().min(40),
+});
+
+const normalizeOptionalText = (value: unknown, max: number) => {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  return text.slice(0, max);
+};
+
+const createRegistrationGateSchema = z.object({
+  mockTestId: z.string().trim().min(8),
+  title: z.string().trim().min(2).max(191),
+  description: z.string().trim().max(5000).optional(),
+  popupImageUrl: z.string().trim().max(1000).optional(),
+  freeAttemptLimit: z.coerce.number().int().min(0).max(100),
+  buyNowUrl: z.string().trim().max(1000).optional(),
+  ctaLabel: z.string().trim().min(2).max(120).optional(),
+  isActive: z.boolean().optional(),
+});
+
+const updateRegistrationGateSchema = createRegistrationGateSchema
+  .omit({ mockTestId: true })
+  .partial()
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: "At least one field is required for update.",
+  });
+
+type GateRow = {
+  id: string;
+  mockTestId: string;
+  title: string;
+  description: string | null;
+  popupImageUrl: string | null;
+  freeAttemptLimit: number | string;
+  buyNowUrl: string | null;
+  ctaLabel: string | null;
+  isActive: number | boolean;
+  createdBy: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  mockTestTitle: string | null;
+  examType: string | null;
+  subject: string | null;
+  streamChoice: string | null;
+  languageMode: string | null;
+  registeredCount: number | string;
+};
+
+const serializeGate = (row: GateRow) => ({
+  id: row.id,
+  mockTestId: row.mockTestId,
+  title: row.title,
+  description: row.description || "",
+  popupImageUrl: row.popupImageUrl || "",
+  freeAttemptLimit: Number(row.freeAttemptLimit || 0),
+  buyNowUrl: row.buyNowUrl || "",
+  ctaLabel: row.ctaLabel || "Buy Mock",
+  isActive: toBoolean(row.isActive),
+  createdBy: row.createdBy || null,
+  createdAt: new Date(row.createdAt).toISOString(),
+  updatedAt: new Date(row.updatedAt).toISOString(),
+  mockTestTitle: row.mockTestTitle || "",
+  examType: row.examType || "",
+  subject: row.subject || "",
+  streamChoice: row.streamChoice || "",
+  languageMode: row.languageMode || "",
+  registeredCount: Number(row.registeredCount || 0),
+});
+
+const fetchRegistrationGates = async (includeInactive: boolean) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        g.id,
+        g.mockTestId,
+        g.title,
+        g.description,
+        g.popupImageUrl,
+        g.freeAttemptLimit,
+        g.buyNowUrl,
+        g.ctaLabel,
+        g.isActive,
+        g.createdBy,
+        g.createdAt,
+        g.updatedAt,
+        mt.title AS mockTestTitle,
+        mt.examType,
+        mt.subject,
+        mt.streamChoice,
+        mt.languageMode,
+        COUNT(DISTINCT e.userId) AS registeredCount
+      FROM MockTestRegistrationGate g
+      INNER JOIN MockTest mt ON mt.id = g.mockTestId
+      LEFT JOIN MockTestRegistrationEntry e ON e.gateId = g.id
+      ${includeInactive ? "" : "WHERE g.isActive = 1"}
+      GROUP BY
+        g.id,
+        g.mockTestId,
+        g.title,
+        g.description,
+        g.popupImageUrl,
+        g.freeAttemptLimit,
+        g.buyNowUrl,
+        g.ctaLabel,
+        g.isActive,
+        g.createdBy,
+        g.createdAt,
+        g.updatedAt,
+        mt.title,
+        mt.examType,
+        mt.subject,
+        mt.streamChoice,
+        mt.languageMode
+      ORDER BY g.updatedAt DESC
+    `
+  )) as GateRow[];
+
+  return rows.map(serializeGate);
+};
 
 adminMockTestsRouter.use("/mock-tests", async (_req, _res, next) => {
   try {
     await ensureMockTestAccessStorageReady();
     next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.use("/mock-test-registrations", async (_req, _res, next) => {
+  try {
+    await ensureMockTestRegistrationStorageReady();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.post(
+  "/mock-test-registrations/banner-upload",
+  ...ensureAdmin,
+  async (req, res, next) => {
+    try {
+      const input = uploadBannerSchema.parse(req.body);
+      const { mimeType, buffer } = parseDataUrl(input.dataUrl);
+      const extension = mimeTypeToExtension[mimeType];
+      const fileName = `${randomUUID()}.${extension}`;
+      await mkdir(mockRegistrationUploadDir, { recursive: true });
+      const absolutePath = path.join(mockRegistrationUploadDir, fileName);
+      await writeFile(absolutePath, buffer);
+      res.status(201).json({
+        imageUrl: `/public/uploads/mock-registrations/${fileName}`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+adminMockTestsRouter.get("/mock-test-registrations", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const includeInactive = String(req.query.includeInactive || "").trim().toLowerCase();
+    const registrations = await fetchRegistrationGates(includeInactive === "1" || includeInactive === "true");
+    res.json({ registrations });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = createRegistrationGateSchema.parse(req.body || {});
+    const mockTestRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id
+        FROM MockTest
+        WHERE id = ?
+        LIMIT 1
+      `,
+      input.mockTestId
+    )) as Array<{ id: string }>;
+    if (!mockTestRows[0]) {
+      throw new AppError("Selected mock test was not found.", 404);
+    }
+
+    const existingRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id
+        FROM MockTestRegistrationGate
+        WHERE mockTestId = ?
+        LIMIT 1
+      `,
+      input.mockTestId
+    )) as Array<{ id: string }>;
+
+    const now = baseNow();
+    const gateId = existingRows[0]?.id || randomUUID();
+    if (existingRows[0]?.id) {
+      await prisma.$executeRawUnsafe(
+        `
+          UPDATE MockTestRegistrationGate
+          SET
+            title = ?,
+            description = ?,
+            popupImageUrl = ?,
+            freeAttemptLimit = ?,
+            buyNowUrl = ?,
+            ctaLabel = ?,
+            isActive = ?,
+            updatedAt = ?
+          WHERE id = ?
+        `,
+        input.title,
+        normalizeOptionalText(input.description, 5000),
+        normalizeOptionalText(input.popupImageUrl, 1000),
+        Number(input.freeAttemptLimit),
+        normalizeOptionalText(input.buyNowUrl, 1000),
+        normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
+        input.isActive === undefined ? 1 : input.isActive ? 1 : 0,
+        now,
+        gateId
+      );
+    } else {
+      await prisma.$executeRawUnsafe(
+        `
+          INSERT INTO MockTestRegistrationGate (
+            id, mockTestId, title, description, popupImageUrl, freeAttemptLimit, buyNowUrl, ctaLabel, isActive, createdBy, createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        gateId,
+        input.mockTestId,
+        input.title,
+        normalizeOptionalText(input.description, 5000),
+        normalizeOptionalText(input.popupImageUrl, 1000),
+        Number(input.freeAttemptLimit),
+        normalizeOptionalText(input.buyNowUrl, 1000),
+        normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
+        input.isActive === undefined ? 1 : input.isActive ? 1 : 0,
+        req.user!.userId,
+        now,
+        now
+      );
+    }
+
+    const registrations = await fetchRegistrationGates(true);
+    const registration = registrations.find((item) => item.id === gateId);
+    res.status(201).json({ registration });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = updateRegistrationGateSchema.parse(req.body || {});
+    const gateId = String(req.params.id || "").trim();
+    if (!gateId) throw new AppError("Registration id is required.", 400);
+
+    const existingRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT *
+        FROM MockTestRegistrationGate
+        WHERE id = ?
+        LIMIT 1
+      `,
+      gateId
+    )) as Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      popupImageUrl: string | null;
+      freeAttemptLimit: number;
+      buyNowUrl: string | null;
+      ctaLabel: string | null;
+      isActive: number | boolean;
+    }>;
+    const existing = existingRows[0];
+    if (!existing) throw new AppError("Registration config not found.", 404);
+
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE MockTestRegistrationGate
+        SET
+          title = ?,
+          description = ?,
+          popupImageUrl = ?,
+          freeAttemptLimit = ?,
+          buyNowUrl = ?,
+          ctaLabel = ?,
+          isActive = ?,
+          updatedAt = ?
+        WHERE id = ?
+      `,
+      input.title ?? existing.title,
+      input.description !== undefined ? normalizeOptionalText(input.description, 5000) : existing.description,
+      input.popupImageUrl !== undefined
+        ? normalizeOptionalText(input.popupImageUrl, 1000)
+        : existing.popupImageUrl,
+      input.freeAttemptLimit !== undefined ? Number(input.freeAttemptLimit) : Number(existing.freeAttemptLimit || 0),
+      input.buyNowUrl !== undefined ? normalizeOptionalText(input.buyNowUrl, 1000) : existing.buyNowUrl,
+      input.ctaLabel !== undefined
+        ? normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock"
+        : existing.ctaLabel || "Buy Mock",
+      input.isActive !== undefined ? (input.isActive ? 1 : 0) : toBoolean(existing.isActive) ? 1 : 0,
+      baseNow(),
+      gateId
+    );
+
+    const registrations = await fetchRegistrationGates(true);
+    const registration = registrations.find((item) => item.id === gateId);
+    res.json({ registration });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.delete("/mock-test-registrations/:id", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const gateId = String(req.params.id || "").trim();
+    if (!gateId) throw new AppError("Registration id is required.", 400);
+    await prisma.$executeRawUnsafe("DELETE FROM MockTestRegistrationGate WHERE id = ?", gateId);
+    res.json({ message: "Registration config deleted." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const gateId = String(req.params.id || "").trim();
+    if (!gateId) throw new AppError("Registration id is required.", 400);
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          e.id,
+          e.gateId,
+          e.mockTestId,
+          e.userId,
+          e.fullName,
+          e.mobile,
+          e.email,
+          e.createdAt,
+          e.updatedAt,
+          u.name AS userName,
+          u.mobile AS userMobile,
+          u.email AS userEmail,
+          (
+            SELECT COUNT(*)
+            FROM Attempt a
+            WHERE a.userId = e.userId
+              AND a.mockTestId = e.mockTestId
+          ) AS usedAttempts
+        FROM MockTestRegistrationEntry e
+        LEFT JOIN User u ON u.id = e.userId
+        WHERE e.gateId = ?
+        ORDER BY e.createdAt DESC
+      `,
+      gateId
+    )) as Array<{
+      id: string;
+      gateId: string;
+      mockTestId: string;
+      userId: string;
+      fullName: string;
+      mobile: string;
+      email: string | null;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+      userName: string | null;
+      userMobile: string | null;
+      userEmail: string | null;
+      usedAttempts: number | string;
+    }>;
+
+    res.json({
+      entries: rows.map((row) => ({
+        id: row.id,
+        gateId: row.gateId,
+        mockTestId: row.mockTestId,
+        userId: row.userId,
+        fullName: row.fullName,
+        mobile: row.mobile,
+        email: row.email || "",
+        userName: row.userName || "",
+        userMobile: row.userMobile || "",
+        userEmail: row.userEmail || "",
+        usedAttempts: Number(row.usedAttempts || 0),
+        createdAt: new Date(row.createdAt).toISOString(),
+        updatedAt: new Date(row.updatedAt).toISOString(),
+      })),
+    });
   } catch (error) {
     next(error);
   }

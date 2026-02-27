@@ -993,7 +993,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload?.message || "Unable to start learning.");
+      const error = new Error(payload?.message || "Unable to start learning.");
+      error.status = response.status;
+      error.code = payload?.code;
+      error.details = payload?.details;
+      throw error;
     }
 
     const attemptId = String(payload?.attempt?.id || "").trim();
@@ -2098,6 +2102,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to start learning.";
+            const code = String(error?.code || "").trim();
+            const details = error?.details || {};
+            if (code === "MOCK_REG_REQUIRED") {
+              const registrationUrl = String(details?.registrationPageUrl || "").trim();
+              if (registrationUrl) {
+                window.location.href = registrationUrl;
+                return;
+              }
+            }
+            if (code === "MOCK_ATTEMPTS_EXHAUSTED") {
+              const buyNowUrl = String(details?.buyNowUrl || "").trim();
+              if (buyNowUrl) {
+                window.location.href = buyNowUrl;
+                return;
+              }
+              navigateToProductCheckout(learningProductId);
+              return;
+            }
             setMessage(message, "error");
           }
           return;

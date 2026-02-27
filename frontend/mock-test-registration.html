@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Test Registration</title>
+    <link rel="stylesheet" href="./src/styles.css?v=22" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html">Dashboard</a>
+          <a href="./mock-tests.html">Mock Tests</a>
+          <a href="./mock-history.html">History</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mock-wrap">
+      <section class="mock-page-header">
+        <h1>Mock Registration</h1>
+        <p class="mock-subtitle">Register and use free attempts before buying full access.</p>
+      </section>
+      <p id="registrationStatus" class="form-message"></p>
+
+      <section class="dash-card">
+        <div id="registrationBannerWrap" class="hidden" style="margin-bottom: 0.8rem">
+          <img
+            id="registrationBannerImage"
+            alt="Mock registration banner"
+            style="width: 100%; max-height: 280px; object-fit: contain; border-radius: 12px; border: 1px solid var(--border)"
+          />
+        </div>
+        <h2 id="registrationTitle">Mock Test Registration</h2>
+        <p id="registrationDescription" class="dash-k"></p>
+        <p id="registrationAttemptsInfo" class="dash-k"></p>
+      </section>
+
+      <section class="dash-card">
+        <h3>Student Details</h3>
+        <form id="registrationForm" class="mock-filter-grid">
+          <div class="field">
+            <label for="regFullName">Full Name</label>
+            <input id="regFullName" required />
+          </div>
+          <div class="field">
+            <label for="regMobile">Mobile</label>
+            <input id="regMobile" required />
+          </div>
+          <div class="field">
+            <label for="regEmail">Email (optional)</label>
+            <input id="regEmail" type="email" />
+          </div>
+          <div class="field filter-action">
+            <button id="registerBtn" class="btn-primary" type="submit">Register</button>
+          </div>
+        </form>
+
+        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem">
+          <button id="startAttemptBtn" class="btn-primary" type="button">Start Mock Attempt</button>
+          <button id="buyMockBtn" class="btn-secondary" type="button">Buy Mock</button>
+          <a class="btn-ghost" href="./mock-tests.html">Back to Mock Tests</a>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/mock-test-registration.js?v=1"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

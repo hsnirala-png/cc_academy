@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Mock Registrations</title>
+    <link rel="stylesheet" href="./src/styles.css?v=22" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link active" href="./admin-mock-registrations.html">Mock Registration</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Mock Test Registration</h1>
+              <p class="admin-subtitle">Create registration gates, popup banners, and free-attempt rules.</p>
+            </div>
+          </section>
+
+          <p id="registrationMessage" class="form-message"></p>
+
+          <section class="admin-panel">
+            <h2>Registration Config</h2>
+            <form id="registrationForm" class="admin-form">
+              <input id="registrationId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="registrationMockTestId">Mock Test</label>
+                  <select id="registrationMockTestId" required>
+                    <option value="">Select mock test</option>
+                  </select>
+                </div>
+                <div class="admin-field">
+                  <label for="registrationTitle">Popup Title</label>
+                  <input id="registrationTitle" required />
+                </div>
+                <div class="admin-field">
+                  <label for="registrationFreeAttempts">Free Attempt Chances</label>
+                  <input id="registrationFreeAttempts" type="number" min="0" step="1" value="1" required />
+                </div>
+                <div class="admin-field">
+                  <label for="registrationCtaLabel">Buy Button Label</label>
+                  <input id="registrationCtaLabel" value="Buy Mock" />
+                </div>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="registrationBuyUrl">Buy Link (after free chances)</label>
+                  <input id="registrationBuyUrl" placeholder="./products.html?productId=..." />
+                </div>
+                <div class="admin-field">
+                  <label for="registrationImageUrl">Popup Banner Image URL</label>
+                  <input id="registrationImageUrl" placeholder="/public/uploads/mock-registrations/..." />
+                </div>
+                <div class="admin-field">
+                  <label for="registrationImageFile">Upload Popup Banner</label>
+                  <input id="registrationImageFile" type="file" accept="image/png,image/jpeg,image/webp" />
+                </div>
+                <div class="admin-field inline-check">
+                  <input id="registrationIsActive" type="checkbox" checked />
+                  <label for="registrationIsActive">Active</label>
+                </div>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="admin-field" style="grid-column: span 2">
+                  <label for="registrationDescription">Description</label>
+                  <textarea id="registrationDescription" rows="3"></textarea>
+                </div>
+                <div class="admin-field" style="grid-column: span 2">
+                  <label for="registrationPageLink">Registration Page Link</label>
+                  <input id="registrationPageLink" readonly />
+                </div>
+              </div>
+
+              <div class="admin-actions">
+                <button id="registrationUploadBtn" class="btn-ghost" type="button">Upload Image</button>
+                <button id="registrationSubmitBtn" class="btn-primary" type="submit">Save Config</button>
+                <button id="registrationResetBtn" class="btn-ghost" type="button">Clear</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.6rem">
+              <h2 style="margin: 0">Configured Mock Registrations</h2>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Mock Test</th>
+                    <th>Free Chances</th>
+                    <th>Registered</th>
+                    <th>Status</th>
+                    <th>Link</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="registrationTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.6rem">
+              <h2 style="margin: 0">Registered Students</h2>
+              <p id="registrationEntriesContext" class="admin-subtitle" style="margin: 0">
+                Select a registration config to view students.
+              </p>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th>Used Attempts</th>
+                    <th>Registered At</th>
+                  </tr>
+                </thead>
+                <tbody id="registrationEntriesBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-mock-registrations.js?v=1"></script>
+  </body>
+</html>
+
+
