@@ -148,33 +148,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const showDashboardRegistrationPopup = (option) => {
     const registrationUrl = String(option?.registrationPageUrl || "").trim();
     if (!registrationUrl) return;
+    const popupImageUrl = String(option?.popupImageUrl || "").trim();
+    if (!popupImageUrl) return;
     closeDashboardRegistrationPopup();
     const modal = document.createElement("div");
     modal.id = "dashboardMockRegistrationPopup";
     modal.className = "mock-registration-modal";
-    const popupImageUrl = String(option?.popupImageUrl || option?.mockThumbnailUrl || "").trim();
-    const imageMarkup = popupImageUrl
-      ? `<div class=\"mock-registration-banner-wrap\"><img src=\"${escapeHtml(
-          popupImageUrl
-        )}\" alt=\"Mock registration\" /></div>`
-      : "";
-    const reminder = getMockReminderMeta(option);
-    const isReminder = Boolean(option?.isRegistered && reminder);
-    const reminderTitle = isReminder
-      ? "Mock Test Reminder"
-      : option?.title || option?.mockTestTitle || "Mock Registration";
-    const pendingText = option?.hasPaidAccess
-      ? "Paid access available."
-      : `Pending chances: ${Math.max(0, Number(option?.remainingAttempts || 0))}`;
-    const scheduleText = reminder ? `${reminder.dateLabel} | ${reminder.timeLabel}` : "";
     modal.innerHTML = `
-      <div class=\"mock-registration-dialog mock-global-reg-popup\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
+      <div class=\"mock-registration-dialog mock-global-reg-popup mock-global-reg-popup--image-only\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
         <button type=\"button\" class=\"mock-registration-close\" data-dash-reg-close aria-label=\"Close\">x</button>
-        ${imageMarkup}
-        <h3 class=\"mock-global-reg-title\">${escapeHtml(reminderTitle)}</h3>
-        <p class=\"mock-global-reg-sub\">${escapeHtml(option?.title || option?.mockTestTitle || "Mock Test")}</p>
-        ${scheduleText ? `<p class=\"mock-global-reg-sub\">${escapeHtml(scheduleText)}</p>` : ""}
-        <p class=\"mock-global-reg-sub\">${escapeHtml(pendingText)}</p>
+        <img src=\"${escapeHtml(popupImageUrl)}\" alt=\"Mock registration\" class=\"mock-global-reg-image-only\" />
       </div>
     `;
     document.body.appendChild(modal);
@@ -211,11 +194,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!response.ok) return;
       const data = await response.json().catch(() => ({}));
       const options = Array.isArray(data?.options) ? data.options : [];
-      if (!options.length) return;
+      const popupOptions = options.filter((item) => String(item?.popupImageUrl || "").trim());
+      if (!popupOptions.length) return;
       const preferred =
-        options.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
-        options.find((item) => !item?.hasPaidAccess && Number(item?.remainingAttempts || 0) > 0) ||
-        options[0];
+        popupOptions.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
+        popupOptions.find((item) => !item?.hasPaidAccess && Number(item?.remainingAttempts || 0) > 0) ||
+        popupOptions[0];
       showDashboardRegistrationPopup(preferred);
     } catch {
       // Keep silent in dashboard if popup API is unavailable.

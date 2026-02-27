@@ -3622,6 +3622,37 @@ h1 {
   z-index: 2;
 }
 
+.mock-global-reg-popup--image-only {
+  width: auto;
+  max-width: min(920px, 96vw);
+  max-height: 92vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.mock-global-reg-image-only {
+  display: block;
+  width: 100%;
+  max-width: min(920px, 96vw);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+}
+
+.mock-global-reg-popup--image-only .mock-registration-close {
+  right: -10px;
+  top: -10px;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .mock-global-reg-popup .mock-global-reg-title {
   margin: 0.1rem 0 0.4rem;
 }

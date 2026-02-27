@@ -19,6 +19,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const logoutBtn = document.querySelector("#adminLogoutBtn");
   const form = document.querySelector("#registrationForm");
   const registrationIdInput = document.querySelector("#registrationId");
+  const examTypeFilterInput = document.querySelector("#registrationExamType");
+  const pstet2SubjectFilterWrap = document.querySelector("#registrationPstet2SubjectWrap");
+  const pstet2SubjectFilterInput = document.querySelector("#registrationPstet2Subject");
   const mockTestIdInput = document.querySelector("#registrationMockTestId");
   const titleInput = document.querySelector("#registrationTitle");
   const descriptionInput = document.querySelector("#registrationDescription");
@@ -108,15 +111,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (scheduledTimeInput instanceof HTMLSelectElement) scheduledTimeInput.value = "";
     if (ctaLabelInput instanceof HTMLInputElement) ctaLabelInput.value = "Buy Mock";
     if (isActiveInput instanceof HTMLInputElement) isActiveInput.checked = true;
+    syncTestFilters();
     syncRegistrationLinkField();
   };
 
   const renderMockTestOptions = () => {
     if (!(mockTestIdInput instanceof HTMLSelectElement)) return;
     const current = mockTestIdInput.value;
+    const examTypeFilter = String(examTypeFilterInput?.value || "").trim().toUpperCase();
+    const streamFilter = String(pstet2SubjectFilterInput?.value || "").trim().toUpperCase();
+    const filteredTests = state.mockTests.filter((test) => {
+      const testExamType = String(test?.examType || "").trim().toUpperCase();
+      const testStream = String(test?.streamChoice || "").trim().toUpperCase();
+      if (examTypeFilter && testExamType !== examTypeFilter) return false;
+      if (examTypeFilter === "PSTET_2" && streamFilter && testStream !== streamFilter) return false;
+      return true;
+    });
     mockTestIdInput.innerHTML = `
       <option value="">Select mock test</option>
-      ${state.mockTests
+      ${filteredTests
         .map((test) => {
           const labels = [
             EXAM_LABELS[test.examType] || test.examType,
@@ -130,8 +143,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         })
         .join("")}
     `;
-    mockTestIdInput.value = state.mockTests.some((item) => item.id === current) ? current : "";
+    mockTestIdInput.value = filteredTests.some((item) => item.id === current) ? current : "";
     syncRegistrationLinkField();
+  };
+
+  const syncTestFilters = () => {
+    const examType = String(examTypeFilterInput?.value || "").trim().toUpperCase();
+    const isPstet2 = examType === "PSTET_2";
+    if (pstet2SubjectFilterWrap instanceof HTMLElement) {
+      pstet2SubjectFilterWrap.classList.toggle("hidden", !isPstet2);
+    }
+    if (!isPstet2 && pstet2SubjectFilterInput instanceof HTMLSelectElement) {
+      pstet2SubjectFilterInput.value = "";
+    }
+    renderMockTestOptions();
   };
 
   const renderRegistrations = () => {
@@ -231,6 +256,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const fillForm = (registration) => {
     if (!registration) return;
     if (registrationIdInput) registrationIdInput.value = registration.id || "";
+    if (examTypeFilterInput instanceof HTMLSelectElement) {
+      examTypeFilterInput.value = String(registration.examType || "").trim().toUpperCase();
+    }
+    if (pstet2SubjectFilterInput instanceof HTMLSelectElement) {
+      pstet2SubjectFilterInput.value = String(registration.streamChoice || "").trim().toUpperCase();
+    }
+    syncTestFilters();
     if (mockTestIdInput) mockTestIdInput.value = registration.mockTestId || "";
     if (titleInput) titleInput.value = registration.title || "";
     if (descriptionInput) descriptionInput.value = registration.description || "";
@@ -266,6 +298,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (mockTestIdInput instanceof HTMLSelectElement) {
     mockTestIdInput.addEventListener("change", syncRegistrationLinkField);
+  }
+  if (examTypeFilterInput instanceof HTMLSelectElement) {
+    examTypeFilterInput.addEventListener("change", syncTestFilters);
+  }
+  if (pstet2SubjectFilterInput instanceof HTMLSelectElement) {
+    pstet2SubjectFilterInput.addEventListener("change", syncTestFilters);
   }
 
   if (uploadBtn instanceof HTMLButtonElement) {
@@ -391,6 +429,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     setMessage("Loading registration manager...");
     await Promise.all([loadMockTests(), loadRegistrations()]);
+    syncTestFilters();
     renderEntries();
     resetForm();
     setMessage("Mock registration manager ready.", "success");
