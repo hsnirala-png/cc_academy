@@ -289,9 +289,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = document.createElement("div");
     modal.id = "homeMockRegistrationPopup";
     modal.className = "mock-registration-modal";
-    const imageMarkup = option?.popupImageUrl
+    const popupImageUrl = String(option?.popupImageUrl || option?.mockThumbnailUrl || "").trim();
+    const imageMarkup = popupImageUrl
       ? `<div class=\"mock-registration-banner-wrap\"><img src=\"${escapeHtml(
-          option.popupImageUrl
+          popupImageUrl
         )}\" alt=\"Mock registration\" /></div>`
       : "";
     const pendingText = option?.hasPaidAccess
@@ -302,7 +303,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <button type=\"button\" class=\"mock-registration-close\" data-home-reg-close aria-label=\"Close\">x</button>
         ${imageMarkup}
         <h3 class=\"mock-global-reg-title\">${escapeHtml(option?.title || option?.mockTestTitle || "Mock Registration")}</h3>
-        <p class=\"mock-global-reg-sub\">${escapeHtml(option?.description || "")}</p>
         <p class=\"mock-global-reg-sub\">${escapeHtml(pendingText)}</p>
       </div>
     `;

@@ -35,6 +35,7 @@ type RegistrationGateRow = {
   title: string;
   description: string | null;
   popupImageUrl: string | null;
+  mockThumbnailUrl?: string | null;
   freeAttemptLimit: number | string;
   buyNowUrl: string | null;
   ctaLabel: string | null;
@@ -85,6 +86,14 @@ const loadActiveRegistrationGates = async (mockTestIds: string[]) => {
         g.title,
         g.description,
         g.popupImageUrl,
+        (
+          SELECT p.thumbnailUrl
+          FROM ProductMockTest pmt
+          INNER JOIN Product p ON p.id = pmt.productId
+          WHERE pmt.mockTestId = mt.id
+          ORDER BY p.updatedAt DESC, p.createdAt DESC
+          LIMIT 1
+        ) AS mockThumbnailUrl,
         g.freeAttemptLimit,
         g.buyNowUrl,
         g.ctaLabel,
@@ -125,6 +134,14 @@ const loadAllActiveRegistrationGates = async () => {
         g.title,
         g.description,
         g.popupImageUrl,
+        (
+          SELECT p.thumbnailUrl
+          FROM ProductMockTest pmt
+          INNER JOIN Product p ON p.id = pmt.productId
+          WHERE pmt.mockTestId = mt.id
+          ORDER BY p.updatedAt DESC, p.createdAt DESC
+          LIMIT 1
+        ) AS mockThumbnailUrl,
         g.freeAttemptLimit,
         g.buyNowUrl,
         g.ctaLabel,
@@ -308,6 +325,7 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
         title: gate.title,
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
+        mockThumbnailUrl: gate.mockThumbnailUrl || "",
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
@@ -363,6 +381,7 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
         title: gate.title,
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
+        mockThumbnailUrl: gate.mockThumbnailUrl || "",
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
@@ -419,6 +438,7 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         title: gate.title,
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
+        mockThumbnailUrl: gate.mockThumbnailUrl || "",
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
