@@ -337,7 +337,14 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
         mt.isActive AS mockTestIsActive
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
-      LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
+      LEFT JOIN MockTestAccessRule mar
+        ON mar.id = (
+          SELECT mar2.id
+          FROM MockTestAccessRule mar2
+          WHERE mar2.mockTestId = mt.id
+          ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC, mar2.id DESC
+          LIMIT 1
+        )
       WHERE pmt.productId IN (${placeholders})
       ORDER BY pmt.productId ASC, pmt.createdAt ASC, mt.createdAt ASC
     `,
@@ -368,7 +375,14 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
         mt.isActive AS mockTestIsActive
       FROM ProductDemoMockTest pdmt
       INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
-      LEFT JOIN MockTestAccessRule mar ON mar.mockTestId = mt.id
+      LEFT JOIN MockTestAccessRule mar
+        ON mar.id = (
+          SELECT mar2.id
+          FROM MockTestAccessRule mar2
+          WHERE mar2.mockTestId = mt.id
+          ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC, mar2.id DESC
+          LIMIT 1
+        )
       WHERE pdmt.productId IN (${placeholders})
       ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,

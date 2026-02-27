@@ -1254,14 +1254,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       return id !== demoId;
     });
 
-    const uniquePremium = [];
-    const seenPremium = new Set();
+    const normalizeLinkedAccessCode = (rawValue) =>
+      String(rawValue || "")
+        .trim()
+        .toUpperCase();
+    const resolveLinkedAccessPriority = (rawValue) => {
+      const normalized = normalizeLinkedAccessCode(rawValue);
+      if (
+        normalized === "DEMO" ||
+        normalized.startsWith("DEMO ") ||
+        normalized.includes("FREE FOR ALL")
+      ) {
+        return 3;
+      }
+      if (normalized === "LESSON") return 2;
+      return 1;
+    };
+    const premiumById = new Map();
     premiumTests.forEach((item) => {
       const id = String(item?.id || "").trim();
-      if (!id || seenPremium.has(id)) return;
-      seenPremium.add(id);
-      uniquePremium.push(item);
+      if (!id) return;
+      const current = premiumById.get(id);
+      if (!current) {
+        premiumById.set(id, item);
+        return;
+      }
+      const currentScore = resolveLinkedAccessPriority(current?.accessCode);
+      const nextScore = resolveLinkedAccessPriority(item?.accessCode);
+      if (nextScore > currentScore) {
+        premiumById.set(id, item);
+      }
     });
+    const uniquePremium = Array.from(premiumById.values());
 
     const items = [];
 
