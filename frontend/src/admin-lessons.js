@@ -4180,6 +4180,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const setSelectedMockTestId = async (mockTestId, options = {}) => {
     const { silent = true, forceQuestionCount = false } = options;
     state.selectedMockTestId = mockTestId || "";
+    if (lessonMockTestIdInput instanceof HTMLInputElement) {
+      lessonMockTestIdInput.value = state.selectedMockTestId;
+    }
     state.hasPendingTestChanges = false;
     resetLessonQuestionForm();
     syncQuestionTargetCountForSelectedTest({ force: forceQuestionCount });
@@ -4502,7 +4505,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("Language mode is required for this subject.");
     }
 
-    const existingTestId = lessonMockTestIdInput?.value?.trim() || "";
+    const existingTestId =
+      String(state.selectedMockTestId || "").trim() ||
+      lessonMockTestIdInput?.value?.trim() ||
+      "";
     let savedTestId = existingTestId;
     if (existingTestId) {
       const updated = await apiRequest({
@@ -4527,6 +4533,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!savedTestId) {
       throw new Error("Unable to get test id after save.");
+    }
+    if (lessonMockTestIdInput instanceof HTMLInputElement) {
+      lessonMockTestIdInput.value = savedTestId;
     }
 
     await linkMockTestToLesson(savedTestId, selectedLessonId, { silent: true });
