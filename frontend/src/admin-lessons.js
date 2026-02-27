@@ -3957,6 +3957,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join("");
   };
 
+  const formatAssessmentDisplayTitle = (value) =>
+    String(value || "")
+      .replace(/^\s*\d+\s*[\.\-\)]\s*/, "")
+      .trim();
+
   const renderLessons = () => {
     if (!lessonsTableBody) return;
     renderLessonSelectOptions();
@@ -3980,7 +3985,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${lesson.orderIndex}</td>
             <td>${escapeHtml(lesson.title)}</td>
             <td>${lesson.durationSec || 0}s</td>
-            <td>${escapeHtml(lesson.assessmentTest?.title || "-")}</td>
+            <td>${escapeHtml(formatAssessmentDisplayTitle(lesson.assessmentTest?.title) || "-")}</td>
             <td>${escapeHtml(formatDateTime(lesson.updatedAt))}</td>
             <td>
               <div class="table-actions">

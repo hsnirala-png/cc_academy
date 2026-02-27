@@ -1290,14 +1290,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const accessCode = String(item?.accessCode || "MOCK")
         .trim()
         .toUpperCase();
+      const isDemoAccess = accessCode === "DEMO";
       const isLessonLinked = accessCode === "LESSON";
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
         id: String(item?.id || "").trim(),
         title: itemTitle,
-        accessType: "PREMIUM",
-        unlocked: premiumUnlocked,
+        accessType: isDemoAccess ? "DEMO" : "PREMIUM",
+        unlocked: isDemoAccess ? true : premiumUnlocked,
         action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
         ctaLabel: isLessonLinked ? "Play" : "Attempt Test",
         subjectTabKey: resolveSubjectTabKey(item?.subject, itemTitle),
