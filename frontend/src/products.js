@@ -1242,8 +1242,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const productId = String(product?.id || "").trim();
     const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
     const linkedTests = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
-    const firstDemo = demoTests.find((item) => String(item?.id || "").trim()) || null;
-    const demoId = String(firstDemo?.id || "").trim();
+    const demoById = new Map();
+    demoTests.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (!id) return;
+      if (!demoById.has(id)) demoById.set(id, item);
+    });
+    const demoItemsFromLink = Array.from(demoById.values());
+    const demoIds = new Set(demoItemsFromLink.map((item) => String(item?.id || "").trim()).filter(Boolean));
     const demoLessonTitle = String(product?.demoLessonTitle || "").trim();
     const demoLessonUrl = String(product?.demoLessonUrl || "").trim();
     const premiumUnlocked = Boolean(product?.isPremiumUnlocked);
@@ -1251,7 +1257,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const premiumTests = linkedTests.filter((item) => {
       const id = String(item?.id || "").trim();
       if (!id) return false;
-      return id !== demoId;
+      return !demoIds.has(id);
     });
 
     const normalizeLinkedAccessCode = (rawValue) =>
@@ -1289,8 +1295,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const items = [];
 
-    if (firstDemo) {
-      const demoTitle = String(firstDemo.title || "Demo Lesson");
+    demoItemsFromLink.forEach((demoTest) => {
+      const demoId = String(demoTest?.id || "").trim();
+      if (!demoId) return;
+      const demoTitle = String(demoTest.title || "Demo Lesson");
       items.push({
         productId,
         id: demoId,
@@ -1299,9 +1307,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         unlocked: true,
         action: "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
-        subjectTabKey: resolveSubjectTabKey(firstDemo.subject, demoTitle),
+        subjectTabKey: resolveSubjectTabKey(demoTest.subject, demoTitle),
       });
-    } else if (demoLessonUrl) {
+    });
+
+    if (!demoItemsFromLink.length && demoLessonUrl) {
       const demoTitle = demoLessonTitle || "Demo Lesson";
       items.push({
         productId,
