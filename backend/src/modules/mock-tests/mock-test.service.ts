@@ -92,16 +92,17 @@ const loadMockTestAccessMap = async (mockTestIds: string[]) => {
   const placeholders = mockTestIds.map(() => "?").join(", ");
   const rows = (await prisma.$queryRawUnsafe(
     `
-      SELECT mar.mockTestId, mar.accessCode
-      FROM MockTestAccessRule mar
-      WHERE mar.mockTestId IN (${placeholders})
-        AND mar.id = (
-          SELECT mar2.id
-          FROM MockTestAccessRule mar2
-          WHERE mar2.mockTestId = mar.mockTestId
-          ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC, mar2.id DESC
+      SELECT
+        mt.id AS mockTestId,
+        (
+          SELECT mar.accessCode
+          FROM MockTestAccessRule mar
+          WHERE mar.mockTestId = mt.id
+          ORDER BY mar.updatedAt DESC, mar.createdAt DESC
           LIMIT 1
-        )
+        ) AS accessCode
+      FROM MockTest mt
+      WHERE mt.id IN (${placeholders})
     `,
     ...mockTestIds
   )) as Array<{ mockTestId: string; accessCode: string | null }>;
