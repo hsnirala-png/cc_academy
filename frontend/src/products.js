@@ -1346,6 +1346,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <section
                 class="product-learn-subject-panel ${index === 0 ? "is-active" : ""}"
                 data-learning-tab-panel="${tabCode}"
+                ${index === 0 ? "" : "hidden"}
               >
                 ${
                   tabItems.length
@@ -1552,19 +1553,19 @@ document.addEventListener("DOMContentLoaded", async () => {
           <section class="product-pstet-tab-panel is-active" data-pstet-tab-panel="overview">
             ${tabs.overview.map((para) => `<p>${escapeHtml(para)}</p>`).join("")}
           </section>
-          <section class="product-pstet-tab-panel" data-pstet-tab-panel="includes">
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="includes" hidden>
             ${renderPstetBulletList(tabs.packageIncludes)}
           </section>
-          <section class="product-pstet-tab-panel" data-pstet-tab-panel="plan">
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="plan" hidden>
             ${renderPstetBulletList(tabs.studyPlan)}
           </section>
-          <section class="product-pstet-tab-panel" data-pstet-tab-panel="subjects">
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="subjects" hidden>
             ${renderPstetBulletList(tabs.subjectsCovered)}
           </section>
-          <section class="product-pstet-tab-panel" data-pstet-tab-panel="pattern">
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="pattern" hidden>
             ${renderPstetBulletList(tabs.examPattern)}
           </section>
-          <section class="product-pstet-tab-panel" data-pstet-tab-panel="faqs">
+          <section class="product-pstet-tab-panel" data-pstet-tab-panel="faqs" hidden>
             ${renderPstetFaqList(tabs.faqs)}
           </section>
         </div>
@@ -1734,6 +1735,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       const active = panel.getAttribute("data-pstet-tab-panel") === tabId;
       panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
     });
   };
 
@@ -1757,6 +1759,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       const active = panel.getAttribute("data-learning-tab-panel") === tabId;
       panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
     });
   };
 
