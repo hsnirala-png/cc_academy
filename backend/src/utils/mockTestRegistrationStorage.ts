@@ -15,6 +15,8 @@ const ensureGateTable = async (): Promise<void> => {
       \`freeAttemptLimit\` INT NOT NULL DEFAULT 1,
       \`buyNowUrl\` VARCHAR(1000) NULL,
       \`ctaLabel\` VARCHAR(120) NOT NULL DEFAULT 'Buy Mock',
+      \`scheduledDate\` DATE NULL,
+      \`scheduledTimeSlot\` VARCHAR(10) NULL,
       \`isActive\` TINYINT(1) NOT NULL DEFAULT 1,
       \`createdBy\` VARCHAR(191) NULL,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -43,6 +45,20 @@ const ensureGateTable = async (): Promise<void> => {
     await prisma
       .$executeRawUnsafe(
         "CREATE INDEX `MockTestRegistrationGate_createdBy_idx` ON `MockTestRegistrationGate`(`createdBy`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationGate", "scheduledDate"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `MockTestRegistrationGate` ADD COLUMN `scheduledDate` DATE NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationGate", "scheduledTimeSlot"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationGate` ADD COLUMN `scheduledTimeSlot` VARCHAR(10) NULL"
       )
       .catch(() => undefined);
   }

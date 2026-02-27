@@ -220,6 +220,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
 
+  const getMockReminderMeta = (option) => {
+    const reminderDate = String(option?.preferredDate || option?.scheduledDate || "").trim();
+    const reminderTime = String(option?.preferredTimeSlot || option?.scheduledTimeSlot || "").trim();
+    if (!reminderDate) return null;
+    const timeForParse = /^\d{2}:\d{2}$/.test(reminderTime) ? reminderTime : "00:00";
+    const reminderTs = Date.parse(`${reminderDate}T${timeForParse}:00`);
+    if (!Number.isFinite(reminderTs) || reminderTs <= Date.now()) return null;
+    const dateLabel = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(reminderTs));
+    const timeLabel = reminderTime === "09:00" ? "09:00 am" : reminderTime === "17:00" ? "05:00 pm" : reminderTime;
+    return { dateLabel, timeLabel: timeLabel || "Time pending" };
+  };
+
   const normalizeProductAssetUrl = (input) => {
     const raw = String(input || "").trim();
     if (!raw) return FALLBACK_PRODUCT_THUMB;
@@ -295,14 +311,22 @@ document.addEventListener("DOMContentLoaded", () => {
           popupImageUrl
         )}\" alt=\"Mock registration\" /></div>`
       : "";
+    const reminder = getMockReminderMeta(option);
+    const isReminder = Boolean(option?.isRegistered && reminder);
+    const reminderTitle = isReminder
+      ? "Mock Test Reminder"
+      : option?.title || option?.mockTestTitle || "Mock Registration";
     const pendingText = option?.hasPaidAccess
       ? "Paid access available."
       : `Pending chances: ${Math.max(0, Number(option?.remainingAttempts || 0))}`;
+    const scheduleText = reminder ? `${reminder.dateLabel} | ${reminder.timeLabel}` : "";
     modal.innerHTML = `
       <div class=\"mock-registration-dialog mock-global-reg-popup\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
         <button type=\"button\" class=\"mock-registration-close\" data-home-reg-close aria-label=\"Close\">x</button>
         ${imageMarkup}
-        <h3 class=\"mock-global-reg-title\">${escapeHtml(option?.title || option?.mockTestTitle || "Mock Registration")}</h3>
+        <h3 class=\"mock-global-reg-title\">${escapeHtml(reminderTitle)}</h3>
+        <p class=\"mock-global-reg-sub\">${escapeHtml(option?.title || option?.mockTestTitle || "Mock Test")}</p>
+        ${scheduleText ? `<p class=\"mock-global-reg-sub\">${escapeHtml(scheduleText)}</p>` : ""}
         <p class=\"mock-global-reg-sub\">${escapeHtml(pendingText)}</p>
       </div>
     `;
@@ -343,6 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const options = Array.isArray(data?.options) ? data.options : [];
       if (!options.length) return;
       const preferred =
+        options.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
         options.find(
           (item) =>
             !item?.hasPaidAccess &&

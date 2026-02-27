@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const titleInput = document.querySelector("#registrationTitle");
   const descriptionInput = document.querySelector("#registrationDescription");
   const freeAttemptsInput = document.querySelector("#registrationFreeAttempts");
+  const scheduledDateInput = document.querySelector("#registrationScheduledDate");
+  const scheduledTimeInput = document.querySelector("#registrationScheduledTime");
   const buyUrlInput = document.querySelector("#registrationBuyUrl");
   const ctaLabelInput = document.querySelector("#registrationCtaLabel");
   const imageUrlInput = document.querySelector("#registrationImageUrl");
@@ -69,6 +71,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return normalized || "-";
   };
 
+  const scheduleLabel = (dateValue, timeValue) => {
+    const dateText = String(dateValue || "").trim();
+    const timeText = timeLabel(timeValue);
+    if (!dateText && (!timeValue || timeText === "-")) return "-";
+    return `${dateText || "-"}${timeText && timeText !== "-" ? ` | ${timeText}` : ""}`;
+  };
+
   const resolveRegistrationLink = (mockTestId) => {
     const id = String(mockTestId || "").trim();
     if (!id) return "";
@@ -95,6 +104,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (registrationIdInput) registrationIdInput.value = "";
     if (form instanceof HTMLFormElement) form.reset();
     if (freeAttemptsInput instanceof HTMLInputElement) freeAttemptsInput.value = "1";
+    if (scheduledDateInput instanceof HTMLInputElement) scheduledDateInput.value = "";
+    if (scheduledTimeInput instanceof HTMLSelectElement) scheduledTimeInput.value = "";
     if (ctaLabelInput instanceof HTMLInputElement) ctaLabelInput.value = "Buy Mock";
     if (isActiveInput instanceof HTMLInputElement) isActiveInput.checked = true;
     syncRegistrationLinkField();
@@ -126,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderRegistrations = () => {
     if (!(tableBody instanceof HTMLElement)) return;
     if (!state.registrations.length) {
-      tableBody.innerHTML = `<tr><td colspan="7">No registration configs yet.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="8">No registration configs yet.</td></tr>`;
       return;
     }
 
@@ -144,6 +155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td><span class="chip ${item.isActive ? "active" : "inactive"}">${
           item.isActive ? "Active" : "Inactive"
         }</span></td>
+            <td>${escapeHtml(scheduleLabel(item.scheduledDate, item.scheduledTimeSlot))}</td>
             <td><a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open</a></td>
             <td>${escapeHtml(formatDateTime(item.updatedAt))}</td>
             <td class="table-actions">
@@ -223,6 +235,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (titleInput) titleInput.value = registration.title || "";
     if (descriptionInput) descriptionInput.value = registration.description || "";
     if (freeAttemptsInput) freeAttemptsInput.value = String(registration.freeAttemptLimit ?? 1);
+    if (scheduledDateInput) scheduledDateInput.value = registration.scheduledDate || "";
+    if (scheduledTimeInput) scheduledTimeInput.value = registration.scheduledTimeSlot || "";
     if (buyUrlInput) buyUrlInput.value = registration.buyNowUrl || "";
     if (ctaLabelInput) ctaLabelInput.value = registration.ctaLabel || "Buy Mock";
     if (imageUrlInput) imageUrlInput.value = registration.popupImageUrl || "";
@@ -235,6 +249,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     title: String(titleInput?.value || "").trim(),
     description: String(descriptionInput?.value || "").trim(),
     freeAttemptLimit: Number(freeAttemptsInput?.value || 0),
+    scheduledDate: String(scheduledDateInput?.value || "").trim() || undefined,
+    scheduledTimeSlot: String(scheduledTimeInput?.value || "").trim() || undefined,
     buyNowUrl: String(buyUrlInput?.value || "").trim(),
     ctaLabel: String(ctaLabelInput?.value || "").trim(),
     popupImageUrl: String(imageUrlInput?.value || "").trim(),

@@ -39,6 +39,15 @@ const formatDateLabel = (value) => {
   }).format(date);
 };
 
+const toScheduleTimestamp = (dateValue, timeValue) => {
+  const dateText = String(dateValue || "").trim();
+  const timeText = String(timeValue || "").trim();
+  if (!dateText) return Number.NaN;
+  const normalizedTime = /^\d{2}:\d{2}$/.test(timeText) ? timeText : "00:00";
+  const stamp = Date.parse(`${dateText}T${normalizedTime}:00`);
+  return Number.isFinite(stamp) ? stamp : Number.NaN;
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("STUDENT");
   if (!auth) return;
@@ -50,10 +59,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const titleEl = document.querySelector("#registrationTitle");
   const descriptionEl = document.querySelector("#registrationDescription");
   const attemptsInfoEl = document.querySelector("#registrationAttemptsInfo");
+  const reminderCard = document.querySelector("#registrationReminderCard");
+  const reminderTitleEl = document.querySelector("#registrationReminderTitle");
+  const reminderWhenEl = document.querySelector("#registrationReminderWhen");
   const bannerWrap = document.querySelector("#registrationBannerWrap");
   const bannerImage = document.querySelector("#registrationBannerImage");
   const form = document.querySelector("#registrationForm");
-  const mockChoiceInput = document.querySelector("#regMockTestChoice");
+  const examTypeInput = document.querySelector("#regExamType");
+  const mockChanceInfoInput = document.querySelector("#regMockChanceInfo");
   const pstet2SubjectWrap = document.querySelector("#regPstet2SubjectWrap");
   const pstet2SubjectInput = document.querySelector("#regPstet2Subject");
   const fullNameInput = document.querySelector("#regFullName");
@@ -67,6 +80,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const state = {
     options: [],
     selectedMockTestId: "",
+    selectedExamType: "",
+    selectedStreamChoice: "",
   };
 
   const setStatus = (text, type = "") => {
@@ -92,40 +107,159 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
-  const renderMockOptions = () => {
-    if (!(mockChoiceInput instanceof HTMLSelectElement)) return;
-    if (!state.options.length) {
-      mockChoiceInput.innerHTML = '<option value="">No pending mock registrations</option>';
+  const setTimeSlotDisabled = (disabled) => {
+    timeSlotInputs.forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      input.disabled = Boolean(disabled);
+    });
+  };
+
+  const getOptionStream = (option) =>
+    String(option?.preferredStreamChoice || option?.streamChoice || "")
+      .trim()
+      .toUpperCase();
+
+  const getOptionExam = (option) => String(option?.examType || "").trim().toUpperCase();
+
+  const getFilteredOptions = () => {
+    const exam = String(state.selectedExamType || "").trim().toUpperCase();
+    const stream = String(state.selectedStreamChoice || "").trim().toUpperCase();
+    let rows = state.options.slice();
+    if (exam) {
+      rows = rows.filter((item) => getOptionExam(item) === exam);
+    }
+    if (exam === "PSTET_2" && stream) {
+      rows = rows.filter((item) => getOptionStream(item) === stream);
+    }
+    return rows;
+  };
+
+  const pickBestOption = (rows) => {
+    if (!rows.length) return null;
+    const now = Date.now();
+    const withTs = rows.map((item) => {
+      const date = String(item.preferredDate || item.scheduledDate || "").trim();
+      const time = String(item.preferredTimeSlot || item.scheduledTimeSlot || "").trim();
+      return {
+        item,
+        ts: toScheduleTimestamp(date, time),
+      };
+    });
+
+    const requested = withTs.find((row) => row.item.mockTestId === requestedMockTestId);
+    if (requested) return requested.item;
+
+    const upcomingRegistered = withTs
+      .filter((row) => row.item.isRegistered && Number.isFinite(row.ts) && row.ts > now)
+      .sort((a, b) => a.ts - b.ts)[0];
+    if (upcomingRegistered) return upcomingRegistered.item;
+
+    const registered = rows.find((item) => item.isRegistered);
+    if (registered) return registered;
+
+    const pending = rows.find((item) => !item.hasPaidAccess && Number(item.remainingAttempts || 0) > 0);
+    if (pending) return pending;
+
+    return rows[0];
+  };
+
+  const renderExamTypeOptions = () => {
+    if (!(examTypeInput instanceof HTMLSelectElement)) return;
+    const unique = Array.from(new Set(state.options.map((item) => getOptionExam(item)).filter(Boolean)));
+    const sorted = unique.sort((a, b) => {
+      if (a === b) return 0;
+      if (a === "PSTET_1") return -1;
+      if (b === "PSTET_1") return 1;
+      return a.localeCompare(b);
+    });
+    examTypeInput.innerHTML = [
+      '<option value="">Select test type</option>',
+      ...sorted.map((code) => `<option value="${code}">${EXAM_LABELS[code] || code}</option>`),
+    ].join("");
+
+    if (!state.selectedExamType || !sorted.includes(state.selectedExamType)) {
+      state.selectedExamType = sorted[0] || "";
+    }
+    examTypeInput.value = state.selectedExamType;
+  };
+
+  const renderStreamOptions = () => {
+    const isPstet2 = state.selectedExamType === "PSTET_2";
+    if (pstet2SubjectWrap instanceof HTMLElement) {
+      pstet2SubjectWrap.classList.toggle("hidden", !isPstet2);
+    }
+    if (!(pstet2SubjectInput instanceof HTMLSelectElement)) return;
+    if (!isPstet2) {
+      pstet2SubjectInput.value = "";
+      state.selectedStreamChoice = "";
       return;
     }
 
-    mockChoiceInput.innerHTML = state.options
-      .map((item) => {
-        const examLabel = EXAM_LABELS[item.examType] || item.examType || "Mock";
-        const streamLabel = item.examType === "PSTET_2" && item.streamChoice
-          ? ` / ${STREAM_LABELS[item.streamChoice] || item.streamChoice}`
-          : "";
-        const chanceText = item.hasPaidAccess
-          ? "Paid access"
-          : `Pending ${Math.max(0, Number(item.remainingAttempts || 0))} chance(s)`;
-        const label = `${examLabel}${streamLabel} - ${chanceText} - ${item.mockTestTitle || item.title || "Mock test"}`;
-        return `<option value="${item.mockTestId}">${label}</option>`;
-      })
-      .join("");
+    const streams = Array.from(
+      new Set(
+        state.options
+          .filter((item) => getOptionExam(item) === "PSTET_2")
+          .map((item) => getOptionStream(item))
+          .filter((value) => value === "SOCIAL_STUDIES" || value === "SCIENCE_MATH")
+      )
+    );
 
-    const hasRequested = state.options.some((item) => item.mockTestId === requestedMockTestId);
-    const firstPending = state.options.find((item) => Number(item.remainingAttempts || 0) > 0 && !item.hasPaidAccess);
-    const nextChoice = hasRequested
-      ? requestedMockTestId
-      : (firstPending?.mockTestId || state.options[0]?.mockTestId || "");
+    pstet2SubjectInput.innerHTML = [
+      '<option value="">Select PSTET-2 Subject</option>',
+      ...streams.map((code) => {
+        const label = code === "SOCIAL_STUDIES" ? "SST" : "SCI/MATHS";
+        return `<option value="${code}">${label}</option>`;
+      }),
+    ].join("");
 
-    state.selectedMockTestId = nextChoice;
-    mockChoiceInput.value = nextChoice;
+    if (!state.selectedStreamChoice || !streams.includes(state.selectedStreamChoice)) {
+      state.selectedStreamChoice = streams[0] || "";
+    }
+    pstet2SubjectInput.value = state.selectedStreamChoice;
+  };
+
+  const renderReminderCard = (option) => {
+    if (!(reminderCard instanceof HTMLElement) || !(reminderTitleEl instanceof HTMLElement) || !(reminderWhenEl instanceof HTMLElement)) {
+      return;
+    }
+    if (!option?.isRegistered) {
+      reminderCard.classList.add("hidden");
+      return;
+    }
+
+    const reminderDate = String(option.preferredDate || option.scheduledDate || "").trim();
+    const reminderTime = String(option.preferredTimeSlot || option.scheduledTimeSlot || "").trim();
+    const scheduleTs = toScheduleTimestamp(reminderDate, reminderTime);
+    if (!Number.isFinite(scheduleTs) || scheduleTs <= Date.now()) {
+      reminderCard.classList.add("hidden");
+      return;
+    }
+
+    const timeLabel = TIME_LABELS[reminderTime] || reminderTime || "Time pending";
+    reminderTitleEl.textContent = option.title || option.mockTestTitle || "Upcoming Mock Test";
+    reminderWhenEl.textContent = `${formatDateLabel(reminderDate)} | ${timeLabel}`;
+    reminderCard.classList.remove("hidden");
+  };
+
+  const applySelectionByFilters = () => {
+    const filtered = getFilteredOptions();
+    const picked = pickBestOption(filtered);
+    state.selectedMockTestId = picked?.mockTestId || "";
   };
 
   const renderSelectedOption = () => {
     const option = selectedOption();
-    if (!option) return;
+
+    if (!option) {
+      if (titleEl instanceof HTMLElement) titleEl.textContent = "Mock Test Registration";
+      if (descriptionEl instanceof HTMLElement) descriptionEl.textContent = "";
+      if (attemptsInfoEl instanceof HTMLElement) attemptsInfoEl.textContent = "No mock registration option available.";
+      if (mockChanceInfoInput instanceof HTMLInputElement) mockChanceInfoInput.value = "No pending mock registrations";
+      if (bannerWrap instanceof HTMLElement) bannerWrap.classList.add("hidden");
+      if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
+      if (reminderCard instanceof HTMLElement) reminderCard.classList.add("hidden");
+      return;
+    }
 
     if (titleEl instanceof HTMLElement) {
       titleEl.textContent = option.title || option.mockTestTitle || "Mock Registration";
@@ -140,8 +274,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         attemptsInfoEl.textContent = `Free chances: ${option.freeAttemptLimit} | Used: ${option.usedAttempts} | Remaining: ${option.remainingAttempts}`;
       }
     }
+
+    if (mockChanceInfoInput instanceof HTMLInputElement) {
+      const examLabel = EXAM_LABELS[option.examType] || option.examType || "Mock";
+      const stream = getOptionStream(option);
+      const streamLabel = option.examType === "PSTET_2" && stream
+        ? ` / ${stream === "SOCIAL_STUDIES" ? "SST" : "SCI/MATHS"}`
+        : "";
+      const chanceText = option.hasPaidAccess
+        ? "Paid access"
+        : `Pending ${Math.max(0, Number(option.remainingAttempts || 0))} chance(s)`;
+      mockChanceInfoInput.value = `${examLabel}${streamLabel} | ${chanceText}`;
+    }
+
     if (bannerWrap instanceof HTMLElement && bannerImage instanceof HTMLImageElement) {
-      const imageUrl = String(option.popupImageUrl || "").trim();
+      const imageUrl = String(option.popupImageUrl || option.mockThumbnailUrl || "").trim();
       if (imageUrl) {
         bannerImage.src = imageUrl;
         bannerWrap.classList.remove("hidden");
@@ -150,27 +297,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    const isPstet2 = String(option.examType || "") === "PSTET_2";
-    if (pstet2SubjectWrap instanceof HTMLElement) {
-      pstet2SubjectWrap.classList.toggle("hidden", !isPstet2);
-    }
-    if (pstet2SubjectInput instanceof HTMLSelectElement) {
-      if (isPstet2) {
-        const preferred = String(option.preferredStreamChoice || option.streamChoice || "").trim();
-        pstet2SubjectInput.value = preferred || "";
-      } else {
-        pstet2SubjectInput.value = "";
-      }
-    }
+    const scheduleDate = String(option.scheduledDate || "").trim();
+    const scheduleTime = String(option.scheduledTimeSlot || "").trim();
 
     if (preferredDateInput instanceof HTMLInputElement) {
-      preferredDateInput.value = String(option.preferredDate || "").trim();
+      const selectedDate = String(option.preferredDate || scheduleDate || "").trim();
+      preferredDateInput.value = selectedDate;
+      preferredDateInput.disabled = Boolean(scheduleDate);
     }
-    setSelectedTimeSlot(option.preferredTimeSlot || "");
+
+    if (scheduleTime) {
+      setSelectedTimeSlot(scheduleTime);
+      setTimeSlotDisabled(true);
+    } else {
+      setSelectedTimeSlot(option.preferredTimeSlot || "");
+      setTimeSlotDisabled(false);
+    }
+
+    renderReminderCard(option);
 
     if (startAttemptBtn instanceof HTMLButtonElement) {
       startAttemptBtn.disabled = !option.isRegistered;
     }
+  };
+
+  const hydrateFiltersFromOption = (option) => {
+    if (!option) return;
+    state.selectedExamType = getOptionExam(option);
+    state.selectedStreamChoice = getOptionStream(option);
   };
 
   const loadOptions = async () => {
@@ -179,7 +333,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       token,
     });
     state.options = Array.isArray(data?.options) ? data.options : [];
-    renderMockOptions();
+
+    if (!state.options.length) {
+      renderExamTypeOptions();
+      renderStreamOptions();
+      state.selectedMockTestId = "";
+      renderSelectedOption();
+      return;
+    }
+
+    const requested = state.options.find((item) => item.mockTestId === requestedMockTestId);
+    const defaultOption = requested || pickBestOption(state.options);
+    if (!state.selectedExamType && defaultOption) {
+      hydrateFiltersFromOption(defaultOption);
+    }
+
+    renderExamTypeOptions();
+    renderStreamOptions();
+    applySelectionByFilters();
+
+    const selected = selectedOption();
+    if (selected) {
+      hydrateFiltersFromOption(selected);
+      if (examTypeInput instanceof HTMLSelectElement) examTypeInput.value = state.selectedExamType;
+      if (pstet2SubjectInput instanceof HTMLSelectElement && state.selectedExamType === "PSTET_2") {
+        pstet2SubjectInput.value = state.selectedStreamChoice;
+      }
+    }
+
     renderSelectedOption();
   };
 
@@ -210,9 +391,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     emailInput.value = String(user?.email || "").trim();
   }
 
-  if (mockChoiceInput instanceof HTMLSelectElement) {
-    mockChoiceInput.addEventListener("change", () => {
-      state.selectedMockTestId = String(mockChoiceInput.value || "").trim();
+  if (examTypeInput instanceof HTMLSelectElement) {
+    examTypeInput.addEventListener("change", () => {
+      state.selectedExamType = String(examTypeInput.value || "").trim().toUpperCase();
+      if (state.selectedExamType !== "PSTET_2") {
+        state.selectedStreamChoice = "";
+      }
+      renderStreamOptions();
+      applySelectionByFilters();
+      renderSelectedOption();
+    });
+  }
+
+  if (pstet2SubjectInput instanceof HTMLSelectElement) {
+    pstet2SubjectInput.addEventListener("change", () => {
+      state.selectedStreamChoice = String(pstet2SubjectInput.value || "").trim().toUpperCase();
+      applySelectionByFilters();
       renderSelectedOption();
     });
   }
@@ -220,6 +414,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   timeSlotInputs.forEach((input) => {
     if (!(input instanceof HTMLInputElement)) return;
     input.addEventListener("change", () => {
+      if (input.disabled) return;
       if (!input.checked) return;
       timeSlotInputs.forEach((other) => {
         if (!(other instanceof HTMLInputElement)) return;
@@ -235,16 +430,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         const option = selectedOption();
         if (!option?.mockTestId) throw new Error("Please select mock chance.");
 
-        const isPstet2 = String(option.examType || "") === "PSTET_2";
-        const preferredStreamChoice = String(pstet2SubjectInput?.value || "").trim();
+        const selectedExamType = String(state.selectedExamType || option.examType || "").trim().toUpperCase();
+        const isPstet2 = selectedExamType === "PSTET_2";
+        const preferredStreamChoice = String(pstet2SubjectInput?.value || "").trim().toUpperCase();
         const preferredDate = String(preferredDateInput?.value || "").trim();
         const preferredTimeSlot = getSelectedTimeSlot();
 
-        if (!preferredDate) throw new Error("Please select preferred date.");
-        if (!preferredTimeSlot) throw new Error("Please select preferred time.");
+        if (!selectedExamType) throw new Error("Please select test type.");
         if (isPstet2 && !preferredStreamChoice) {
           throw new Error("Please select PSTET-2 subject: SST or SCI/MATHS.");
         }
+        if (!preferredDate) throw new Error("Please select preferred date.");
+        if (!preferredTimeSlot) throw new Error("Please select preferred time.");
 
         setStatus("Saving registration...");
         await apiRequest({
@@ -255,7 +452,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             fullName: String(fullNameInput?.value || "").trim(),
             mobile: String(mobileInput?.value || "").trim(),
             email: String(emailInput?.value || "").trim() || undefined,
-            preferredExamType: option.examType,
+            preferredExamType: selectedExamType,
             preferredStreamChoice: isPstet2 ? preferredStreamChoice : undefined,
             preferredDate,
             preferredTimeSlot,
@@ -264,14 +461,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await loadOptions();
 
-        const examLabel = EXAM_LABELS[option.examType] || option.examType || "Mock";
+        const selectedAfterSave = selectedOption() || option;
+        const examLabel = EXAM_LABELS[selectedExamType] || selectedExamType || "Mock";
         const streamLabel = isPstet2
-          ? ` (${STREAM_LABELS[preferredStreamChoice] || preferredStreamChoice})`
+          ? ` (${preferredStreamChoice === "SOCIAL_STUDIES" ? "SST" : "SCI/MATHS"})`
           : "";
         const timeLabel = TIME_LABELS[preferredTimeSlot] || preferredTimeSlot;
         const dateLabel = formatDateLabel(preferredDate);
+        const mockName = selectedAfterSave.title || selectedAfterSave.mockTestTitle || "Mock test";
         setStatus(
-          `Congratulations! You have registered successfully for mock ${examLabel}${streamLabel} at ${timeLabel} on ${dateLabel}.`,
+          `Congratulations! You have registered successfully for ${mockName} (${examLabel}${streamLabel}) at ${timeLabel} on ${dateLabel}.`,
           "success"
         );
       } catch (error) {

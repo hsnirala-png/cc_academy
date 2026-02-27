@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=23" />
+    <link rel="stylesheet" href="./src/styles.css?v=34" />
   </head>
   <body>
     <header class="site-header">
@@ -39,14 +39,21 @@
         <h2 id="registrationTitle">Mock Test Registration</h2>
         <p id="registrationDescription" class="dash-k"></p>
         <p id="registrationAttemptsInfo" class="dash-k"></p>
+        <div id="registrationReminderCard" class="mock-upcoming-card hidden" aria-live="polite">
+          <p class="mock-upcoming-kicker">Next Mock</p>
+          <h3 id="registrationReminderTitle">Upcoming Mock Test</h3>
+          <p id="registrationReminderWhen" class="mock-upcoming-when">Date and time pending</p>
+        </div>
       </section>
 
       <section class="dash-card">
         <h3>Student Details</h3>
         <form id="registrationForm" class="mock-filter-grid">
           <div class="field">
-            <label for="regMockTestChoice">Mock Chance</label>
-            <select id="regMockTestChoice" required></select>
+            <label for="regExamType">Test Type</label>
+            <select id="regExamType" required>
+              <option value="">Select test type</option>
+            </select>
           </div>
           <div id="regPstet2SubjectWrap" class="field hidden">
             <label for="regPstet2Subject">PSTET-2 Subject</label>
@@ -55,6 +62,10 @@
               <option value="SOCIAL_STUDIES">SST</option>
               <option value="SCIENCE_MATH">SCI/MATHS</option>
             </select>
+          </div>
+          <div class="field field-span-2">
+            <label for="regMockChanceInfo">Mock Chance</label>
+            <input id="regMockChanceInfo" readonly />
           </div>
           <div class="field">
             <label for="regFullName">Full Name</label>
@@ -98,7 +109,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/mock-test-registration.js?v=2"></script>
+    <script type="module" src="./src/mock-test-registration.js?v=3"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

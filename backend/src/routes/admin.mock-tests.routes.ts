@@ -103,6 +103,8 @@ const createRegistrationGateSchema = z.object({
   freeAttemptLimit: z.coerce.number().int().min(0).max(100),
   buyNowUrl: z.string().trim().max(1000).optional(),
   ctaLabel: z.string().trim().min(2).max(120).optional(),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  scheduledTimeSlot: z.enum(["09:00", "17:00"]).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -122,6 +124,8 @@ type GateRow = {
   freeAttemptLimit: number | string;
   buyNowUrl: string | null;
   ctaLabel: string | null;
+  scheduledDate: string | Date | null;
+  scheduledTimeSlot: string | null;
   isActive: number | boolean;
   createdBy: string | null;
   createdAt: Date | string;
@@ -143,6 +147,8 @@ const serializeGate = (row: GateRow) => ({
   freeAttemptLimit: Number(row.freeAttemptLimit || 0),
   buyNowUrl: row.buyNowUrl || "",
   ctaLabel: row.ctaLabel || "Buy Mock",
+  scheduledDate: toDateOnly(row.scheduledDate),
+  scheduledTimeSlot: row.scheduledTimeSlot || "",
   isActive: toBoolean(row.isActive),
   createdBy: row.createdBy || null,
   createdAt: new Date(row.createdAt).toISOString(),
@@ -167,6 +173,8 @@ const fetchRegistrationGates = async (includeInactive: boolean) => {
         g.freeAttemptLimit,
         g.buyNowUrl,
         g.ctaLabel,
+        g.scheduledDate,
+        g.scheduledTimeSlot,
         g.isActive,
         g.createdBy,
         g.createdAt,
@@ -190,6 +198,8 @@ const fetchRegistrationGates = async (includeInactive: boolean) => {
         g.freeAttemptLimit,
         g.buyNowUrl,
         g.ctaLabel,
+        g.scheduledDate,
+        g.scheduledTimeSlot,
         g.isActive,
         g.createdBy,
         g.createdAt,
@@ -298,6 +308,8 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
             freeAttemptLimit = ?,
             buyNowUrl = ?,
             ctaLabel = ?,
+            scheduledDate = ?,
+            scheduledTimeSlot = ?,
             isActive = ?,
             updatedAt = ?
           WHERE id = ?
@@ -308,6 +320,8 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
         Number(input.freeAttemptLimit),
         normalizeOptionalText(input.buyNowUrl, 1000),
         normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
+        normalizeOptionalText(input.scheduledDate, 10),
+        normalizeOptionalText(input.scheduledTimeSlot, 10),
         input.isActive === undefined ? 1 : input.isActive ? 1 : 0,
         now,
         gateId
@@ -316,9 +330,9 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
       await prisma.$executeRawUnsafe(
         `
           INSERT INTO MockTestRegistrationGate (
-            id, mockTestId, title, description, popupImageUrl, freeAttemptLimit, buyNowUrl, ctaLabel, isActive, createdBy, createdAt, updatedAt
+            id, mockTestId, title, description, popupImageUrl, freeAttemptLimit, buyNowUrl, ctaLabel, scheduledDate, scheduledTimeSlot, isActive, createdBy, createdAt, updatedAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         gateId,
         input.mockTestId,
@@ -328,6 +342,8 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
         Number(input.freeAttemptLimit),
         normalizeOptionalText(input.buyNowUrl, 1000),
         normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
+        normalizeOptionalText(input.scheduledDate, 10),
+        normalizeOptionalText(input.scheduledTimeSlot, 10),
         input.isActive === undefined ? 1 : input.isActive ? 1 : 0,
         req.user!.userId,
         now,
@@ -365,6 +381,8 @@ adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async
       freeAttemptLimit: number;
       buyNowUrl: string | null;
       ctaLabel: string | null;
+      scheduledDate: string | Date | null;
+      scheduledTimeSlot: string | null;
       isActive: number | boolean;
     }>;
     const existing = existingRows[0];
@@ -380,6 +398,8 @@ adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async
           freeAttemptLimit = ?,
           buyNowUrl = ?,
           ctaLabel = ?,
+          scheduledDate = ?,
+          scheduledTimeSlot = ?,
           isActive = ?,
           updatedAt = ?
         WHERE id = ?
@@ -394,6 +414,12 @@ adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async
       input.ctaLabel !== undefined
         ? normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock"
         : existing.ctaLabel || "Buy Mock",
+      input.scheduledDate !== undefined
+        ? normalizeOptionalText(input.scheduledDate, 10)
+        : normalizeOptionalText(existing.scheduledDate, 10),
+      input.scheduledTimeSlot !== undefined
+        ? normalizeOptionalText(input.scheduledTimeSlot, 10)
+        : normalizeOptionalText(existing.scheduledTimeSlot, 10),
       input.isActive !== undefined ? (input.isActive ? 1 : 0) : toBoolean(existing.isActive) ? 1 : 0,
       baseNow(),
       gateId

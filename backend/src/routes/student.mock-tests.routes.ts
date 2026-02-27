@@ -36,6 +36,8 @@ type RegistrationGateRow = {
   description: string | null;
   popupImageUrl: string | null;
   mockThumbnailUrl?: string | null;
+  scheduledDate?: string | Date | null;
+  scheduledTimeSlot?: string | null;
   freeAttemptLimit: number | string;
   buyNowUrl: string | null;
   ctaLabel: string | null;
@@ -86,6 +88,8 @@ const loadActiveRegistrationGates = async (mockTestIds: string[]) => {
         g.title,
         g.description,
         g.popupImageUrl,
+        g.scheduledDate,
+        g.scheduledTimeSlot,
         (
           SELECT p.thumbnailUrl
           FROM ProductMockTest pmt
@@ -134,6 +138,8 @@ const loadAllActiveRegistrationGates = async () => {
         g.title,
         g.description,
         g.popupImageUrl,
+        g.scheduledDate,
+        g.scheduledTimeSlot,
         (
           SELECT p.thumbnailUrl
           FROM ProductMockTest pmt
@@ -326,6 +332,8 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
         mockThumbnailUrl: gate.mockThumbnailUrl || "",
+        scheduledDate: toDateOnly(gate.scheduledDate),
+        scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
@@ -382,6 +390,8 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
         mockThumbnailUrl: gate.mockThumbnailUrl || "",
+        scheduledDate: toDateOnly(gate.scheduledDate),
+        scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
@@ -439,6 +449,8 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         description: gate.description || "",
         popupImageUrl: gate.popupImageUrl || "",
         mockThumbnailUrl: gate.mockThumbnailUrl || "",
+        scheduledDate: toDateOnly(gate.scheduledDate),
+        scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
         usedAttempts,
         remainingAttempts,
@@ -486,10 +498,14 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     )
       .trim()
       .toUpperCase();
+    const gateScheduledDate = toDateOnly(gate.scheduledDate);
+    const gateScheduledTimeSlot = String(gate.scheduledTimeSlot || "").trim() as "09:00" | "17:00" | "";
     const effectiveDate = String(
-      input.preferredDate || new Date().toISOString().slice(0, 10)
+      gateScheduledDate || input.preferredDate || new Date().toISOString().slice(0, 10)
     ).trim();
-    const effectiveTimeSlot = String(input.preferredTimeSlot || "09:00").trim() as "09:00" | "17:00";
+    const effectiveTimeSlot = String(
+      gateScheduledTimeSlot || input.preferredTimeSlot || "09:00"
+    ).trim() as "09:00" | "17:00";
     if (gateExamType && gateExamType !== effectiveExamType) {
       throw new AppError("Selected exam does not match this mock registration.", 400);
     }

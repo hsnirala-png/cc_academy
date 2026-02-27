@@ -3431,6 +3431,37 @@ h1 {
   gap: 0.7rem;
 }
 
+.mock-filter-grid .field-span-2 {
+  grid-column: span 2;
+}
+
+.mock-upcoming-card {
+  margin-top: 0.8rem;
+  border: 1px solid #bcd3ff;
+  border-radius: 12px;
+  background: #f5f9ff;
+  padding: 0.75rem 0.9rem;
+}
+
+.mock-upcoming-kicker {
+  margin: 0;
+  color: #1f4eb0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mock-upcoming-card h3 {
+  margin: 0.2rem 0 0.25rem;
+}
+
+.mock-upcoming-when {
+  margin: 0;
+  color: #243b63;
+  font-weight: 600;
+}
+
 .filter-action {
   display: flex;
   align-items: flex-end;
@@ -3797,6 +3828,10 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .mock-filter-grid .field-span-2 {
+    grid-column: span 2;
+  }
+
   .mock-tests-grid {
     grid-template-columns: 1fr;
   }
@@ -4141,6 +4176,10 @@ h1 {
 
   .mock-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mock-filter-grid .field-span-2 {
+    grid-column: span 1;
   }
 
   .attempt-actions {
