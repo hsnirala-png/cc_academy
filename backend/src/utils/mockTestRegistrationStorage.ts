@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { hasConstraint, hasIndex } from "./schemaGuards";
+import { hasColumn, hasConstraint, hasIndex } from "./schemaGuards";
 
 let isMockTestRegistrationStorageReady = false;
 let mockTestRegistrationStoragePromise: Promise<void> | null = null;
@@ -74,11 +74,41 @@ const ensureEntryTable = async (): Promise<void> => {
       \`fullName\` VARCHAR(191) NOT NULL,
       \`mobile\` VARCHAR(30) NOT NULL,
       \`email\` VARCHAR(191) NULL,
+      \`preferredExamType\` VARCHAR(20) NULL,
+      \`preferredStreamChoice\` VARCHAR(40) NULL,
+      \`preferredDate\` DATE NULL,
+      \`preferredTimeSlot\` VARCHAR(10) NULL,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       \`updatedAt\` DATETIME(3) NOT NULL,
       PRIMARY KEY (\`id\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "preferredExamType"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `preferredExamType` VARCHAR(20) NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "preferredStreamChoice"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `preferredStreamChoice` VARCHAR(40) NULL"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "preferredDate"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `preferredDate` DATE NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "preferredTimeSlot"))) {
+    await prisma
+      .$executeRawUnsafe("ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `preferredTimeSlot` VARCHAR(10) NULL")
+      .catch(() => undefined);
+  }
 
   if (!(await hasIndex("MockTestRegistrationEntry", "MockTestRegistrationEntry_gateId_userId_key"))) {
     await prisma
@@ -147,4 +177,3 @@ export const ensureMockTestRegistrationStorageReady = async (): Promise<void> =>
 
   return mockTestRegistrationStoragePromise;
 };
-

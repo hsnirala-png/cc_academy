@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=22" />
+    <link rel="stylesheet" href="./src/styles.css?v=23" />
   </head>
   <body>
     <header class="site-header">
@@ -45,16 +45,45 @@
         <h3>Student Details</h3>
         <form id="registrationForm" class="mock-filter-grid">
           <div class="field">
+            <label for="regMockTestChoice">Mock Chance</label>
+            <select id="regMockTestChoice" required></select>
+          </div>
+          <div id="regPstet2SubjectWrap" class="field hidden">
+            <label for="regPstet2Subject">PSTET-2 Subject</label>
+            <select id="regPstet2Subject">
+              <option value="">Select PSTET-2 Subject</option>
+              <option value="SOCIAL_STUDIES">SST</option>
+              <option value="SCIENCE_MATH">SCI/MATHS</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="regFullName">Full Name</label>
             <input id="regFullName" required />
           </div>
           <div class="field">
             <label for="regMobile">Mobile</label>
-            <input id="regMobile" required />
+            <input id="regMobile" required placeholder="Use WhatsApp number for information and results" />
           </div>
           <div class="field">
             <label for="regEmail">Email (optional)</label>
             <input id="regEmail" type="email" />
+          </div>
+          <div class="field">
+            <label for="regPreferredDate">Preferred Date</label>
+            <input id="regPreferredDate" type="date" required />
+          </div>
+          <div class="field">
+            <label>Preferred Time</label>
+            <div class="mock-time-choice-wrap">
+              <label class="mock-time-choice">
+                <input type="checkbox" name="regTimeSlot" value="09:00" />
+                <span>09:00 am</span>
+              </label>
+              <label class="mock-time-choice">
+                <input type="checkbox" name="regTimeSlot" value="17:00" />
+                <span>05:00 pm</span>
+              </label>
+            </div>
           </div>
           <div class="field filter-action">
             <button id="registerBtn" class="btn-primary" type="submit">Register</button>
@@ -69,7 +98,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/mock-test-registration.js?v=1"></script>
+    <script type="module" src="./src/mock-test-registration.js?v=2"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

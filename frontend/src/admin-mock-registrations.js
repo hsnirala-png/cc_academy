@@ -48,6 +48,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (type) messageEl.classList.add(type);
   };
 
+  const examLabel = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (normalized === "PSTET_1") return "PSTET-1";
+    if (normalized === "PSTET_2") return "PSTET-2";
+    return normalized || "-";
+  };
+
+  const streamLabel = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (normalized === "SOCIAL_STUDIES") return "SST";
+    if (normalized === "SCIENCE_MATH") return "SCI/MATHS";
+    return normalized || "-";
+  };
+
+  const timeLabel = (value) => {
+    const normalized = String(value || "").trim();
+    if (normalized === "09:00") return "09:00 am";
+    if (normalized === "17:00") return "05:00 pm";
+    return normalized || "-";
+  };
+
   const resolveRegistrationLink = (mockTestId) => {
     const id = String(mockTestId || "").trim();
     if (!id) return "";
@@ -139,7 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderEntries = () => {
     if (!(entriesBody instanceof HTMLElement)) return;
     if (!state.entries.length) {
-      entriesBody.innerHTML = `<tr><td colspan="5">No registrations yet for selected config.</td></tr>`;
+      entriesBody.innerHTML = `<tr><td colspan="9">No registrations yet for selected config.</td></tr>`;
       return;
     }
     entriesBody.innerHTML = state.entries
@@ -149,6 +170,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${escapeHtml(entry.fullName || entry.userName || "-")}</td>
             <td>${escapeHtml(entry.mobile || entry.userMobile || "-")}</td>
             <td>${escapeHtml(entry.email || entry.userEmail || "-")}</td>
+            <td>${escapeHtml(examLabel(entry.preferredExamType))}</td>
+            <td>${escapeHtml(streamLabel(entry.preferredStreamChoice))}</td>
+            <td>${escapeHtml(entry.preferredDate || "-")}</td>
+            <td>${escapeHtml(timeLabel(entry.preferredTimeSlot))}</td>
             <td>${Number(entry.usedAttempts || 0)}</td>
             <td>${escapeHtml(formatDateTime(entry.createdAt))}</td>
           </tr>
@@ -162,8 +187,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       path: "/admin/mock-tests",
       token,
     });
-    state.mockTests = Array.isArray(data?.mockTests) ? data.mockTests : [];
+    const tests = Array.isArray(data?.mockTests) ? data.mockTests : [];
+    state.mockTests = tests.filter(
+      (item) => String(item?.accessCode || "").trim().toUpperCase() === "MOCK"
+    );
     renderMockTestOptions();
+    if (!state.mockTests.length) {
+      setMessage("No MOCK access tests found. Set access code as MOCK in Digital Lessons > Tests.", "error");
+    }
   };
 
   const loadRegistrations = async () => {
@@ -356,4 +387,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(error?.message || "Unable to load registration manager.", "error");
   }
 });
-

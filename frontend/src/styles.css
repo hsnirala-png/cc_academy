@@ -3570,6 +3570,36 @@ h1 {
   flex-wrap: wrap;
 }
 
+.mock-time-choice-wrap {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mock-time-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.mock-global-reg-popup {
+  cursor: pointer;
+}
+
+.mock-global-reg-popup .mock-registration-close {
+  z-index: 2;
+}
+
+.mock-global-reg-popup .mock-global-reg-title {
+  margin: 0.1rem 0 0.4rem;
+}
+
+.mock-global-reg-popup .mock-global-reg-sub {
+  margin: 0.2rem 0;
+  color: var(--muted);
+}
+
 .attempt-card {
   border: 1px solid var(--border);
   border-radius: 16px;

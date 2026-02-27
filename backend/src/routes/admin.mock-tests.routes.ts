@@ -62,6 +62,39 @@ const normalizeOptionalText = (value: unknown, max: number) => {
   return text.slice(0, max);
 };
 
+const toDateOnly = (value: string | Date | null | undefined): string => {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "MOCK" | "LESSON"> => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        (
+          SELECT mar.accessCode
+          FROM MockTestAccessRule mar
+          WHERE mar.mockTestId = mt.id
+          ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+          LIMIT 1
+        ) AS accessCode
+      FROM MockTest mt
+      WHERE mt.id = ?
+      LIMIT 1
+    `,
+    mockTestId
+  )) as Array<{ accessCode: string | null }>;
+  const code = String(rows[0]?.accessCode || "DEMO")
+    .trim()
+    .toUpperCase();
+  if (code === "MOCK" || code === "LESSON") return code;
+  return "DEMO";
+};
+
 const createRegistrationGateSchema = z.object({
   mockTestId: z.string().trim().min(8),
   title: z.string().trim().min(2).max(191),
@@ -237,6 +270,10 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
     if (!mockTestRows[0]) {
       throw new AppError("Selected mock test was not found.", 404);
     }
+    const accessCode = await resolveMockTestAccessCode(input.mockTestId);
+    if (accessCode !== "MOCK") {
+      throw new AppError("Only MOCK access tests can be linked to mock registration.", 400);
+    }
 
     const existingRows = (await prisma.$queryRawUnsafe(
       `
@@ -395,6 +432,10 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
           e.fullName,
           e.mobile,
           e.email,
+          e.preferredExamType,
+          e.preferredStreamChoice,
+          e.preferredDate,
+          e.preferredTimeSlot,
           e.createdAt,
           e.updatedAt,
           u.name AS userName,
@@ -420,6 +461,10 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
       fullName: string;
       mobile: string;
       email: string | null;
+      preferredExamType: string | null;
+      preferredStreamChoice: string | null;
+      preferredDate: string | Date | null;
+      preferredTimeSlot: string | null;
       createdAt: Date | string;
       updatedAt: Date | string;
       userName: string | null;
@@ -437,6 +482,10 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
         fullName: row.fullName,
         mobile: row.mobile,
         email: row.email || "",
+        preferredExamType: row.preferredExamType || "",
+        preferredStreamChoice: row.preferredStreamChoice || "",
+        preferredDate: toDateOnly(row.preferredDate),
+        preferredTimeSlot: row.preferredTimeSlot || "",
         userName: row.userName || "",
         userMobile: row.userMobile || "",
         userEmail: row.userEmail || "",

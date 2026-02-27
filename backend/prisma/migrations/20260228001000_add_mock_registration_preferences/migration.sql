@@ -1,0 +1,6 @@
+ALTER TABLE `MockTestRegistrationEntry`
+  ADD COLUMN IF NOT EXISTS `preferredExamType` VARCHAR(20) NULL,
+  ADD COLUMN IF NOT EXISTS `preferredStreamChoice` VARCHAR(40) NULL,
+  ADD COLUMN IF NOT EXISTS `preferredDate` DATE NULL,
+  ADD COLUMN IF NOT EXISTS `preferredTimeSlot` VARCHAR(10) NULL;
+

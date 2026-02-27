@@ -125,6 +125,78 @@ document.addEventListener("DOMContentLoaded", async () => {
     dashProductsStatus.classList.remove("error", "success");
     if (type) dashProductsStatus.classList.add(type);
   };
+  const closeDashboardRegistrationPopup = () => {
+    const modal = document.querySelector("#dashboardMockRegistrationPopup");
+    if (modal instanceof HTMLElement) modal.remove();
+  };
+
+  const showDashboardRegistrationPopup = (option) => {
+    const registrationUrl = String(option?.registrationPageUrl || "").trim();
+    if (!registrationUrl) return;
+    closeDashboardRegistrationPopup();
+    const modal = document.createElement("div");
+    modal.id = "dashboardMockRegistrationPopup";
+    modal.className = "mock-registration-modal";
+    const imageMarkup = option?.popupImageUrl
+      ? `<div class=\"mock-registration-banner-wrap\"><img src=\"${escapeHtml(
+          option.popupImageUrl
+        )}\" alt=\"Mock registration\" /></div>`
+      : "";
+    const pendingText = option?.hasPaidAccess
+      ? "Paid access available."
+      : `Pending chances: ${Math.max(0, Number(option?.remainingAttempts || 0))}`;
+    modal.innerHTML = `
+      <div class=\"mock-registration-dialog mock-global-reg-popup\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
+        <button type=\"button\" class=\"mock-registration-close\" data-dash-reg-close aria-label=\"Close\">x</button>
+        ${imageMarkup}
+        <h3 class=\"mock-global-reg-title\">${escapeHtml(option?.title || option?.mockTestTitle || "Mock Registration")}</h3>
+        <p class=\"mock-global-reg-sub\">${escapeHtml(option?.description || "")}</p>
+        <p class=\"mock-global-reg-sub\">${escapeHtml(pendingText)}</p>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const routeToRegistration = () => {
+      window.location.href = registrationUrl;
+    };
+
+    const closeBtn = modal.querySelector("[data-dash-reg-close]");
+    if (closeBtn instanceof HTMLButtonElement) {
+      closeBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        modal.remove();
+      });
+    }
+
+    const dialog = modal.querySelector(".mock-global-reg-popup");
+    if (dialog instanceof HTMLElement) {
+      dialog.addEventListener("click", (event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.closest("[data-dash-reg-close]")) return;
+        routeToRegistration();
+      });
+    }
+  };
+
+  const loadDashboardRegistrationPopup = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => ({}));
+      const options = Array.isArray(data?.options) ? data.options : [];
+      if (!options.length) return;
+      const preferred =
+        options.find((item) => !item?.hasPaidAccess && Number(item?.remainingAttempts || 0) > 0) ||
+        options[0];
+      showDashboardRegistrationPopup(preferred);
+    } catch {
+      // Keep silent in dashboard if popup API is unavailable.
+    }
+  };
 
   const state = {
     lessonOverview: null,
@@ -1131,6 +1203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const message = productError instanceof Error ? productError.message : "Unable to load product catalog.";
       setProductsStatus(message, "error");
     }
+    void loadDashboardRegistrationPopup();
   } catch (error) {
     setMessage("Unable to load dashboard. Please ensure backend is running.", "error");
     const localUser = readStoredAuth().user;
