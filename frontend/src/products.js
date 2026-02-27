@@ -1089,6 +1089,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/\s+/g, " ")
       .trim();
 
+  const normalizeLearningDisplayTitle = (value) =>
+    String(value || "")
+      .replace(/^\s*\d+\s*[\.\-\)]\s*/, "")
+      .trim();
+
   const resolveSubjectTabKey = (subjectValue, titleValue) => {
     const subjectText = normalizeLearningLookup(subjectValue);
     const titleText = normalizeLearningLookup(titleValue);
@@ -1265,7 +1270,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       items.push({
         productId,
         id: demoId,
-        title: demoTitle,
+        title: normalizeLearningDisplayTitle(demoTitle),
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_LESSON_OR_ATTEMPT",
@@ -1277,7 +1282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       items.push({
         productId,
         id: demoLessonUrl,
-        title: demoTitle,
+        title: normalizeLearningDisplayTitle(demoTitle),
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_DEMO_URL",
@@ -1290,13 +1295,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       const accessCode = String(item?.accessCode || "MOCK")
         .trim()
         .toUpperCase();
-      const isDemoAccess = accessCode === "DEMO";
+      const isDemoAccess =
+        accessCode === "DEMO" ||
+        accessCode.startsWith("DEMO ") ||
+        accessCode.includes("FREE FOR ALL");
       const isLessonLinked = accessCode === "LESSON";
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
         id: String(item?.id || "").trim(),
-        title: itemTitle,
+        title: normalizeLearningDisplayTitle(itemTitle),
         accessType: isDemoAccess ? "DEMO" : "PREMIUM",
         unlocked: isDemoAccess ? true : premiumUnlocked,
         action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
