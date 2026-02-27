@@ -2747,6 +2747,39 @@ h1 {
   font-size: 0.83rem;
 }
 
+.product-learn-subject-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.product-learn-subject-tabs button {
+  border: 1px solid #c7dbff;
+  border-radius: 999px;
+  background: #fff;
+  color: #2b4f95;
+  font-weight: 700;
+  font-size: 0.74rem;
+  line-height: 1;
+  padding: 0.36rem 0.62rem;
+  cursor: pointer;
+}
+
+.product-learn-subject-tabs button.is-active {
+  background: #1f63d8;
+  border-color: #1f63d8;
+  color: #fff;
+}
+
+.product-learn-subject-panel {
+  display: none;
+}
+
+.product-learn-subject-panel.is-active {
+  display: block;
+}
+
 .product-learn-table-wrap {
   overflow-x: auto;
 }
@@ -3798,6 +3831,11 @@ h1 {
 
   .product-thumb {
     max-width: 260px;
+  }
+
+  .product-learn-subject-tabs button {
+    padding: 0.34rem 0.5rem;
+    font-size: 0.7rem;
   }
 
   .product-salient-grid {
