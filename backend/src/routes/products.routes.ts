@@ -74,6 +74,13 @@ type ProductMockTestRow = {
   mockTestIsActive: number | boolean;
 };
 
+type ProductChapterSubSubjectRow = {
+  productId: string;
+  chapterSubSubject: string | null;
+};
+
+type TocTabPreset = "PSTET_1" | "PSTET_2_SST" | "PSTET_2_SCI_MATH" | null;
+
 type ProductFaq = { q: string; a: string };
 type ProductExamCovered = { title: string; imageUrl: string };
 type ProductDetailsTabs = {
@@ -265,6 +272,56 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   isActive: toBoolean(row.mockTestIsActive),
 });
 
+const normalizeLookupText = (value: unknown) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const inferExamTypeForTocPreset = (
+  row: ProductRow,
+  linkedMockTests: ReturnType<typeof toLinkedMockTest>[],
+  demoMockTests: ReturnType<typeof toLinkedMockTest>[]
+): "PSTET_1" | "PSTET_2" | null => {
+  const combinedText = normalizeLookupText(`${row.examName} ${row.examCategory} ${row.title}`);
+  if (combinedText.includes("pstet 1") || combinedText.includes("paper 1")) return "PSTET_1";
+  if (combinedText.includes("pstet 2") || combinedText.includes("paper 2")) return "PSTET_2";
+
+  const testExamTypes = [...linkedMockTests, ...demoMockTests]
+    .map((item) => String(item?.examType || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (testExamTypes.includes("PSTET_1")) return "PSTET_1";
+  if (testExamTypes.includes("PSTET_2")) return "PSTET_2";
+  return null;
+};
+
+const resolveTocTabPreset = (
+  row: ProductRow,
+  linkedMockTests: ReturnType<typeof toLinkedMockTest>[],
+  demoMockTests: ReturnType<typeof toLinkedMockTest>[],
+  chapterSubSubjects: string[] = []
+): TocTabPreset => {
+  const examType = inferExamTypeForTocPreset(row, linkedMockTests, demoMockTests);
+  if (examType === "PSTET_1") return "PSTET_1";
+  if (examType !== "PSTET_2") return null;
+
+  const normalizedSubSubjects = chapterSubSubjects
+    .map((value) => String(value || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (normalizedSubSubjects.includes("SOCIAL_STUDIES")) return "PSTET_2_SST";
+  if (normalizedSubSubjects.includes("SCIENCE_MATH")) return "PSTET_2_SCI_MATH";
+
+  const normalizedMockSubjects = [...linkedMockTests, ...demoMockTests]
+    .map((item) => String(item?.subject || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (normalizedMockSubjects.includes("SOCIAL_STUDIES")) return "PSTET_2_SST";
+  if (normalizedMockSubjects.includes("SCIENCE_MATH")) return "PSTET_2_SCI_MATH";
+
+  return "PSTET_2_SST";
+};
+
 const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
   if (!productIds.length) return new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
   const placeholders = productIds.map(() => "?").join(", ");
@@ -323,6 +380,57 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
     const list = grouped.get(row.productId) || [];
     list.push(toLinkedMockTest(row));
     grouped.set(row.productId, list);
+  });
+  return grouped;
+};
+
+const loadChapterSubSubjectsByProductIds = async (productIds: string[]) => {
+  if (!productIds.length) return new Map<string, string[]>();
+  const placeholders = productIds.map(() => "?").join(", ");
+  let rows: ProductChapterSubSubjectRow[] = [];
+  try {
+    rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT DISTINCT
+          linked.productId,
+          ch.subSubject AS chapterSubSubject
+        FROM (
+          SELECT pmt.productId, pmt.mockTestId
+          FROM ProductMockTest pmt
+          WHERE pmt.productId IN (${placeholders})
+          UNION ALL
+          SELECT pdmt.productId, pdmt.mockTestId
+          FROM ProductDemoMockTest pdmt
+          WHERE pdmt.productId IN (${placeholders})
+        ) linked
+        INNER JOIN Lesson l ON l.assessmentTestId = linked.mockTestId
+        INNER JOIN Chapter ch ON ch.id = l.chapterId
+        WHERE ch.subSubject IS NOT NULL
+      `,
+      ...productIds,
+      ...productIds
+    )) as ProductChapterSubSubjectRow[];
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const code = String((error as { code?: string })?.code || "").trim();
+    const missingSubSubjectColumn =
+      (code === "P2010" || message.includes("1054")) &&
+      message.includes("subsubject") &&
+      message.includes("unknown column");
+    if (!missingSubSubjectColumn) throw error;
+    // Backward compatibility for databases where migration is not applied yet.
+    return new Map<string, string[]>();
+  }
+
+  const grouped = new Map<string, string[]>();
+  rows.forEach((row) => {
+    const productId = String(row.productId || "").trim();
+    if (!productId) return;
+    const value = String(row.chapterSubSubject || "").trim();
+    if (!value) return;
+    const current = grouped.get(productId) || [];
+    if (!current.includes(value)) current.push(value);
+    grouped.set(productId, current);
   });
   return grouped;
 };
@@ -388,7 +496,8 @@ const serializeProduct = (
   row: ProductRow,
   linkedMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   demoMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
-  isPremiumUnlocked = false
+  isPremiumUnlocked = false,
+  tocTabPreset: TocTabPreset = null
 ) => {
   const listPrice = toNumber(row.listPrice);
   const salePrice = toNumber(row.salePrice);
@@ -416,6 +525,7 @@ const serializeProduct = (
     demoLessonUrl: row.demoLessonUrl || null,
     linkedMockTests,
     demoMockTests,
+    tocTabPreset,
     isPremiumUnlocked,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
@@ -641,18 +751,30 @@ productsRouter.get("/", async (req, res, next) => {
     )) as ProductRow[];
 
     const productIds = rows.map((item) => item.id);
-    const [linkedMap, demoMap, unlockedSet] = await Promise.all([
+    const [linkedMap, demoMap, chapterSubSubjectMap, unlockedSet] = await Promise.all([
       loadLinkedMockTestsByProductIds(productIds),
       loadDemoMockTestsByProductIds(productIds),
+      loadChapterSubSubjectsByProductIds(productIds),
       loadUnlockedProductIdsForUser(studentUserId, productIds),
     ]);
     const products = rows.map((row) =>
-      serializeProduct(
-        row,
-        linkedMap.get(row.id) || [],
-        demoMap.get(row.id) || [],
-        unlockedSet.has(row.id)
-      )
+      {
+        const linkedMockTests = linkedMap.get(row.id) || [];
+        const demoMockTests = demoMap.get(row.id) || [];
+        const tocTabPreset = resolveTocTabPreset(
+          row,
+          linkedMockTests,
+          demoMockTests,
+          chapterSubSubjectMap.get(row.id) || []
+        );
+        return serializeProduct(
+          row,
+          linkedMockTests,
+          demoMockTests,
+          unlockedSet.has(row.id),
+          tocTabPreset
+        );
+      }
     );
 
     const categories = Array.from(new Set(products.map((item) => item.examCategory))).sort();
