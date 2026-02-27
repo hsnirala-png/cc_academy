@@ -1,0 +1,2 @@
+ALTER TABLE `Chapter`
+  ADD COLUMN `subSubject` ENUM('SCIENCE_MATH', 'SOCIAL_STUDIES') NULL AFTER `description`;

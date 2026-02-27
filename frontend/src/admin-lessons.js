@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const chapterTitleInput = document.querySelector("#chapterTitle");
   const chapterOrderIndexInput = document.querySelector("#chapterOrderIndex");
   const chapterDescriptionInput = document.querySelector("#chapterDescription");
+  const chapterSubSubjectInput = document.querySelector("#chapterSubSubject");
   const chapterSubmitBtn = document.querySelector("#chapterSubmitBtn");
   const chapterCancelBtn = document.querySelector("#chapterCancelBtn");
   const chaptersTableBody = document.querySelector("#chaptersTableBody");
@@ -2018,6 +2019,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     "SCIENCE_MATH",
     "SOCIAL_STUDIES",
   ]);
+  const CHAPTER_SUB_SUBJECT_LABELS = {
+    SOCIAL_STUDIES: "SST",
+    SCIENCE_MATH: "SCI + MATHS",
+  };
   const ACCESS_CODE_LABELS = {
     DEMO: "DEMO",
     MOCK: "MOCK",
@@ -2598,7 +2603,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (title.includes("social")) return "SOCIAL_STUDIES";
     if (title.includes("science") && title.includes("math")) return "SCIENCE_MATH";
     if (title.includes("math") && title.includes("evs")) return "MATHS_EVS";
-    if (title.includes("maths") || title.includes("mathematics") || title.includes("evs")) return "MATHS_EVS";
+    if (
+      title.includes("maths") ||
+      title.includes("mathematics") ||
+      title.includes("evs") ||
+      title.includes("environment")
+    ) {
+      return "MATHS_EVS";
+    }
     return "CHILD_PEDAGOGY";
   };
   const syncMockTaxonomyFromScope = (options = {}) => {
@@ -3721,6 +3733,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (chapterCourseIdInput instanceof HTMLSelectElement) {
       chapterCourseIdInput.value = state.selectedCourseId || "";
     }
+    if (chapterSubSubjectInput instanceof HTMLSelectElement) {
+      chapterSubSubjectInput.value = "";
+    }
     if (chapterSubmitBtn) chapterSubmitBtn.textContent = "Create Subject";
     if (chapterCancelBtn) chapterCancelBtn.classList.add("hidden");
   };
@@ -3910,12 +3925,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!chaptersTableBody) return;
     if (!state.selectedCourseId) {
       chaptersTableBody.innerHTML =
-        '<tr><td colspan="5" style="text-align:center;color:#666;">Select a course to view subjects.</td></tr>';
+        '<tr><td colspan="6" style="text-align:center;color:#666;">Select a course to view subjects.</td></tr>';
       return;
     }
     if (!state.chapters.length) {
       chaptersTableBody.innerHTML =
-        '<tr><td colspan="5" style="text-align:center;color:#666;">No subjects yet.</td></tr>';
+        '<tr><td colspan="6" style="text-align:center;color:#666;">No subjects yet.</td></tr>';
       return;
     }
 
@@ -3925,6 +3940,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <tr class="${state.selectedChapterId === chapter.id ? "row-selected" : ""}">
             <td>${chapter.orderIndex}</td>
             <td>${escapeHtml(chapter.title)}</td>
+            <td>${escapeHtml(CHAPTER_SUB_SUBJECT_LABELS[String(chapter.subSubject || "").trim()] || "-")}</td>
             <td>${chapter._count?.lessons ?? 0}</td>
             <td>${escapeHtml(formatDateTime(chapter.updatedAt))}</td>
             <td>
@@ -4626,6 +4642,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     button.addEventListener("click", async () => {
       const tabKey = button.getAttribute("data-admin-tab") || "courses";
       setActiveTab(tabKey);
+      if (tabKey === "chapters") {
+        try {
+          const selectedCourseId =
+            state.selectedCourseId || String(chapterCourseIdInput?.value || "").trim();
+          if (selectedCourseId) {
+            state.selectedCourseId = selectedCourseId;
+            await loadChapters(selectedCourseId);
+          }
+        } catch (error) {
+          setMessage(error.message || "Unable to load subjects.", "error");
+        }
+      }
+      if (tabKey === "lessons") {
+        try {
+          const selectedChapterId =
+            state.selectedChapterId || String(lessonChapterIdInput?.value || "").trim();
+          if (selectedChapterId) {
+            state.selectedChapterId = selectedChapterId;
+            await loadLessons(selectedChapterId);
+          }
+        } catch (error) {
+          setMessage(error.message || "Unable to load chapters.", "error");
+        }
+      }
       if (tabKey === "mocktests") {
         try {
           await syncMockScopeFromLessonScope();
@@ -5161,6 +5201,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         courseId: selectedCourseId,
         title: chapterTitleInput?.value?.trim() || "",
         description: chapterDescriptionInput?.value?.trim() || undefined,
+        subSubject: chapterSubSubjectInput?.value?.trim() || undefined,
         orderIndex: chapterOrderIndexInput?.value ? Number(chapterOrderIndexInput.value) : 0,
       };
 
@@ -5180,6 +5221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             body: {
               title: payload.title,
               description: payload.description,
+              subSubject: chapterSubSubjectInput?.value?.trim() || null,
               orderIndex: payload.orderIndex,
             },
           });
@@ -5562,6 +5604,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (chapterTitleInput) chapterTitleInput.value = chapter.title || "";
         if (chapterOrderIndexInput) chapterOrderIndexInput.value = String(chapter.orderIndex || "");
         if (chapterDescriptionInput) chapterDescriptionInput.value = chapter.description || "";
+        if (chapterSubSubjectInput instanceof HTMLSelectElement) {
+          chapterSubSubjectInput.value = String(chapter.subSubject || "");
+        }
         if (chapterSubmitBtn) chapterSubmitBtn.textContent = "Update Subject";
         if (chapterCancelBtn) chapterCancelBtn.classList.remove("hidden");
         return;
@@ -6639,6 +6684,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     toggleMockSubjectDependentFields();
     resetLessonMockTestForm();
     setTestsMode("create");
+    if (state.selectedCourseId) {
+      await loadChapters(state.selectedCourseId);
+    }
+    if (state.selectedChapterId) {
+      await loadLessons(state.selectedChapterId);
+    }
     renderChapters();
     renderLessons();
     renderMockChapterOptions();

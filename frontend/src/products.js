@@ -1077,6 +1077,162 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const PSTET_1_TOC_TABS = ["CDP", "PBI", "ENG", "EVS", "MATHS"];
+  const PSTET_2_NON_SCI_TOC_TABS = ["CDP", "PBI", "ENG", "SST"];
+  const PSTET_2_SCI_TOC_TABS = ["CDP", "PBI", "ENG", "SCI", "MATHS"];
+
+  const normalizeLearningLookup = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/[^a-z0-9\s]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const resolveSubjectTabKey = (subjectValue, titleValue) => {
+    const subjectText = normalizeLearningLookup(subjectValue);
+    const titleText = normalizeLearningLookup(titleValue);
+
+    if (subjectText.includes("child pedagogy") || subjectText.includes("child development")) return "CDP";
+    if (subjectText.includes("punjabi")) return "PBI";
+    if (subjectText.includes("english")) return "ENG";
+    if (subjectText.includes("social studies")) return "SST";
+    if (subjectText.includes("science math")) {
+      if (
+        titleText.includes("mathematics") ||
+        titleText.includes("maths") ||
+        titleText.includes("math ")
+      ) {
+        return "MATHS";
+      }
+      if (titleText.includes("science") || titleText.includes("physics") || titleText.includes("chemistry")) {
+        return "SCI";
+      }
+      return "SCI";
+    }
+    if (subjectText.includes("maths evs")) {
+      if (titleText.includes("environment") || titleText.includes("evs")) return "EVS";
+      if (
+        titleText.includes("mathematics") ||
+        titleText.includes("maths") ||
+        titleText.includes("math ")
+      ) {
+        return "MATHS";
+      }
+      return "MATHS";
+    }
+
+    if (titleText.includes("child pedagogy") || titleText.includes("child development")) return "CDP";
+    if (titleText.includes("punjabi")) return "PBI";
+    if (titleText.includes("english")) return "ENG";
+    if (titleText.includes("environment") || titleText.includes("evs")) return "EVS";
+    if (titleText.includes("social studies") || /\bsst\b/.test(titleText)) return "SST";
+    if (titleText.includes("science")) return "SCI";
+    if (
+      titleText.includes("mathematics") ||
+      titleText.includes("maths") ||
+      titleText.includes("math ")
+    ) {
+      return "MATHS";
+    }
+    return "";
+  };
+
+  const detectProductExamType = (product) => {
+    const haystack = normalizeLearningLookup(
+      `${product?.examName || ""} ${product?.examCategory || ""} ${product?.title || ""}`
+    );
+    if (haystack.includes("pstet 2") || haystack.includes("paper 2")) return "PSTET_2";
+    if (haystack.includes("pstet 1") || haystack.includes("paper 1")) return "PSTET_1";
+    return "";
+  };
+
+  const isPstet2ScienceTeacherProduct = (product, itemKeys) => {
+    const haystack = normalizeLearningLookup(
+      `${product?.title || ""} ${product?.examName || ""} ${product?.examCategory || ""} ${product?.description || ""}`
+    );
+    if (
+      haystack.includes("non sci") ||
+      haystack.includes("non science") ||
+      haystack.includes("social studies")
+    ) {
+      return false;
+    }
+    if (
+      haystack.includes("science teacher") ||
+      haystack.includes("science stream") ||
+      haystack.includes("science math") ||
+      haystack.includes("sci math")
+    ) {
+      return true;
+    }
+    if (itemKeys.has("SCI")) return true;
+    if (itemKeys.has("SST")) return false;
+    if (itemKeys.has("MATHS") && !itemKeys.has("EVS")) return true;
+    return false;
+  };
+
+  const resolveTocTabsForProduct = (product, items) => {
+    const preset = String(product?.tocTabPreset || "")
+      .trim()
+      .toUpperCase();
+    if (preset === "PSTET_1") return [...PSTET_1_TOC_TABS];
+    if (preset === "PSTET_2_SST") return [...PSTET_2_NON_SCI_TOC_TABS];
+    if (preset === "PSTET_2_SCI_MATH") return [...PSTET_2_SCI_TOC_TABS];
+
+    const itemKeys = new Set(items.map((item) => item.subjectTabKey).filter(Boolean));
+    const examType = detectProductExamType(product);
+    if (examType === "PSTET_1") return [...PSTET_1_TOC_TABS];
+    if (examType === "PSTET_2") {
+      return isPstet2ScienceTeacherProduct(product, itemKeys)
+        ? [...PSTET_2_SCI_TOC_TABS]
+        : [...PSTET_2_NON_SCI_TOC_TABS];
+    }
+    const preferredOrder = ["CDP", "PBI", "ENG", "EVS", "MATHS", "SST", "SCI"];
+    const dynamicTabs = preferredOrder.filter((code) => itemKeys.has(code));
+    return dynamicTabs.length ? dynamicTabs : ["CDP"];
+  };
+
+  const renderLearningTableRows = (items, isPlayAction) =>
+    items
+      .map((item, index) => {
+        const action = item.action || "ATTEMPT_TEST";
+        const playAction = isPlayAction(action);
+        const isLocked = !item.unlocked;
+        const buttonClass = item.unlocked
+          ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}`
+          : "btn-secondary product-play-icon-btn is-locked";
+        const buttonLabel =
+          playAction || isLocked
+            ? '<span aria-hidden="true">&#9654;</span><span class="sr-only">Play lesson</span>'
+            : escapeHtml(item.ctaLabel || "Start");
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>
+              <span class="product-learn-name">${escapeHtml(item.title)}</span>
+              <small class="product-learn-type">${escapeHtml(item.accessType)}</small>
+            </td>
+            <td>
+              <button
+                type="button"
+                class="${buttonClass}"
+                data-start-learning-id="${escapeHtml(item.id)}"
+                data-learning-product-id="${escapeHtml(item.productId || "")}"
+                data-start-learning-action="${escapeHtml(action)}"
+                data-learning-locked="${isLocked ? "true" : "false"}"
+                ${playAction || isLocked ? 'aria-label="Play lesson"' : ""}
+                ${isLocked ? 'aria-disabled="true" title="Buy premium product to unlock."' : ""}
+              >
+                ${buttonLabel}
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
   const buildLearningItems = (product) => {
     const productId = String(product?.id || "").trim();
     const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
@@ -1105,24 +1261,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     const items = [];
 
     if (firstDemo) {
+      const demoTitle = String(firstDemo.title || "Demo Lesson");
       items.push({
         productId,
         id: demoId,
-        title: String(firstDemo.title || "Demo Lesson"),
+        title: demoTitle,
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
+        subjectTabKey: resolveSubjectTabKey(firstDemo.subject, demoTitle),
       });
     } else if (demoLessonUrl) {
+      const demoTitle = demoLessonTitle || "Demo Lesson";
       items.push({
         productId,
         id: demoLessonUrl,
-        title: demoLessonTitle || "Demo Lesson",
+        title: demoTitle,
         accessType: "DEMO",
         unlocked: true,
         action: "OPEN_DEMO_URL",
         ctaLabel: "Play",
+        subjectTabKey: resolveSubjectTabKey("", demoTitle),
       });
     }
 
@@ -1131,14 +1291,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         .trim()
         .toUpperCase();
       const isLessonLinked = accessCode === "LESSON";
+      const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
         id: String(item?.id || "").trim(),
-        title: String(item?.title || "Premium Lesson"),
+        title: itemTitle,
         accessType: "PREMIUM",
         unlocked: premiumUnlocked,
         action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
         ctaLabel: isLessonLinked ? "Play" : "Attempt Test",
+        subjectTabKey: resolveSubjectTabKey(item?.subject, itemTitle),
       });
     });
 
@@ -1151,58 +1313,62 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const isPlayAction = (action) =>
       action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT";
+    const tabs = resolveTocTabsForProduct(product, items);
+    const grouped = new Map(tabs.map((tabCode) => [tabCode, []]));
+    const fallbackTab = tabs[0];
+    items.forEach((item) => {
+      const tabCode = tabs.includes(item.subjectTabKey) ? item.subjectTabKey : fallbackTab;
+      grouped.get(tabCode).push(item);
+    });
 
     return `
-      <div class="product-learn-table-wrap">
-        <table class="product-learn-table">
-          <thead>
-            <tr>
-              <th>Sr No</th>
-              <th>Name Of Product</th>
-              <th>Start Learning</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items
-              .map((item, index) => {
-                const action = item.action || "ATTEMPT_TEST";
-                const playAction = isPlayAction(action);
-                const isLocked = !item.unlocked;
-                const buttonClass = item.unlocked
-                  ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}`
-                  : "btn-secondary product-play-icon-btn is-locked";
-                const buttonLabel =
-                  playAction || isLocked
-                    ? '<span aria-hidden="true">&#9654;</span><span class="sr-only">Play lesson</span>'
-                    : escapeHtml(item.ctaLabel || "Start");
-
-                return `
-                  <tr>
-                    <td>${index + 1}</td>
-                    <td>
-                      <span class="product-learn-name">${escapeHtml(item.title)}</span>
-                      <small class="product-learn-type">${escapeHtml(item.accessType)}</small>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        class="${buttonClass}"
-                        data-start-learning-id="${escapeHtml(item.id)}"
-                        data-learning-product-id="${escapeHtml(item.productId || "")}"
-                        data-start-learning-action="${escapeHtml(action)}"
-                        data-learning-locked="${isLocked ? "true" : "false"}"
-                        ${playAction || isLocked ? 'aria-label="Play lesson"' : ""}
-                        ${isLocked ? 'aria-disabled="true" title="Buy premium product to unlock."' : ""}
-                      >
-                        ${buttonLabel}
-                      </button>
-                    </td>
-                  </tr>
-                `;
-              })
-              .join("")}
-          </tbody>
-        </table>
+      <div class="product-learn-subject-tabs" data-learning-tabs>
+        ${tabs
+          .map(
+            (tabCode, index) => `
+              <button
+                type="button"
+                data-learning-tab-btn="${tabCode}"
+                class="${index === 0 ? "is-active" : ""}"
+                aria-selected="${index === 0 ? "true" : "false"}"
+              >
+                ${tabCode}
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+      <div class="product-learn-subject-panels">
+        ${tabs
+          .map((tabCode, index) => {
+            const tabItems = grouped.get(tabCode) || [];
+            return `
+              <section
+                class="product-learn-subject-panel ${index === 0 ? "is-active" : ""}"
+                data-learning-tab-panel="${tabCode}"
+              >
+                ${
+                  tabItems.length
+                    ? `
+                      <div class="product-learn-table-wrap">
+                        <table class="product-learn-table">
+                          <thead>
+                            <tr>
+                              <th>Sr No</th>
+                              <th>Name Of Product</th>
+                              <th>Start Learning</th>
+                            </tr>
+                          </thead>
+                          <tbody>${renderLearningTableRows(tabItems, isPlayAction)}</tbody>
+                        </table>
+                      </div>
+                    `
+                    : `<p class="product-learn-empty">No lessons added in ${tabCode} yet.</p>`
+                }
+              </section>
+            `;
+          })
+          .join("")}
       </div>
     `;
   };
@@ -1571,6 +1737,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const activateLearningTab = (tabsContainer, tabId) => {
+    if (!(tabsContainer instanceof HTMLElement)) return;
+    const buttons = Array.from(tabsContainer.querySelectorAll("[data-learning-tab-btn]"));
+    if (!buttons.length) return;
+    const root = tabsContainer.parentElement;
+    if (!(root instanceof HTMLElement)) return;
+    const panels = Array.from(root.querySelectorAll("[data-learning-tab-panel]"));
+    if (!panels.length) return;
+
+    buttons.forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const active = btn.getAttribute("data-learning-tab-btn") === tabId;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+
+    panels.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      const active = panel.getAttribute("data-learning-tab-panel") === tabId;
+      panel.classList.toggle("is-active", active);
+    });
+  };
+
   const renderCategoryFilters = () => {
     if (!filterCategoriesWrap) return;
     const categories = Array.from(new Set(state.products.map((item) => item.examCategory))).sort();
@@ -1811,6 +2000,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           const tabsContainer = tabButton.closest("[data-pstet-tabs]");
           if (tabsContainer instanceof HTMLElement) {
             activatePstetTab(tabsContainer, tabId);
+          }
+          return;
+        }
+
+        const learningTabButton = target.closest("[data-learning-tab-btn]");
+        if (learningTabButton instanceof HTMLButtonElement) {
+          const tabId = String(learningTabButton.getAttribute("data-learning-tab-btn") || "").trim();
+          if (!tabId) return;
+          const tabsContainer = learningTabButton.closest("[data-learning-tabs]");
+          if (tabsContainer instanceof HTMLElement) {
+            activateLearningTab(tabsContainer, tabId);
           }
           return;
         }

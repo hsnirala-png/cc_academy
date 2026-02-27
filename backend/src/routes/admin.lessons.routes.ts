@@ -80,6 +80,15 @@ const chapterCreateSchema = z.object({
   courseId: z.string().trim().min(1),
   title: z.string().trim().min(2).max(191),
   description: optionalTrimmedString(4000),
+  subSubject: z.preprocess(
+    (value) => {
+      if (value === undefined) return undefined;
+      if (value === null) return null;
+      if (typeof value === "string" && value.trim() === "") return null;
+      return value;
+    },
+    z.enum(["SCIENCE_MATH", "SOCIAL_STUDIES"]).nullable().optional()
+  ),
   orderIndex: z.coerce.number().int().min(1),
 });
 
@@ -87,6 +96,15 @@ const chapterUpdateSchema = z
   .object({
     title: z.string().trim().min(2).max(191).optional(),
     description: optionalTrimmedString(4000),
+    subSubject: z.preprocess(
+      (value) => {
+        if (value === undefined) return undefined;
+        if (value === null) return null;
+        if (typeof value === "string" && value.trim() === "") return null;
+        return value;
+      },
+      z.enum(["SCIENCE_MATH", "SOCIAL_STUDIES"]).nullable().optional()
+    ),
     orderIndex: z.coerce.number().int().min(1).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, "No chapter updates provided");
@@ -142,6 +160,7 @@ const serializeChapter = (chapter: {
   courseId: string;
   title: string;
   description: string | null;
+  subSubject: "SCIENCE_MATH" | "SOCIAL_STUDIES" | null;
   orderIndex: number;
   createdAt: Date;
   updatedAt: Date;
@@ -551,6 +570,7 @@ adminLessonsRouter.post("/lesson-chapters", ...ensureAdmin, async (req, res, nex
         courseId: input.courseId,
         title: input.title,
         description: input.description,
+        subSubject: input.subSubject ?? null,
         orderIndex: input.orderIndex,
       },
       include: {
@@ -586,6 +606,7 @@ adminLessonsRouter.patch("/lesson-chapters/:chapterId", ...ensureAdmin, async (r
       data: {
         title: input.title,
         description: input.description,
+        subSubject: input.subSubject,
         orderIndex: input.orderIndex,
       },
       include: {
