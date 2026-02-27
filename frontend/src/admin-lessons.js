@@ -3972,6 +3972,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const selectedLessonId = lessonIdInput?.value?.trim() || "";
+    const totalLessons = state.lessons.length;
     lessonsTableBody.innerHTML = state.lessons
       .map(
         (lesson) => `
@@ -3983,6 +3984,41 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${escapeHtml(formatDateTime(lesson.updatedAt))}</td>
             <td>
               <div class="table-actions">
+                <button
+                  class="table-btn"
+                  type="button"
+                  data-move-up-lesson="${lesson.id}"
+                  ${lesson.orderIndex <= 1 ? "disabled" : ""}
+                  title="Shift this lesson up"
+                >
+                  Up
+                </button>
+                <button
+                  class="table-btn"
+                  type="button"
+                  data-move-down-lesson="${lesson.id}"
+                  ${lesson.orderIndex >= totalLessons ? "disabled" : ""}
+                  title="Shift this lesson down"
+                >
+                  Down
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="${totalLessons}"
+                  value="${lesson.orderIndex}"
+                  data-move-to-order-input="${lesson.id}"
+                  style="width:72px"
+                  title="Move to this order number"
+                />
+                <button
+                  class="table-btn"
+                  type="button"
+                  data-move-to-lesson="${lesson.id}"
+                  title="Move lesson to entered number"
+                >
+                  OK
+                </button>
                 <button class="table-btn edit" type="button" data-edit-lesson="${lesson.id}">Edit</button>
                 <button class="table-btn delete" type="button" data-delete-lesson="${lesson.id}">Delete</button>
               </div>
@@ -3991,6 +4027,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         `
       )
       .join("");
+  };
+
+  const reorderLessonInChapter = async (lessonId, targetOrderIndex) => {
+    const safeLessonId = String(lessonId || "").trim();
+    const nextOrderIndex = Math.floor(Number(targetOrderIndex));
+    if (!safeLessonId) return;
+    if (!Number.isFinite(nextOrderIndex) || nextOrderIndex < 1) {
+      throw new Error("Enter a valid order number (1 or more).");
+    }
+    if (!state.selectedChapterId) {
+      throw new Error("Select a subject first.");
+    }
+
+    const response = await apiRequest({
+      path: `/admin/lesson-items/${encodeURIComponent(safeLessonId)}/reorder`,
+      method: "POST",
+      token,
+      body: {
+        targetOrderIndex: nextOrderIndex,
+      },
+    });
+
+    await Promise.all([
+      loadLessons(state.selectedChapterId),
+      state.selectedCourseId ? loadChapters(state.selectedCourseId) : Promise.resolve(),
+      loadLessonTracking(),
+    ]);
+    return Number(response?.movedToOrderIndex || nextOrderIndex);
   };
 
   const getTrackingScopeText = () => {
@@ -6410,6 +6474,62 @@ document.addEventListener("DOMContentLoaded", async () => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
 
+      const moveUpBtn = target.closest("[data-move-up-lesson]");
+      if (moveUpBtn instanceof HTMLButtonElement) {
+        const moveLessonId = String(moveUpBtn.getAttribute("data-move-up-lesson") || "").trim();
+        if (!moveLessonId) return;
+        const lesson = state.lessons.find((item) => item.id === moveLessonId);
+        if (!lesson || lesson.orderIndex <= 1) return;
+        try {
+          setMessage("Shifting lesson up...");
+          const movedTo = await reorderLessonInChapter(moveLessonId, Number(lesson.orderIndex) - 1);
+          setMessage(`Lesson moved to order ${movedTo}.`, "success");
+        } catch (error) {
+          setMessage(error.message || "Unable to shift lesson.", "error");
+        }
+        return;
+      }
+
+      const moveDownBtn = target.closest("[data-move-down-lesson]");
+      if (moveDownBtn instanceof HTMLButtonElement) {
+        const moveLessonId = String(moveDownBtn.getAttribute("data-move-down-lesson") || "").trim();
+        if (!moveLessonId) return;
+        const lesson = state.lessons.find((item) => item.id === moveLessonId);
+        if (!lesson) return;
+        const maxOrder = state.lessons.length;
+        if (Number(lesson.orderIndex) >= maxOrder) return;
+        try {
+          setMessage("Shifting lesson down...");
+          const movedTo = await reorderLessonInChapter(moveLessonId, Number(lesson.orderIndex) + 1);
+          setMessage(`Lesson moved to order ${movedTo}.`, "success");
+        } catch (error) {
+          setMessage(error.message || "Unable to shift lesson.", "error");
+        }
+        return;
+      }
+
+      const moveToBtn = target.closest("[data-move-to-lesson]");
+      if (moveToBtn instanceof HTMLButtonElement) {
+        const moveLessonId = String(moveToBtn.getAttribute("data-move-to-lesson") || "").trim();
+        if (!moveLessonId) return;
+        const row = moveToBtn.closest("tr");
+        const orderInput =
+          row instanceof HTMLElement
+            ? row.querySelector(`[data-move-to-order-input="${moveLessonId}"]`)
+            : null;
+        const requestedOrder = Number(
+          orderInput instanceof HTMLInputElement ? orderInput.value : Number.NaN
+        );
+        try {
+          setMessage("Moving lesson to selected order...");
+          const movedTo = await reorderLessonInChapter(moveLessonId, requestedOrder);
+          setMessage(`Lesson moved to order ${movedTo}.`, "success");
+        } catch (error) {
+          setMessage(error.message || "Unable to move lesson.", "error");
+        }
+        return;
+      }
+
       const playLessonId = target.getAttribute("data-play-lesson");
       if (playLessonId) {
         const lesson = state.lessons.find((item) => item.id === playLessonId);
@@ -6737,3 +6857,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(error.message || "Unable to load digital lessons admin.", "error");
   }
 });
+

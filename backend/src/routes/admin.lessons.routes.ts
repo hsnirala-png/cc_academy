@@ -135,6 +135,10 @@ const lessonUpdateSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, "No lesson updates provided");
 
+const lessonReorderSchema = z.object({
+  targetOrderIndex: z.coerce.number().int().min(1),
+});
+
 const lessonTrackingQuerySchema = z.object({
   courseId: optionalTrimmedString(191),
   chapterId: optionalTrimmedString(191),
@@ -1064,6 +1068,99 @@ adminLessonsRouter.patch("/lesson-items/:lessonId", ...ensureAdmin, async (req, 
     } catch (handled) {
       next(handled);
     }
+  }
+});
+
+adminLessonsRouter.post("/lesson-items/:lessonId/reorder", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = lessonReorderSchema.parse(req.body);
+
+    const reordered = await prisma.$transaction(async (tx) => {
+      const currentLesson = await tx.lesson.findUnique({
+        where: { id: req.params.lessonId },
+        select: { id: true, chapterId: true, orderIndex: true },
+      });
+      if (!currentLesson) {
+        throw new AppError("Lesson not found", 404);
+      }
+
+      const chapterLessons = await tx.lesson.findMany({
+        where: { chapterId: currentLesson.chapterId },
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+        include: {
+          assessmentTest: {
+            select: {
+              id: true,
+              title: true,
+              examType: true,
+              subject: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      if (!chapterLessons.length) {
+        throw new AppError("No lessons found for this chapter.", 404);
+      }
+
+      const currentIndex = chapterLessons.findIndex((item) => item.id === currentLesson.id);
+      if (currentIndex < 0) {
+        throw new AppError("Lesson not found in selected chapter.", 404);
+      }
+
+      const maxIndex = chapterLessons.length;
+      const boundedTarget = Math.max(1, Math.min(maxIndex, Number(input.targetOrderIndex)));
+      const targetArrayIndex = boundedTarget - 1;
+      if (currentIndex !== targetArrayIndex) {
+        const movingLesson = chapterLessons[currentIndex];
+        const reorderedLessons = [...chapterLessons];
+        reorderedLessons.splice(currentIndex, 1);
+        reorderedLessons.splice(targetArrayIndex, 0, movingLesson);
+
+        await tx.lesson.updateMany({
+          where: { chapterId: currentLesson.chapterId },
+          data: {
+            // Shift temporarily to avoid unique(chapterId, orderIndex) collisions.
+            orderIndex: { increment: 10000 },
+          },
+        });
+
+        for (let index = 0; index < reorderedLessons.length; index += 1) {
+          await tx.lesson.update({
+            where: { id: reorderedLessons[index].id },
+            data: { orderIndex: index + 1 },
+          });
+        }
+      }
+
+      const refreshedLessons = await tx.lesson.findMany({
+        where: { chapterId: currentLesson.chapterId },
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+        include: {
+          assessmentTest: {
+            select: {
+              id: true,
+              title: true,
+              examType: true,
+              subject: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      return {
+        chapterId: currentLesson.chapterId,
+        movedLessonId: currentLesson.id,
+        movedToOrderIndex: boundedTarget,
+        lessons: refreshedLessons.map(serializeLesson),
+      };
+    });
+
+    res.json(reordered);
+  } catch (error) {
+    next(error);
   }
 });
 
