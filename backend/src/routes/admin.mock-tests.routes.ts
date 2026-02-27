@@ -458,6 +458,9 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
           e.fullName,
           e.mobile,
           e.email,
+          e.friendReferralCode,
+          e.noFriendReferral,
+          e.referredByUserId,
           e.preferredExamType,
           e.preferredStreamChoice,
           e.preferredDate,
@@ -467,6 +470,8 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
           u.name AS userName,
           u.mobile AS userMobile,
           u.email AS userEmail,
+          ru.name AS referredByName,
+          ru.referralCode AS referredByCode,
           (
             SELECT COUNT(*)
             FROM Attempt a
@@ -475,6 +480,7 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
           ) AS usedAttempts
         FROM MockTestRegistrationEntry e
         LEFT JOIN User u ON u.id = e.userId
+        LEFT JOIN User ru ON ru.id = e.referredByUserId
         WHERE e.gateId = ?
         ORDER BY e.createdAt DESC
       `,
@@ -487,6 +493,9 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
       fullName: string;
       mobile: string;
       email: string | null;
+      friendReferralCode: string | null;
+      noFriendReferral: number | boolean | null;
+      referredByUserId: string | null;
       preferredExamType: string | null;
       preferredStreamChoice: string | null;
       preferredDate: string | Date | null;
@@ -496,6 +505,8 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
       userName: string | null;
       userMobile: string | null;
       userEmail: string | null;
+      referredByName: string | null;
+      referredByCode: string | null;
       usedAttempts: number | string;
     }>;
 
@@ -508,6 +519,11 @@ adminMockTestsRouter.get("/mock-test-registrations/:id/entries", ...ensureAdmin,
         fullName: row.fullName,
         mobile: row.mobile,
         email: row.email || "",
+        friendReferralCode: row.friendReferralCode || "",
+        noFriendReferralCode: toBoolean(row.noFriendReferral),
+        referredByUserId: row.referredByUserId || "",
+        referredByName: row.referredByName || "",
+        referredByCode: row.referredByCode || "",
         preferredExamType: row.preferredExamType || "",
         preferredStreamChoice: row.preferredStreamChoice || "",
         preferredDate: toDateOnly(row.preferredDate),

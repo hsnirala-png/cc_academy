@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Tests | Student</title>
+    <script>
+      (function () {
+        var currentSearch = window.location.search || "";
+        var target = "./mock-test-registration.html" + currentSearch;
+        window.location.replace(target);
+      })();
+    </script>
     <link rel="stylesheet" href="./src/styles.css?v=22" />
   </head>
   <body>

@@ -3462,6 +3462,52 @@ h1 {
   font-weight: 600;
 }
 
+.mock-refer-card {
+  margin-top: 0.8rem;
+  border: 1px solid #cfe4ff;
+  border-radius: 12px;
+  background: #f7fbff;
+  padding: 0.68rem 0.82rem;
+}
+
+.mock-refer-kicker {
+  margin: 0;
+  color: #1f4eb0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mock-refer-row {
+  margin-top: 0.42rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mock-ref-code-input {
+  min-width: 220px;
+  max-width: 100%;
+  font-family: "Consolas", "Courier New", monospace;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.mock-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.95rem;
+}
+
+.mock-inline-check input {
+  width: 16px;
+  height: 16px;
+}
+
 .filter-action {
   display: flex;
   align-items: flex-end;
@@ -4211,6 +4257,15 @@ h1 {
 
   .mock-filter-grid .field-span-2 {
     grid-column: span 1;
+  }
+
+  .mock-inline-check {
+    margin-top: 0.2rem;
+  }
+
+  .mock-ref-code-input {
+    min-width: 0;
+    width: 100%;
   }
 
   .attempt-actions {

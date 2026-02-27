@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=34" />
+    <link rel="stylesheet" href="./src/styles.css?v=35" />
   </head>
   <body>
     <header class="site-header">
@@ -15,13 +15,22 @@
       <div class="header-right">
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
           <a href="./dashboard.html">Dashboard</a>
-          <a href="./mock-tests.html">Mock Tests</a>
+          <a href="./mock-test-registration.html">Mock Tests</a>
           <a href="./mock-history.html">History</a>
         </nav>
       </div>
     </header>
 
     <main class="mock-wrap">
+      <section class="dash-card" style="padding: 0.45rem">
+        <img
+          src="./public/mock_test_1.png"
+          alt="Mock Test Registration Banner"
+          style="width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px"
+          onerror="this.style.display='none';"
+        />
+      </section>
+
       <section class="mock-page-header">
         <h1>Mock Registration</h1>
         <p class="mock-subtitle">Register and use free attempts before buying full access.</p>
@@ -39,6 +48,14 @@
         <h2 id="registrationTitle">Mock Test Registration</h2>
         <p id="registrationDescription" class="dash-k"></p>
         <p id="registrationAttemptsInfo" class="dash-k"></p>
+        <div id="registrationReferCard" class="mock-refer-card">
+          <p class="mock-refer-kicker">Refer A Friend & Win Chance</p>
+          <div class="mock-refer-row">
+            <input id="regOwnReferralCode" class="mock-ref-code-input" readonly />
+            <button id="regCopyReferralBtn" class="btn-secondary" type="button">Copy Code</button>
+          </div>
+          <p id="regReferralStats" class="dash-k"></p>
+        </div>
         <div id="registrationReminderCard" class="mock-upcoming-card hidden" aria-live="polite">
           <p class="mock-upcoming-kicker">Next Mock</p>
           <h3 id="registrationReminderTitle">Upcoming Mock Test</h3>
@@ -49,6 +66,16 @@
       <section class="dash-card">
         <h3>Student Details</h3>
         <form id="registrationForm" class="mock-filter-grid">
+          <div class="field">
+            <label for="regFriendReferralCode">Friend Refer Code</label>
+            <input id="regFriendReferralCode" placeholder="Enter your friend's refer code" />
+          </div>
+          <div class="field">
+            <label class="mock-inline-check" for="regNoFriendReferralCode">
+              <input id="regNoFriendReferralCode" type="checkbox" />
+              <span>I do not have friend refer code</span>
+            </label>
+          </div>
           <div class="field">
             <label for="regExamType">Test Type</label>
             <select id="regExamType" required>
@@ -104,12 +131,12 @@
         <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem">
           <button id="startAttemptBtn" class="btn-primary" type="button">Start Mock Attempt</button>
           <button id="buyMockBtn" class="btn-secondary" type="button">Buy Mock</button>
-          <a class="btn-ghost" href="./mock-tests.html">Back to Mock Tests</a>
+          <a class="btn-ghost" href="./dashboard.html">Back to Dashboard</a>
         </div>
       </section>
     </main>
 
-    <script type="module" src="./src/mock-test-registration.js?v=3"></script>
+    <script type="module" src="./src/mock-test-registration.js?v=4"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

@@ -90,6 +90,9 @@ const ensureEntryTable = async (): Promise<void> => {
       \`fullName\` VARCHAR(191) NOT NULL,
       \`mobile\` VARCHAR(30) NOT NULL,
       \`email\` VARCHAR(191) NULL,
+      \`friendReferralCode\` VARCHAR(64) NULL,
+      \`referredByUserId\` VARCHAR(191) NULL,
+      \`noFriendReferral\` TINYINT(1) NOT NULL DEFAULT 0,
       \`preferredExamType\` VARCHAR(20) NULL,
       \`preferredStreamChoice\` VARCHAR(40) NULL,
       \`preferredDate\` DATE NULL,
@@ -103,6 +106,30 @@ const ensureEntryTable = async (): Promise<void> => {
   if (!(await hasColumn("MockTestRegistrationEntry", "preferredExamType"))) {
     await prisma
       .$executeRawUnsafe("ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `preferredExamType` VARCHAR(20) NULL")
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "friendReferralCode"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `friendReferralCode` VARCHAR(64) NULL"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "referredByUserId"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `referredByUserId` VARCHAR(191) NULL"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("MockTestRegistrationEntry", "noFriendReferral"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationEntry` ADD COLUMN `noFriendReferral` TINYINT(1) NOT NULL DEFAULT 0"
+      )
       .catch(() => undefined);
   }
 
@@ -150,6 +177,14 @@ const ensureEntryTable = async (): Promise<void> => {
       .catch(() => undefined);
   }
 
+  if (!(await hasIndex("MockTestRegistrationEntry", "MockTestRegistrationEntry_referredByUserId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `MockTestRegistrationEntry_referredByUserId_idx` ON `MockTestRegistrationEntry`(`referredByUserId`)"
+      )
+      .catch(() => undefined);
+  }
+
   if (
     !(await hasConstraint("MockTestRegistrationEntry", "MockTestRegistrationEntry_gateId_fkey", "FOREIGN KEY"))
   ) {
@@ -177,6 +212,126 @@ const ensureEntryTable = async (): Promise<void> => {
       )
       .catch(() => undefined);
   }
+
+  if (
+    !(await hasConstraint("MockTestRegistrationEntry", "MockTestRegistrationEntry_referredByUserId_fkey", "FOREIGN KEY"))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationEntry` ADD CONSTRAINT `MockTestRegistrationEntry_referredByUserId_fkey` FOREIGN KEY (`referredByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureReferralBonusTable = async (): Promise<void> => {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`MockTestRegistrationReferralBonus\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`gateId\` VARCHAR(191) NOT NULL,
+      \`mockTestId\` VARCHAR(191) NOT NULL,
+      \`referrerUserId\` VARCHAR(191) NOT NULL,
+      \`referredUserId\` VARCHAR(191) NOT NULL,
+      \`referralCodeUsed\` VARCHAR(64) NOT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+
+  if (
+    !(await hasIndex(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_gateId_referredUserId_key"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE UNIQUE INDEX `MockTestRegistrationReferralBonus_gateId_referredUserId_key` ON `MockTestRegistrationReferralBonus`(`gateId`, `referredUserId`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasIndex(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_gateId_referrerUserId_idx"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `MockTestRegistrationReferralBonus_gateId_referrerUserId_idx` ON `MockTestRegistrationReferralBonus`(`gateId`, `referrerUserId`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasIndex(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_mockTestId_referrerUserId_idx"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `MockTestRegistrationReferralBonus_mockTestId_referrerUserId_idx` ON `MockTestRegistrationReferralBonus`(`mockTestId`, `referrerUserId`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasConstraint(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_gateId_fkey",
+      "FOREIGN KEY"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationReferralBonus` ADD CONSTRAINT `MockTestRegistrationReferralBonus_gateId_fkey` FOREIGN KEY (`gateId`) REFERENCES `MockTestRegistrationGate`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasConstraint(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_mockTestId_fkey",
+      "FOREIGN KEY"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationReferralBonus` ADD CONSTRAINT `MockTestRegistrationReferralBonus_mockTestId_fkey` FOREIGN KEY (`mockTestId`) REFERENCES `MockTest`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasConstraint(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_referrerUserId_fkey",
+      "FOREIGN KEY"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationReferralBonus` ADD CONSTRAINT `MockTestRegistrationReferralBonus_referrerUserId_fkey` FOREIGN KEY (`referrerUserId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+
+  if (
+    !(await hasConstraint(
+      "MockTestRegistrationReferralBonus",
+      "MockTestRegistrationReferralBonus_referredUserId_fkey",
+      "FOREIGN KEY"
+    ))
+  ) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestRegistrationReferralBonus` ADD CONSTRAINT `MockTestRegistrationReferralBonus_referredUserId_fkey` FOREIGN KEY (`referredUserId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
 };
 
 export const ensureMockTestRegistrationStorageReady = async (): Promise<void> => {
@@ -186,6 +341,7 @@ export const ensureMockTestRegistrationStorageReady = async (): Promise<void> =>
   mockTestRegistrationStoragePromise = (async () => {
     await ensureGateTable();
     await ensureEntryTable();
+    await ensureReferralBonusTable();
     isMockTestRegistrationStorageReady = true;
   })().finally(() => {
     mockTestRegistrationStoragePromise = null;

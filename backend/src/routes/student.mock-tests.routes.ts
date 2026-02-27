@@ -8,6 +8,7 @@ import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage
 import { ensureMockTestRegistrationStorageReady } from "../utils/mockTestRegistrationStorage";
 import { AppError } from "../utils/appError";
 import { prisma } from "../utils/prisma";
+import { ensureUserReferralCode, getReferrerIdByCode } from "../modules/referrals/referral.utils";
 import {
   studentMockTestsQuerySchema,
   studentSaveAnswerSchema,
@@ -23,6 +24,8 @@ const registerForMockSchema = z.object({
   fullName: z.string().trim().min(2).max(191),
   mobile: z.string().trim().min(8).max(30),
   email: z.string().trim().email().max(191).optional(),
+  friendReferralCode: z.string().trim().max(64).optional(),
+  noFriendReferralCode: z.coerce.boolean().optional(),
   preferredExamType: z.enum(["PSTET_1", "PSTET_2"]).optional(),
   preferredStreamChoice: z.enum(["SOCIAL_STUDIES", "SCIENCE_MATH"]).optional(),
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -185,6 +188,9 @@ type RegistrationEntryDetails = {
   preferredStreamChoice: string;
   preferredDate: string;
   preferredTimeSlot: string;
+  friendReferralCode: string;
+  noFriendReferralCode: boolean;
+  referredByUserId: string;
 };
 
 const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) => {
@@ -192,7 +198,7 @@ const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) =>
   const placeholders = gateIds.map(() => "?").join(", ");
   const rows = (await prisma.$queryRawUnsafe(
     `
-      SELECT gateId, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot
+      SELECT gateId, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot, friendReferralCode, noFriendReferral, referredByUserId
       FROM MockTestRegistrationEntry
       WHERE userId = ?
         AND gateId IN (${placeholders})
@@ -205,6 +211,9 @@ const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) =>
     preferredStreamChoice: string | null;
     preferredDate: string | Date | null;
     preferredTimeSlot: string | null;
+    friendReferralCode: string | null;
+    noFriendReferral: number | boolean | null;
+    referredByUserId: string | null;
   }>;
   return new Map(
     rows.map((row) => [
@@ -215,9 +224,29 @@ const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) =>
         preferredStreamChoice: row.preferredStreamChoice || "",
         preferredDate: toDateOnly(row.preferredDate),
         preferredTimeSlot: row.preferredTimeSlot || "",
+        friendReferralCode: row.friendReferralCode || "",
+        noFriendReferralCode: toBoolean(row.noFriendReferral),
+        referredByUserId: row.referredByUserId || "",
       },
     ])
   );
+};
+
+const loadReferralBonusCountMap = async (userId: string, gateIds: string[]) => {
+  if (!gateIds.length) return new Map<string, number>();
+  const placeholders = gateIds.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT gateId, COUNT(*) AS referralWins
+      FROM MockTestRegistrationReferralBonus
+      WHERE referrerUserId = ?
+        AND gateId IN (${placeholders})
+      GROUP BY gateId
+    `,
+    userId,
+    ...gateIds
+  )) as Array<{ gateId: string; referralWins: number | string }>;
+  return new Map(rows.map((row) => [row.gateId, Number(row.referralWins || 0)]));
 };
 
 const loadUsedAttemptCountMap = async (userId: string, mockTestIds: string[]) => {
@@ -304,22 +333,26 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
     const mockTestIds = mockTests.map((item) => item.id);
     const gateMap = await loadActiveRegistrationGates(mockTestIds);
     const gateIds = Array.from(gateMap.values()).map((item) => item.id);
-    const [entryMap, usedAttemptMap, paidAccessSet] = await Promise.all([
+    const [entryMap, usedAttemptMap, paidAccessSet, referralBonusMap, studentReferralCode] = await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, gateIds),
       loadUsedAttemptCountMap(req.user!.userId, mockTestIds),
       loadPaidAccessMockTestSet(req.user!.userId, mockTestIds),
+      loadReferralBonusCountMap(req.user!.userId, gateIds),
+      ensureUserReferralCode(req.user!.userId).catch(() => ""),
     ]);
 
     const enrichedMockTests = mockTests.map((item) => {
       const gate = gateMap.get(item.id);
       if (!gate) return item;
       const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+      const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
+      const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
       const usedAttempts = Math.max(0, usedAttemptMap.get(item.id) || 0);
       const hasPaidAccess = paidAccessSet.has(item.id);
       const entry = entryMap.get(gate.id);
       const remainingAttempts = hasPaidAccess
         ? Number.MAX_SAFE_INTEGER
-        : Math.max(0, freeAttemptLimit - usedAttempts);
+        : Math.max(0, totalFreeAttemptLimit - usedAttempts);
       const registration = {
         enabled: true,
         gateId: gate.id,
@@ -335,10 +368,16 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
         scheduledDate: toDateOnly(gate.scheduledDate),
         scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
+        referralBonusAttempts,
+        totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
         hasPaidAccess,
+        studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered),
+        friendReferralCode: entry?.friendReferralCode || "",
+        noFriendReferralCode: Boolean(entry?.noFriendReferralCode),
+        referredByUserId: entry?.referredByUserId || "",
         preferredExamType: entry?.preferredExamType || "",
         preferredStreamChoice: entry?.preferredStreamChoice || "",
         preferredDate: entry?.preferredDate || "",
@@ -364,20 +403,24 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
     const mockTestIds = gates.map((item) => item.mockTestId);
     const gateIds = gates.map((item) => item.id);
 
-    const [entryMap, usedAttemptMap, paidAccessSet] = await Promise.all([
+    const [entryMap, usedAttemptMap, paidAccessSet, referralBonusMap, studentReferralCode] = await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, gateIds),
       loadUsedAttemptCountMap(req.user!.userId, mockTestIds),
       loadPaidAccessMockTestSet(req.user!.userId, mockTestIds),
+      loadReferralBonusCountMap(req.user!.userId, gateIds),
+      ensureUserReferralCode(req.user!.userId).catch(() => ""),
     ]);
 
     const options = gates.map((gate) => {
       const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+      const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
+      const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
       const usedAttempts = Math.max(0, usedAttemptMap.get(gate.mockTestId) || 0);
       const hasPaidAccess = paidAccessSet.has(gate.mockTestId);
       const entry = entryMap.get(gate.id);
       const remainingAttempts = hasPaidAccess
         ? Number.MAX_SAFE_INTEGER
-        : Math.max(0, freeAttemptLimit - usedAttempts);
+        : Math.max(0, totalFreeAttemptLimit - usedAttempts);
       return {
         gateId: gate.id,
         mockTestId: gate.mockTestId,
@@ -393,10 +436,16 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
         scheduledDate: toDateOnly(gate.scheduledDate),
         scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
+        referralBonusAttempts,
+        totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
         hasPaidAccess,
+        studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered),
+        friendReferralCode: entry?.friendReferralCode || "",
+        noFriendReferralCode: Boolean(entry?.noFriendReferralCode),
+        referredByUserId: entry?.referredByUserId || "",
         preferredExamType: entry?.preferredExamType || "",
         preferredStreamChoice: entry?.preferredStreamChoice || "",
         preferredDate: entry?.preferredDate || "",
@@ -407,7 +456,7 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       };
     });
 
-    res.json({ options });
+    res.json({ options, studentReferralCode: String(studentReferralCode || "").trim() });
   } catch (error) {
     next(error);
   }
@@ -425,15 +474,21 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
       return;
     }
 
-    const [entryMap, usedAttemptMap, paidAccess] = await Promise.all([
+    const [entryMap, usedAttemptMap, paidAccess, referralBonusMap, studentReferralCode] = await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, [gate.id]),
       loadUsedAttemptCountMap(req.user!.userId, [mockTestId]),
       hasPaidAccessForMockTest(req.user!.userId, mockTestId),
+      loadReferralBonusCountMap(req.user!.userId, [gate.id]),
+      ensureUserReferralCode(req.user!.userId).catch(() => ""),
     ]);
     const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+    const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
+    const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
     const usedAttempts = Math.max(0, usedAttemptMap.get(mockTestId) || 0);
     const entry = entryMap.get(gate.id);
-    const remainingAttempts = paidAccess ? Number.MAX_SAFE_INTEGER : Math.max(0, freeAttemptLimit - usedAttempts);
+    const remainingAttempts = paidAccess
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(0, totalFreeAttemptLimit - usedAttempts);
 
     res.json({
       registration: {
@@ -452,9 +507,15 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         scheduledDate: toDateOnly(gate.scheduledDate),
         scheduledTimeSlot: String(gate.scheduledTimeSlot || "").trim(),
         freeAttemptLimit,
+        referralBonusAttempts,
+        totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
+        studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered),
+        friendReferralCode: entry?.friendReferralCode || "",
+        noFriendReferralCode: Boolean(entry?.noFriendReferralCode),
+        referredByUserId: entry?.referredByUserId || "",
         preferredExamType: entry?.preferredExamType || "",
         preferredStreamChoice: entry?.preferredStreamChoice || "",
         preferredDate: entry?.preferredDate || "",
@@ -512,6 +573,33 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     if (effectiveExamType !== "PSTET_2" && effectiveStreamChoice) {
       throw new AppError("PSTET-2 subject selection is allowed only for PSTET-2.", 400);
     }
+    const friendReferralCode = String(input.friendReferralCode || "")
+      .trim()
+      .toUpperCase();
+    const noFriendReferralCode = Boolean(input.noFriendReferralCode);
+    if (!friendReferralCode && !noFriendReferralCode) {
+      throw new AppError("Enter friend refer code or select 'I do not have friend refer code'.", 400);
+    }
+    if (friendReferralCode && noFriendReferralCode) {
+      throw new AppError("Use either friend refer code or 'I do not have friend refer code'.", 400);
+    }
+
+    const studentReferralCode = String(await ensureUserReferralCode(req.user!.userId).catch(() => ""))
+      .trim()
+      .toUpperCase();
+    let referredByUserId: string | null = null;
+    if (friendReferralCode) {
+      if (studentReferralCode && friendReferralCode === studentReferralCode) {
+        throw new AppError("You cannot use your own refer code.", 400);
+      }
+      referredByUserId = await getReferrerIdByCode(friendReferralCode);
+      if (!referredByUserId) {
+        throw new AppError("Friend refer code not found. Please check and try again.", 400);
+      }
+      if (referredByUserId === req.user!.userId) {
+        throw new AppError("You cannot use your own refer code.", 400);
+      }
+    }
 
     const now = new Date();
     const preferredDate = new Date(`${effectiveDate}T00:00:00.000Z`);
@@ -521,13 +609,16 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     await prisma.$executeRawUnsafe(
       `
         INSERT INTO MockTestRegistrationEntry (
-          id, gateId, mockTestId, userId, fullName, mobile, email, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot, createdAt, updatedAt
+          id, gateId, mockTestId, userId, fullName, mobile, email, friendReferralCode, referredByUserId, noFriendReferral, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot, createdAt, updatedAt
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           fullName = VALUES(fullName),
           mobile = VALUES(mobile),
           email = VALUES(email),
+          friendReferralCode = VALUES(friendReferralCode),
+          referredByUserId = VALUES(referredByUserId),
+          noFriendReferral = VALUES(noFriendReferral),
           preferredExamType = VALUES(preferredExamType),
           preferredStreamChoice = VALUES(preferredStreamChoice),
           preferredDate = VALUES(preferredDate),
@@ -541,6 +632,9 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
       input.fullName.trim(),
       input.mobile.trim(),
       input.email ? input.email.trim() : null,
+      friendReferralCode || null,
+      referredByUserId,
+      noFriendReferralCode ? 1 : 0,
       effectiveExamType,
       effectiveStreamChoice || null,
       preferredDate,
@@ -549,7 +643,47 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
       now
     );
 
-    res.status(201).json({ message: "Registration saved." });
+    let referralBonusAwarded = false;
+    if (referredByUserId) {
+      const existingReferralRows = (await prisma.$queryRawUnsafe(
+        `
+          SELECT referrerUserId
+          FROM MockTestRegistrationReferralBonus
+          WHERE gateId = ?
+            AND referredUserId = ?
+          LIMIT 1
+        `,
+        gate.id,
+        req.user!.userId
+      )) as Array<{ referrerUserId: string }>;
+      const existingReferrer = String(existingReferralRows[0]?.referrerUserId || "").trim();
+      if (existingReferrer && existingReferrer !== referredByUserId) {
+        throw new AppError("Referral already linked with another friend code.", 400);
+      }
+      if (!existingReferrer) {
+        await prisma.$executeRawUnsafe(
+          `
+            INSERT INTO MockTestRegistrationReferralBonus (
+              id, gateId, mockTestId, referrerUserId, referredUserId, referralCodeUsed, createdAt
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `,
+          `${gate.id}:${req.user!.userId}`,
+          gate.id,
+          mockTestId,
+          referredByUserId,
+          req.user!.userId,
+          friendReferralCode,
+          now
+        );
+        referralBonusAwarded = true;
+      }
+    }
+
+    res.status(201).json({
+      message: "Registration saved.",
+      referralBonusAwarded,
+    });
   } catch (error) {
     next(error);
   }
@@ -573,10 +707,11 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
     const gateMap = await loadActiveRegistrationGates([input.mockTestId]);
     const gate = gateMap.get(input.mockTestId);
     if (gate) {
-      const [entryMap, usedAttemptMap, paidAccess] = await Promise.all([
+      const [entryMap, usedAttemptMap, paidAccess, referralBonusMap] = await Promise.all([
         loadUserRegistrationEntries(req.user!.userId, [gate.id]),
         loadUsedAttemptCountMap(req.user!.userId, [input.mockTestId]),
         hasPaidAccessForMockTest(req.user!.userId, input.mockTestId),
+        loadReferralBonusCountMap(req.user!.userId, [gate.id]),
       ]);
       const entry = entryMap.get(gate.id);
       const isRegistered = Boolean(entry?.isRegistered);
@@ -595,8 +730,10 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
 
       if (!paidAccess) {
         const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+        const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
+        const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
         const usedAttempts = Math.max(0, usedAttemptMap.get(input.mockTestId) || 0);
-        if (usedAttempts >= freeAttemptLimit) {
+        if (usedAttempts >= totalFreeAttemptLimit) {
           throw new AppError(
             "Free attempt limit reached for this mock test. Please buy the mock to continue.",
             402,
@@ -604,6 +741,8 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
             {
               mockTestId: input.mockTestId,
               freeAttemptLimit,
+              referralBonusAttempts,
+              totalFreeAttemptLimit,
               usedAttempts,
               buyNowUrl: gate.buyNowUrl || "",
               ctaLabel: gate.ctaLabel || "Buy Mock",
