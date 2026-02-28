@@ -23,7 +23,7 @@ const registrationPagePath = "./mock-test-registration.html";
 const registerForMockSchema = z.object({
   fullName: z.string().trim().min(2).max(191),
   mobile: z.string().trim().min(8).max(30),
-  email: z.string().trim().email().max(191).optional(),
+  email: z.string().trim().email().max(191),
   friendReferralCode: z.string().trim().max(64).optional(),
   noFriendReferralCode: z.coerce.boolean().optional(),
   preferredExamType: z.enum(["PSTET_1", "PSTET_2"]).optional(),
@@ -230,6 +230,19 @@ const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) =>
       },
     ])
   );
+};
+
+const hasAnyUserRegistrationEntry = async (userId: string) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT gateId
+      FROM MockTestRegistrationEntry
+      WHERE userId = ?
+      LIMIT 1
+    `,
+    userId
+  )) as Array<{ gateId: string }>;
+  return Boolean(rows[0]);
 };
 
 const loadReferralBonusCountMap = async (userId: string, gateIds: string[]) => {
@@ -573,10 +586,61 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     if (effectiveExamType !== "PSTET_2" && effectiveStreamChoice) {
       throw new AppError("PSTET-2 subject selection is allowed only for PSTET-2.", 400);
     }
-    const friendReferralCode = String(input.friendReferralCode || "")
+    const rawFriendReferralCode = String(input.friendReferralCode || "")
       .trim()
       .toUpperCase();
-    const noFriendReferralCode = Boolean(input.noFriendReferralCode);
+    const rawNoFriendReferralCode = Boolean(input.noFriendReferralCode);
+
+    const [studentReferralCode, entryMap, usedAttemptMap, paidAccess, referralBonusMap, hadAnyRegistrationBefore] =
+      await Promise.all([
+        ensureUserReferralCode(req.user!.userId).catch(() => ""),
+        loadUserRegistrationEntries(req.user!.userId, [gate.id]),
+        loadUsedAttemptCountMap(req.user!.userId, [mockTestId]),
+        hasPaidAccessForMockTest(req.user!.userId, mockTestId),
+        loadReferralBonusCountMap(req.user!.userId, [gate.id]),
+        hasAnyUserRegistrationEntry(req.user!.userId),
+      ]);
+
+    const normalizedStudentReferralCode = String(studentReferralCode || "").trim().toUpperCase();
+    const existingEntry = entryMap.get(gate.id);
+    const hasExistingGateRegistration = Boolean(existingEntry?.isRegistered);
+    const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+    const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
+    const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
+    const usedAttempts = Math.max(0, usedAttemptMap.get(mockTestId) || 0);
+    const remainingAttempts = paidAccess ? Number.MAX_SAFE_INTEGER : Math.max(0, totalFreeAttemptLimit - usedAttempts);
+
+    if (!hasExistingGateRegistration && !paidAccess && remainingAttempts <= 0) {
+      throw new AppError(
+        "You do not have any chance Refer a friend to win free chance or buy the Mock test",
+        402,
+        "MOCK_NO_CHANCE_AVAILABLE",
+        {
+          mockTestId,
+          freeAttemptLimit,
+          referralBonusAttempts,
+          totalFreeAttemptLimit,
+          usedAttempts,
+          buyNowUrl: gate.buyNowUrl || "",
+          ctaLabel: gate.ctaLabel || "Buy Mock",
+          registrationPageUrl: `${registrationPagePath}?mockTestId=${encodeURIComponent(mockTestId)}`,
+        }
+      );
+    }
+
+    let friendReferralCode = rawFriendReferralCode;
+    let noFriendReferralCode = rawNoFriendReferralCode;
+    let referredByUserId: string | null = existingEntry?.referredByUserId || null;
+
+    if (hasExistingGateRegistration) {
+      friendReferralCode = String(existingEntry?.friendReferralCode || "").trim().toUpperCase();
+      noFriendReferralCode = Boolean(existingEntry?.noFriendReferralCode) && !friendReferralCode;
+    } else if (hadAnyRegistrationBefore) {
+      friendReferralCode = "";
+      noFriendReferralCode = true;
+      referredByUserId = null;
+    }
+
     if (!friendReferralCode && !noFriendReferralCode) {
       throw new AppError("Enter friend refer code or select 'I do not have friend refer code'.", 400);
     }
@@ -584,12 +648,11 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
       throw new AppError("Use either friend refer code or 'I do not have friend refer code'.", 400);
     }
 
-    const studentReferralCode = String(await ensureUserReferralCode(req.user!.userId).catch(() => ""))
-      .trim()
-      .toUpperCase();
-    let referredByUserId: string | null = null;
-    if (friendReferralCode) {
-      if (studentReferralCode && friendReferralCode === studentReferralCode) {
+    if (!hasExistingGateRegistration) {
+      referredByUserId = null;
+    }
+    if (friendReferralCode && !hasExistingGateRegistration) {
+      if (normalizedStudentReferralCode && friendReferralCode === normalizedStudentReferralCode) {
         throw new AppError("You cannot use your own refer code.", 400);
       }
       referredByUserId = await getReferrerIdByCode(friendReferralCode);
@@ -631,7 +694,7 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
       req.user!.userId,
       input.fullName.trim(),
       input.mobile.trim(),
-      input.email ? input.email.trim() : null,
+      input.email.trim(),
       friendReferralCode || null,
       referredByUserId,
       noFriendReferralCode ? 1 : 0,
@@ -644,7 +707,8 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     );
 
     let referralBonusAwarded = false;
-    if (referredByUserId) {
+    const eligibleForReferralBonus = Boolean(referredByUserId) && !hadAnyRegistrationBefore && !hasExistingGateRegistration;
+    if (eligibleForReferralBonus && referredByUserId) {
       const existingReferralRows = (await prisma.$queryRawUnsafe(
         `
           SELECT referrerUserId

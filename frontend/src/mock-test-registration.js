@@ -1,8 +1,8 @@
 import {
   EXAM_LABELS,
-  STREAM_LABELS,
   apiRequest,
   clearAuth,
+  initHeaderBehavior,
   requireRoleGuard,
 } from "./mock-api.js?v=2";
 
@@ -52,21 +52,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("STUDENT");
   if (!auth) return;
   const { token, user } = auth;
+  initHeaderBehavior();
 
-  const requestedMockTestId = String(new URLSearchParams(window.location.search).get("mockTestId") || "").trim();
+  const searchParams = new URLSearchParams(window.location.search);
+  const requestedMockTestId = String(searchParams.get("mockTestId") || "").trim();
+  const requestedFriendReferralCode = String(
+    searchParams.get("ref") || searchParams.get("referralCode") || ""
+  )
+    .trim()
+    .toUpperCase();
 
   const statusEl = document.querySelector("#registrationStatus");
+  const logoutBtn = document.querySelector("#logoutBtn");
   const titleEl = document.querySelector("#registrationTitle");
   const descriptionEl = document.querySelector("#registrationDescription");
   const attemptsInfoEl = document.querySelector("#registrationAttemptsInfo");
   const reminderCard = document.querySelector("#registrationReminderCard");
   const reminderTitleEl = document.querySelector("#registrationReminderTitle");
   const reminderWhenEl = document.querySelector("#registrationReminderWhen");
-  const bannerWrap = document.querySelector("#registrationBannerWrap");
-  const bannerImage = document.querySelector("#registrationBannerImage");
   const form = document.querySelector("#registrationForm");
   const examTypeInput = document.querySelector("#regExamType");
-  const mockChanceInfoInput = document.querySelector("#regMockChanceInfo");
   const pstet2SubjectWrap = document.querySelector("#regPstet2SubjectWrap");
   const pstet2SubjectInput = document.querySelector("#regPstet2Subject");
   const fullNameInput = document.querySelector("#regFullName");
@@ -78,9 +83,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const buyMockBtn = document.querySelector("#buyMockBtn");
   const friendReferralCodeInput = document.querySelector("#regFriendReferralCode");
   const noFriendReferralCodeInput = document.querySelector("#regNoFriendReferralCode");
-  const ownReferralCodeInput = document.querySelector("#regOwnReferralCode");
+  const referralIdTextEl = document.querySelector("#regReferralIdText");
+  const referralLinkInput = document.querySelector("#regReferralLink");
+  const shareReferralBtn = document.querySelector("#regShareReferralBtn");
   const copyReferralBtn = document.querySelector("#regCopyReferralBtn");
   const referralStatsEl = document.querySelector("#regReferralStats");
+  let copyReferralFeedbackTimer = null;
 
   const state = {
     options: [],
@@ -88,6 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedExamType: "",
     selectedStreamChoice: "",
     studentReferralCode: "",
+    noChancePromptShown: false,
   };
 
   const setStatus = (text, type = "") => {
@@ -97,8 +106,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (type) statusEl.classList.add(type);
   };
 
+  const getRegistrationPagePath = () => {
+    const currentPath = (window.location.pathname || "").toLowerCase();
+    return currentPath.endsWith("/mock-test-registration") || currentPath.endsWith("/mock-tests")
+      ? "./mock-test-registration"
+      : "./mock-test-registration.html";
+  };
+
+  const buildRegistrationPageUrl = ({ mockTestId = "", referralCode = "" } = {}) => {
+    const url = new URL(getRegistrationPagePath(), window.location.href);
+    if (mockTestId) {
+      url.searchParams.set("mockTestId", mockTestId);
+    }
+    if (referralCode) {
+      url.searchParams.set("ref", referralCode);
+    }
+    return url.toString();
+  };
+
+  const clearIncomingReferralParam = () => {
+    if (!requestedFriendReferralCode) return;
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("ref");
+    nextUrl.searchParams.delete("referralCode");
+    const nextSearch = nextUrl.searchParams.toString();
+    const nextPath = `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextUrl.hash || ""}`;
+    window.history.replaceState({}, "", nextPath);
+  };
+
   const selectedOption = () =>
     state.options.find((item) => item.mockTestId === state.selectedMockTestId) || null;
+
+  const getReferenceOption = () => selectedOption() || pickBestOption(state.options) || null;
+
+  const hasAnyRegisteredOption = () => state.options.some((item) => Boolean(item?.isRegistered));
+
+  const hasAnyChanceAvailable = () =>
+    state.options.some(
+      (item) => Boolean(item?.hasPaidAccess) || Math.max(0, Number(item?.remainingAttempts || 0)) > 0
+    );
+
+  const canEditRegistration = (option) =>
+    Boolean(option) &&
+    (Boolean(option?.isRegistered) ||
+      Boolean(option?.hasPaidAccess) ||
+      Math.max(0, Number(option?.remainingAttempts || 0)) > 0);
+
+  const buildReferralShareUrl = (option = selectedOption()) => {
+    const referralCode = String(state.studentReferralCode || "").trim().toUpperCase();
+    if (!referralCode) return "";
+    const mockTestId = String(option?.mockTestId || requestedMockTestId || "").trim();
+    return buildRegistrationPageUrl({ mockTestId, referralCode });
+  };
+
+  const getIncomingReferralCode = (option) => {
+    if (!option || option.isRegistered || hasAnyRegisteredOption()) return "";
+    const code = String(requestedFriendReferralCode || "").trim().toUpperCase();
+    const ownCode = String(state.studentReferralCode || "").trim().toUpperCase();
+    if (!code || code === ownCode) return "";
+    return code;
+  };
 
   const getSelectedTimeSlot = () => {
     const checked = timeSlotInputs.find((input) => input instanceof HTMLInputElement && input.checked);
@@ -126,13 +193,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       .toUpperCase();
 
   const getOptionExam = (option) => String(option?.examType || "").trim().toUpperCase();
-  const getOptionExamLabel = (option) => EXAM_LABELS[getOptionExam(option)] || getOptionExam(option) || "Mock";
 
   const syncFriendReferralInputState = () => {
     const hasNoCode = noFriendReferralCodeInput instanceof HTMLInputElement && noFriendReferralCodeInput.checked;
+    const formLocked = form instanceof HTMLFormElement && form.classList.contains("mock-form-locked");
+    const registeredSelection = Boolean(selectedOption()?.isRegistered);
     if (friendReferralCodeInput instanceof HTMLInputElement) {
-      friendReferralCodeInput.disabled = hasNoCode;
+      friendReferralCodeInput.disabled = registeredSelection || formLocked || hasNoCode;
       if (hasNoCode) friendReferralCodeInput.value = "";
+    }
+    if (noFriendReferralCodeInput instanceof HTMLInputElement) {
+      noFriendReferralCodeInput.disabled = registeredSelection || formLocked;
     }
   };
 
@@ -141,25 +212,270 @@ document.addEventListener("DOMContentLoaded", async () => {
       .trim()
       .toUpperCase();
     state.studentReferralCode = candidate;
-    if (ownReferralCodeInput instanceof HTMLInputElement) {
-      ownReferralCodeInput.value = candidate || "Referral code unavailable";
+    if (referralIdTextEl instanceof HTMLElement) {
+      referralIdTextEl.textContent = candidate ? `Your Student ID: ${candidate}` : "Student ID unavailable.";
+    }
+    if (referralLinkInput instanceof HTMLInputElement) {
+      referralLinkInput.value = buildReferralShareUrl(option) || "Referral link unavailable";
     }
   };
 
   const renderReferralStats = (option) => {
     if (!(referralStatsEl instanceof HTMLElement)) return;
+    referralStatsEl.textContent = "";
+    referralStatsEl.classList.add("hidden");
+  };
+
+  const renderChanceCard = (option, { inactiveSelection = false } = {}) => {
+    if (!(attemptsInfoEl instanceof HTMLElement)) return;
+
     if (!option) {
-      referralStatsEl.textContent = "Refer friends to win +1 free mock chance per successful registration.";
+      attemptsInfoEl.className = "mock-chance-panel mock-chance-panel--empty";
+      attemptsInfoEl.textContent = "No mock registration option available right now.";
       return;
     }
+
+    if (option.hasPaidAccess) {
+      attemptsInfoEl.className = "mock-chance-panel";
+      attemptsInfoEl.innerHTML = `
+        <div class="mock-chance-summary">
+          <span class="mock-chance-total">Paid</span>
+          <span class="mock-chance-summary-label">Access Status</span>
+        </div>
+        <div class="mock-chance-grid">
+          <div class="mock-chance-item">
+            <span class="mock-chance-item-label">Attempts</span>
+            <span class="mock-chance-item-value">Unlimited</span>
+          </div>
+          <div class="mock-chance-item">
+            <span class="mock-chance-item-label">Mock Type</span>
+            <span class="mock-chance-item-value">Any Active</span>
+          </div>
+        </div>
+        <p class="mock-chance-note">You can use your access for any active mock test.</p>
+      `;
+      return;
+    }
+
+    const freeAttemptLimit = Math.max(0, Number(option.freeAttemptLimit || 0));
     const referralBonusAttempts = Math.max(0, Number(option.referralBonusAttempts || 0));
     const totalFreeAttemptLimit = Math.max(
       0,
-      Number(option.totalFreeAttemptLimit || Number(option.freeAttemptLimit || 0))
+      Number(option.totalFreeAttemptLimit || freeAttemptLimit + referralBonusAttempts)
     );
     const usedAttempts = Math.max(0, Number(option.usedAttempts || 0));
     const remainingAttempts = Math.max(0, Number(option.remainingAttempts || 0));
-    referralStatsEl.textContent = `Referral wins: ${referralBonusAttempts} | Total free chances: ${totalFreeAttemptLimit} | Used: ${usedAttempts} | Remaining: ${remainingAttempts}`;
+
+    attemptsInfoEl.className = "mock-chance-panel";
+    attemptsInfoEl.innerHTML = `
+      <div class="mock-chance-summary">
+        <span class="mock-chance-total">${totalFreeAttemptLimit}</span>
+        <span class="mock-chance-summary-label">Total Free Chances</span>
+      </div>
+      <div class="mock-chance-grid">
+        <div class="mock-chance-item">
+          <span class="mock-chance-item-label">Free Chances</span>
+          <span class="mock-chance-item-value">${freeAttemptLimit}</span>
+        </div>
+        <div class="mock-chance-item">
+          <span class="mock-chance-item-label">Referral Bonus</span>
+          <span class="mock-chance-item-value">${referralBonusAttempts}</span>
+        </div>
+        <div class="mock-chance-item">
+          <span class="mock-chance-item-label">Used</span>
+          <span class="mock-chance-item-value">${usedAttempts}</span>
+        </div>
+        <div class="mock-chance-item">
+          <span class="mock-chance-item-label">Remaining</span>
+          <span class="mock-chance-item-value">${remainingAttempts}</span>
+        </div>
+      </div>
+      <p class="mock-chance-note">${
+        inactiveSelection
+          ? "Selected test type is inactive. Switch to any active mock and use the same available chance."
+          : "You can use this chance on any active PSTET mock, including PSTET-1, PSTET-2, SST, or SCI/MATHS."
+      }</p>
+    `;
+  };
+
+  const getReferralSharePayload = (option = selectedOption()) => {
+    const shareUrl = buildReferralShareUrl(option);
+    if (!shareUrl) return null;
+
+    const shareTitle = "CC Academy Mock Test Registration";
+    const shareText = "Use this link to open mock registration with my student ID already filled in.";
+    return { shareUrl, shareTitle, shareText };
+  };
+
+  const shareReferralLink = async (option = selectedOption()) => {
+    const payload = getReferralSharePayload(option);
+    if (!payload) {
+      setStatus("Referral link is not available yet.", "error");
+      return;
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: payload.shareTitle,
+          text: payload.shareText,
+          url: payload.shareUrl,
+        });
+        setStatus("Share dialog opened.", "success");
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return;
+        }
+        setStatus("Unable to open share dialog on this device.", "error");
+        return;
+      }
+    }
+
+    setStatus("Share is not available on this device. Use Copy Link to share manually.", "error");
+  };
+
+  const copyReferralLink = async (option = selectedOption()) => {
+    const payload = getReferralSharePayload(option);
+    if (!payload) {
+      setStatus("Referral link is not available yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload.shareUrl);
+      if (copyReferralBtn instanceof HTMLButtonElement) {
+        copyReferralBtn.classList.add("is-copied");
+        if (copyReferralFeedbackTimer) {
+          window.clearTimeout(copyReferralFeedbackTimer);
+        }
+        copyReferralFeedbackTimer = window.setTimeout(() => {
+          copyReferralBtn.classList.remove("is-copied");
+          copyReferralFeedbackTimer = null;
+        }, 2500);
+      }
+      setStatus("Referral link copied. Share it manually.", "success");
+    } catch {
+      setStatus("Unable to copy referral link automatically.", "error");
+    }
+  };
+
+  const ensureNoChanceModal = () => {
+    let modal = document.querySelector("#mockNoChanceModal");
+    if (!(modal instanceof HTMLElement)) {
+      modal = document.createElement("div");
+      modal.id = "mockNoChanceModal";
+      modal.className = "mock-registration-modal hidden";
+      modal.innerHTML = `
+        <div class="mock-registration-dialog mock-no-chance-dialog" role="dialog" aria-modal="true" aria-labelledby="mockNoChanceTitle">
+          <button type="button" class="mock-registration-close" data-close-no-chance aria-label="Close">x</button>
+          <h3 id="mockNoChanceTitle" class="mock-no-chance-title">No Mock Chance Available</h3>
+          <p class="mock-no-chance-text">You do not have any chance Refer a friend to win free chance or buy the Mock test</p>
+          <p id="mockNoChanceStudentId" class="mock-no-chance-id hidden"></p>
+          <div class="mock-no-chance-actions">
+            <button id="mockNoChanceReferBtn" class="btn-primary" type="button">Refer a Friend</button>
+            <button id="mockNoChanceBuyBtn" class="btn-secondary" type="button">Buy Mock</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    return modal;
+  };
+
+  const closeNoChanceModal = () => {
+    const modal = document.querySelector("#mockNoChanceModal");
+    if (modal instanceof HTMLElement) {
+      modal.classList.add("hidden");
+    }
+  };
+
+  const openNoChanceModal = () => {
+    const modal = ensureNoChanceModal();
+    const studentIdEl = modal.querySelector("#mockNoChanceStudentId");
+    const referBtn = modal.querySelector("#mockNoChanceReferBtn");
+    const buyBtn = modal.querySelector("#mockNoChanceBuyBtn");
+    const closeBtn = modal.querySelector("[data-close-no-chance]");
+    const option = selectedOption();
+    const studentCode = String(state.studentReferralCode || "").trim().toUpperCase();
+
+    if (studentIdEl instanceof HTMLElement) {
+      studentIdEl.textContent = studentCode ? `Share your Student ID: ${studentCode}` : "";
+      studentIdEl.classList.toggle("hidden", !studentCode);
+    }
+    if (referBtn instanceof HTMLButtonElement) {
+      referBtn.onclick = async () => {
+        await shareReferralLink(option);
+      };
+    }
+    if (buyBtn instanceof HTMLButtonElement) {
+      buyBtn.onclick = () => {
+        const buyUrl = String(option?.buyNowUrl || "").trim();
+        window.location.href = buyUrl || "./products.html";
+      };
+    }
+    if (closeBtn instanceof HTMLButtonElement) {
+      closeBtn.onclick = () => closeNoChanceModal();
+    }
+
+    modal.classList.remove("hidden");
+  };
+
+  const syncRegistrationAvailability = (option = selectedOption()) => {
+    const canEdit = canEditRegistration(option);
+    const isRegistered = Boolean(option?.isRegistered);
+    const hasSavedEmail = Boolean(String(option?.email || emailInput?.value || "").trim());
+    if (form instanceof HTMLFormElement) {
+      form.classList.toggle("mock-form-locked", !canEdit);
+      const controls = Array.from(form.querySelectorAll("input, select, button[type='submit']"));
+      controls.forEach((control) => {
+        if (
+          control instanceof HTMLInputElement ||
+          control instanceof HTMLSelectElement ||
+          control instanceof HTMLButtonElement
+        ) {
+          const keepEnabled =
+            control === examTypeInput ||
+            control === pstet2SubjectInput ||
+            control === preferredDateInput ||
+            control === emailInput ||
+            (control instanceof HTMLInputElement && control.name === "regTimeSlot");
+          if (keepEnabled) {
+            if (control === emailInput) {
+              control.disabled = !canEdit || (isRegistered && hasSavedEmail);
+            } else {
+              control.disabled = !canEdit ? !(control === examTypeInput || control === pstet2SubjectInput) : false;
+            }
+            return;
+          }
+          if (control === fullNameInput || control === mobileInput) {
+            control.disabled = !canEdit || isRegistered;
+            return;
+          }
+          control.disabled = !canEdit;
+        }
+      });
+    }
+    syncFriendReferralInputState();
+
+    if (startAttemptBtn instanceof HTMLButtonElement) {
+      const hasAttemptsRemaining =
+        Boolean(option?.hasPaidAccess) || Math.max(0, Number(option?.remainingAttempts || 0)) > 0;
+      startAttemptBtn.disabled = !option?.isRegistered || !hasAttemptsRemaining;
+    }
+  };
+
+  const syncNoChancePrompt = () => {
+    const shouldShow = Boolean(state.options.length) && !hasAnyChanceAvailable();
+    if (!shouldShow) {
+      closeNoChanceModal();
+      state.noChancePromptShown = false;
+      return;
+    }
+    if (!state.noChancePromptShown) {
+      openNoChanceModal();
+      state.noChancePromptShown = true;
+    }
   };
 
   const getFilteredOptions = () => {
@@ -206,13 +522,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderExamTypeOptions = () => {
     if (!(examTypeInput instanceof HTMLSelectElement)) return;
-    const unique = Array.from(new Set(state.options.map((item) => getOptionExam(item)).filter(Boolean)));
-    const sorted = unique.sort((a, b) => {
-      if (a === b) return 0;
-      if (a === "PSTET_1") return -1;
-      if (b === "PSTET_1") return 1;
-      return a.localeCompare(b);
-    });
+    const sorted = ["PSTET_1", "PSTET_2"];
     examTypeInput.innerHTML = [
       '<option value="">Select test type</option>',
       ...sorted.map((code) => `<option value="${code}">${EXAM_LABELS[code] || code}</option>`),
@@ -236,14 +546,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const streams = Array.from(
-      new Set(
-        state.options
-          .filter((item) => getOptionExam(item) === "PSTET_2")
-          .map((item) => getOptionStream(item))
-          .filter((value) => value === "SOCIAL_STUDIES" || value === "SCIENCE_MATH")
-      )
-    );
+    const streams = ["SOCIAL_STUDIES", "SCIENCE_MATH"];
 
     pstet2SubjectInput.innerHTML = [
       '<option value="">Select PSTET-2 Subject</option>',
@@ -290,20 +593,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderSelectedOption = () => {
     const option = selectedOption();
+    const referenceOption = getReferenceOption();
 
     if (!option) {
       if (titleEl instanceof HTMLElement) titleEl.textContent = "Mock Test Registration";
-      if (descriptionEl instanceof HTMLElement) descriptionEl.textContent = "";
-      if (attemptsInfoEl instanceof HTMLElement) attemptsInfoEl.textContent = "No mock registration option available.";
-      if (mockChanceInfoInput instanceof HTMLInputElement) mockChanceInfoInput.value = "No pending mock registrations";
+      if (descriptionEl instanceof HTMLElement) {
+        descriptionEl.textContent = "Selected test type is not active right now. Please switch to another available mock.";
+      }
+      renderChanceCard(referenceOption, { inactiveSelection: Boolean(referenceOption) });
       if (friendReferralCodeInput instanceof HTMLInputElement) friendReferralCodeInput.value = "";
       if (noFriendReferralCodeInput instanceof HTMLInputElement) noFriendReferralCodeInput.checked = false;
-      renderOwnReferralCode(null);
+      renderOwnReferralCode(referenceOption);
       renderReferralStats(null);
       syncFriendReferralInputState();
-      if (bannerWrap instanceof HTMLElement) bannerWrap.classList.add("hidden");
       if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
       if (reminderCard instanceof HTMLElement) reminderCard.classList.add("hidden");
+      syncRegistrationAvailability(null);
       return;
     }
 
@@ -313,50 +618,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (descriptionEl instanceof HTMLElement) {
       descriptionEl.textContent = option.description || "";
     }
-    if (attemptsInfoEl instanceof HTMLElement) {
-      if (option.hasPaidAccess) {
-        attemptsInfoEl.textContent = "You already have paid access. Unlimited attempts available.";
-      } else {
-        const referralBonusAttempts = Math.max(0, Number(option.referralBonusAttempts || 0));
-        const totalFreeAttemptLimit = Math.max(
-          0,
-          Number(option.totalFreeAttemptLimit || Number(option.freeAttemptLimit || 0))
-        );
-        attemptsInfoEl.textContent = `Free chances: ${option.freeAttemptLimit} + Referral bonus: ${referralBonusAttempts} = ${totalFreeAttemptLimit} | Used: ${option.usedAttempts} | Remaining: ${option.remainingAttempts}`;
-      }
-    }
-
-    if (mockChanceInfoInput instanceof HTMLInputElement) {
-      const examLabel = getOptionExamLabel(option);
-      const stream = getOptionStream(option);
-      const streamLabel = option.examType === "PSTET_2" && stream
-        ? ` ${stream === "SOCIAL_STUDIES" ? "SST" : "SCI/MATHS"}`
-        : "";
-      const chanceText = option.hasPaidAccess
-        ? "Paid access"
-        : `Pending ${Math.max(0, Number(option.remainingAttempts || 0))} chance(s)`;
-      mockChanceInfoInput.value = `${examLabel}${streamLabel} | ${chanceText}`;
-    }
+    renderChanceCard(option);
 
     if (friendReferralCodeInput instanceof HTMLInputElement) {
-      friendReferralCodeInput.value = String(option.friendReferralCode || "").trim().toUpperCase();
+      const savedCode = String(option.friendReferralCode || "").trim().toUpperCase();
+      friendReferralCodeInput.value = savedCode || getIncomingReferralCode(option);
     }
     if (noFriendReferralCodeInput instanceof HTMLInputElement) {
-      noFriendReferralCodeInput.checked = Boolean(option.noFriendReferralCode) && !option.friendReferralCode;
+      const hasPrefilledCode =
+        friendReferralCodeInput instanceof HTMLInputElement && Boolean(friendReferralCodeInput.value);
+      noFriendReferralCodeInput.checked = Boolean(option.noFriendReferralCode) && !hasPrefilledCode;
     }
     renderOwnReferralCode(option);
     renderReferralStats(option);
     syncFriendReferralInputState();
-
-    if (bannerWrap instanceof HTMLElement && bannerImage instanceof HTMLImageElement) {
-      const imageUrl = String(option.popupImageUrl || option.mockThumbnailUrl || "").trim();
-      if (imageUrl) {
-        bannerImage.src = imageUrl;
-        bannerWrap.classList.remove("hidden");
-      } else {
-        bannerWrap.classList.add("hidden");
-      }
-    }
 
     const scheduleDate = String(option.scheduledDate || "").trim();
     const scheduleTime = String(option.scheduledTimeSlot || "").trim();
@@ -377,9 +652,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderReminderCard(option);
 
-    if (startAttemptBtn instanceof HTMLButtonElement) {
-      startAttemptBtn.disabled = !option.isRegistered;
-    }
+    syncRegistrationAvailability(option);
   };
 
   const hydrateFiltersFromOption = (option) => {
@@ -423,7 +696,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    if (
+      requestedFriendReferralCode &&
+      (hasAnyRegisteredOption() ||
+        requestedFriendReferralCode === String(state.studentReferralCode || "").trim().toUpperCase())
+    ) {
+      clearIncomingReferralParam();
+    }
+
     renderSelectedOption();
+    syncNoChancePrompt();
   };
 
   const startAttempt = async () => {
@@ -453,6 +735,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     emailInput.value = String(user?.email || "").trim();
   }
 
+  if (logoutBtn instanceof HTMLButtonElement) {
+    logoutBtn.addEventListener("click", () => {
+      clearAuth();
+      window.location.href = "./index.html";
+    });
+  }
+
   if (examTypeInput instanceof HTMLSelectElement) {
     examTypeInput.addEventListener("change", () => {
       state.selectedExamType = String(examTypeInput.value || "").trim().toUpperCase();
@@ -462,6 +751,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderStreamOptions();
       applySelectionByFilters();
       renderSelectedOption();
+      syncNoChancePrompt();
     });
   }
 
@@ -470,6 +760,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.selectedStreamChoice = String(pstet2SubjectInput.value || "").trim().toUpperCase();
       applySelectionByFilters();
       renderSelectedOption();
+      syncNoChancePrompt();
     });
   }
 
@@ -494,17 +785,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (copyReferralBtn instanceof HTMLButtonElement) {
     copyReferralBtn.addEventListener("click", async () => {
-      const referralCode = String(state.studentReferralCode || "").trim().toUpperCase();
-      if (!referralCode) {
-        setStatus("Referral code is not available yet.", "error");
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(referralCode);
-        setStatus("Referral code copied.", "success");
-      } catch {
-        setStatus("Unable to copy referral code. Please copy manually.", "error");
-      }
+      await copyReferralLink();
+    });
+  }
+
+  if (shareReferralBtn instanceof HTMLButtonElement) {
+    shareReferralBtn.addEventListener("click", async () => {
+      await shareReferralLink();
     });
   }
 
@@ -526,12 +813,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         const option = selectedOption();
         if (!option?.mockTestId) throw new Error("Please select mock chance.");
+        if (!canEditRegistration(option)) {
+          openNoChanceModal();
+          throw new Error("You do not have any chance Refer a friend to win free chance or buy the Mock test");
+        }
 
         const selectedExamType = String(state.selectedExamType || option.examType || "").trim().toUpperCase();
         const isPstet2 = selectedExamType === "PSTET_2";
         const preferredStreamChoice = String(pstet2SubjectInput?.value || "").trim().toUpperCase();
         const preferredDate = String(preferredDateInput?.value || "").trim();
         const preferredTimeSlot = getSelectedTimeSlot();
+        const email = String(emailInput?.value || "").trim();
         const friendReferralCode = String(friendReferralCodeInput?.value || "")
           .trim()
           .toUpperCase();
@@ -541,6 +833,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (isPstet2 && !preferredStreamChoice) {
           throw new Error("Please select PSTET-2 subject: SST or SCI/MATHS.");
         }
+        if (!email) throw new Error("Please enter email.");
         if (!friendReferralCode && !noFriendReferralCode) {
           throw new Error("Enter friend refer code or select 'I do not have friend refer code'.");
         }
@@ -558,7 +851,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: {
             fullName: String(fullNameInput?.value || "").trim(),
             mobile: String(mobileInput?.value || "").trim(),
-            email: String(emailInput?.value || "").trim() || undefined,
+            email,
             friendReferralCode: friendReferralCode || undefined,
             noFriendReferralCode,
             preferredExamType: selectedExamType,
@@ -586,6 +879,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           "success"
         );
       } catch (error) {
+        if (String(error?.payload?.code || "").trim() === "MOCK_NO_CHANCE_AVAILABLE") {
+          openNoChanceModal();
+        }
         setStatus(error?.message || "Unable to save registration.", "error");
       }
     });

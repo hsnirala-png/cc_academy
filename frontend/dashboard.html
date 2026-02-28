@@ -385,6 +385,27 @@
         padding: 1rem;
       }
 
+      .dash-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 0.9rem;
+      }
+
+      .dash-card-actions .btn-primary {
+        flex: 1 1 180px;
+        min-width: 0;
+        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 50px;
+      }
+
+      .dash-card-actions-single .btn-primary {
+        max-width: 100%;
+      }
+
       .dash-products-grid {
         margin-top: 0.8rem;
         display: grid;
@@ -481,6 +502,21 @@
       @media (max-width: 680px) {
         .dash-wrap {
           margin-top: 4.4rem;
+        }
+
+        .dash-card-actions {
+          flex-wrap: nowrap;
+          gap: 0.5rem;
+        }
+
+        .dash-card-actions .btn-primary,
+        .dash-card > p .btn-primary {
+          flex: 1 1 0;
+          min-height: 44px;
+          padding: 0.42rem 0.48rem;
+          font-size: 0.86rem;
+          line-height: 1.1;
+          white-space: nowrap;
         }
 
         .fb-top {
@@ -637,18 +673,6 @@
           <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
           <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
           <a href="./mock-test-registration.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
-          <a href="#account" data-label="Account" aria-label="Account">Account</a>
-          <a
-            href="#subscriptions"
-            class="account-subtab"
-            data-label="Subscriptions"
-            aria-label="Subscriptions"
-          >
-            Subscriptions
-          </a>
-          <a href="#payments" class="account-subtab" data-label="Payments" aria-label="Payments">
-            Payments
-          </a>
           <a
             href="#logout"
             id="mobileMenuLogoutLink"
@@ -769,48 +793,18 @@
           <article class="dash-card">
             <p class="dash-k">Digital Lessons</p>
             <p class="dash-v">Watch lessons, track progress, and unlock assessments.</p>
-            <p><a class="btn-secondary" href="./lessons.html">Open Lessons</a></p>
+            <div class="dash-card-actions">
+              <a class="btn-primary" href="./lessons.html">Attempt Lesson</a>
+              <a class="btn-primary" href="./mock-history.html">History</a>
+            </div>
           </article>
           <article class="dash-card">
             <p class="dash-k">Mock Test Center</p>
             <p class="dash-v">Choose PSTET-1 / PSTET-2 and start your test.</p>
-            <p><a class="btn-primary" href="./mock-test-registration.html">Open Mock Dashboard</a></p>
+            <div class="dash-card-actions dash-card-actions-single">
+              <a class="btn-primary" href="./mock-test-registration.html">Mock Dashboard</a>
+            </div>
           </article>
-          <article class="dash-card">
-            <p class="dash-k">Attempt History</p>
-            <p class="dash-v">Check previous scores, remarks, and answer review.</p>
-            <p><a class="btn-secondary" href="./mock-history.html">Open History</a></p>
-          </article>
-        </div>
-        <section id="lessonTestsSection" class="dash-section">
-          <h2>Lesson Tests</h2>
-          <p id="dashLessonTestStatus" class="form-message"></p>
-          <div id="dashLessonTests" class="dash-grid">
-            <article class="dash-card">
-              <p class="dash-k">Loading linked lesson tests...</p>
-            </article>
-          </div>
-        </section>
-      </section>
-
-      <section id="account" class="dash-section">
-        <h2>Account</h2>
-        <div class="dash-card">
-          <p class="dash-k">Use sub-tabs for account activity.</p>
-        </div>
-      </section>
-
-      <section id="subscriptions" class="dash-section">
-        <h2>Subscriptions</h2>
-        <div class="dash-card">
-          <p class="dash-k">Subscription plans and status will appear here.</p>
-        </div>
-      </section>
-
-      <section id="payments" class="dash-section">
-        <h2>Payments</h2>
-        <div class="dash-card">
-          <p class="dash-k">Payment history and invoices will appear here.</p>
         </div>
       </section>
     </main>

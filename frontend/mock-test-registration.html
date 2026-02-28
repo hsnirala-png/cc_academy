@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=35" />
+    <link rel="stylesheet" href="./src/styles.css?v=39" />
   </head>
   <body>
     <header class="site-header">
@@ -14,57 +14,95 @@
       </a>
       <div class="header-right">
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
-          <a href="./dashboard.html">Dashboard</a>
-          <a href="./mock-test-registration.html">Mock Tests</a>
-          <a href="./mock-history.html">History</a>
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
         </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main class="mock-wrap">
-      <section class="dash-card" style="padding: 0.45rem">
+    <main class="mock-wrap" data-no-collapse="true">
+      <section class="dash-card mock-page-banner">
         <img
           src="./public/mock_test_1.png"
           alt="Mock Test Registration Banner"
-          style="width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px"
+          class="mock-page-banner-image"
           onerror="this.style.display='none';"
         />
       </section>
 
       <section class="mock-page-header">
-        <h1>Mock Registration</h1>
+        <h1>Mock Test Registration</h1>
         <p class="mock-subtitle">Register and use free attempts before buying full access.</p>
       </section>
       <p id="registrationStatus" class="form-message"></p>
 
-      <section class="dash-card">
-        <div id="registrationBannerWrap" class="hidden" style="margin-bottom: 0.8rem">
-          <img
-            id="registrationBannerImage"
-            alt="Mock registration banner"
-            style="width: 100%; max-height: 280px; object-fit: contain; border-radius: 12px; border: 1px solid var(--border)"
-          />
-        </div>
-        <h2 id="registrationTitle">Mock Test Registration</h2>
-        <p id="registrationDescription" class="dash-k"></p>
-        <p id="registrationAttemptsInfo" class="dash-k"></p>
-        <div id="registrationReferCard" class="mock-refer-card">
-          <p class="mock-refer-kicker">Refer A Friend & Win Chance</p>
-          <div class="mock-refer-row">
-            <input id="regOwnReferralCode" class="mock-ref-code-input" readonly />
-            <button id="regCopyReferralBtn" class="btn-secondary" type="button">Copy Code</button>
+      <section class="mock-summary-grid mock-summary-grid--triple">
+        <article class="dash-card mock-summary-card mock-details-card">
+          <p class="mock-card-kicker">Mock Test Registration Details</p>
+          <h2 id="registrationTitle">Mock Test Registration</h2>
+          <p id="registrationDescription" class="dash-k"></p>
+          <div id="registrationReminderCard" class="mock-upcoming-card hidden" aria-live="polite">
+            <p class="mock-upcoming-kicker">Next Mock</p>
+            <h3 id="registrationReminderTitle">Upcoming Mock Test</h3>
+            <p id="registrationReminderWhen" class="mock-upcoming-when">Date and time pending</p>
           </div>
-          <p id="regReferralStats" class="dash-k"></p>
-        </div>
-        <div id="registrationReminderCard" class="mock-upcoming-card hidden" aria-live="polite">
-          <p class="mock-upcoming-kicker">Next Mock</p>
-          <h3 id="registrationReminderTitle">Upcoming Mock Test</h3>
-          <p id="registrationReminderWhen" class="mock-upcoming-when">Date and time pending</p>
-        </div>
+        </article>
+
+        <article class="dash-card mock-summary-card mock-chance-card">
+          <p class="mock-card-kicker">Mock Chance</p>
+          <div id="registrationAttemptsInfo" class="mock-chance-panel">No mock registration option available.</div>
+        </article>
+
+        <article id="registrationReferCard" class="dash-card mock-summary-card mock-refer-card mock-refer-card--compact">
+          <p class="mock-refer-kicker">Refer A Friend & Win Chance</p>
+          <p id="regReferralIdText" class="dash-k"></p>
+          <div class="mock-refer-row">
+            <input id="regReferralLink" class="mock-ref-code-input" readonly />
+            <div class="mock-refer-actions">
+              <button id="regShareReferralBtn" class="btn-primary mock-refer-action-btn" type="button" aria-label="Share link">
+                <img
+                  src="./public/share_icon.png"
+                  alt=""
+                  class="mock-refer-action-icon"
+                  aria-hidden="true"
+                />
+                <span class="mock-refer-action-label">Share</span>
+              </button>
+              <button id="regCopyReferralBtn" class="btn-secondary mock-refer-action-btn" type="button" aria-label="Copy link">
+                <img
+                  src="./public/copy_icon.jpg"
+                  alt=""
+                  class="mock-refer-action-icon"
+                  aria-hidden="true"
+                />
+                <span class="mock-refer-success-icon" aria-hidden="true">✓</span>
+                <span class="mock-refer-action-label">Copy Link</span>
+              </button>
+            </div>
+          </div>
+          <p id="regReferralStats" class="dash-k hidden"></p>
+        </article>
       </section>
 
-      <section class="dash-card">
-        <h3>Student Details</h3>
+      <section class="dash-card mock-registration-form-card">
+        <h3>Mock Test Registration</h3>
         <form id="registrationForm" class="mock-filter-grid">
           <div class="field">
             <label for="regFriendReferralCode">Friend Refer Code</label>
@@ -90,10 +128,6 @@
               <option value="SCIENCE_MATH">SCI/MATHS</option>
             </select>
           </div>
-          <div class="field field-span-2">
-            <label for="regMockChanceInfo">Mock Chance</label>
-            <input id="regMockChanceInfo" readonly />
-          </div>
           <div class="field">
             <label for="regFullName">Full Name</label>
             <input id="regFullName" required />
@@ -103,8 +137,8 @@
             <input id="regMobile" required placeholder="Use WhatsApp number for information and results" />
           </div>
           <div class="field">
-            <label for="regEmail">Email (optional)</label>
-            <input id="regEmail" type="email" />
+            <label for="regEmail">Email</label>
+            <input id="regEmail" type="email" required />
           </div>
           <div class="field">
             <label for="regPreferredDate">Preferred Date</label>
@@ -136,7 +170,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/mock-test-registration.js?v=4"></script>
+    <script type="module" src="./src/mock-test-registration.js?v=7"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>
