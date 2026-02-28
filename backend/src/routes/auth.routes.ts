@@ -7,6 +7,7 @@ import {
   getReferrerIdByCode,
 } from "../modules/referrals/referral.utils";
 import { ensureStudentCodeForUser } from "../modules/students/student-id.utils";
+import { ensureMockTestRegistrationStorageReady } from "../utils/mockTestRegistrationStorage";
 import { prisma } from "../utils/prisma";
 import { signToken } from "../utils/jwt";
 
@@ -25,6 +26,7 @@ const mockReferralRegisterSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   mobile: z.string().regex(/^\d{10,15}$/, "Mobile must be 10-15 digits"),
   email: z.string().trim().email("Enter a valid email").max(191),
+  password: z.string().min(8, "Password must be at least 8 characters").max(191),
   referralCode: z.string().trim().min(4).max(64).optional(),
   mockTestId: z.string().trim().min(1).max(191).optional(),
 });
@@ -52,6 +54,25 @@ const safeEnsureStudentCode = async (userId: string): Promise<string | null> => 
   } catch {
     return null;
   }
+};
+
+const toDateOnly = (value: string | Date | null | undefined): string => {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+type MockRegistrationGateRow = {
+  id: string;
+  mockTestId: string;
+  examType: string | null;
+  subject: string | null;
+  streamChoice: string | null;
+  scheduledDate: string | Date | null;
+  scheduledTimeSlot: string | null;
 };
 
 authRouter.post("/register", async (req, res, next) => {
@@ -129,10 +150,21 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
   try {
     const input = mockReferralRegisterSchema.parse(req.body);
 
+    await ensureMockTestRegistrationStorageReady();
+
+    let gate: MockRegistrationGateRow | null = null;
+
     if (input.mockTestId) {
       const gateRows = (await prisma.$queryRawUnsafe(
         `
-          SELECT g.mockTestId
+          SELECT
+            g.id,
+            g.mockTestId,
+            mt.examType,
+            mt.subject,
+            mt.streamChoice,
+            g.scheduledDate,
+            g.scheduledTimeSlot
           FROM MockTestRegistrationGate g
           INNER JOIN MockTest mt ON mt.id = g.mockTestId
           WHERE g.isActive = 1
@@ -141,8 +173,9 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
           LIMIT 1
         `,
         input.mockTestId
-      )) as Array<{ mockTestId: string }>;
-      if (!gateRows[0]?.mockTestId) {
+      )) as MockRegistrationGateRow[];
+      gate = gateRows[0] || null;
+      if (!gate?.mockTestId) {
         res.status(404).json({ message: "Mock registration is not available for this mock test." });
         return;
       }
@@ -178,7 +211,7 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
       }
     }
 
-    const passwordHash = await bcrypt.hash(input.mobile, 10);
+    const passwordHash = await bcrypt.hash(input.password, 10);
 
     const user = await prisma.user.create({
       data: {
@@ -205,6 +238,83 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
       await prisma.$executeRawUnsafe(`UPDATE User SET referrerId = ? WHERE id = ?`, referrerId, user.id);
     }
 
+    let referralBonusAwarded = false;
+    if (gate) {
+      const gateExamType = String(gate.examType || "").trim().toUpperCase() || "PSTET_1";
+      const gateSubject = String(gate.subject || "").trim().toUpperCase();
+      const gateStream = String(gate.streamChoice || "").trim().toUpperCase();
+      const derivedGateStreamChoice =
+        gateStream === "SCIENCE_MATH" || gateStream === "SOCIAL_STUDIES"
+          ? gateStream
+          : gateSubject === "SCIENCE_MATH" || gateSubject === "SOCIAL_STUDIES"
+          ? gateSubject
+          : "";
+      const effectiveDate = String(
+        toDateOnly(gate.scheduledDate) || new Date().toISOString().slice(0, 10)
+      ).trim();
+      const effectiveTimeSlot = String(gate.scheduledTimeSlot || "09:00").trim() || "09:00";
+      const preferredDate = new Date(`${effectiveDate}T00:00:00.000Z`);
+      const friendReferralCode = String(input.referralCode || "").trim().toUpperCase();
+      const now = new Date();
+
+      await prisma.$executeRawUnsafe(
+        `
+          INSERT INTO MockTestRegistrationEntry (
+            id, gateId, mockTestId, userId, fullName, mobile, email, friendReferralCode, referredByUserId, noFriendReferral, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot, createdAt, updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        `${user.id}:${gate.id}`,
+        gate.id,
+        gate.mockTestId,
+        user.id,
+        input.name.trim(),
+        input.mobile.trim(),
+        input.email.trim(),
+        friendReferralCode || null,
+        referrerId,
+        friendReferralCode ? 0 : 1,
+        gateExamType,
+        derivedGateStreamChoice || null,
+        preferredDate,
+        effectiveTimeSlot,
+        now,
+        now
+      );
+
+      if (referrerId && referrerId !== user.id && friendReferralCode) {
+        const existingReferralRows = (await prisma.$queryRawUnsafe(
+          `
+            SELECT referrerUserId
+            FROM MockTestRegistrationReferralBonus
+            WHERE gateId = ?
+              AND referredUserId = ?
+            LIMIT 1
+          `,
+          gate.id,
+          user.id
+        )) as Array<{ referrerUserId: string }>;
+        if (!String(existingReferralRows[0]?.referrerUserId || "").trim()) {
+          await prisma.$executeRawUnsafe(
+            `
+              INSERT INTO MockTestRegistrationReferralBonus (
+                id, gateId, mockTestId, referrerUserId, referredUserId, referralCodeUsed, createdAt
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `,
+            `${gate.id}:${user.id}`,
+            gate.id,
+            gate.mockTestId,
+            referrerId,
+            user.id,
+            friendReferralCode,
+            now
+          );
+          referralBonusAwarded = true;
+        }
+      }
+    }
+
     const token = signToken(user.id, user.role);
     const referralCode = await safeEnsureReferralCode(user.id);
     const studentCode = await safeEnsureStudentCode(user.id);
@@ -216,7 +326,7 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
         referralCode,
         studentCode,
       },
-      temporaryPasswordHint: "For the current test phase, your temporary password is your mobile number.",
+      referralBonusAwarded,
     });
   } catch (error) {
     next(error);

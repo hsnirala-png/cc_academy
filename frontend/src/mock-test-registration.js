@@ -111,6 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const guestNameInput = document.querySelector("#mockGuestName");
   const guestMobileInput = document.querySelector("#mockGuestMobile");
   const guestEmailInput = document.querySelector("#mockGuestEmail");
+  const guestPasswordInput = document.querySelector("#mockGuestPassword");
   const guestRegisterSubmitBtn = document.querySelector("#mockGuestRegisterSubmit");
   const mockProductsGrid = document.querySelector("#mockProductsGrid");
   const mockProductsMessage = document.querySelector("#mockProductsMessage");
@@ -255,7 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = buildMockProductsPageUrl();
       });
     }
-    setStatus("Complete the popup registration to continue to the mock test page.");
+    setStatus("Complete the popup registration to continue to your student dashboard.");
     openGuestRegisterModal();
   };
 
@@ -941,6 +942,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fullName = String(guestNameInput?.value || "").trim();
     const mobile = String(guestMobileInput?.value || "").trim();
     const email = String(guestEmailInput?.value || "").trim();
+    const password = String(guestPasswordInput?.value || "");
 
     if (!fullName) {
       setGuestRegisterStatus("Please enter name.", "error");
@@ -952,6 +954,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setGuestRegisterStatus("Enter valid email.", "error");
+      return;
+    }
+    if (password.length < 8) {
+      setGuestRegisterStatus("Password must be at least 8 characters.", "error");
       return;
     }
 
@@ -968,6 +974,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           name: fullName,
           mobile,
           email,
+          password,
           referralCode: requestedFriendReferralCode || undefined,
           mockTestId: requestedMockTestId || undefined,
         }),
@@ -977,11 +984,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error(data?.message || "Unable to complete registration.");
       }
       storeAuth(data?.token, data?.user);
-      setGuestRegisterStatus("Registration completed. Redirecting to mock page...", "success");
-      window.location.href = buildRegistrationPageUrl({
-        mockTestId: requestedMockTestId,
-        referralCode: requestedFriendReferralCode,
-      });
+      const referralNotice = data?.referralBonusAwarded
+        ? " Your friend has received +1 mock chance."
+        : "";
+      setGuestRegisterStatus(`Registration completed. Redirecting to student dashboard...${referralNotice}`, "success");
+      window.location.href = "./dashboard.html";
     } catch (error) {
       setGuestRegisterStatus(error?.message || "Unable to complete registration.", "error");
     } finally {

@@ -192,7 +192,7 @@
         <img src="./public/logo_B.png" alt="CC Academy logo" class="auth-modal-logo" />
         <h2 id="mockGuestRegisterTitle">Complete Registration</h2>
         <p class="dash-k">
-          Register with your name, mobile, and email to continue to the mock test page.
+          Register with your name, mobile, email, and password to continue to your student dashboard.
         </p>
         <form id="mockGuestRegisterForm" class="mock-guest-register-form">
           <div class="field">
@@ -207,7 +207,11 @@
             <label for="mockGuestEmail">Email</label>
             <input id="mockGuestEmail" type="email" required />
           </div>
-          <button id="mockGuestRegisterSubmit" class="btn-primary" type="submit">Continue to Mock Page</button>
+          <div class="field">
+            <label for="mockGuestPassword">Password</label>
+            <input id="mockGuestPassword" type="password" minlength="8" required />
+          </div>
+          <button id="mockGuestRegisterSubmit" class="btn-primary" type="submit">Continue to Dashboard</button>
         </form>
         <p id="mockGuestRegisterStatus" class="form-message"></p>
         <p class="dash-k">
