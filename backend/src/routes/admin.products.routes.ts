@@ -217,6 +217,10 @@ const uploadThumbnailSchema = z.object({
   dataUrl: z.string().trim().min(1),
 });
 
+const bulkHighlightsSchema = z.object({
+  highlights: productTextListSchema.min(1),
+});
+
 const listProductsSchema = z.object({
   examCategory: optionalTrimmedString(120),
   examName: optionalTrimmedString(120),
@@ -1045,6 +1049,41 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
     if (!product) throw new AppError("Product creation failed", 500);
 
     res.status(201).json({ product });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminProductsRouter.patch("/products/bulk-highlights", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = bulkHighlightsSchema.parse(req.body);
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, addons
+        FROM Product
+      `
+    )) as Array<{ id: string; addons: unknown }>;
+
+    const updatedAt = new Date();
+    for (const row of rows) {
+      const nextAddons = normalizeProductDetailsContent(row.addons);
+      nextAddons.highlights = [...input.highlights];
+      await prisma.$executeRawUnsafe(
+        `
+          UPDATE Product
+          SET addons = ?, updatedAt = ?
+          WHERE id = ?
+        `,
+        JSON.stringify(nextAddons),
+        updatedAt,
+        row.id
+      );
+    }
+
+    res.json({
+      message: "Product highlights updated for all products.",
+      updatedCount: rows.length,
+    });
   } catch (error) {
     next(error);
   }

@@ -74,6 +74,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productLinksSubtitle = document.querySelector("#productLinksSubtitle");
   const productLinksTableBody = document.querySelector("#productLinksTableBody");
   const closeProductLinksModalBtn = document.querySelector("#closeProductLinksModalBtn");
+  const bulkHighlightsInput = document.querySelector("#bulkProductHighlights");
+  const copyCurrentHighlightsBtn = document.querySelector("#copyCurrentHighlightsBtn");
+  const applyBulkHighlightsBtn = document.querySelector("#applyBulkHighlightsBtn");
 
   /** @type {Array<any>} */
   let products = [];
@@ -241,7 +244,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const parseLineList = (value) =>
     String(value || "")
-      .split(/\r?\n|,/)
+      .split(/\r?\n/)
       .map((item) => item.replace(/^[\u2022\-*]+\s*/, "").trim())
       .filter(Boolean);
 
@@ -819,6 +822,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       activatePstetTab(adminProductDetailsTabsPreview, activeAddonsDetailsTab);
     }
+  };
+
+  const fillBulkHighlightsFromCurrentForm = () => {
+    if (!(bulkHighlightsInput instanceof HTMLTextAreaElement)) return;
+    if (activeAddonsEditorTarget) {
+      applyInlineAddonEdits(activeAddonsEditorTarget);
+    }
+    const rows = parseLineList(addonsInput?.value || "");
+    bulkHighlightsInput.value = (rows.length ? rows : DEFAULT_PRODUCT_HIGHLIGHTS).join("\n");
   };
 
   const formatExamsCoveredForInput = (items) =>
@@ -1874,6 +1886,47 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (copyCurrentHighlightsBtn instanceof HTMLButtonElement) {
+    copyCurrentHighlightsBtn.addEventListener("click", () => {
+      fillBulkHighlightsFromCurrentForm();
+      setMessage("Copied current product highlights into bulk editor.", "success");
+    });
+  }
+
+  if (applyBulkHighlightsBtn instanceof HTMLButtonElement) {
+    applyBulkHighlightsBtn.addEventListener("click", async () => {
+      const rows = parseLineList(bulkHighlightsInput?.value || "");
+      if (!rows.length) {
+        setMessage("Enter at least one product highlight before applying to all products.", "error");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Apply these product highlights to all products? This will replace existing highlights for every product."
+      );
+      if (!confirmed) return;
+
+      try {
+        applyBulkHighlightsBtn.disabled = true;
+        setMessage("Applying product highlights to all products...");
+        await apiRequest({
+          path: "/admin/products/bulk-highlights",
+          method: "PATCH",
+          token,
+          body: {
+            highlights: rows,
+          },
+        });
+        await Promise.all([loadProducts(), loadAllProductsCatalog()]);
+        setMessage("Product highlights updated for all products.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to update all product highlights.", "error");
+      } finally {
+        applyBulkHighlightsBtn.disabled = false;
+      }
+    });
+  }
+
   if (thumbnailInput) {
     thumbnailInput.addEventListener("input", () => {
       setThumbnailPreview(thumbnailInput.value);
@@ -2164,6 +2217,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage("Loading products...");
     await Promise.all([loadMockTests(), loadProducts(), loadAllProductsCatalog()]);
     resetForm();
+    fillBulkHighlightsFromCurrentForm();
     autoWireReferralRewards();
     setMessage("");
   } catch (error) {
