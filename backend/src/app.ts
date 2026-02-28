@@ -27,7 +27,10 @@ app.use(express.static(backendPublicDir));
 if (sharedPublicAssetsDir !== backendPublicDir) {
   app.use(express.static(sharedPublicAssetsDir));
 }
-app.use("/public", express.static(sharedPublicAssetsDir));
+app.use("/public", express.static(backendPublicDir));
+if (sharedPublicAssetsDir !== backendPublicDir) {
+  app.use("/public", express.static(sharedPublicAssetsDir));
+}
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));

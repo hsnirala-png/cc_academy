@@ -152,9 +152,14 @@ const buildAssetUrlCandidates = (input) => {
 
   const sameOrigin = window.location.origin || "";
   if (raw.startsWith("/public/")) {
+    const rootPath = `/${raw.replace(/^\/public\/+/, "")}`;
     const sameOriginUrl = sameOrigin ? `${sameOrigin}${raw}` : "";
     const apiUrl = API_BASE ? `${API_BASE}${raw}` : sameOriginUrl;
-    return Array.from(new Set([sameOriginUrl, apiUrl].filter(Boolean)));
+    const sameOriginRootUrl = sameOrigin ? `${sameOrigin}${rootPath}` : "";
+    const apiRootUrl = API_BASE ? `${API_BASE}${rootPath}` : sameOriginRootUrl;
+    return Array.from(
+      new Set([sameOriginUrl, apiUrl, sameOriginRootUrl, apiRootUrl].filter(Boolean))
+    );
   }
 
   if (raw.startsWith("/")) {
