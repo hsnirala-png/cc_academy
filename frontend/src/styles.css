@@ -1201,8 +1201,45 @@ h1 {
     content: "\20B9";
   }
 
+  .site-header .nav-links a.nav-link-dashboard::before {
+    content: "\2302";
+  }
+
+  .site-header .nav-links a.nav-link-lessons::before {
+    content: "\1F4D6";
+  }
+
+  .site-header .nav-links a.nav-link-subscriptions::before {
+    content: "\1F4DA";
+  }
+
+  .site-header .nav-links a.nav-link-mock-tests::before {
+    content: "\270D";
+  }
+
+  .site-header .nav-links a.nav-link-history::before {
+    content: "\1F552";
+  }
+
+  .site-header .nav-links a.nav-link-refer::before {
+    content: "\1F381";
+  }
+
+  .site-header .nav-links a.nav-link-profile::before {
+    content: "\263A";
+  }
+
+  .site-header .nav-links a.nav-link-logout::before {
+    content: "\21AA";
+  }
+
   .nav-links a.nav-link-subscriptions::before {
     content: "\25A4";
+  }
+
+  .site-header .nav-links a.is-active {
+    border-color: #8fb3ff;
+    background: #eef4ff;
   }
 
   .nav-links a::after {

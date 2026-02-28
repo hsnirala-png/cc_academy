@@ -8,6 +8,12 @@
   };
 
   const getStoredToken = () => localStorage.getItem("cc_token");
+  const clearStoredAuth = () => {
+    [localStorage, sessionStorage].forEach((storage) => {
+      storage.removeItem("cc_token");
+      storage.removeItem("cc_user");
+    });
+  };
   const resolveUserRole = (user, defaultStudent = false) => {
     const role = String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")
       .trim()
@@ -35,6 +41,118 @@
 
   const getStudentDashboardPath = () => resolveRoute("dashboard");
   const getAdminDashboardPath = () => resolveRoute("admin");
+  const getStudentNavItems = () => [
+    {
+      href: resolveRoute("dashboard"),
+      label: "Dashboard",
+      className: "nav-link-dashboard",
+    },
+    {
+      href: resolveRoute("lessons"),
+      label: "Lessons",
+      className: "nav-link-lessons",
+    },
+    {
+      href: resolveRoute("my-subscriptions"),
+      label: "My Subscriptions",
+      className: "nav-link-subscriptions",
+    },
+    {
+      href: resolveRoute("mock-tests"),
+      label: "Mock Tests",
+      className: "nav-link-mock-tests",
+    },
+    {
+      href: resolveRoute("mock-history"),
+      label: "History",
+      className: "nav-link-history",
+    },
+    {
+      href: resolveRoute("refer-earn"),
+      label: "Refer & Earn",
+      className: "nav-link-refer",
+    },
+    {
+      href: resolveRoute("profile"),
+      label: "Profile",
+      className: "nav-link-profile",
+    },
+  ];
+
+  const isStudentNavPage = () => {
+    const { pathname } = getPathContext();
+    const normalized = String(pathname || "").toLowerCase();
+    return [
+      "/dashboard",
+      "/dashboard.html",
+      "/lessons",
+      "/lessons.html",
+      "/lesson-player",
+      "/lesson-player.html",
+      "/mock-tests",
+      "/mock-tests.html",
+      "/mock-history",
+      "/mock-history.html",
+      "/mock-attempt",
+      "/mock-attempt.html",
+      "/mock-test-registration",
+      "/mock-test-registration.html",
+      "/my-subscriptions",
+      "/my-subscriptions.html",
+      "/profile",
+      "/profile.html",
+      "/refer-earn",
+      "/refer-earn.html",
+      "/products",
+      "/products.html",
+    ].some((suffix) => normalized.endsWith(suffix));
+  };
+
+  const isCurrentStudentNavItem = (href) => {
+    try {
+      const current = new URL(window.location.href);
+      const target = new URL(href, current.href);
+      const currentPath = current.pathname.replace(/\/+$/, "");
+      const targetPath = target.pathname.replace(/\/+$/, "");
+      return currentPath === targetPath;
+    } catch {
+      return false;
+    }
+  };
+
+  const normalizeStudentNavigation = () => {
+    if (!isStudentSession() || !isStudentNavPage()) return;
+
+    const nav = document.querySelector("#primary-nav.nav-links");
+    if (!(nav instanceof HTMLElement)) return;
+
+    const navItems = getStudentNavItems();
+    nav.innerHTML = navItems
+      .map((item) => {
+        const isActive = isCurrentStudentNavItem(item.href);
+        const activeAttrs = isActive ? ' aria-current="page" class="' : ' class="';
+        return `<a href="${item.href}"${activeAttrs}${item.className}${
+          isActive ? " is-active" : ""
+        }" data-label="${item.label}" aria-label="${item.label}">${item.label}</a>`;
+      })
+      .join("");
+
+    const mobileLogoutLink = document.createElement("a");
+    mobileLogoutLink.href = "#logout";
+    mobileLogoutLink.id = "mobileMenuLogoutLink";
+    mobileLogoutLink.className = "mobile-only-nav-link nav-link-logout";
+    mobileLogoutLink.dataset.label = "Logout";
+    mobileLogoutLink.setAttribute("aria-label", "Logout");
+    mobileLogoutLink.textContent = "Logout";
+    nav.appendChild(mobileLogoutLink);
+
+    mobileLogoutLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      clearStoredAuth();
+      window.location.href = getHomePath();
+    });
+  };
+
   const getHomePath = () => {
     const { isExtensionless, prefix } = getPathContext();
     return isExtensionless ? prefix : `${prefix}index.html`;
@@ -182,6 +300,7 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
+    normalizeStudentNavigation();
     attachBackButton();
     applyStudentDashboardLinking();
   });
