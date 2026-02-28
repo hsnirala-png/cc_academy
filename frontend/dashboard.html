@@ -645,6 +645,10 @@
           content: "\20B9";
         }
 
+        .nav-links a.nav-link-subscriptions::before {
+          content: "\25A4";
+        }
+
         .nav-links a.account-subtab {
           width: 34px;
           height: 34px;
@@ -672,6 +676,13 @@
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
           <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
           <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+          <a
+            href="./my-subscriptions.html"
+            class="nav-link-subscriptions"
+            data-label="My Subscriptions"
+            aria-label="My Subscriptions"
+            >My Subscriptions</a
+          >
           <a href="./mock-test-registration.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
           <a
             href="#logout"
@@ -780,6 +791,15 @@
           </article>
           <div id="dashSliderDots" class="dash-slider-dots"></div>
         </section>
+        <section id="activeSubscriptionsSection" class="dash-section">
+          <h2>My Active Subscriptions</h2>
+          <p id="dashActiveSubscriptionsStatus" class="form-message"></p>
+          <div id="dashActiveSubscriptionsCatalog" class="dash-products-grid">
+            <article class="dash-card">
+              <p class="dash-k">Loading active subscriptions...</p>
+            </article>
+          </div>
+        </section>
         <section id="productsSection" class="dash-section">
           <h2>Product Catalog</h2>
           <p id="dashProductsStatus" class="form-message"></p>
@@ -808,7 +828,7 @@
         </div>
       </section>
     </main>
-    <script src="./src/dashboard.js?v=40"></script>
+    <script src="./src/dashboard.js?v=41"></script>
     <script src="./src/global-nav.js?v=2"></script>
   </body>
 </html>

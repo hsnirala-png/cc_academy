@@ -1201,6 +1201,10 @@ h1 {
     content: "\20B9";
   }
 
+  .nav-links a.nav-link-subscriptions::before {
+    content: "\25A4";
+  }
+
   .nav-links a::after {
     content: attr(data-label);
     position: absolute;
@@ -1606,6 +1610,10 @@ h1 {
   grid-template-columns: 290px minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+}
+
+.products-layout.products-layout--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .products-filters {

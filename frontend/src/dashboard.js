@@ -42,6 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const dashCoverRemove = document.querySelector("#dashCoverRemove");
   const dashLessonTests = document.querySelector("#dashLessonTests");
   const dashLessonTestStatus = document.querySelector("#dashLessonTestStatus");
+  const dashActiveSubscriptionsCatalog = document.querySelector("#dashActiveSubscriptionsCatalog");
+  const dashActiveSubscriptionsStatus = document.querySelector("#dashActiveSubscriptionsStatus");
   const dashProductsCatalog = document.querySelector("#dashProductsCatalog");
   const dashProductsStatus = document.querySelector("#dashProductsStatus");
   const dashReferEarnBtn = document.querySelector("#dashReferEarnBtn");
@@ -140,6 +142,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     dashProductsStatus.classList.remove("error", "success");
     if (type) dashProductsStatus.classList.add(type);
   };
+  const setActiveSubscriptionsStatus = (text, type) => {
+    if (!dashActiveSubscriptionsStatus) return;
+    dashActiveSubscriptionsStatus.textContent = text || "";
+    dashActiveSubscriptionsStatus.classList.remove("error", "success");
+    if (type) dashActiveSubscriptionsStatus.classList.add(type);
+  };
   const closeDashboardRegistrationPopup = () => {
     const modal = document.querySelector("#dashboardMockRegistrationPopup");
     if (modal instanceof HTMLElement) modal.remove();
@@ -208,6 +216,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const state = {
     lessonOverview: null,
+    activeSubscriptions: [],
+    activeSubscriptionsWindowStart: 0,
+    activeSubscriptionsCardsPerView: 1,
+    activeSubscriptionsIsMobileView: false,
     productsCatalog: [],
     productsWindowStart: 0,
     productsCardsPerView: 1,
@@ -236,6 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (dashReferEarnBtn instanceof HTMLAnchorElement) dashReferEarnBtn.href = referEarnPath;
   if (headerReferEarnBtn instanceof HTMLAnchorElement) headerReferEarnBtn.href = referEarnPath;
   const getSliderTransition = () => Math.max(120, state.sliderTransitionMs);
+  const getMySubscriptionsPagePath = () => getPagePath("my-subscriptions");
   const getProductsPagePath = () => getPagePath("products");
   const getProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
   const getProductsCardsPerView = () => 3;
@@ -525,7 +538,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join("");
   };
 
-  const renderDashboardCatalogCard = (product) => {
+  const renderDashboardCatalogCard = (product, options = {}) => {
     const id = String(product?.id || "").trim();
     const image = normalizeProductAssetUrl(product?.thumbnailUrl || "");
     const demoTests = Array.isArray(product?.demoMockTests) ? product.demoMockTests : [];
@@ -551,6 +564,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const buyNowLink = encodedProductId
       ? `${productsPagePath}?checkoutProductId=${encodedProductId}`
       : productsPagePath;
+    const detailsHref = String(options.detailsHref || productDetailsLink).trim() || productDetailsLink;
+    const detailsLabel = String(options.detailsLabel || "Details").trim() || "Details";
+    const primaryHref = String(options.primaryHref || buyNowLink).trim() || buyNowLink;
+    const primaryLabel = String(options.primaryLabel || "Buy").trim() || "Buy";
+    const primaryButtonClass = String(options.primaryButtonClass || "btn-primary").trim() || "btn-primary";
+    const showDemoAction = options.showDemoAction !== false;
     return `
       <article class="home-latest-card dash-product-card">
         <img
@@ -572,51 +591,74 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
           </div>
           <div class="home-latest-actions dash-product-actions">
-            <a class="btn-secondary" href="${productDetailsLink}">Details</a>
-            <a class="btn-primary" href="${buyNowLink}">Buy</a>
-            <button
-              class="btn-secondary"
-              data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
-              type="button"
-              data-dash-demo-url="${escapeHtml(demoUrl)}"
-              ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
-            >${escapeHtml(demoLabel)}</button>
+            <a class="btn-secondary" href="${escapeHtml(detailsHref)}">${escapeHtml(detailsLabel)}</a>
+            <a class="${escapeHtml(primaryButtonClass)}" href="${escapeHtml(primaryHref)}">${escapeHtml(primaryLabel)}</a>
+            ${
+              showDemoAction
+                ? `
+                  <button
+                    class="btn-secondary"
+                    data-dash-demo-test-id="${escapeHtml(demoMockTestId)}"
+                    type="button"
+                    data-dash-demo-url="${escapeHtml(demoUrl)}"
+                    ${hasDemoAction ? "" : 'disabled title="Demo is not configured yet."'}
+                  >${escapeHtml(demoLabel)}</button>
+                `
+                : ""
+            }
           </div>
         </div>
       </article>
     `;
   };
 
-  const renderProductsCatalog = () => {
-    if (!(dashProductsCatalog instanceof HTMLElement)) return;
-    dashProductsCatalog.classList.remove("catalog-window-host");
-    const products = Array.isArray(state.productsCatalog) ? state.productsCatalog : [];
-    const productsPagePath = getProductsPagePath();
-    if (!products.length) {
-      dashProductsCatalog.innerHTML = `
+  const renderDashboardWindowSection = ({
+    container,
+    items,
+    windowStartKey,
+    cardsPerViewKey,
+    isMobileViewKey,
+    navAttr,
+    navLabel,
+    allHref,
+    allLabel,
+    emptyText,
+    emptyCtaHref,
+    emptyCtaLabel,
+    renderCard,
+  }) => {
+    if (!(container instanceof HTMLElement)) return;
+    container.classList.remove("catalog-window-host");
+    const rows = Array.isArray(items) ? items : [];
+    if (!rows.length) {
+      container.innerHTML = `
         <article class="dash-card">
-          <p class="dash-k">No products available right now.</p>
-          <p><a class="btn-primary" href="${productsPagePath}">Buy</a></p>
+          <p class="dash-k">${escapeHtml(emptyText)}</p>
+          ${
+            emptyCtaHref && emptyCtaLabel
+              ? `<p><a class="btn-primary" href="${escapeHtml(emptyCtaHref)}">${escapeHtml(emptyCtaLabel)}</a></p>`
+              : ""
+          }
         </article>
       `;
       return;
     }
 
     const isMobileView = getProductsIsMobileView();
-    const cardsPerView = Math.min(getProductsCardsPerView(), products.length);
-    state.productsCardsPerView = cardsPerView;
-    state.productsIsMobileView = isMobileView;
-    const maxWindowStart = Math.max(0, products.length - cardsPerView);
+    const cardsPerView = Math.min(getProductsCardsPerView(), rows.length);
+    state[cardsPerViewKey] = cardsPerView;
+    state[isMobileViewKey] = isMobileView;
+    const maxWindowStart = Math.max(0, rows.length - cardsPerView);
     if (isMobileView) {
-      state.productsWindowStart = 0;
+      state[windowStartKey] = 0;
     } else {
-      state.productsWindowStart = Math.max(0, Math.min(state.productsWindowStart, maxWindowStart));
+      state[windowStartKey] = Math.max(0, Math.min(state[windowStartKey], maxWindowStart));
     }
     const visibleProducts = isMobileView
-      ? products.slice(0, cardsPerView)
-      : products.slice(state.productsWindowStart, state.productsWindowStart + cardsPerView);
-    const canPrev = !isMobileView && state.productsWindowStart > 0;
-    const canNext = !isMobileView && state.productsWindowStart + cardsPerView < products.length;
+      ? rows.slice(0, cardsPerView)
+      : rows.slice(state[windowStartKey], state[windowStartKey] + cardsPerView);
+    const canPrev = !isMobileView && state[windowStartKey] > 0;
+    const canNext = !isMobileView && state[windowStartKey] + cardsPerView < rows.length;
     const allProductsAnchorIndex = visibleProducts.length
       ? isMobileView
         ? 0
@@ -629,21 +671,21 @@ document.addEventListener("DOMContentLoaded", async () => {
           <button
             type="button"
             class="catalog-nav-btn"
-            data-dash-product-nav="prev"
-            aria-label="Previous products"
+            ${navAttr}="prev"
+            aria-label="Previous ${escapeHtml(navLabel)}"
             ${canPrev ? "" : "disabled"}
           >&lt;</button>
           <button
             type="button"
             class="catalog-nav-btn"
-            data-dash-product-nav="next"
-            aria-label="Next products"
+            ${navAttr}="next"
+            aria-label="Next ${escapeHtml(navLabel)}"
             ${canNext ? "" : "disabled"}
           >&gt;</button>
         </div>
       `;
-    dashProductsCatalog.classList.add("catalog-window-host");
-    dashProductsCatalog.innerHTML = `
+    container.classList.add("catalog-window-host");
+    container.innerHTML = `
       <div class="catalog-window">
         ${navMarkup}
         <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
@@ -653,10 +695,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="catalog-window-item">
                   ${
                     index === allProductsAnchorIndex
-                      ? `<a class="catalog-all-products-btn" href="${productsPagePath}">All products</a>`
+                      ? `<a class="catalog-all-products-btn" href="${escapeHtml(allHref)}">${escapeHtml(allLabel)}</a>`
                       : ""
                   }
-                  ${renderDashboardCatalogCard(product)}
+                  ${renderCard(product)}
                 </div>
               `
             )
@@ -664,6 +706,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
       </div>
     `;
+  };
+
+  const renderActiveSubscriptionsCatalog = () => {
+    const subscriptionsPagePath = getMySubscriptionsPagePath();
+    renderDashboardWindowSection({
+      container: dashActiveSubscriptionsCatalog,
+      items: state.activeSubscriptions,
+      windowStartKey: "activeSubscriptionsWindowStart",
+      cardsPerViewKey: "activeSubscriptionsCardsPerView",
+      isMobileViewKey: "activeSubscriptionsIsMobileView",
+      navAttr: "data-dash-subscription-nav",
+      navLabel: "subscriptions",
+      allHref: subscriptionsPagePath,
+      allLabel: "All Subscriptions",
+      emptyText: "No active subscriptions yet. Your purchased products will appear here.",
+      emptyCtaHref: getProductsPagePath(),
+      emptyCtaLabel: "Browse Products",
+      renderCard: (product) => {
+        const productId = String(product?.id || "").trim();
+        const selectedHref = productId
+          ? `${subscriptionsPagePath}?productId=${encodeURIComponent(productId)}`
+          : subscriptionsPagePath;
+        return renderDashboardCatalogCard(product, {
+          detailsHref: selectedHref,
+          primaryHref: selectedHref,
+          primaryLabel: "Open",
+          showDemoAction: false,
+        });
+      },
+    });
+  };
+
+  const renderProductsCatalog = () => {
+    renderDashboardWindowSection({
+      container: dashProductsCatalog,
+      items: state.productsCatalog,
+      windowStartKey: "productsWindowStart",
+      cardsPerViewKey: "productsCardsPerView",
+      isMobileViewKey: "productsIsMobileView",
+      navAttr: "data-dash-product-nav",
+      navLabel: "products",
+      allHref: getProductsPagePath(),
+      allLabel: "All products",
+      emptyText: "No products available right now.",
+      emptyCtaHref: getProductsPagePath(),
+      emptyCtaLabel: "Buy",
+      renderCard: (product) => renderDashboardCatalogCard(product),
+    });
   };
 
   const startDashboardAttempt = async (mockTestId, { autoplay = false } = {}) => {
@@ -773,8 +863,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadDashboardProducts = async () => {
-    if (!(dashProductsCatalog instanceof HTMLElement)) return;
-    dashProductsCatalog.classList.remove("catalog-window-host");
+    if (!(dashProductsCatalog instanceof HTMLElement) && !(dashActiveSubscriptionsCatalog instanceof HTMLElement)) return;
+    if (dashProductsCatalog instanceof HTMLElement) dashProductsCatalog.classList.remove("catalog-window-host");
+    if (dashActiveSubscriptionsCatalog instanceof HTMLElement) {
+      dashActiveSubscriptionsCatalog.classList.remove("catalog-window-host");
+    }
     const requestUrl = `${API_BASE}/products?_t=${Date.now()}`;
     const response = await fetch(requestUrl, {
       cache: "no-store",
@@ -788,8 +881,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!response.ok) {
       throw new Error(payload?.message || "Unable to load products.");
     }
-    state.productsCatalog = Array.isArray(payload?.products) ? payload.products : [];
+    const allProducts = Array.isArray(payload?.products) ? payload.products : [];
+    state.productsCatalog = allProducts;
+    state.activeSubscriptions = allProducts.filter((item) => Boolean(item?.isPremiumUnlocked));
+    renderActiveSubscriptionsCatalog();
     renderProductsCatalog();
+    if (state.activeSubscriptions.length) {
+      const visibleSubscriptions = Math.min(getProductsCardsPerView(), state.activeSubscriptions.length);
+      setActiveSubscriptionsStatus(
+        `Showing ${visibleSubscriptions} of ${state.activeSubscriptions.length} active subscription(s).`,
+        "success"
+      );
+    } else {
+      setActiveSubscriptionsStatus("No active subscriptions yet. Your purchased products will appear here.", "error");
+    }
     const visibleCount = Math.min(getProductsCardsPerView(), state.productsCatalog.length);
     setProductsStatus(`Showing ${visibleCount} of ${state.productsCatalog.length} catalog product(s).`, "success");
   };
@@ -822,9 +927,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   let productsViewportTimerId = null;
   const refreshProductsViewport = () => {
     const nextIsMobileView = getProductsIsMobileView();
-    if (nextIsMobileView === state.productsIsMobileView) return;
+    if (
+      nextIsMobileView === state.productsIsMobileView &&
+      nextIsMobileView === state.activeSubscriptionsIsMobileView
+    ) {
+      return;
+    }
     state.productsIsMobileView = nextIsMobileView;
+    state.activeSubscriptionsIsMobileView = nextIsMobileView;
     state.productsWindowStart = 0;
+    state.activeSubscriptionsWindowStart = 0;
+    renderActiveSubscriptionsCatalog();
     renderProductsCatalog();
   };
 
@@ -1156,6 +1269,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (dashActiveSubscriptionsCatalog instanceof HTMLElement) {
+    dashActiveSubscriptionsCatalog.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const navBtn = target.closest("[data-dash-subscription-nav]");
+      if (!(navBtn instanceof HTMLElement)) return;
+      const direction = navBtn.getAttribute("data-dash-subscription-nav");
+      const step = Math.max(1, state.activeSubscriptionsCardsPerView);
+      const maxWindowStart = Math.max(0, state.activeSubscriptions.length - step);
+      if (direction === "prev") {
+        state.activeSubscriptionsWindowStart = Math.max(0, state.activeSubscriptionsWindowStart - step);
+        renderActiveSubscriptionsCatalog();
+      } else if (direction === "next") {
+        state.activeSubscriptionsWindowStart = Math.min(
+          maxWindowStart,
+          state.activeSubscriptionsWindowStart + step
+        );
+        renderActiveSubscriptionsCatalog();
+      }
+    });
+  }
+
   try {
     const response = await fetch(`${API_BASE}/me`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -1205,10 +1340,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       setLessonTestStatus(message, "error");
     }
     try {
+      setActiveSubscriptionsStatus("Loading active subscriptions...");
       setProductsStatus("Loading product catalog...");
       await loadDashboardProducts();
     } catch (productError) {
       const message = productError instanceof Error ? productError.message : "Unable to load product catalog.";
+      setActiveSubscriptionsStatus(message, "error");
       setProductsStatus(message, "error");
     }
     void loadDashboardRegistrationPopup();
@@ -1250,6 +1387,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       setCover("");
     }
     setLessonTestStatus("Student dashboard loaded in offline mode. Lesson tests need backend connection.", "error");
+    setActiveSubscriptionsStatus(
+      "Student dashboard loaded in offline mode. Active subscriptions need backend connection.",
+      "error"
+    );
     setProductsStatus("Student dashboard loaded in offline mode. Product catalog needs backend connection.", "error");
   }
 

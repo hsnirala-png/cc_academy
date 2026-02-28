@@ -1502,9 +1502,10 @@ export const mockTestService = {
     });
 
     if (!lessons.length) return null;
-    const [accessMap, demoEntitledSet, enrollments] = await Promise.all([
+    const [accessMap, demoEntitledSet, productEntitledSet, enrollments] = await Promise.all([
       loadMockTestAccessMap([mockTestId]),
       loadDemoLinkedMockTests([mockTestId]),
+      userId ? loadUserAccessibleProductMockTests(userId, [mockTestId]) : Promise.resolve(new Set<string>()),
       userId
         ? prisma.enrollment.findMany({
             where: {
@@ -1522,7 +1523,8 @@ export const mockTestService = {
     const accessCode = accessMap.get(mockTestId) || "DEMO";
     const isDemoLessonContext = accessCode === "DEMO" || demoEntitledSet.has(mockTestId);
     const enrolledCourseIds = new Set(enrollments.map((row) => row.courseId));
-    const eligibleLessons = isDemoLessonContext
+    const isProductLessonContext = productEntitledSet.has(mockTestId);
+    const eligibleLessons = isDemoLessonContext || isProductLessonContext
       ? lessons
       : lessons.filter((lesson) => enrolledCourseIds.has(lesson.chapter.course.id));
 

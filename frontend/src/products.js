@@ -116,9 +116,13 @@ const normalizeAssetUrl = (input) => {
   return `./${raw}`;
 };
 
+const isExtensionlessRoute = () => {
+  const currentPath = String(window.location.pathname || "").toLowerCase();
+  return Boolean(currentPath) && currentPath !== "/" && !currentPath.endsWith(".html");
+};
+
 const resolveAttemptPagePath = async () => {
-  const currentPath = window.location.pathname || "";
-  const prefersExtensionless = currentPath.endsWith("/products");
+  const prefersExtensionless = isExtensionlessRoute();
   const candidates = prefersExtensionless
     ? ["./mock-attempt", "./mock-attempt.html"]
     : ["./mock-attempt.html", "./mock-attempt"];
@@ -127,8 +131,7 @@ const resolveAttemptPagePath = async () => {
 };
 
 const resolveLessonPlayerPagePath = async () => {
-  const currentPath = window.location.pathname || "";
-  const prefersExtensionless = currentPath.endsWith("/products");
+  const prefersExtensionless = isExtensionlessRoute();
   const candidates = prefersExtensionless
     ? ["./lesson-player", "./lesson-player.html"]
     : ["./lesson-player.html", "./lesson-player"];
@@ -137,8 +140,7 @@ const resolveLessonPlayerPagePath = async () => {
 };
 
 const resolveCheckoutPagePath = async () => {
-  const currentPath = window.location.pathname || "";
-  const prefersExtensionless = currentPath.endsWith("/products");
+  const prefersExtensionless = isExtensionlessRoute();
   const candidates = prefersExtensionless
     ? ["./checkout", "./checkout.html"]
     : ["./checkout.html", "./checkout"];
@@ -147,9 +149,13 @@ const resolveCheckoutPagePath = async () => {
 };
 
 const getProductsPagePath = () => {
-  const currentPath = window.location.pathname || "";
-  const prefersExtensionless = currentPath.endsWith("/products");
+  const prefersExtensionless = isExtensionlessRoute();
   return prefersExtensionless ? "./products" : "./products.html";
+};
+
+const getSubscriptionsPagePath = () => {
+  const prefersExtensionless = isExtensionlessRoute();
+  return prefersExtensionless ? "./my-subscriptions" : "./my-subscriptions.html";
 };
 
 const resolvePagePathByMarker = async (candidates, marker) => {
@@ -170,6 +176,11 @@ const resolvePagePathByMarker = async (candidates, marker) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const pageRoot = document.body;
+  const pageMode = String(pageRoot?.dataset.productsMode || "catalog")
+    .trim()
+    .toLowerCase();
+  const isSubscriptionsPage = pageMode === "subscriptions";
   const header = document.querySelector(".site-header");
   const menuToggle = document.querySelector(".menu-toggle");
   const mobileSearchToggle = document.querySelector("#mobileSearchToggle");
@@ -1338,6 +1349,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessCode.startsWith("DEMO ") ||
         accessCode.includes("FREE FOR ALL");
       const isLessonLinked = accessCode === "LESSON";
+      const hasLessonContext = Boolean(item?.hasLessonContext);
+      const shouldOpenLessonFirst = isLessonLinked || hasLessonContext;
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
@@ -1345,8 +1358,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         title: normalizeLearningDisplayTitle(itemTitle),
         accessType: isDemoAccess ? "DEMO" : "PREMIUM",
         unlocked: isDemoAccess ? true : premiumUnlocked,
-        action: isLessonLinked ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
-        ctaLabel: isLessonLinked ? "Play" : "Attempt Test",
+        action: shouldOpenLessonFirst ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
+        ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
         subjectTabKey: resolveSubjectTabKey(item?.subject, itemTitle),
       });
     });
@@ -1627,7 +1640,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (safeProductId) params.set("productId", safeProductId);
     if (safeCheckoutId) params.set("checkoutProductId", safeCheckoutId);
     const search = params.toString();
-    return `${getProductsPagePath()}${search ? `?${search}` : ""}`;
+    const basePath = isSubscriptionsPage ? getSubscriptionsPagePath() : getProductsPagePath();
+    return `${basePath}${search ? `?${search}` : ""}`;
   };
 
   const navigateToProductCheckout = (productId) => {
@@ -1641,7 +1655,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const productId = String(product.id || "").trim();
     const discount = Number(product.discountPercent || 0);
     const detailsHref = createProductPageHref(productId, "");
-    const buyHref = createProductPageHref(productId, productId);
+    const primaryHref = isSubscriptionsPage ? detailsHref : createProductPageHref(productId, productId);
+    const primaryLabel = isSubscriptionsPage ? "Open" : "Buy";
     return `
       <article class="home-latest-card product-catalog-card">
         <img
@@ -1664,7 +1679,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           </div>
           <div class="home-latest-actions">
             <a class="btn-secondary" href="${detailsHref}">Details</a>
-            <a class="btn-primary" href="${buyHref}">Buy</a>
+            <a class="btn-primary" href="${primaryHref}">${primaryLabel}</a>
           </div>
         </div>
       </article>
@@ -1677,6 +1692,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const highlights = detailsContent.highlights;
     const productId = String(product.id || "").trim();
     const referralFriendDiscount = Number(product.referralDiscountAmount || 0);
+    const showPurchaseActions = !isSubscriptionsPage;
     return `
       <div class="product-card-stack">
         <article class="product-card product-card-wide">
@@ -1700,27 +1716,39 @@ document.addEventListener("DOMContentLoaded", async () => {
               <span class="product-mrp">${toCurrency(product.listPrice)}</span>
               <span class="product-off">${product.discountPercent || 0}% off</span>
             </div>
-            <p class="product-access">Referral Bonus: ${toCurrency(product.referralBonusAmount || 0)}</p>
-            <p class="product-access">
-              Friend Code Discount: ${toCurrency(referralFriendDiscount)}
-            </p>
+            ${
+              showPurchaseActions
+                ? `
+                  <p class="product-access">Referral Bonus: ${toCurrency(product.referralBonusAmount || 0)}</p>
+                  <p class="product-access">
+                    Friend Code Discount: ${toCurrency(referralFriendDiscount)}
+                  </p>
+                `
+                : '<p class="product-access">Subscription Status: Active</p>'
+            }
             <p class="product-access">${product.accessDays} days access</p>
-            <div class="product-actions">
-              <button
-                type="button"
-                class="btn-primary"
-                data-buy-product="${escapeHtml(productId)}"
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                class="btn-sky"
-                data-buy-wallet-product="${escapeHtml(productId)}"
-              >
-                Buy with Wallet
-              </button>
-            </div>
+            ${
+              showPurchaseActions
+                ? `
+                  <div class="product-actions">
+                    <button
+                      type="button"
+                      class="btn-primary"
+                      data-buy-product="${escapeHtml(productId)}"
+                    >
+                      Buy
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-sky"
+                      data-buy-wallet-product="${escapeHtml(productId)}"
+                    >
+                      Buy with Wallet
+                    </button>
+                  </div>
+                `
+                : ""
+            }
           </div>
         </div>
         <aside class="product-open-wrap product-side">
@@ -1740,9 +1768,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderProductCards = () => {
     if (!productsGrid) return;
     if (!state.filtered.length) {
-      productsGrid.innerHTML =
-        '<div class="empty-products">No products match your filters. Try clearing a few filters.</div>';
-      if (productsCountText) productsCountText.textContent = "0 products";
+      productsGrid.innerHTML = isSubscriptionsPage
+        ? '<div class="empty-products">No active subscriptions yet. Buy a product to see it here.</div>'
+        : '<div class="empty-products">No products match your filters. Try clearing a few filters.</div>';
+      if (productsCountText) {
+        productsCountText.textContent = isSubscriptionsPage ? "0 active subscriptions" : "0 products";
+      }
       return;
     }
 
@@ -1753,7 +1784,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? state.filtered.map((product) => renderProductDetailStack(product)).join("")
       : state.filtered.map((product) => renderProductCatalogCard(product)).join("");
 
-    if (productsCountText) productsCountText.textContent = `${state.filtered.length} products`;
+    if (productsCountText) {
+      productsCountText.textContent = isSubscriptionsPage
+        ? `${state.filtered.length} active subscription${state.filtered.length === 1 ? "" : "s"}`
+        : `${state.filtered.length} products`;
+    }
   };
 
   const getReferralCodeFromActionTarget = (targetElement) => {
@@ -2171,6 +2206,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const loadProducts = async () => {
     const { token } = getAuthState();
+    if (isSubscriptionsPage && !token) {
+      throw new Error("Please login to view your subscriptions.");
+    }
     const requestUrl = `${API_BASE}/products?_t=${Date.now()}`;
     const response = await fetch(requestUrl, {
       cache: "no-store",
@@ -2184,14 +2222,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!response.ok) {
       throw new Error(payload?.message || "Unable to fetch products");
     }
-    state.products = Array.isArray(payload?.products) ? payload.products : [];
+    const products = Array.isArray(payload?.products) ? payload.products : [];
+    state.products = isSubscriptionsPage ? products.filter((item) => Boolean(item?.isPremiumUnlocked)) : products;
     renderAll();
   };
 
   try {
     initHeader();
     bindFilters();
-    setMessage("Loading products...");
+    setMessage(isSubscriptionsPage ? "Loading active subscriptions..." : "Loading products...");
     await loadProducts();
     if (checkoutProductIdFromLink) {
       try {
@@ -2212,9 +2251,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     setMessage("");
   } catch (error) {
-    setMessage(error.message || "Unable to load products.", "error");
+    setMessage(
+      error.message || (isSubscriptionsPage ? "Unable to load subscriptions." : "Unable to load products."),
+      "error"
+    );
     if (productsGrid) {
-      productsGrid.innerHTML = '<div class="empty-products">Products are temporarily unavailable.</div>';
+      productsGrid.innerHTML = isSubscriptionsPage
+        ? '<div class="empty-products">Subscriptions are temporarily unavailable.</div>'
+        : '<div class="empty-products">Products are temporarily unavailable.</div>';
     }
   }
 });

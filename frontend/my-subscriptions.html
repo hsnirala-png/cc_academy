@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mock Test History</title>
+    <title>My Subscriptions | CC Academy</title>
     <link rel="stylesheet" href="./src/styles.css?v=32" />
   </head>
-  <body>
+  <body class="products-page" data-products-mode="subscriptions">
     <header class="site-header">
       <a href="./index.html#home" class="brand">
         <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
@@ -29,59 +29,49 @@
         </nav>
         <div class="header-actions">
           <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
         </div>
       </div>
     </header>
 
-    <main class="mock-wrap">
-      <section class="mock-page-header">
-        <h1>Mock Test History</h1>
-      </section>
+    <main class="products-wrap">
+      <section class="products-layout products-layout--single">
+        <section class="products-content">
+          <div class="products-heading-row">
+            <h1>My Subscriptions</h1>
+            <p id="productsCountText">0 active subscriptions</p>
+          </div>
 
-      <p id="historyStatus" class="form-message"></p>
-
-      <section class="admin-panel">
-        <h2>Submitted Attempts</h2>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Exam</th>
-                <th>Subject</th>
-                <th>Score</th>
-                <th>Percent</th>
-                <th>Remark</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="historyDetailWrap" class="admin-panel hidden">
-        <h2 id="historyDetailTitle">Attempt Details</h2>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Question</th>
-                <th>Selected</th>
-                <th>Correct</th>
-                <th>Status</th>
-                <th>Explanation</th>
-              </tr>
-            </thead>
-            <tbody id="historyDetailBody"></tbody>
-          </table>
-        </div>
+          <p id="productsMessage" class="form-message"></p>
+          <div id="productsGrid" class="products-grid"></div>
+        </section>
       </section>
     </main>
 
-    <script type="module" src="./src/mock-history.js?v=1"></script>
-      <script src="./src/global-nav.js?v=1"></script>
+    <script type="module" src="./src/products.js?v=46"></script>
+    <script src="./src/global-nav.js?v=2"></script>
+    <script>
+      (() => {
+        const clearStorage = (storage) => {
+          storage.removeItem("cc_token");
+          storage.removeItem("cc_user");
+        };
+        document.querySelector("#logoutBtn")?.addEventListener("click", () => {
+          clearStorage(localStorage);
+          clearStorage(sessionStorage);
+          window.location.href = "./index.html";
+        });
+      })();
+    </script>
   </body>
 </html>
-

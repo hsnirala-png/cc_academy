@@ -72,6 +72,7 @@ type ProductMockTestRow = {
   mockTestSubject: string;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
+  mockTestHasLessonContext?: number | boolean | null;
 };
 
 type ProductChapterSubSubjectRow = {
@@ -270,6 +271,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   subject: row.mockTestSubject,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
   isActive: toBoolean(row.mockTestIsActive),
+  hasLessonContext: toBoolean(row.mockTestHasLessonContext),
 });
 
 const normalizeLookupText = (value: unknown) =>
@@ -340,7 +342,13 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
           ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
           LIMIT 1
         ) AS mockTestAccessCode,
-        mt.isActive AS mockTestIsActive
+        mt.isActive AS mockTestIsActive,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+          LIMIT 1
+        ) AS mockTestHasLessonContext
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       WHERE pmt.productId IN (${placeholders})
@@ -376,7 +384,13 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
           ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
           LIMIT 1
         ) AS mockTestAccessCode,
-        mt.isActive AS mockTestIsActive
+        mt.isActive AS mockTestIsActive,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+          LIMIT 1
+        ) AS mockTestHasLessonContext
       FROM (
         SELECT
           rawLinks.productId,

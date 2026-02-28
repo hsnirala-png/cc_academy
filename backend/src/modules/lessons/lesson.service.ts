@@ -43,6 +43,27 @@ const assertEnrollment = async (userId: string, courseId: string) => {
   }
 };
 
+const canAccessLessonViaProduct = async (userId: string, assessmentTestId: string | null): Promise<boolean> => {
+  if (!assessmentTestId) return false;
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT 1 AS ok
+      FROM ProductMockTest pmt
+      WHERE pmt.mockTestId = ?
+        AND pmt.productId IN (
+          SELECT pp.productId FROM ProductPurchase pp WHERE pp.userId = ?
+          UNION
+          SELECT spa.productId FROM StudentProductAccess spa WHERE spa.userId = ?
+        )
+      LIMIT 1
+    `,
+    assessmentTestId,
+    userId,
+    userId
+  )) as Array<{ ok: number }>;
+  return rows.length > 0;
+};
+
 const canAccessLessonAsDemo = async (assessmentTestId: string | null): Promise<boolean> => {
   if (!assessmentTestId) return false;
 
@@ -276,7 +297,8 @@ export const lessonService = {
         throw error;
       }
       const demoAllowed = await canAccessLessonAsDemo(lesson.assessmentTestId);
-      if (!demoAllowed) {
+      const productAllowed = await canAccessLessonViaProduct(userId, lesson.assessmentTestId);
+      if (!demoAllowed && !productAllowed) {
         throw error;
       }
     }
@@ -335,7 +357,8 @@ export const lessonService = {
         throw error;
       }
       const demoAllowed = await canAccessLessonAsDemo(lesson.assessmentTestId);
-      if (!demoAllowed) {
+      const productAllowed = await canAccessLessonViaProduct(userId, lesson.assessmentTestId);
+      if (!demoAllowed && !productAllowed) {
         throw error;
       }
     }
