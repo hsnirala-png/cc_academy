@@ -6,6 +6,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { mockTestService } from "../modules/mock-tests/mock-test.service";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { ensureMockTestRegistrationStorageReady } from "../utils/mockTestRegistrationStorage";
+import { loadAccessibleMockTestIdsForUser } from "../utils/productCombos";
 import { AppError } from "../utils/appError";
 import { prisma } from "../utils/prisma";
 import { ensureUserReferralCode, getReferrerIdByCode } from "../modules/referrals/referral.utils";
@@ -280,44 +281,12 @@ const loadUsedAttemptCountMap = async (userId: string, mockTestIds: string[]) =>
 };
 
 const hasPaidAccessForMockTest = async (userId: string, mockTestId: string) => {
-  const rows = (await prisma.$queryRawUnsafe(
-    `
-      SELECT pmt.mockTestId
-      FROM ProductMockTest pmt
-      WHERE pmt.mockTestId = ?
-        AND pmt.productId IN (
-          SELECT pp.productId FROM ProductPurchase pp WHERE pp.userId = ?
-          UNION
-          SELECT spa.productId FROM StudentProductAccess spa WHERE spa.userId = ?
-        )
-      LIMIT 1
-    `,
-    mockTestId,
-    userId,
-    userId
-  )) as Array<{ mockTestId: string }>;
-  return Boolean(rows[0]);
+  const paidAccessSet = await loadAccessibleMockTestIdsForUser(userId, [mockTestId]);
+  return paidAccessSet.has(mockTestId);
 };
 
 const loadPaidAccessMockTestSet = async (userId: string, mockTestIds: string[]) => {
-  if (!mockTestIds.length) return new Set<string>();
-  const placeholders = mockTestIds.map(() => "?").join(", ");
-  const rows = (await prisma.$queryRawUnsafe(
-    `
-      SELECT DISTINCT pmt.mockTestId
-      FROM ProductMockTest pmt
-      WHERE pmt.mockTestId IN (${placeholders})
-        AND pmt.productId IN (
-          SELECT pp.productId FROM ProductPurchase pp WHERE pp.userId = ?
-          UNION
-          SELECT spa.productId FROM StudentProductAccess spa WHERE spa.userId = ?
-        )
-    `,
-    ...mockTestIds,
-    userId,
-    userId
-  )) as Array<{ mockTestId: string }>;
-  return new Set(rows.map((row) => row.mockTestId));
+  return loadAccessibleMockTestIdsForUser(userId, mockTestIds);
 };
 
 studentMockTestsRouter.use(async (_req, _res, next) => {

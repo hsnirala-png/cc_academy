@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { hasColumn, hasIndex } from "./schemaGuards";
+import { hasColumn, hasConstraint, hasIndex } from "./schemaGuards";
 
 let isProductStorageReady = false;
 let productStoragePromise: Promise<void> | null = null;
@@ -190,6 +190,56 @@ const ensureProductPurchaseForeignKeys = async (): Promise<void> => {
   }
 };
 
+const ensureProductComboItemTable = async (): Promise<void> => {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`ProductComboItem\` (
+      \`parentProductId\` VARCHAR(191) NOT NULL,
+      \`childProductId\` VARCHAR(191) NOT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (\`parentProductId\`, \`childProductId\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+};
+
+const ensureProductComboItemColumns = async (): Promise<void> => {
+  if (!(await hasColumn("ProductComboItem", "updatedAt"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductComboItem` ADD COLUMN `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureProductComboItemIndexes = async (): Promise<void> => {
+  if (!(await hasIndex("ProductComboItem", "ProductComboItem_childProductId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductComboItem_childProductId_idx` ON `ProductComboItem`(`childProductId`)"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureProductComboItemForeignKeys = async (): Promise<void> => {
+  if (!(await hasConstraint("ProductComboItem", "ProductComboItem_parentProductId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductComboItem` ADD CONSTRAINT `ProductComboItem_parentProductId_fkey` FOREIGN KEY (`parentProductId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasConstraint("ProductComboItem", "ProductComboItem_childProductId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductComboItem` ADD CONSTRAINT `ProductComboItem_childProductId_fkey` FOREIGN KEY (`childProductId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+};
+
 export const ensureProductStorageReady = async (): Promise<void> => {
   if (isProductStorageReady) return;
   if (productStoragePromise) return productStoragePromise;
@@ -229,6 +279,10 @@ export const ensureProductStorageReady = async (): Promise<void> => {
     await ensureProductPurchaseColumns();
     await ensureProductPurchaseIndexes();
     await ensureProductPurchaseForeignKeys();
+    await ensureProductComboItemTable();
+    await ensureProductComboItemColumns();
+    await ensureProductComboItemIndexes();
+    await ensureProductComboItemForeignKeys();
 
     isProductStorageReady = true;
   })().finally(() => {

@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { hasConstraint, hasIndex } from "./schemaGuards";
+import { hasColumn, hasConstraint, hasIndex } from "./schemaGuards";
 
 let isMockTestAccessStorageReady = false;
 let mockTestAccessStoragePromise: Promise<void> | null = null;
@@ -156,6 +156,34 @@ const ensureStudentProductAccessTable = async (): Promise<void> => {
   }
 };
 
+const ensureQuestionArchiveAndAttemptSnapshotColumns = async (): Promise<void> => {
+  if (!(await hasColumn("Question", "isArchived"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Question` ADD COLUMN `isArchived` BOOLEAN NOT NULL DEFAULT false"
+      )
+      .catch(() => undefined);
+  }
+
+  const attemptQuestionColumns: Array<[string, string]> = [
+    ["snapshotQuestionText", "LONGTEXT NULL"],
+    ["snapshotOptionA", "LONGTEXT NULL"],
+    ["snapshotOptionB", "LONGTEXT NULL"],
+    ["snapshotOptionC", "LONGTEXT NULL"],
+    ["snapshotOptionD", "LONGTEXT NULL"],
+    ["snapshotCorrectOption", "VARCHAR(20) NULL"],
+    ["snapshotExplanation", "LONGTEXT NULL"],
+    ["snapshotSectionLabel", "VARCHAR(120) NULL"],
+  ];
+
+  for (const [columnName, definition] of attemptQuestionColumns) {
+    if (await hasColumn("AttemptQuestion", columnName)) continue;
+    await prisma
+      .$executeRawUnsafe(`ALTER TABLE \`AttemptQuestion\` ADD COLUMN \`${columnName}\` ${definition}`)
+      .catch(() => undefined);
+  }
+};
+
 export const ensureMockTestAccessStorageReady = async (): Promise<void> => {
   if (isMockTestAccessStorageReady) return;
   if (mockTestAccessStoragePromise) return mockTestAccessStoragePromise;
@@ -165,6 +193,7 @@ export const ensureMockTestAccessStorageReady = async (): Promise<void> => {
     await ensureProductMockTestTable();
     await ensureProductDemoMockTestTable();
     await ensureStudentProductAccessTable();
+    await ensureQuestionArchiveAndAttemptSnapshotColumns();
     isMockTestAccessStorageReady = true;
   })().finally(() => {
     mockTestAccessStoragePromise = null;

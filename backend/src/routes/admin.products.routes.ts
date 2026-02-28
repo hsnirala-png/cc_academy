@@ -125,6 +125,7 @@ const createProductSchema = z.object({
   demoLessonUrl: optionalTrimmedString(1000),
   mockTestIds: z.array(z.string().trim().min(1)).max(200).optional(),
   demoMockTestIds: z.array(z.string().trim().min(1)).max(200).optional(),
+  comboProductIds: z.array(z.string().trim().min(1)).optional(),
   isActive: optionalBoolean,
 });
 
@@ -274,6 +275,18 @@ type ProductDemoMockTestRow = {
   mockTestIsActive: number | boolean;
 };
 
+type ProductComboRow = {
+  parentProductId: string;
+  childProductId: string;
+  childTitle: string;
+  childExamCategory: string;
+  childExamName: string;
+  childCourseType: string;
+  childLanguageMode: string | null;
+  childThumbnailUrl: string | null;
+  childIsActive: number | boolean;
+};
+
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -389,6 +402,17 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   isActive: toBoolean(row.mockTestIsActive),
 });
 
+const toLinkedComboProduct = (row: ProductComboRow) => ({
+  id: row.childProductId,
+  title: row.childTitle,
+  examCategory: row.childExamCategory,
+  examName: row.childExamName,
+  courseType: row.childCourseType,
+  languageMode: row.childLanguageMode,
+  thumbnailUrl: row.childThumbnailUrl,
+  isActive: toBoolean(row.childIsActive),
+});
+
 const loadMockTestsByProductIds = async (productIds: string[]) => {
   if (!productIds.length) return new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
 
@@ -453,10 +477,52 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
   return grouped;
 };
 
+const loadComboProductsByParentIds = async (productIds: string[]) => {
+  if (!productIds.length) return new Map<string, ReturnType<typeof toLinkedComboProduct>[]>();
+
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          pci.parentProductId,
+          pci.childProductId,
+          p.title AS childTitle,
+          p.examCategory AS childExamCategory,
+          p.examName AS childExamName,
+          p.courseType AS childCourseType,
+          p.languageMode AS childLanguageMode,
+          p.thumbnailUrl AS childThumbnailUrl,
+          p.isActive AS childIsActive
+        FROM ProductComboItem pci
+        INNER JOIN Product p ON p.id = pci.childProductId
+        WHERE pci.parentProductId IN (${placeholders})
+        ORDER BY pci.parentProductId ASC, pci.createdAt ASC, p.createdAt ASC
+      `,
+      ...productIds
+    )) as ProductComboRow[];
+
+    const grouped = new Map<string, ReturnType<typeof toLinkedComboProduct>[]>();
+    rows.forEach((row) => {
+      const list = grouped.get(row.parentProductId) || [];
+      list.push(toLinkedComboProduct(row));
+      grouped.set(row.parentProductId, list);
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingComboTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("productcomboitem");
+    if (missingComboTable) return new Map<string, ReturnType<typeof toLinkedComboProduct>[]>();
+    throw error;
+  }
+};
+
 const serializeProduct = (
   row: ProductRow,
   linkedMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
-  linkedDemoMockTests: ReturnType<typeof toLinkedMockTest>[] = []
+  linkedDemoMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
+  comboProducts: ReturnType<typeof toLinkedComboProduct>[] = []
 ) => {
   const listPrice = toNumber(row.listPrice);
   const salePrice = toNumber(row.salePrice);
@@ -490,6 +556,8 @@ const serializeProduct = (
       : null,
     linkedMockTests,
     linkedDemoMockTests,
+    comboProducts,
+    isCombo: comboProducts.length > 0,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };
@@ -568,6 +636,74 @@ const validateMockTestIds = async (mockTestIds: string[]) => {
   return unique;
 };
 
+const validateComboProductIds = async (
+  productId: string,
+  comboProductIds: string[]
+): Promise<string[]> => {
+  const unique = Array.from(new Set(comboProductIds.map((item) => String(item || "").trim()).filter(Boolean)));
+  if (!unique.length) return [];
+  if (unique.includes(productId)) {
+    throw new AppError("A product cannot be added inside its own combo.", 400);
+  }
+
+  const placeholders = unique.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT id
+      FROM Product
+      WHERE id IN (${placeholders})
+    `,
+    ...unique
+  )) as Array<{ id: string }>;
+  const validSet = new Set(rows.map((item) => item.id));
+  const invalid = unique.filter((id) => !validSet.has(id));
+  if (invalid.length) {
+    throw new AppError("One or more combo products were not found.", 400);
+  }
+
+  try {
+    const comboRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT parentProductId, childProductId
+        FROM ProductComboItem
+      `
+    )) as Array<{ parentProductId: string; childProductId: string }>;
+
+    const graph = new Map<string, string[]>();
+    comboRows.forEach((row) => {
+      const parentId = String(row.parentProductId || "").trim();
+      const childId = String(row.childProductId || "").trim();
+      if (!parentId || !childId || parentId === productId) return;
+      const list = graph.get(parentId) || [];
+      list.push(childId);
+      graph.set(parentId, list);
+    });
+
+    unique.forEach((childId) => {
+      const seen = new Set<string>([childId]);
+      const queue = [childId];
+      while (queue.length) {
+        const currentId = queue.shift()!;
+        if (currentId === productId) {
+          throw new AppError("This combo setup creates a circular product relationship.", 400);
+        }
+        (graph.get(currentId) || []).forEach((nextId) => {
+          if (seen.has(nextId)) return;
+          seen.add(nextId);
+          queue.push(nextId);
+        });
+      }
+    });
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingComboTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("productcomboitem");
+    if (!missingComboTable) throw error;
+  }
+
+  return unique;
+};
+
 const syncProductMockTests = async (productId: string, mockTestIds: string[]) => {
   const validIds = await validateMockTestIds(mockTestIds);
   await prisma.$executeRawUnsafe("DELETE FROM ProductMockTest WHERE productId = ?", productId);
@@ -605,6 +741,28 @@ const syncProductDemoMockTests = async (productId: string, mockTestIds: string[]
       `,
       productId,
       mockTestId,
+      createdAt
+    );
+  }
+};
+
+const syncProductComboItems = async (productId: string, comboProductIds: string[]) => {
+  const validIds = await validateComboProductIds(productId, comboProductIds);
+  await prisma.$executeRawUnsafe("DELETE FROM ProductComboItem WHERE parentProductId = ?", productId);
+  if (!validIds.length) return;
+
+  const baseMs = Date.now();
+  for (let index = 0; index < validIds.length; index += 1) {
+    const childProductId = validIds[index];
+    const createdAt = new Date(baseMs + index);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductComboItem (parentProductId, childProductId, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?)
+      `,
+      productId,
+      childProductId,
+      createdAt,
       createdAt
     );
   }
@@ -725,11 +883,17 @@ const fetchOneProduct = async (id: string) => {
 const fetchSerializedProduct = async (id: string) => {
   const product = await fetchOneProduct(id);
   if (!product) return null;
-  const [linkedMap, linkedDemoMap] = await Promise.all([
+  const [linkedMap, linkedDemoMap, comboMap] = await Promise.all([
     loadMockTestsByProductIds([id]),
     loadDemoMockTestsByProductIds([id]),
+    loadComboProductsByParentIds([id]),
   ]);
-  return serializeProduct(product, linkedMap.get(id) || [], linkedDemoMap.get(id) || []);
+  return serializeProduct(
+    product,
+    linkedMap.get(id) || [],
+    linkedDemoMap.get(id) || [],
+    comboMap.get(id) || []
+  );
 };
 
 adminProductsRouter.get("/products", ...ensureAdmin, async (req, res, next) => {
@@ -789,14 +953,20 @@ adminProductsRouter.get("/products", ...ensureAdmin, async (req, res, next) => {
       ...params
     )) as ProductRow[];
     const productIds = rows.map((item) => item.id);
-    const [linkedMap, linkedDemoMap] = await Promise.all([
+    const [linkedMap, linkedDemoMap, comboMap] = await Promise.all([
       loadMockTestsByProductIds(productIds),
       loadDemoMockTestsByProductIds(productIds),
+      loadComboProductsByParentIds(productIds),
     ]);
 
     res.json({
       products: rows.map((row) =>
-        serializeProduct(row, linkedMap.get(row.id) || [], linkedDemoMap.get(row.id) || [])
+        serializeProduct(
+          row,
+          linkedMap.get(row.id) || [],
+          linkedDemoMap.get(row.id) || [],
+          comboMap.get(row.id) || []
+        )
       ),
     });
   } catch (error) {
@@ -868,6 +1038,7 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
     await Promise.all([
       syncProductMockTests(productId, input.mockTestIds || []),
       syncProductDemoMockTests(productId, input.demoMockTestIds || []),
+      syncProductComboItems(productId, input.comboProductIds || []),
     ]);
 
     const product = await fetchSerializedProduct(productId);
@@ -936,6 +1107,9 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
     }
     if (updates.demoMockTestIds !== undefined) {
       await syncProductDemoMockTests(productId, updates.demoMockTestIds || []);
+    }
+    if (updates.comboProductIds !== undefined) {
+      await syncProductComboItems(productId, updates.comboProductIds || []);
     }
 
     setValue("updatedAt", new Date());

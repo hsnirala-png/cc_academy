@@ -110,6 +110,24 @@
                     <input id="productAccessDays" type="number" min="1" step="1" required />
                   </div>
                 </div>
+
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label class="admin-field inline-check" for="productIsCombo">
+                      <input id="productIsCombo" type="checkbox" />
+                      <span>Make This A Combo Product</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div id="productComboPanel" class="admin-field hidden">
+                  <label for="productComboSearch">Combine / Join Products</label>
+                  <input id="productComboSearch" placeholder="Search products to include in this combo" />
+                  <p id="productComboSummary" class="admin-subtitle" style="margin:0.45rem 0 0.8rem;">
+                    Select unlimited products to include in this combo.
+                  </p>
+                  <div id="productComboListWrap" class="admin-inline-checklist"></div>
+                </div>
               </div>
 
               <div class="admin-tab-panel" data-product-tab-panel="attachments">
@@ -367,7 +385,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-products.js?v=22"></script>
+    <script type="module" src="./src/admin-products.js?v=23"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

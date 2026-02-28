@@ -1,4 +1,5 @@
 import { AppError } from "../../utils/appError";
+import { loadAccessibleMockTestIdsForUser } from "../../utils/productCombos";
 import { prisma } from "../../utils/prisma";
 import { Role } from "@prisma/client";
 
@@ -45,23 +46,8 @@ const assertEnrollment = async (userId: string, courseId: string) => {
 
 const canAccessLessonViaProduct = async (userId: string, assessmentTestId: string | null): Promise<boolean> => {
   if (!assessmentTestId) return false;
-  const rows = (await prisma.$queryRawUnsafe(
-    `
-      SELECT 1 AS ok
-      FROM ProductMockTest pmt
-      WHERE pmt.mockTestId = ?
-        AND pmt.productId IN (
-          SELECT pp.productId FROM ProductPurchase pp WHERE pp.userId = ?
-          UNION
-          SELECT spa.productId FROM StudentProductAccess spa WHERE spa.userId = ?
-        )
-      LIMIT 1
-    `,
-    assessmentTestId,
-    userId,
-    userId
-  )) as Array<{ ok: number }>;
-  return rows.length > 0;
+  const accessibleMockTests = await loadAccessibleMockTestIdsForUser(userId, [assessmentTestId]);
+  return accessibleMockTests.has(assessmentTestId);
 };
 
 const canAccessLessonAsDemo = async (assessmentTestId: string | null): Promise<boolean> => {

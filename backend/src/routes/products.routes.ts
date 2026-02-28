@@ -8,6 +8,7 @@ import { getReferrerIdByCode, getWalletBalance, normalizeAmount } from "../modul
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { verifyToken } from "../utils/jwt";
+import { loadAccessibleProductIdsForSelection } from "../utils/productCombos";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
 
@@ -508,47 +509,7 @@ const resolveOptionalStudentUserId = (req: Request): string | null => {
 };
 
 const loadUnlockedProductIdsForUser = async (userId: string | null, productIds: string[]) => {
-  if (!userId || !productIds.length) return new Set<string>();
-  const placeholders = productIds.map(() => "?").join(", ");
-  try {
-    const rows = (await prisma.$queryRawUnsafe(
-      `
-        SELECT DISTINCT unlocked.productId
-        FROM (
-          SELECT pp.productId
-          FROM ProductPurchase pp
-          WHERE pp.userId = ?
-          UNION
-          SELECT spa.productId
-          FROM StudentProductAccess spa
-          WHERE spa.userId = ?
-        ) unlocked
-        WHERE unlocked.productId IN (${placeholders})
-      `,
-      userId,
-      userId,
-      ...productIds
-    )) as Array<{ productId: string }>;
-    return new Set(rows.map((item) => item.productId));
-  } catch (error) {
-    const message = String((error as { message?: string })?.message || "").toLowerCase();
-    const missingPurchaseTable =
-      message.includes("1146") &&
-      (message.includes("productpurchase") || message.includes("product purchase"));
-    if (!missingPurchaseTable) throw error;
-
-    const assignedOnlyRows = (await prisma.$queryRawUnsafe(
-      `
-        SELECT DISTINCT spa.productId
-        FROM StudentProductAccess spa
-        WHERE spa.userId = ?
-          AND spa.productId IN (${placeholders})
-      `,
-      userId,
-      ...productIds
-    )) as Array<{ productId: string }>;
-    return new Set(assignedOnlyRows.map((item) => item.productId));
-  }
+  return loadAccessibleProductIdsForSelection(userId, productIds);
 };
 
 const serializeProduct = (

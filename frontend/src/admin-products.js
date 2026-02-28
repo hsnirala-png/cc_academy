@@ -21,6 +21,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const referralBonusInput = document.querySelector("#productReferralBonus");
   const referralDiscountInput = document.querySelector("#productReferralDiscount");
   const accessDaysInput = document.querySelector("#productAccessDays");
+  const isComboInput = document.querySelector("#productIsCombo");
+  const comboPanel = document.querySelector("#productComboPanel");
+  const comboSearchInput = document.querySelector("#productComboSearch");
+  const comboSummary = document.querySelector("#productComboSummary");
+  const comboListWrap = document.querySelector("#productComboListWrap");
   const validityInput = document.querySelector("#productValidityLabel");
   const thumbnailInput = document.querySelector("#productThumbnailUrl");
   const thumbnailFileInput = document.querySelector("#productThumbnailFile");
@@ -73,6 +78,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** @type {Array<any>} */
   let products = [];
   /** @type {Array<any>} */
+  let allProductsCatalog = [];
+  /** @type {Array<any>} */
   let mockTests = [];
   /** @type {Array<any>} */
   let editingLinkedMockTests = [];
@@ -81,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectedDemoMockTestIds = new Set();
   const selectedLessonMockTestIds = new Set();
   const selectedMockMockTestIds = new Set();
+  const selectedComboProductIds = new Set();
   const attachmentFilters = {
     type: "DEMO",
     course: "",
@@ -844,6 +852,88 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `./${raw}`;
   };
 
+  const syncComboPanelVisibility = () => {
+    const enabled = Boolean(isComboInput?.checked);
+    if (comboPanel instanceof HTMLElement) {
+      comboPanel.classList.toggle("hidden", !enabled);
+    }
+    if (!enabled && comboSearchInput instanceof HTMLInputElement) {
+      comboSearchInput.value = "";
+    }
+  };
+
+  const getComboCatalogRows = () => {
+    const editingId = String(productIdInput?.value || "").trim();
+    const search = String(comboSearchInput?.value || "").trim().toLowerCase();
+    return (Array.isArray(allProductsCatalog) ? allProductsCatalog : [])
+      .filter((item) => String(item?.id || "").trim() && String(item?.id || "").trim() !== editingId)
+      .filter((item) => {
+        if (!search) return true;
+        const haystack = [
+          item?.title,
+          item?.examCategory,
+          item?.examName,
+          item?.courseType,
+          item?.languageMode,
+        ]
+          .map((value) => String(value || "").trim().toLowerCase())
+          .join(" ");
+        return haystack.includes(search);
+      });
+  };
+
+  const renderComboProductList = () => {
+    syncComboPanelVisibility();
+    if (!(comboListWrap instanceof HTMLElement)) return;
+    if (!isComboInput?.checked) {
+      comboListWrap.innerHTML = "";
+      if (comboSummary instanceof HTMLElement) {
+        comboSummary.textContent = "Enable combo to combine or join products.";
+      }
+      return;
+    }
+
+    const rows = getComboCatalogRows();
+    if (comboSummary instanceof HTMLElement) {
+      comboSummary.textContent = `${selectedComboProductIds.size} product(s) selected. You can combine unlimited products.`;
+    }
+
+    if (!rows.length) {
+      comboListWrap.innerHTML =
+        '<p style="margin:0;color:#666;">No products found for combo selection.</p>';
+      return;
+    }
+
+    comboListWrap.innerHTML = rows
+      .map((product) => {
+        const productId = String(product?.id || "").trim();
+        const inputId = `combo-product-${productId}`;
+        const meta = [
+          String(product?.examCategory || "").trim(),
+          String(product?.examName || "").trim(),
+          String(product?.courseType || "").trim(),
+          String(product?.languageMode || "").trim(),
+        ]
+          .filter(Boolean)
+          .join(" | ");
+        return `
+          <label class="filter-option" for="${escapeHtml(inputId)}">
+            <input
+              id="${escapeHtml(inputId)}"
+              type="checkbox"
+              data-combo-product-id="${escapeHtml(productId)}"
+              ${selectedComboProductIds.has(productId) ? "checked" : ""}
+            />
+            <span>
+              <strong class="attachment-item-title">${escapeHtml(String(product?.title || "Untitled Product"))}</strong>
+              <small class="attachment-item-meta">${escapeHtml(meta || "-")}</small>
+            </span>
+          </label>
+        `;
+      })
+      .join("");
+  };
+
   const setThumbnailPreview = (src) => {
     if (!(thumbnailPreview instanceof HTMLImageElement)) return;
     const value = normalizeAssetUrl(src);
@@ -1072,6 +1162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedDemoMockTestIds.clear();
     selectedLessonMockTestIds.clear();
     selectedMockMockTestIds.clear();
+    selectedComboProductIds.clear();
     attachmentFilters.type = "DEMO";
     attachmentFilters.course = "";
     attachmentFilters.subject = "";
@@ -1082,6 +1173,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
     renderAttachmentList();
+    if (isComboInput instanceof HTMLInputElement) isComboInput.checked = false;
+    if (comboSearchInput instanceof HTMLInputElement) comboSearchInput.value = "";
+    renderComboProductList();
     if (addonsInput) addonsInput.value = DEFAULT_PRODUCT_HIGHLIGHTS.join("\n");
     if (descriptionInput) descriptionInput.value = DEFAULT_PRODUCT_DESCRIPTION;
     if (validityInput) validityInput.value = DEFAULT_VALIDITY_LABEL;
@@ -1135,6 +1229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
       mockTestIds: Array.from(new Set([...selectedLessonMockTestIds, ...selectedMockMockTestIds])),
       demoMockTestIds: Array.from(selectedDemoMockTestIds),
+      comboProductIds: isComboInput?.checked ? Array.from(selectedComboProductIds) : [],
       addons: buildProductContentFromForm(),
       description: descriptionInput?.value?.trim() || undefined,
       isActive: Boolean(isActiveInput?.checked),
@@ -1448,6 +1543,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const linkedDemoTests = Array.isArray(product.linkedDemoMockTests)
           ? product.linkedDemoMockTests
           : [];
+        const comboProducts = Array.isArray(product.comboProducts) ? product.comboProducts : [];
         const productId = String(product.id || "");
 
         return `
@@ -1491,6 +1587,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 >
                   Lessons-${linkedTests.length}
                 </button>
+                <span class="table-link-btn" style="cursor:default;">Combo-${comboProducts.length}</span>
               </div>
             </td>
             <td>${toCurrency(product.referralBonusAmount || 0)}</td>
@@ -1553,8 +1650,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const linkedTests = Array.isArray(product.linkedMockTests) ? product.linkedMockTests : [];
     const linkedDemoTests = Array.isArray(product.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
+    const comboProducts = Array.isArray(product.comboProducts) ? product.comboProducts : [];
     editingLinkedMockTests = linkedTests;
     editingLinkedDemoMockTests = linkedDemoTests;
+    selectedComboProductIds.clear();
+    comboProducts.forEach((item) => {
+      const id = String(item?.id || "").trim();
+      if (id) selectedComboProductIds.add(id);
+    });
+    if (isComboInput instanceof HTMLInputElement) {
+      isComboInput.checked = comboProducts.length > 0;
+    }
+    if (comboSearchInput instanceof HTMLInputElement) comboSearchInput.value = "";
+    renderComboProductList();
     syncAttachmentSelectionsFromProduct(product);
     attachmentFilters.type = "DEMO";
     attachmentFilters.page = 1;
@@ -1587,6 +1695,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = await apiRequest({ path: "/admin/products", token, query });
     products = Array.isArray(data?.products) ? data.products : [];
     renderProducts();
+  };
+
+  const loadAllProductsCatalog = async () => {
+    const data = await apiRequest({ path: "/admin/products", token });
+    allProductsCatalog = Array.isArray(data?.products) ? data.products : [];
+    renderComboProductList();
   };
 
   if (logoutBtn) {
@@ -1734,7 +1848,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         resetForm();
-        await loadProducts();
+        await Promise.all([loadProducts(), loadAllProductsCatalog()]);
       } catch (error) {
         setMessage(error.message || "Unable to save product.", "error");
       }
@@ -1752,7 +1866,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     reloadBtn.addEventListener("click", async () => {
       try {
         setMessage("Reloading products...");
-        await Promise.all([loadProducts(), loadMockTests()]);
+        await Promise.all([loadProducts(), loadMockTests(), loadAllProductsCatalog()]);
         setMessage("");
       } catch (error) {
         setMessage(error.message || "Unable to load products.", "error");
@@ -1772,6 +1886,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     salePriceInput.addEventListener("change", () => {
       autoWireReferralRewards();
+    });
+  }
+
+  if (isComboInput instanceof HTMLInputElement) {
+    isComboInput.addEventListener("change", () => {
+      if (!isComboInput.checked) {
+        selectedComboProductIds.clear();
+      }
+      renderComboProductList();
+    });
+  }
+
+  if (comboSearchInput instanceof HTMLInputElement) {
+    comboSearchInput.addEventListener("input", () => {
+      renderComboProductList();
+    });
+  }
+
+  if (comboListWrap instanceof HTMLElement) {
+    comboListWrap.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const productId = String(target.getAttribute("data-combo-product-id") || "").trim();
+      if (!productId) return;
+      if (target.checked) selectedComboProductIds.add(productId);
+      else selectedComboProductIds.delete(productId);
+      renderComboProductList();
     });
   }
 
@@ -1946,7 +2087,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             token,
             body: { isActive: nextActive },
           });
-          await loadProducts();
+          await Promise.all([loadProducts(), loadAllProductsCatalog()]);
           setMessage("Product status updated.", "success");
         } catch (error) {
           setMessage(error.message || "Unable to update product status.", "error");
@@ -1965,7 +2106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "DELETE",
           token,
         });
-        await loadProducts();
+        await Promise.all([loadProducts(), loadAllProductsCatalog()]);
         setMessage("Product deleted.", "success");
       } catch (error) {
         setMessage(error.message || "Unable to delete product.", "error");
@@ -2021,7 +2162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     setMessage("Loading products...");
-    await Promise.all([loadMockTests(), loadProducts()]);
+    await Promise.all([loadMockTests(), loadProducts(), loadAllProductsCatalog()]);
     resetForm();
     autoWireReferralRewards();
     setMessage("");

@@ -7,6 +7,7 @@ import {
   StreamChoice,
 } from "@prisma/client";
 import { AppError } from "../../utils/appError";
+import { loadAccessibleMockTestIdsForUser } from "../../utils/productCombos";
 import { prisma } from "../../utils/prisma";
 import {
   ensureStudentCodeForUser,
@@ -176,24 +177,7 @@ const loadLinkedProductCountMap = async (mockTestIds: string[]) => {
 };
 
 const loadUserAccessibleProductMockTests = async (userId: string, mockTestIds: string[]) => {
-  if (!mockTestIds.length) return new Set<string>();
-  const placeholders = mockTestIds.map(() => "?").join(", ");
-  const rows = (await prisma.$queryRawUnsafe(
-    `
-      SELECT DISTINCT pmt.mockTestId
-      FROM ProductMockTest pmt
-      WHERE pmt.mockTestId IN (${placeholders})
-        AND pmt.productId IN (
-          SELECT pp.productId FROM ProductPurchase pp WHERE pp.userId = ?
-          UNION
-          SELECT spa.productId FROM StudentProductAccess spa WHERE spa.userId = ?
-        )
-    `,
-    ...mockTestIds,
-    userId,
-    userId
-  )) as Array<{ mockTestId: string }>;
-  return new Set(rows.map((row) => row.mockTestId));
+  return loadAccessibleMockTestIdsForUser(userId, mockTestIds);
 };
 
 const loadDemoLinkedMockTests = async (mockTestIds: string[]) => {
@@ -293,17 +277,19 @@ const serializeMockTestWithCounts = (
 
 const buildActiveQuestionCountMap = async (mockTestIds: string[]) => {
   if (!mockTestIds.length) return new Map<string, number>();
-  const grouped = await prisma.question.groupBy({
-    by: ["mockTestId"],
-    where: {
-      mockTestId: { in: mockTestIds },
-      isActive: true,
-    },
-    _count: {
-      _all: true,
-    },
-  });
-  return new Map(grouped.map((item) => [item.mockTestId, Number(item._count?._all || 0)]));
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const grouped = (await prisma.$queryRawUnsafe(
+    `
+      SELECT mockTestId, COUNT(*) AS activeCount
+      FROM Question
+      WHERE mockTestId IN (${placeholders})
+        AND isActive = 1
+        AND COALESCE(isArchived, 0) = 0
+      GROUP BY mockTestId
+    `,
+    ...mockTestIds
+  )) as Array<{ mockTestId: string; activeCount: number | string }>;
+  return new Map(grouped.map((item) => [item.mockTestId, Number(item.activeCount || 0)]));
 };
 
 const serializeQuestion = (item: {
@@ -422,24 +408,104 @@ const ensureQuestionLimitForSection = async (input: {
     },
   });
   if (!section || Number(section.questionLimit || 0) <= 0) return;
-  const existingCount = await prisma.question.count({
-    where: {
-      mockTestId: input.mockTestId,
-      sectionLabel: normalizedLabel,
-      isActive: true,
-      ...(input.excludeQuestionId
-        ? {
-            NOT: { id: input.excludeQuestionId },
-          }
-        : {}),
-    },
-  });
+  const existingRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT COUNT(*) AS existingCount
+      FROM Question
+      WHERE mockTestId = ?
+        AND sectionLabel = ?
+        AND isActive = 1
+        AND COALESCE(isArchived, 0) = 0
+        ${input.excludeQuestionId ? "AND id <> ?" : ""}
+    `,
+    ...(input.excludeQuestionId
+      ? [input.mockTestId, normalizedLabel, input.excludeQuestionId]
+      : [input.mockTestId, normalizedLabel])
+  )) as Array<{ existingCount: number | string }>;
+  const existingCount = Number(existingRows[0]?.existingCount || 0);
   if (existingCount + incomingCount > section.questionLimit) {
     throw new AppError(
       `Section "${normalizedLabel}" question limit exceeded (${existingCount}/${section.questionLimit}).`,
       409
     );
   }
+};
+
+const loadAttemptQuestionRows = async (attemptId: string) =>
+  (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        aq.orderIndex,
+        aq.questionId,
+        COALESCE(aq.snapshotQuestionText, q.questionText) AS questionText,
+        COALESCE(aq.snapshotOptionA, q.optionA) AS optionA,
+        COALESCE(aq.snapshotOptionB, q.optionB) AS optionB,
+        COALESCE(aq.snapshotOptionC, q.optionC) AS optionC,
+        COALESCE(aq.snapshotOptionD, q.optionD) AS optionD,
+        COALESCE(aq.snapshotCorrectOption, q.correctOption) AS correctOption,
+        COALESCE(aq.snapshotExplanation, q.explanation) AS explanation
+      FROM AttemptQuestion aq
+      LEFT JOIN Question q ON q.id = aq.questionId
+      WHERE aq.attemptId = ?
+      ORDER BY aq.orderIndex ASC
+    `,
+    attemptId
+  )) as Array<{
+    orderIndex: number;
+    questionId: string;
+    questionText: string | null;
+    optionA: string | null;
+    optionB: string | null;
+    optionC: string | null;
+    optionD: string | null;
+    correctOption: MockOption | string | null;
+    explanation: string | null;
+  }>;
+
+const snapshotAttemptQuestionsForQuestion = async (
+  tx: Prisma.TransactionClient,
+  questionId: string
+) => {
+  await tx.$executeRawUnsafe(
+    `
+      UPDATE AttemptQuestion aq
+      INNER JOIN Question q ON q.id = aq.questionId
+      SET
+        aq.snapshotQuestionText = COALESCE(aq.snapshotQuestionText, q.questionText),
+        aq.snapshotOptionA = COALESCE(aq.snapshotOptionA, q.optionA),
+        aq.snapshotOptionB = COALESCE(aq.snapshotOptionB, q.optionB),
+        aq.snapshotOptionC = COALESCE(aq.snapshotOptionC, q.optionC),
+        aq.snapshotOptionD = COALESCE(aq.snapshotOptionD, q.optionD),
+        aq.snapshotCorrectOption = COALESCE(aq.snapshotCorrectOption, q.correctOption),
+        aq.snapshotExplanation = COALESCE(aq.snapshotExplanation, q.explanation),
+        aq.snapshotSectionLabel = COALESCE(aq.snapshotSectionLabel, q.sectionLabel)
+      WHERE aq.questionId = ?
+    `,
+    questionId
+  );
+};
+
+const snapshotAttemptQuestionsForAttempt = async (
+  tx: Prisma.TransactionClient,
+  attemptId: string
+) => {
+  await tx.$executeRawUnsafe(
+    `
+      UPDATE AttemptQuestion aq
+      INNER JOIN Question q ON q.id = aq.questionId
+      SET
+        aq.snapshotQuestionText = COALESCE(aq.snapshotQuestionText, q.questionText),
+        aq.snapshotOptionA = COALESCE(aq.snapshotOptionA, q.optionA),
+        aq.snapshotOptionB = COALESCE(aq.snapshotOptionB, q.optionB),
+        aq.snapshotOptionC = COALESCE(aq.snapshotOptionC, q.optionC),
+        aq.snapshotOptionD = COALESCE(aq.snapshotOptionD, q.optionD),
+        aq.snapshotCorrectOption = COALESCE(aq.snapshotCorrectOption, q.correctOption),
+        aq.snapshotExplanation = COALESCE(aq.snapshotExplanation, q.explanation),
+        aq.snapshotSectionLabel = COALESCE(aq.snapshotSectionLabel, q.sectionLabel)
+      WHERE aq.attemptId = ?
+    `,
+    attemptId
+  );
 };
 
 const ensureAttemptOwner = async (attemptId: string, userId: string) => {
@@ -527,20 +593,21 @@ const fetchAttemptDetails = async (attemptId: string) => {
   const studentCode = await ensureStudentCodeForUser(attempt.user.id);
 
   const answerMap = new Map(attempt.answers.map((item) => [item.questionId, item]));
-  const questions = attempt.attemptQuestions.map((item) => {
+  const attemptQuestionRows = await loadAttemptQuestionRows(attemptId);
+  const questions = attemptQuestionRows.map((item) => {
     const answer = answerMap.get(item.questionId);
     return {
       orderIndex: item.orderIndex,
-      questionId: item.question.id,
-      questionText: item.question.questionText,
-      optionA: item.question.optionA,
-      optionB: item.question.optionB,
-      optionC: item.question.optionC,
-      optionD: item.question.optionD,
-      correctOption: item.question.correctOption,
+      questionId: item.questionId,
+      questionText: item.questionText || "",
+      optionA: item.optionA || "",
+      optionB: item.optionB || "",
+      optionC: item.optionC || "",
+      optionD: item.optionD || "",
+      correctOption: (item.correctOption || "A") as MockOption,
       selectedOption: answer?.selectedOption ?? null,
       answeredAt: toIso(answer?.answeredAt ?? null),
-      explanation: item.question.explanation,
+      explanation: item.explanation,
     };
   });
 
@@ -658,12 +725,17 @@ export const mockTestService = {
       throw new AppError("Mock test not found", 404);
     }
 
-    const activeCount = await prisma.question.count({
-      where: {
-        mockTestId,
-        isActive: true,
-      },
-    });
+    const activeCountRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT COUNT(*) AS activeCount
+        FROM Question
+        WHERE mockTestId = ?
+          AND isActive = 1
+          AND COALESCE(isArchived, 0) = 0
+      `,
+      mockTestId
+    )) as Array<{ activeCount: number | string }>;
+    const activeCount = Number(activeCountRows[0]?.activeCount || 0);
 
     const [accessMap, linkedProductCountMap] = await Promise.all([
       loadMockTestAccessMap([mockTestId]),
@@ -852,12 +924,52 @@ export const mockTestService = {
 
   async listQuestions(mockTestId: string) {
     await ensureMockTestExists(mockTestId);
-    const questions = await prisma.question.findMany({
-      where: { mockTestId },
-      orderBy: { createdAt: "asc" },
-    });
+    const questions = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          id,
+          mockTestId,
+          questionText,
+          optionA,
+          optionB,
+          optionC,
+          optionD,
+          correctOption,
+          explanation,
+          sectionLabel,
+          isActive,
+          createdAt,
+          updatedAt
+        FROM Question
+        WHERE mockTestId = ?
+          AND COALESCE(isArchived, 0) = 0
+        ORDER BY createdAt ASC
+      `,
+      mockTestId
+    )) as Array<{
+      id: string;
+      mockTestId: string;
+      questionText: string;
+      optionA: string;
+      optionB: string;
+      optionC: string;
+      optionD: string;
+      correctOption: MockOption;
+      explanation: string | null;
+      sectionLabel: string | null;
+      isActive: boolean | number;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+    }>;
 
-    return questions.map(serializeQuestion);
+    return questions.map((question) =>
+      serializeQuestion({
+        ...question,
+        isActive: Boolean(Number(question.isActive) === 1 || question.isActive === true),
+        createdAt: question.createdAt instanceof Date ? question.createdAt : new Date(String(question.createdAt)),
+        updatedAt: question.updatedAt instanceof Date ? question.updatedAt : new Date(String(question.updatedAt)),
+      })
+    );
   },
 
   async createQuestion(
@@ -934,19 +1046,19 @@ export const mockTestService = {
 
     const result = await prisma.$transaction(async (tx) => {
       if (replaceExisting) {
-        const attemptsBoundToTest = await tx.attempt.count({
-          where: { mockTestId },
-        });
-        if (attemptsBoundToTest > 0) {
-          throw new AppError(
-            "Cannot replace existing questions because attempts already exist for this test.",
-            409
-          );
-        }
-
-        await tx.question.deleteMany({
-          where: { mockTestId },
-        });
+        await tx.$executeRawUnsafe(
+          `
+            UPDATE Question
+            SET
+              isArchived = 1,
+              isActive = 0,
+              updatedAt = ?
+            WHERE mockTestId = ?
+              AND COALESCE(isArchived, 0) = 0
+          `,
+          new Date(),
+          mockTestId
+        );
       }
 
       const incomingSectionCounts = new Map<string, number>();
@@ -969,16 +1081,20 @@ export const mockTestService = {
           ? new Map<string, number>()
           : new Map(
               (
-                await tx.question.groupBy({
-                  by: ["sectionLabel"],
-                  where: {
-                    mockTestId,
-                    isActive: true,
-                    sectionLabel: { in: limitedSections.map((item) => item.sectionLabel) },
-                  },
-                  _count: { _all: true },
-                })
-              ).map((row) => [String(row.sectionLabel || ""), Number(row._count?._all || 0)])
+                (await tx.$queryRawUnsafe(
+                  `
+                    SELECT sectionLabel, COUNT(*) AS totalCount
+                    FROM Question
+                    WHERE mockTestId = ?
+                      AND isActive = 1
+                      AND COALESCE(isArchived, 0) = 0
+                      AND sectionLabel IN (${limitedSections.map(() => "?").join(", ")})
+                    GROUP BY sectionLabel
+                  `,
+                  mockTestId,
+                  ...limitedSections.map((item) => item.sectionLabel)
+                )) as Array<{ sectionLabel: string | null; totalCount: number | string }>
+              ).map((row) => [String(row.sectionLabel || ""), Number(row.totalCount || 0)])
             );
         for (const section of limitedSections) {
           const incoming = Number(incomingSectionCounts.get(section.sectionLabel) || 0);
@@ -1039,36 +1155,44 @@ export const mockTestService = {
       });
     }
 
-    const updated = await prisma.question.update({
-      where: { id: questionId },
-      data: {
-        questionText: updates.questionText,
-        optionA: updates.optionA,
-        optionB: updates.optionB,
-        optionC: updates.optionC,
-        optionD: updates.optionD,
-        correctOption: updates.correctOption,
-        explanation: updates.explanation,
-        sectionLabel: updates.sectionLabel === undefined ? undefined : nextSectionLabel,
-        isActive: updates.isActive,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await snapshotAttemptQuestionsForQuestion(tx, questionId);
+      return tx.question.update({
+        where: { id: questionId },
+        data: {
+          questionText: updates.questionText,
+          optionA: updates.optionA,
+          optionB: updates.optionB,
+          optionC: updates.optionC,
+          optionD: updates.optionD,
+          correctOption: updates.correctOption,
+          explanation: updates.explanation,
+          sectionLabel: updates.sectionLabel === undefined ? undefined : nextSectionLabel,
+          isActive: updates.isActive,
+        },
+      });
     });
 
     return serializeQuestion(updated);
   },
 
   async deleteQuestion(questionId: string) {
-    try {
-      await prisma.question.delete({ where: { id: questionId } });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-        throw new AppError(
-          "Question is part of existing attempts and cannot be deleted. Set it inactive instead.",
-          409
-        );
-      }
-      throw error;
+    const existing = await prisma.question.findUnique({ where: { id: questionId } });
+    if (!existing) {
+      throw new AppError("Question not found", 404);
     }
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE Question
+        SET
+          isArchived = 1,
+          isActive = 0,
+          updatedAt = ?
+        WHERE id = ?
+      `,
+      new Date(),
+      questionId
+    );
   },
 
   async listAttempts(filters: AdminAttemptFilters) {
@@ -1226,13 +1350,16 @@ export const mockTestService = {
       await submitTimedOutAttemptIfNeeded(userId, existingAttempt);
     }
 
-    const questionPool = await prisma.question.findMany({
-      where: {
-        mockTestId: mockTest.id,
-        isActive: true,
-      },
-      select: { id: true },
-    });
+    const questionPool = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id
+        FROM Question
+        WHERE mockTestId = ?
+          AND isActive = 1
+          AND COALESCE(isArchived, 0) = 0
+      `,
+      mockTest.id
+    )) as Array<{ id: string }>;
     const requiredQuestions = resolveRequiredQuestions(mockTest.subject, questionPool.length);
 
     if (requiredQuestions < 1) {
@@ -1261,6 +1388,7 @@ export const mockTestService = {
           orderIndex: index + 1,
         })),
       });
+      await snapshotAttemptQuestionsForAttempt(tx, createdAttempt.id);
 
       return createdAttempt;
     });
@@ -1292,13 +1420,7 @@ export const mockTestService = {
     let attempt = await ensureAttemptOwner(attemptId, userId);
     attempt = await submitTimedOutAttemptIfNeeded(userId, attempt);
 
-    const attemptQuestions = await prisma.attemptQuestion.findMany({
-      where: { attemptId },
-      orderBy: { orderIndex: "asc" },
-      include: {
-        question: true,
-      },
-    });
+    const attemptQuestions = await loadAttemptQuestionRows(attemptId);
 
     const answers = await prisma.attemptAnswer.findMany({
       where: { attemptId },
@@ -1310,16 +1432,16 @@ export const mockTestService = {
       const answer = answerMap.get(item.questionId);
       return {
         orderIndex: item.orderIndex,
-        questionId: item.question.id,
-        questionText: item.question.questionText,
-        optionA: item.question.optionA,
-        optionB: item.question.optionB,
-        optionC: item.question.optionC,
-        optionD: item.question.optionD,
+        questionId: item.questionId,
+        questionText: item.questionText || "",
+        optionA: item.optionA || "",
+        optionB: item.optionB || "",
+        optionC: item.optionC || "",
+        optionD: item.optionD || "",
         selectedOption: answer?.selectedOption ?? null,
         answeredAt: toIso(answer?.answeredAt ?? null),
-        correctOption: isSubmitted ? item.question.correctOption : undefined,
-        explanation: isSubmitted ? item.question.explanation : undefined,
+        correctOption: isSubmitted ? ((item.correctOption || "A") as MockOption) : undefined,
+        explanation: isSubmitted ? item.explanation : undefined,
       };
     });
   },
@@ -1379,18 +1501,6 @@ export const mockTestService = {
     const result = await prisma.$transaction(async (tx) => {
       const attempt = await tx.attempt.findUnique({
         where: { id: attemptId },
-        include: {
-          attemptQuestions: {
-            include: {
-              question: {
-                select: {
-                  id: true,
-                  correctOption: true,
-                },
-              },
-            },
-          },
-        },
       });
 
       if (!attempt) {
@@ -1408,13 +1518,24 @@ export const mockTestService = {
       const answers = await tx.attemptAnswer.findMany({
         where: { attemptId },
       });
+      const attemptQuestions = (await tx.$queryRawUnsafe(
+        `
+          SELECT
+            aq.questionId,
+            COALESCE(aq.snapshotCorrectOption, q.correctOption) AS correctOption
+          FROM AttemptQuestion aq
+          LEFT JOIN Question q ON q.id = aq.questionId
+          WHERE aq.attemptId = ?
+        `,
+        attemptId
+      )) as Array<{ questionId: string; correctOption: MockOption | string | null }>;
 
       const answerMap = new Map(answers.map((answer) => [answer.questionId, answer.selectedOption]));
       let correctCount = 0;
 
-      attempt.attemptQuestions.forEach((attemptQuestion) => {
+      attemptQuestions.forEach((attemptQuestion) => {
         const selected = answerMap.get(attemptQuestion.questionId);
-        if (selected && selected === attemptQuestion.question.correctOption) {
+        if (selected && selected === ((attemptQuestion.correctOption || "A") as MockOption)) {
           correctCount += 1;
         }
       });
