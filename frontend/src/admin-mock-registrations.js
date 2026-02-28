@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const registrationPageLinkInput = document.querySelector("#registrationPageLink");
   const uploadBtn = document.querySelector("#registrationUploadBtn");
   const resetBtn = document.querySelector("#registrationResetBtn");
+  const actionMessageEl = document.querySelector("#registrationActionMessage");
   const tableBody = document.querySelector("#registrationTableBody");
   const entriesBody = document.querySelector("#registrationEntriesBody");
   const entriesContext = document.querySelector("#registrationEntriesContext");
@@ -51,6 +52,82 @@ document.addEventListener("DOMContentLoaded", async () => {
     messageEl.textContent = text || "";
     messageEl.classList.remove("error", "success");
     if (type) messageEl.classList.add(type);
+  };
+
+  const setActionMessage = (text, type = "") => {
+    if (!(actionMessageEl instanceof HTMLElement)) return;
+    actionMessageEl.textContent = text || "";
+    actionMessageEl.classList.remove("error", "success");
+    if (type) actionMessageEl.classList.add(type);
+  };
+
+  const getOrCreateRowMessage = (button) => {
+    const row = button?.closest("tr");
+    if (!(row instanceof HTMLTableRowElement)) return null;
+    const actionsCell = row.querySelector(".table-actions");
+    if (!(actionsCell instanceof HTMLElement)) return null;
+    let message = actionsCell.querySelector(".admin-row-action-message");
+    if (!(message instanceof HTMLElement)) {
+      message = document.createElement("p");
+      message.className = "form-message admin-row-action-message";
+      actionsCell.appendChild(message);
+    }
+    return message;
+  };
+
+  const setRowActionMessage = (button, text, type = "") => {
+    const messageEl = getOrCreateRowMessage(button);
+    if (!(messageEl instanceof HTMLElement)) return;
+    messageEl.textContent = text || "";
+    messageEl.classList.remove("error", "success");
+    if (type) messageEl.classList.add(type);
+  };
+
+  const withButtonFeedback = async (
+    button,
+    {
+      processingText = "Processing...",
+      successText = "",
+      errorFallback = "Unable to process request.",
+      onSuccess,
+      onError,
+      target = "form",
+    },
+    task
+  ) => {
+    const originalText = button instanceof HTMLButtonElement ? button.textContent : "";
+    const setLocalMessage = (text, type = "") => {
+      if (target === "row") setRowActionMessage(button, text, type);
+      else setActionMessage(text, type);
+    };
+
+    try {
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = true;
+        button.textContent = processingText;
+      }
+      setLocalMessage(processingText);
+      const result = await task();
+      if (button instanceof HTMLButtonElement) {
+        button.textContent = originalText || "";
+      }
+      setLocalMessage(successText, successText ? "success" : "");
+      if (typeof onSuccess === "function") onSuccess(result);
+      return result;
+    } catch (error) {
+      if (button instanceof HTMLButtonElement) {
+        button.textContent = originalText || "";
+      }
+      const message = error?.message || errorFallback;
+      setLocalMessage(message, "error");
+      if (typeof onError === "function") onError(error);
+      return null;
+    } finally {
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = false;
+        button.textContent = originalText || "";
+      }
+    }
   };
 
   const examLabel = (value) => {
@@ -113,6 +190,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isActiveInput instanceof HTMLInputElement) isActiveInput.checked = true;
     syncTestFilters();
     syncRegistrationLinkField();
+    setActionMessage("");
   };
 
   const renderMockTestOptions = () => {
@@ -308,70 +386,79 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (uploadBtn instanceof HTMLButtonElement) {
     uploadBtn.addEventListener("click", async () => {
-      try {
-        const file = imageFileInput?.files?.[0];
-        if (!file) {
-          throw new Error("Please choose an image first.");
+      await withButtonFeedback(
+        uploadBtn,
+        {
+          processingText: "Uploading...",
+          successText: "Banner uploaded successfully.",
+          errorFallback: "Unable to upload image.",
+        },
+        async () => {
+          const file = imageFileInput?.files?.[0];
+          if (!file) {
+            throw new Error("Please choose an image first.");
+          }
+          const dataUrl = await toDataUrl(file);
+          const response = await apiRequest({
+            path: "/admin/mock-test-registrations/banner-upload",
+            method: "POST",
+            token,
+            body: { dataUrl },
+          });
+          const uploaded = String(response?.imageUrl || "").trim();
+          if (!uploaded) throw new Error("Image upload failed.");
+          if (imageUrlInput instanceof HTMLInputElement) {
+            imageUrlInput.value = uploaded;
+          }
         }
-        setMessage("Uploading banner image...");
-        const dataUrl = await toDataUrl(file);
-        const response = await apiRequest({
-          path: "/admin/mock-test-registrations/banner-upload",
-          method: "POST",
-          token,
-          body: { dataUrl },
-        });
-        const uploaded = String(response?.imageUrl || "").trim();
-        if (!uploaded) throw new Error("Image upload failed.");
-        if (imageUrlInput instanceof HTMLInputElement) {
-          imageUrlInput.value = uploaded;
-        }
-        setMessage("Banner uploaded successfully.", "success");
-      } catch (error) {
-        setMessage(error?.message || "Unable to upload image.", "error");
-      }
+      );
     });
   }
 
   if (resetBtn instanceof HTMLButtonElement) {
     resetBtn.addEventListener("click", () => {
       resetForm();
-      setMessage("");
+      setActionMessage("");
     });
   }
 
   if (form instanceof HTMLFormElement) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      try {
-        const id = String(registrationIdInput?.value || "").trim();
-        const payload = readFormPayload();
-        if (!payload.mockTestId) throw new Error("Select mock test.");
-        if (!payload.title) throw new Error("Popup title is required.");
-        setMessage(id ? "Updating registration config..." : "Saving registration config...");
+      const submitter = event.submitter instanceof HTMLButtonElement ? event.submitter : null;
+      await withButtonFeedback(
+        submitter,
+        {
+          processingText: String(registrationIdInput?.value || "").trim() ? "Updating..." : "Saving...",
+          successText: "Registration config saved.",
+          errorFallback: "Unable to save registration config.",
+        },
+        async () => {
+          const id = String(registrationIdInput?.value || "").trim();
+          const payload = readFormPayload();
+          if (!payload.mockTestId) throw new Error("Select mock test.");
+          if (!payload.title) throw new Error("Popup title is required.");
 
-        if (id) {
-          await apiRequest({
-            path: `/admin/mock-test-registrations/${encodeURIComponent(id)}`,
-            method: "PATCH",
-            token,
-            body: payload,
-          });
-        } else {
-          await apiRequest({
-            path: "/admin/mock-test-registrations",
-            method: "POST",
-            token,
-            body: payload,
-          });
+          if (id) {
+            await apiRequest({
+              path: `/admin/mock-test-registrations/${encodeURIComponent(id)}`,
+              method: "PATCH",
+              token,
+              body: payload,
+            });
+          } else {
+            await apiRequest({
+              path: "/admin/mock-test-registrations",
+              method: "POST",
+              token,
+              body: payload,
+            });
+          }
+
+          await loadRegistrations();
+          resetForm();
         }
-
-        await loadRegistrations();
-        resetForm();
-        setMessage("Registration config saved.", "success");
-      } catch (error) {
-        setMessage(error?.message || "Unable to save registration config.", "error");
-      }
+      );
     });
   }
 
@@ -384,7 +471,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const id = String(editBtn.getAttribute("data-edit-registration") || "").trim();
         const item = state.registrations.find((row) => row.id === id);
         fillForm(item);
-        setMessage("Editing selected registration config.");
+        setActionMessage("Editing selected registration config.", "success");
         return;
       }
 
@@ -397,9 +484,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? `Students for: ${item.mockTestTitle || item.title}`
             : "Students for selected registration.";
         }
-        setMessage("Loading registered students...");
-        await loadEntries(id);
-        setMessage("");
+        await withButtonFeedback(
+          entriesBtn,
+          {
+            processingText: "Loading...",
+            successText: "Registered students loaded.",
+            errorFallback: "Unable to load students.",
+            target: "row",
+          },
+          async () => {
+            await loadEntries(id);
+          }
+        );
         return;
       }
 
@@ -408,20 +504,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const id = String(deleteBtn.getAttribute("data-delete-registration") || "").trim();
         if (!id) return;
         if (!window.confirm("Delete this registration config?")) return;
-        setMessage("Deleting registration config...");
-        await apiRequest({
-          path: `/admin/mock-test-registrations/${encodeURIComponent(id)}`,
-          method: "DELETE",
-          token,
-        });
-        await loadRegistrations();
-        if (registrationIdInput?.value === id) resetForm();
-        state.entries = [];
-        renderEntries();
-        if (entriesContext instanceof HTMLElement) {
-          entriesContext.textContent = "Select a registration config to view students.";
-        }
-        setMessage("Registration config deleted.", "success");
+        await withButtonFeedback(
+          deleteBtn,
+          {
+            processingText: "Deleting...",
+            successText: "Registration config deleted.",
+            errorFallback: "Unable to delete registration config.",
+            target: "row",
+          },
+          async () => {
+            await apiRequest({
+              path: `/admin/mock-test-registrations/${encodeURIComponent(id)}`,
+              method: "DELETE",
+              token,
+            });
+            await loadRegistrations();
+            if (registrationIdInput?.value === id) resetForm();
+            state.entries = [];
+            renderEntries();
+            if (entriesContext instanceof HTMLElement) {
+              entriesContext.textContent = "Select a registration config to view students.";
+            }
+          }
+        );
       }
     });
   }

@@ -1740,6 +1740,16 @@ h1 {
   white-space: nowrap;
 }
 
+.admin-inline-action-message {
+  margin-top: 0.75rem;
+}
+
+.admin-row-action-message {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
 .products-grid {
   margin-top: 0.8rem;
   display: grid;
