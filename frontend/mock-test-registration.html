@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=40" />
+    <link rel="stylesheet" href="./src/styles.css?v=41" />
   </head>
   <body>
     <header class="site-header">
@@ -175,9 +175,48 @@
           <a class="btn-ghost" href="./dashboard.html">Back to Dashboard</a>
         </div>
       </section>
+
+      <section class="mock-products-section">
+        <div class="products-heading-row mock-products-heading-row">
+          <h2>Products</h2>
+          <a id="mockAllProductsLink" class="btn-secondary" href="./products.html">All Products</a>
+        </div>
+        <p id="mockProductsMessage" class="form-message"></p>
+        <div id="mockProductsGrid" class="products-grid products-grid-catalog mock-products-grid"></div>
+      </section>
     </main>
 
-    <script type="module" src="./src/mock-test-registration.js?v=7"></script>
+    <div id="mockGuestRegisterModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card mock-guest-register-card" role="dialog" aria-modal="true" aria-labelledby="mockGuestRegisterTitle">
+        <button id="mockGuestRegisterClose" type="button" class="modal-close" aria-label="Close">x</button>
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="auth-modal-logo" />
+        <h2 id="mockGuestRegisterTitle">Complete Registration</h2>
+        <p class="dash-k">
+          Register with your name, mobile, and email to continue to the mock test page.
+        </p>
+        <form id="mockGuestRegisterForm" class="mock-guest-register-form">
+          <div class="field">
+            <label for="mockGuestName">Name</label>
+            <input id="mockGuestName" required />
+          </div>
+          <div class="field">
+            <label for="mockGuestMobile">Mobile</label>
+            <input id="mockGuestMobile" inputmode="numeric" maxlength="15" required />
+          </div>
+          <div class="field">
+            <label for="mockGuestEmail">Email</label>
+            <input id="mockGuestEmail" type="email" required />
+          </div>
+          <button id="mockGuestRegisterSubmit" class="btn-primary" type="submit">Continue to Mock Page</button>
+        </form>
+        <p id="mockGuestRegisterStatus" class="form-message"></p>
+        <p class="dash-k">
+          Already registered? <a href="./index.html">Login</a>
+        </p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/mock-test-registration.js?v=8"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

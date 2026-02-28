@@ -21,6 +21,14 @@ const registerSchema = z.object({
   referralCode: z.string().trim().min(4).max(40).optional(),
 });
 
+const mockReferralRegisterSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  mobile: z.string().regex(/^\d{10,15}$/, "Mobile must be 10-15 digits"),
+  email: z.string().trim().email("Enter a valid email").max(191),
+  referralCode: z.string().trim().min(4).max(64).optional(),
+  mockTestId: z.string().trim().min(1).max(191).optional(),
+});
+
 const loginSchema = z.object({
   mobile: z.string().regex(/^\d{10,15}$/, "Mobile must be 10-15 digits"),
   password: z.string().min(1, "Password is required"),
@@ -117,6 +125,104 @@ authRouter.post("/register", async (req, res, next) => {
   }
 });
 
+authRouter.post("/mock-referral-register", async (req, res, next) => {
+  try {
+    const input = mockReferralRegisterSchema.parse(req.body);
+
+    if (input.mockTestId) {
+      const gateRows = (await prisma.$queryRawUnsafe(
+        `
+          SELECT g.mockTestId
+          FROM MockTestRegistrationGate g
+          INNER JOIN MockTest mt ON mt.id = g.mockTestId
+          WHERE g.isActive = 1
+            AND mt.isActive = 1
+            AND g.mockTestId = ?
+          LIMIT 1
+        `,
+        input.mockTestId
+      )) as Array<{ mockTestId: string }>;
+      if (!gateRows[0]?.mockTestId) {
+        res.status(404).json({ message: "Mock registration is not available for this mock test." });
+        return;
+      }
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ mobile: input.mobile }, { email: input.email }],
+      },
+      select: {
+        id: true,
+        mobile: true,
+        email: true,
+      },
+    });
+
+    if (existingUser) {
+      const message =
+        existingUser.mobile === input.mobile
+          ? "Mobile number is already registered. Please login to continue."
+          : "Email is already registered. Please use another email or login first.";
+      res.status(409).json({ message, code: "MOCK_ACCOUNT_EXISTS" });
+      return;
+    }
+
+    const normalizedReferralCode = String(input.referralCode || "").trim();
+    let referrerId: string | null = null;
+    if (normalizedReferralCode) {
+      referrerId = await getReferrerIdByCode(normalizedReferralCode);
+      if (!referrerId) {
+        res.status(400).json({ message: "Invalid referral code." });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(input.mobile, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name: input.name,
+        mobile: input.mobile,
+        email: input.email,
+        state: "Pending",
+        city: "Pending",
+        passwordHash,
+        role: Role.STUDENT,
+      },
+      select: {
+        id: true,
+        name: true,
+        mobile: true,
+        email: true,
+        state: true,
+        city: true,
+        role: true,
+      },
+    });
+
+    if (referrerId && referrerId !== user.id) {
+      await prisma.$executeRawUnsafe(`UPDATE User SET referrerId = ? WHERE id = ?`, referrerId, user.id);
+    }
+
+    const token = signToken(user.id, user.role);
+    const referralCode = await safeEnsureReferralCode(user.id);
+    const studentCode = await safeEnsureStudentCode(user.id);
+
+    res.status(201).json({
+      token,
+      user: {
+        ...user,
+        referralCode,
+        studentCode,
+      },
+      temporaryPasswordHint: "For the current test phase, your temporary password is your mobile number.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 authRouter.post("/login", async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
@@ -145,6 +251,7 @@ authRouter.post("/login", async (req, res, next) => {
         id: user.id,
         name: user.name,
         mobile: user.mobile,
+        email: user.email,
         state: user.state,
         city: user.city,
         role: user.role,

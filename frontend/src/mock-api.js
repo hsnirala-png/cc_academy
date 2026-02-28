@@ -85,6 +85,14 @@ export const clearAuth = () => {
   sessionStorage.removeItem("cc_user");
 };
 
+export const storeAuth = (token, user, { persist = true } = {}) => {
+  clearAuth();
+  if (!token || !user) return;
+  const storage = persist ? localStorage : sessionStorage;
+  storage.setItem("cc_token", token);
+  storage.setItem("cc_user", JSON.stringify(user));
+};
+
 export const goToStudentLogin = () => {
   window.location.href = "./index.html";
 };

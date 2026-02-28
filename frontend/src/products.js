@@ -195,6 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productsGrid = document.querySelector("#productsGrid");
   const productsMessage = document.querySelector("#productsMessage");
   const productsCountText = document.querySelector("#productsCountText");
+  const productsHeadingRow = document.querySelector(".products-heading-row");
   const filterCategoriesWrap = document.querySelector("#filterCategories");
   const filterExamsWrap = document.querySelector("#filterExams");
   const filterLanguagesWrap = document.querySelector("#filterLanguages");
@@ -273,7 +274,61 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pageParams = new URLSearchParams(window.location.search);
   const productIdFromLink = String(pageParams.get("productId") || "").trim();
   const checkoutProductIdFromLink = String(pageParams.get("checkoutProductId") || "").trim();
+  const sourceFromLink = String(pageParams.get("from") || "").trim().toLowerCase();
+  const mockSourceMockTestId = String(pageParams.get("mockTestId") || "").trim();
+  const isFromMockRegistration = sourceFromLink === "mock-registration";
   state.selectedProductId = productIdFromLink || checkoutProductIdFromLink;
+
+  const createMockTestBackHref = () => {
+    const basePath = isExtensionlessRoute() ? "./mock-test-registration" : "./mock-test-registration.html";
+    if (!mockSourceMockTestId) return basePath;
+    return `${basePath}?mockTestId=${encodeURIComponent(mockSourceMockTestId)}`;
+  };
+
+  const ensureHeadingActionsWrap = () => {
+    if (!(productsHeadingRow instanceof HTMLElement)) return null;
+    let actions = productsHeadingRow.querySelector(".products-heading-actions");
+    if (!(actions instanceof HTMLElement)) {
+      actions = document.createElement("div");
+      actions.className = "products-heading-actions";
+      if (productsCountText instanceof HTMLElement) {
+        actions.appendChild(productsCountText);
+      }
+      productsHeadingRow.appendChild(actions);
+    }
+    return actions;
+  };
+
+  const renderMockPageBackButton = async () => {
+    const actionsWrap = ensureHeadingActionsWrap();
+    if (!(actionsWrap instanceof HTMLElement)) return;
+    const existing = actionsWrap.querySelector(".products-mock-back-btn");
+    if (existing instanceof HTMLElement) existing.remove();
+    if (!isFromMockRegistration) return;
+    const auth = getAuthState();
+    if (!auth.isStudentLoggedIn || !auth.token) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const options = Array.isArray(payload?.options) ? payload.options : [];
+      const hasRegisteredMock = options.some((item) => Boolean(item?.isRegistered));
+      if (!hasRegisteredMock) return;
+
+      const backButton = document.createElement("a");
+      backButton.className = "btn-secondary products-mock-back-btn";
+      backButton.href = createMockTestBackHref();
+      backButton.textContent = "Mock Test Page";
+      actionsWrap.prepend(backButton);
+    } catch {
+      // Keep product page usable even if mock state lookup fails.
+    }
+  };
 
   const checkoutState = {
     product: null,
@@ -1639,6 +1694,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const safeCheckoutId = String(checkoutProductId || "").trim();
     if (safeProductId) params.set("productId", safeProductId);
     if (safeCheckoutId) params.set("checkoutProductId", safeCheckoutId);
+    if (isFromMockRegistration) {
+      params.set("from", "mock-registration");
+      if (mockSourceMockTestId) params.set("mockTestId", mockSourceMockTestId);
+    }
     const search = params.toString();
     const basePath = isSubscriptionsPage ? getSubscriptionsPagePath() : getProductsPagePath();
     return `${basePath}${search ? `?${search}` : ""}`;
@@ -2229,6 +2288,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     initHeader();
+    await renderMockPageBackButton();
     bindFilters();
     setMessage(isSubscriptionsPage ? "Loading active subscriptions..." : "Loading products...");
     await loadProducts();

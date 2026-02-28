@@ -1,10 +1,13 @@
 import {
+  API_BASE,
   EXAM_LABELS,
   apiRequest,
   clearAuth,
+  getStoredToken,
+  getStoredUser,
   initHeaderBehavior,
-  requireRoleGuard,
-} from "./mock-api.js?v=2";
+  storeAuth,
+} from "./mock-api.js?v=3";
 
 const resolveAttemptPagePath = async () => {
   const currentPath = window.location.pathname || "";
@@ -49,10 +52,21 @@ const toScheduleTimestamp = (dateValue, timeValue) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const auth = requireRoleGuard("STUDENT");
-  if (!auth) return;
-  const { token, user } = auth;
   initHeaderBehavior();
+  const token = getStoredToken();
+  const storedUser = getStoredUser();
+  const normalizedRole = String(
+    storedUser?.role || storedUser?.userRole || storedUser?.user_type || storedUser?.accountType || ""
+  )
+    .trim()
+    .toUpperCase();
+  if (token && storedUser && normalizedRole && normalizedRole !== "STUDENT") {
+    clearAuth();
+    window.location.href = "./index.html";
+    return;
+  }
+  const user = token && storedUser ? { ...storedUser, role: normalizedRole || "STUDENT" } : null;
+  const isGuestMode = !token || !user;
 
   const searchParams = new URLSearchParams(window.location.search);
   const requestedMockTestId = String(searchParams.get("mockTestId") || "").trim();
@@ -64,6 +78,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const statusEl = document.querySelector("#registrationStatus");
   const logoutBtn = document.querySelector("#logoutBtn");
+  const primaryNav = document.querySelector("#primary-nav");
+  const menuToggle = document.querySelector(".menu-toggle");
   const titleEl = document.querySelector("#registrationTitle");
   const descriptionEl = document.querySelector("#registrationDescription");
   const attemptsInfoEl = document.querySelector("#registrationAttemptsInfo");
@@ -88,6 +104,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   const shareReferralBtn = document.querySelector("#regShareReferralBtn");
   const copyReferralBtn = document.querySelector("#regCopyReferralBtn");
   const referralStatsEl = document.querySelector("#regReferralStats");
+  const guestRegisterModal = document.querySelector("#mockGuestRegisterModal");
+  const guestRegisterCloseBtn = document.querySelector("#mockGuestRegisterClose");
+  const guestRegisterForm = document.querySelector("#mockGuestRegisterForm");
+  const guestRegisterStatusEl = document.querySelector("#mockGuestRegisterStatus");
+  const guestNameInput = document.querySelector("#mockGuestName");
+  const guestMobileInput = document.querySelector("#mockGuestMobile");
+  const guestEmailInput = document.querySelector("#mockGuestEmail");
+  const guestRegisterSubmitBtn = document.querySelector("#mockGuestRegisterSubmit");
+  const mockProductsGrid = document.querySelector("#mockProductsGrid");
+  const mockProductsMessage = document.querySelector("#mockProductsMessage");
+  const mockAllProductsLink = document.querySelector("#mockAllProductsLink");
   let copyReferralFeedbackTimer = null;
 
   const state = {
@@ -97,6 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedStreamChoice: "",
     studentReferralCode: "",
     noChancePromptShown: false,
+    productsCatalog: [],
   };
 
   const setStatus = (text, type = "") => {
@@ -105,6 +133,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     statusEl.classList.remove("error", "success");
     if (type) statusEl.classList.add(type);
   };
+
+  const setGuestRegisterStatus = (text, type = "") => {
+    if (!(guestRegisterStatusEl instanceof HTMLElement)) return;
+    guestRegisterStatusEl.textContent = text || "";
+    guestRegisterStatusEl.classList.remove("error", "success");
+    if (type) guestRegisterStatusEl.classList.add(type);
+  };
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+  const toCurrency = (value) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+
+  const normalizeProductAssetUrl = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "./public/PSTET_1.png";
+    if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) return raw;
+    if (raw.startsWith("/") || raw.startsWith("./") || raw.startsWith("../")) return raw;
+    return `./${raw}`;
+  };
+
+  const isExtensionlessRoute = () => {
+    const currentPath = String(window.location.pathname || "").toLowerCase();
+    return Boolean(currentPath) && currentPath !== "/" && !currentPath.endsWith(".html");
+  };
+
+  const getProductsPagePath = () => (isExtensionlessRoute() ? "./products" : "./products.html");
 
   const getRegistrationPagePath = () => {
     const currentPath = (window.location.pathname || "").toLowerCase();
@@ -124,6 +189,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     return url.toString();
   };
 
+  const buildMockProductsPageUrl = ({ productId = "", checkoutProductId = "" } = {}) => {
+    const url = new URL(getProductsPagePath(), window.location.href);
+    url.searchParams.set("from", "mock-registration");
+    const mockTestId = String(state.selectedMockTestId || requestedMockTestId || "").trim();
+    if (mockTestId) {
+      url.searchParams.set("mockTestId", mockTestId);
+    }
+    if (productId) {
+      url.searchParams.set("productId", productId);
+    }
+    if (checkoutProductId) {
+      url.searchParams.set("checkoutProductId", checkoutProductId);
+    }
+    return url.toString();
+  };
+
   const clearIncomingReferralParam = () => {
     if (!requestedFriendReferralCode) return;
     const nextUrl = new URL(window.location.href);
@@ -132,6 +213,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     const nextSearch = nextUrl.searchParams.toString();
     const nextPath = `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextUrl.hash || ""}`;
     window.history.replaceState({}, "", nextPath);
+  };
+
+  const openGuestRegisterModal = () => {
+    if (!(guestRegisterModal instanceof HTMLElement)) return;
+    guestRegisterModal.classList.add("open");
+    guestRegisterModal.setAttribute("aria-hidden", "false");
+  };
+
+  const closeGuestRegisterModal = () => {
+    if (!(guestRegisterModal instanceof HTMLElement)) return;
+    guestRegisterModal.classList.remove("open");
+    guestRegisterModal.setAttribute("aria-hidden", "true");
+  };
+
+  const applyGuestMode = () => {
+    if (primaryNav instanceof HTMLElement) primaryNav.classList.add("hidden");
+    if (menuToggle instanceof HTMLButtonElement) menuToggle.classList.add("hidden");
+    if (logoutBtn instanceof HTMLButtonElement) {
+      logoutBtn.textContent = "Home";
+      logoutBtn.addEventListener("click", () => {
+        window.location.href = "./index.html";
+      });
+    }
+    if (form instanceof HTMLFormElement) {
+      Array.from(form.elements).forEach((element) => {
+        if (
+          element instanceof HTMLInputElement ||
+          element instanceof HTMLSelectElement ||
+          element instanceof HTMLButtonElement ||
+          element instanceof HTMLTextAreaElement
+        ) {
+          element.disabled = true;
+        }
+      });
+    }
+    if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
+    if (buyMockBtn instanceof HTMLButtonElement) {
+      buyMockBtn.disabled = false;
+      buyMockBtn.addEventListener("click", () => {
+        window.location.href = buildMockProductsPageUrl();
+      });
+    }
+    setStatus("Complete the popup registration to continue to the mock test page.");
+    openGuestRegisterModal();
   };
 
   const selectedOption = () =>
@@ -224,6 +349,90 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(referralStatsEl instanceof HTMLElement)) return;
     referralStatsEl.textContent = "";
     referralStatsEl.classList.add("hidden");
+  };
+
+  const renderMockProductCard = (product) => {
+    const productId = String(product?.id || "").trim();
+    const image = normalizeProductAssetUrl(product?.thumbnailUrl || "");
+    const salePrice = Number(product?.salePrice || 0);
+    const listPrice = Number(product?.listPrice || 0);
+    const discountPercent =
+      listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
+    const detailsHref = buildMockProductsPageUrl({ productId });
+    const primaryHref = buildMockProductsPageUrl({ productId, checkoutProductId: productId });
+
+    return `
+      <article class="home-latest-card dash-product-card">
+        <img
+          class="home-latest-thumb"
+          src="${escapeHtml(image)}"
+          alt="${escapeHtml(product?.title || "Product")}"
+          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+        />
+        <div class="home-latest-body">
+          <p class="home-latest-tags">
+            <span>${escapeHtml(product?.languageMode || "Multi")}</span>
+            <span>${escapeHtml(String(product?.courseType || "COURSE").replaceAll("_", " "))}</span>
+          </p>
+          <h3>${escapeHtml(product?.title || "Product")}</h3>
+          <p class="home-latest-meta">${escapeHtml(product?.examCategory || "-")} | ${escapeHtml(product?.examName || "-")}</p>
+          <div class="home-latest-pricing">
+            <strong>${toCurrency(salePrice)}</strong>
+            ${listPrice > salePrice ? `<span class="home-latest-mrp">${toCurrency(listPrice)}</span>` : ""}
+            ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
+          </div>
+          <div class="home-latest-actions dash-product-actions">
+            <a class="btn-secondary" href="${escapeHtml(detailsHref)}">Details</a>
+            <a class="btn-primary" href="${escapeHtml(primaryHref)}">Buy</a>
+          </div>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderMockProducts = () => {
+    if (!(mockProductsGrid instanceof HTMLElement)) return;
+    if (mockAllProductsLink instanceof HTMLAnchorElement) {
+      mockAllProductsLink.href = buildMockProductsPageUrl();
+    }
+    const products = Array.isArray(state.productsCatalog) ? state.productsCatalog : [];
+    if (!products.length) {
+      mockProductsGrid.innerHTML = "";
+      if (mockProductsMessage instanceof HTMLElement) {
+        mockProductsMessage.textContent = "No products available right now.";
+        mockProductsMessage.classList.add("error");
+      }
+      return;
+    }
+    if (mockProductsMessage instanceof HTMLElement) {
+      mockProductsMessage.textContent = "";
+      mockProductsMessage.classList.remove("error");
+    }
+    mockProductsGrid.innerHTML = products.map((product) => renderMockProductCard(product)).join("");
+  };
+
+  const loadMockProducts = async () => {
+    if (!(mockProductsGrid instanceof HTMLElement)) return;
+    if (mockProductsMessage instanceof HTMLElement) {
+      mockProductsMessage.textContent = "Loading products...";
+      mockProductsMessage.classList.remove("error");
+    }
+    try {
+      const response = await fetch(`${API_BASE}/products?_t=${Date.now()}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || "Unable to load products.");
+      }
+      state.productsCatalog = Array.isArray(payload?.products) ? payload.products : [];
+      renderMockProducts();
+    } catch (error) {
+      state.productsCatalog = [];
+      renderMockProducts();
+      if (mockProductsMessage instanceof HTMLElement) {
+        mockProductsMessage.textContent = error?.message || "Unable to load products.";
+        mockProductsMessage.classList.add("error");
+      }
+    }
   };
 
   const renderChanceCard = (option, { inactiveSelection = false } = {}) => {
@@ -609,6 +818,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
       if (reminderCard instanceof HTMLElement) reminderCard.classList.add("hidden");
       syncRegistrationAvailability(null);
+      renderMockProducts();
       return;
     }
 
@@ -653,6 +863,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderReminderCard(option);
 
     syncRegistrationAvailability(option);
+    renderMockProducts();
   };
 
   const hydrateFiltersFromOption = (option) => {
@@ -724,6 +935,84 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sep = attemptPagePath.includes("?") ? "&" : "?";
     window.location.href = `${attemptPagePath}${sep}attemptId=${encodeURIComponent(attemptId)}`;
   };
+
+  const handleGuestRegisterSubmit = async (event) => {
+    event.preventDefault();
+    const fullName = String(guestNameInput?.value || "").trim();
+    const mobile = String(guestMobileInput?.value || "").trim();
+    const email = String(guestEmailInput?.value || "").trim();
+
+    if (!fullName) {
+      setGuestRegisterStatus("Please enter name.", "error");
+      return;
+    }
+    if (!/^\d{10,15}$/.test(mobile)) {
+      setGuestRegisterStatus("Enter valid mobile number.", "error");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setGuestRegisterStatus("Enter valid email.", "error");
+      return;
+    }
+
+    if (guestRegisterSubmitBtn instanceof HTMLButtonElement) {
+      guestRegisterSubmitBtn.disabled = true;
+    }
+    setGuestRegisterStatus("Creating your registration...");
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/mock-referral-register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName,
+          mobile,
+          email,
+          referralCode: requestedFriendReferralCode || undefined,
+          mockTestId: requestedMockTestId || undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.message || "Unable to complete registration.");
+      }
+      storeAuth(data?.token, data?.user);
+      setGuestRegisterStatus("Registration completed. Redirecting to mock page...", "success");
+      window.location.href = buildRegistrationPageUrl({
+        mockTestId: requestedMockTestId,
+        referralCode: requestedFriendReferralCode,
+      });
+    } catch (error) {
+      setGuestRegisterStatus(error?.message || "Unable to complete registration.", "error");
+    } finally {
+      if (guestRegisterSubmitBtn instanceof HTMLButtonElement) {
+        guestRegisterSubmitBtn.disabled = false;
+      }
+    }
+  };
+
+  await loadMockProducts();
+
+  if (isGuestMode) {
+    applyGuestMode();
+
+    if (guestRegisterForm instanceof HTMLFormElement) {
+      guestRegisterForm.addEventListener("submit", handleGuestRegisterSubmit);
+    }
+    if (guestRegisterCloseBtn instanceof HTMLButtonElement) {
+      guestRegisterCloseBtn.addEventListener("click", () => {
+        closeGuestRegisterModal();
+      });
+    }
+    if (guestRegisterModal instanceof HTMLElement) {
+      guestRegisterModal.addEventListener("click", (event) => {
+        if (event.target === guestRegisterModal) {
+          closeGuestRegisterModal();
+        }
+      });
+    }
+    return;
+  }
 
   if (fullNameInput instanceof HTMLInputElement) {
     fullNameInput.value = String(user?.name || "").trim();
@@ -923,7 +1212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = url;
         return;
       }
-      window.location.href = "./products.html";
+      window.location.href = buildMockProductsPageUrl();
     });
   }
 

@@ -1727,6 +1727,19 @@ h1 {
   color: var(--muted);
 }
 
+.products-heading-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.products-mock-back-btn {
+  white-space: nowrap;
+}
+
 .products-grid {
   margin-top: 0.8rem;
   display: grid;
@@ -3997,6 +4010,29 @@ h1 {
   color: var(--muted);
 }
 
+.mock-guest-register-card {
+  width: min(460px, 100%);
+}
+
+.mock-guest-register-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.mock-guest-register-form .btn-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+.mock-products-section {
+  margin-top: 1.35rem;
+}
+
+.mock-products-heading-row {
+  margin-bottom: 0.25rem;
+}
+
 .attempt-card {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -4328,6 +4364,11 @@ h1 {
   .products-heading-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .products-heading-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .product-thumb {
