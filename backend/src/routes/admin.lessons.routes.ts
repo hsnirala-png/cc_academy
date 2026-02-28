@@ -26,14 +26,14 @@ adminLessonsRouter.post("/lessons/preview-audio", ...ensureAdmin, previewLessonA
 adminLessonsRouter.get("/lessons/custom-voices", ...ensureAdmin, listLessonCustomVoices);
 adminLessonsRouter.post("/lessons/custom-voices", ...ensureAdmin, createLessonCustomVoice);
 
-const optionalTrimmedString = (max: number) =>
+const optionalTrimmedString = (max?: number) =>
   z.preprocess(
     (value) => {
       if (value === null || value === undefined) return undefined;
       if (typeof value === "string" && value.trim() === "") return undefined;
       return value;
     },
-    z.string().trim().max(max).optional()
+    (typeof max === "number" ? z.string().trim().max(max) : z.string().trim()).optional()
   );
 
 const nullableTrimmedString = (max: number) =>
@@ -115,7 +115,7 @@ const lessonCreateSchema = z.object({
   orderIndex: z.coerce.number().int().min(1),
   videoUrl: optionalTrimmedString(1000),
   transcriptText: optionalTrimmedString(200000),
-  uploadedAudioBase64: optionalTrimmedString(20_000_000),
+  uploadedAudioBase64: optionalTrimmedString(),
   uploadedAudioMimeType: optionalTrimmedString(120),
   durationSec: optionalInt,
   assessmentTestId: nullableTrimmedString(191),
@@ -127,7 +127,7 @@ const lessonUpdateSchema = z
     orderIndex: z.coerce.number().int().min(1).optional(),
     videoUrl: optionalTrimmedString(1000),
     transcriptText: optionalTrimmedString(200000),
-    uploadedAudioBase64: optionalTrimmedString(20_000_000),
+    uploadedAudioBase64: optionalTrimmedString(),
     uploadedAudioMimeType: optionalTrimmedString(120),
     transcriptUrl: nullableTrimmedString(1000),
     durationSec: optionalInt,
