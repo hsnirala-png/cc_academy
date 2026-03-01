@@ -725,16 +725,21 @@ type ProductMockTestLinkInput = {
   isUpcoming?: boolean | null;
 };
 
+type NormalizedProductMockTestLink = {
+  mockTestId: string;
+  isUpcoming: boolean;
+};
+
 const normalizeMockTestLinks = (
   links: ProductMockTestLinkInput[] | undefined,
   fallbackIds: string[] | undefined
-): ProductMockTestLinkInput[] => {
+): NormalizedProductMockTestLink[] => {
   const source = Array.isArray(links)
     ? links
     : Array.isArray(fallbackIds)
       ? fallbackIds.map((mockTestId) => ({ mockTestId, isUpcoming: false }))
       : [];
-  const deduped = new Map<string, ProductMockTestLinkInput>();
+  const deduped = new Map<string, NormalizedProductMockTestLink>();
   source.forEach((item) => {
     const mockTestId = String(item?.mockTestId || "").trim();
     if (!mockTestId) return;
@@ -746,7 +751,7 @@ const normalizeMockTestLinks = (
   return Array.from(deduped.values());
 };
 
-const syncProductMockTests = async (productId: string, mockTestLinks: ProductMockTestLinkInput[]) => {
+const syncProductMockTests = async (productId: string, mockTestLinks: NormalizedProductMockTestLink[]) => {
   const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
@@ -771,7 +776,7 @@ const syncProductMockTests = async (productId: string, mockTestLinks: ProductMoc
   }
 };
 
-const syncProductDemoMockTests = async (productId: string, mockTestLinks: ProductMockTestLinkInput[]) => {
+const syncProductDemoMockTests = async (productId: string, mockTestLinks: NormalizedProductMockTestLink[]) => {
   const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductDemoMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
