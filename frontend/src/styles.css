@@ -1301,17 +1301,6 @@ h1 {
     line-height: 1;
   }
 
-  .site-header .nav-links a.nav-link-dashboard::before,
-  .site-header .nav-links a.nav-link-profile::before {
-    content: "";
-    display: inline-block;
-    width: 18px;
-    height: 18px;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-  }
-
   .nav-links a:nth-child(1)::before {
     content: "\2605";
   }
@@ -1336,29 +1325,12 @@ h1 {
     content: "\20B9";
   }
 
-  .site-header .nav-links a.nav-link-dashboard::before {
-    background-image: url("../public/home_icon.png");
-  }
-
   .site-header .nav-links a.nav-link-lessons::before {
     content: "\1F4D6";
   }
 
   .site-header .nav-links a.nav-link-subscriptions::before {
     content: "\1F4DA";
-  }
-
-  body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
-  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
-  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
-    content: "";
-    display: inline-block;
-    width: 18px;
-    height: 18px;
-    background-image: url("../public/mock_icon.png");
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
   }
 
   .site-header .nav-links a.nav-link-mock-tests::before {
@@ -1373,12 +1345,36 @@ h1 {
     content: "\1F381";
   }
 
-  .site-header .nav-links a.nav-link-profile::before {
-    background-image: url("../public/profile_icon.jpg");
-  }
-
   .site-header .nav-links a.nav-link-logout::before {
     content: "\21AA";
+  }
+
+  .site-header .nav-links a.nav-link-dashboard::before,
+  .site-header .nav-links a.nav-link-profile::before,
+  body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
+    content: "" !important;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  .site-header .nav-links a.nav-link-dashboard::before {
+    background-image: url("/public/home_icon.png");
+  }
+
+  .site-header .nav-links a.nav-link-profile::before {
+    background-image: url("/public/profile_icon.jpg");
+  }
+
+  body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
+    background-image: url("/public/mock_icon.png");
   }
 
   .nav-links a.nav-link-subscriptions::before {

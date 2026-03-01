@@ -41,6 +41,7 @@
 
   const getStudentDashboardPath = () => resolveRoute("dashboard");
   const getMockRegistrationPath = () => resolveRoute("mock-test-registration");
+  const getPublicAssetPath = (fileName) => `/public/${fileName}`;
   const getAdminDashboardPath = () => resolveRoute("admin");
   const getStudentNavItems = () => [
     {
@@ -317,7 +318,7 @@
     launcher.className = "mock-launcher-fab";
     launcher.setAttribute("aria-label", "Open mock test page");
     launcher.setAttribute("title", "Mock Test");
-    launcher.innerHTML = '<img src="./public/mock_icon.png" alt="" aria-hidden="true" />';
+    launcher.innerHTML = `<img src="${getPublicAssetPath("mock_icon.png")}" alt="" aria-hidden="true" />`;
     launcher.addEventListener("click", () => {
       if (isStudentSession()) {
         window.location.href = getMockRegistrationPath();
@@ -325,6 +326,23 @@
       }
       const authModal = document.querySelector("#authModal");
       if (authModal instanceof HTMLElement) {
+        const loginForm = document.querySelector("#loginForm");
+        const registerForm = document.querySelector("#registerForm");
+        const authModalTitle = document.querySelector("#authModalTitle");
+        const showLoginTab = document.querySelector("#showLoginTab");
+        const showRegisterTab = document.querySelector("#showRegisterTab");
+        const loginToMockSignupLink = document.querySelector("#loginToMockSignup");
+
+        if (loginForm instanceof HTMLElement) loginForm.classList.remove("hidden");
+        if (registerForm instanceof HTMLElement) registerForm.classList.add("hidden");
+        if (authModalTitle instanceof HTMLElement) authModalTitle.textContent = "Student Login";
+        if (showLoginTab instanceof HTMLElement) showLoginTab.classList.add("active");
+        if (showRegisterTab instanceof HTMLElement) showRegisterTab.classList.remove("active");
+        if (loginToMockSignupLink instanceof HTMLAnchorElement) {
+          loginToMockSignupLink.href = `${getMockRegistrationPath()}?signup=1`;
+        }
+        authModal.classList.add("open");
+        authModal.setAttribute("aria-hidden", "false");
         window.dispatchEvent(new CustomEvent("cc-open-auth-login", { detail: { redirect: "mock-test-registration" } }));
         return;
       }
