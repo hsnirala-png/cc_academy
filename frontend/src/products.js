@@ -1458,6 +1458,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const tabCode = tabs.includes(item.subjectTabKey) ? item.subjectTabKey : fallbackTab;
       grouped.get(tabCode).push(item);
     });
+    grouped.forEach((tabItems, tabCode) => {
+      const sortedItems = [...tabItems].sort((left, right) => {
+        const leftUpcoming = String(left?.accessType || "").trim().toUpperCase() === "UPCOMING";
+        const rightUpcoming = String(right?.accessType || "").trim().toUpperCase() === "UPCOMING";
+        if (leftUpcoming === rightUpcoming) return 0;
+        return leftUpcoming ? 1 : -1;
+      });
+      grouped.set(tabCode, sortedItems);
+    });
 
     return `
       <div class="product-learn-subject-tabs" data-learning-tabs>
