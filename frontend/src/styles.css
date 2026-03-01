@@ -8,6 +8,14 @@
   --page-bg: #f5f8ff;
   --border: #dbe6ff;
   --shadow: 0 10px 30px rgba(15, 83, 189, 0.12);
+  --ui-font: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --ui-card-bg: linear-gradient(180deg, #f7fbff 0%, #eef5ff 100%);
+  --ui-card-soft-bg: rgba(255, 255, 255, 0.8);
+  --ui-card-border: #cfe0ff;
+  --ui-card-shadow: 0 10px 24px rgba(31, 78, 176, 0.08);
+  --ui-card-title: #203250;
+  --ui-card-muted: #5a6f94;
+  --ui-card-kicker: #1f4eb0;
   --catalog-card-thumb-size: 168px;
   --catalog-card-thumb-size-md: 154px;
   --catalog-card-thumb-size-sm: 118px;
@@ -33,8 +41,15 @@ body {
   margin: 0;
   color: var(--ink);
   background: linear-gradient(180deg, var(--white) 0%, var(--page-bg) 100%);
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--ui-font);
   line-height: 1.55;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 img {
@@ -768,6 +783,105 @@ h1 {
   overflow: hidden;
 }
 
+.dash-card,
+.home-latest-card,
+.home-latest-empty,
+.products-filters,
+.products-quick-links,
+.product-card,
+.product-description-section,
+.product-salient-features,
+.product-highlights,
+.product-exams-covered,
+.product-pstet-tabs,
+.lesson-summary-card,
+.lesson-row,
+.lesson-transcript-card,
+.preview-live-transcript-card,
+.mock-filters-card,
+.admin-panel,
+.overview-card,
+.profile-card,
+.modal-card,
+.empty-products {
+  border-color: var(--ui-card-border) !important;
+  background: var(--ui-card-bg) !important;
+  box-shadow: var(--ui-card-shadow);
+}
+
+.home-latest-thumb,
+.product-thumb,
+.dash-product-card .home-latest-thumb,
+.admin-thumb-preview,
+.admin-product-thumb,
+.mock-chance-summary,
+.mock-chance-item,
+.product-contact-card,
+.product-exam-item,
+.transcript-segment,
+.preview-stretch-card,
+.admin-inline-checklist,
+.field input,
+.field select,
+.field textarea,
+.price-range input,
+.filter-search,
+.lesson-course-select,
+.preview-sync-offset-manual,
+.preview-line-sync-ms,
+.admin-inline-edit-input,
+.admin-inline-edit-textarea {
+  border-color: var(--ui-card-border) !important;
+  background: var(--ui-card-soft-bg) !important;
+}
+
+.product-description-section p,
+.product-highlights-list li,
+.product-salient-item,
+.product-exam-item,
+.lesson-summary-v,
+.lesson-row h3,
+.lesson-progress-info,
+.products-heading-row h1,
+.mock-page-header h1,
+.lesson-overview-head h1,
+.section-heading h2,
+.home-latest-body h3,
+.product-card h3,
+.overview-v,
+.profile-top h1 {
+  color: var(--ui-card-title);
+}
+
+.product-salient-features h4 span,
+.product-highlights h4 span,
+.product-exams-covered h4 span,
+.mock-card-kicker,
+.lesson-summary-k,
+.overview-k,
+.home-latest-view-all,
+.products-mock-back-btn,
+.product-tags span,
+.home-latest-tags span {
+  color: var(--ui-card-kicker);
+}
+
+.product-description,
+.product-meta,
+.mock-subtitle,
+.lesson-row-meta,
+.products-heading-row p,
+.section-heading p,
+.overview-card p,
+.product-contact-card p,
+.product-exam-item p,
+.lesson-summary-k,
+.mock-chance-note,
+.mock-chance-item-label,
+.mock-chance-summary-label {
+  color: var(--ui-card-muted);
+}
+
 .home-latest-thumb {
   width: 100%;
   height: 100%;
@@ -878,7 +992,8 @@ h1 {
 }
 
 .home-latest-grid.catalog-window-host,
-.dash-products-grid.catalog-window-host {
+.dash-products-grid.catalog-window-host,
+.mock-products-grid.catalog-window-host {
   display: block !important;
 }
 
@@ -955,12 +1070,14 @@ h1 {
   min-width: 0;
 }
 
-.dash-products-grid.catalog-window-host .home-latest-card {
+.dash-products-grid.catalog-window-host .home-latest-card,
+.mock-products-grid.catalog-window-host .home-latest-card {
   grid-template-columns: minmax(142px, 46%) minmax(0, 1fr);
   min-height: 196px;
 }
 
-.dash-products-grid.catalog-window-host .home-latest-thumb {
+.dash-products-grid.catalog-window-host .home-latest-thumb,
+.mock-products-grid.catalog-window-host .home-latest-thumb {
   align-self: start;
   height: auto;
   min-height: 0;
@@ -970,37 +1087,44 @@ h1 {
   background: #eef4ff;
 }
 
-.dash-products-grid.catalog-window-host .home-latest-body {
+.dash-products-grid.catalog-window-host .home-latest-body,
+.mock-products-grid.catalog-window-host .home-latest-body {
   padding: 0.5rem 0.56rem 0.56rem;
 }
 
 @media (min-width: 681px) {
-  .dash-products-grid.catalog-window-host .home-latest-card {
+  .dash-products-grid.catalog-window-host .home-latest-card,
+.mock-products-grid.catalog-window-host .home-latest-card {
     height: 196px;
   }
 
-  .dash-products-grid.catalog-window-host .home-latest-thumb {
+  .dash-products-grid.catalog-window-host .home-latest-thumb,
+.mock-products-grid.catalog-window-host .home-latest-thumb {
     align-self: stretch;
     height: 100%;
     min-height: 196px;
   }
 
-  .dash-products-grid.catalog-window-host .home-latest-body {
+  .dash-products-grid.catalog-window-host .home-latest-body,
+.mock-products-grid.catalog-window-host .home-latest-body {
     gap: 0.24rem;
     padding: 0.44rem 0.5rem 0.48rem;
     align-content: start;
   }
 
-  .dash-products-grid.catalog-window-host .home-latest-body h3 {
+  .dash-products-grid.catalog-window-host .home-latest-body h3,
+.mock-products-grid.catalog-window-host .home-latest-body h3 {
     font-size: 0.96rem;
     line-height: 1.22;
   }
 
-  .dash-products-grid.catalog-window-host .home-latest-meta {
+  .dash-products-grid.catalog-window-host .home-latest-meta,
+.mock-products-grid.catalog-window-host .home-latest-meta {
     font-size: 0.8rem;
   }
 
-  .dash-products-grid.catalog-window-host .home-latest-pricing strong {
+  .dash-products-grid.catalog-window-host .home-latest-pricing strong,
+.mock-products-grid.catalog-window-host .home-latest-pricing strong {
     font-size: 1.06rem;
   }
 
@@ -1177,6 +1301,17 @@ h1 {
     line-height: 1;
   }
 
+  .site-header .nav-links a.nav-link-dashboard::before,
+  .site-header .nav-links a.nav-link-profile::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
   .nav-links a:nth-child(1)::before {
     content: "\2605";
   }
@@ -1202,7 +1337,7 @@ h1 {
   }
 
   .site-header .nav-links a.nav-link-dashboard::before {
-    content: "\2302";
+    background-image: url("../public/home_icon.png");
   }
 
   .site-header .nav-links a.nav-link-lessons::before {
@@ -1211,6 +1346,19 @@ h1 {
 
   .site-header .nav-links a.nav-link-subscriptions::before {
     content: "\1F4DA";
+  }
+
+  body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-image: url("../public/mock_icon.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
   }
 
   .site-header .nav-links a.nav-link-mock-tests::before {
@@ -1226,7 +1374,7 @@ h1 {
   }
 
   .site-header .nav-links a.nav-link-profile::before {
-    content: "\263A";
+    background-image: url("../public/profile_icon.jpg");
   }
 
   .site-header .nav-links a.nav-link-logout::before {
@@ -1893,7 +2041,7 @@ h1 {
 }
 
 .product-description-section {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
   background: #f8fbff;
   padding: 0.62rem 0.68rem;
@@ -1914,7 +2062,7 @@ h1 {
 .admin-inline-edit-input,
 .admin-inline-edit-textarea {
   width: 100%;
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 8px;
   background: #fff;
   color: #18315f;
@@ -1979,7 +2127,7 @@ h1 {
 }
 
 .product-salient-item {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 10px;
   background: #f5f9ff;
   padding: 0.42rem 0.52rem;
@@ -2018,7 +2166,7 @@ h1 {
 
 .product-contact-card {
   margin-top: 0.48rem;
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 10px;
   background: #f5f9ff;
   padding: 0.45rem 0.55rem;
@@ -2066,7 +2214,7 @@ h1 {
 }
 
 .product-highlights {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
   background: #f8fbff;
   padding: 0.62rem 0.68rem;
@@ -2122,7 +2270,7 @@ h1 {
 }
 
 .product-exams-covered {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
   background: #f8fbff;
   padding: 0.62rem 0.68rem;
@@ -2170,7 +2318,7 @@ h1 {
 }
 
 .product-pstet-tabs {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
@@ -3537,14 +3685,14 @@ h1 {
 }
 
 .mock-details-card {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid #d7e5ff;
-  box-shadow: 0 10px 24px rgba(31, 78, 176, 0.08);
+  background: var(--ui-card-bg);
+  border: 1px solid var(--ui-card-border);
+  box-shadow: var(--ui-card-shadow);
 }
 
 .mock-card-kicker {
   margin: 0;
-  color: #1f4eb0;
+  color: var(--ui-card-kicker);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3567,9 +3715,9 @@ h1 {
 
 .mock-chance-card {
   min-height: 100%;
-  background: linear-gradient(180deg, #f7fbff 0%, #eef5ff 100%);
-  border: 1px solid #cfe0ff;
-  box-shadow: 0 10px 24px rgba(31, 78, 176, 0.08);
+  background: var(--ui-card-bg);
+  border: 1px solid var(--ui-card-border);
+  box-shadow: var(--ui-card-shadow);
 }
 
 .mock-chance-panel {
@@ -3578,9 +3726,9 @@ h1 {
 }
 
 .mock-chance-summary {
-  border: 1px solid #cfe0ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--ui-card-soft-bg);
   padding: 0.8rem 0.9rem;
 }
 
@@ -3595,7 +3743,7 @@ h1 {
 .mock-chance-summary-label {
   display: block;
   margin-top: 0.28rem;
-  color: #40608f;
+  color: var(--ui-card-muted);
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -3609,15 +3757,15 @@ h1 {
 }
 
 .mock-chance-item {
-  border: 1px solid #d8e6ff;
+  border: 1px solid var(--ui-card-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--ui-card-soft-bg);
   padding: 0.65rem 0.75rem;
 }
 
 .mock-chance-item-label {
   display: block;
-  color: #5a6f94;
+  color: var(--ui-card-muted);
   font-size: 0.76rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -3627,7 +3775,7 @@ h1 {
 .mock-chance-item-value {
   display: block;
   margin-top: 0.18rem;
-  color: #203250;
+  color: var(--ui-card-title);
   font-size: 1.05rem;
   font-weight: 800;
   line-height: 1.2;
@@ -3635,13 +3783,13 @@ h1 {
 
 .mock-chance-note {
   margin: 0;
-  color: #26406b;
+  color: var(--ui-card-muted);
   font-size: 0.88rem;
   line-height: 1.45;
 }
 
 .mock-chance-panel--empty {
-  color: #203250;
+  color: var(--ui-card-title);
   font-weight: 700;
   line-height: 1.55;
 }
@@ -3660,7 +3808,7 @@ h1 {
 
 .mock-upcoming-kicker {
   margin: 0;
-  color: #1f4eb0;
+  color: var(--ui-card-kicker);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3690,7 +3838,7 @@ h1 {
 
 .mock-refer-kicker {
   margin: 0;
-  color: #1f4eb0;
+  color: var(--ui-card-kicker);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -3795,7 +3943,7 @@ h1 {
 
 .mock-registration-form-card {
   background: #fff;
-  border: 1px solid #d7e5ff;
+  border: 1px solid var(--ui-card-border);
   box-shadow: 0 12px 28px rgba(15, 83, 189, 0.08);
   padding: 1.05rem 1rem 1.1rem;
 }
@@ -3978,7 +4126,7 @@ h1 {
 
 .mock-no-chance-id {
   margin: 0.85rem 0 0;
-  color: #1f4eb0;
+  color: var(--ui-card-kicker);
   font-weight: 700;
 }
 
@@ -4370,6 +4518,13 @@ h1 {
     width: 30px;
     height: 30px;
     font-size: 0.88rem;
+  }
+
+  body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
+  body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
+    width: 16px;
+    height: 16px;
   }
 
   .catalog-window-grid.is-mobile {
@@ -5653,4 +5808,62 @@ h1 {
   .admin-sidebar-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.mock-launcher-fab {
+  position: fixed;
+  right: 1.05rem;
+  bottom: 1.05rem;
+  width: 68px;
+  height: 68px;
+  border: 1px solid #e0b83a;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff4a8 0%, #f3d964 100%);
+  box-shadow: 0 16px 34px rgba(201, 162, 34, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1200;
+}
+
+.mock-launcher-fab img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.mock-launcher-fab:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 680px) {
+  .mock-launcher-fab {
+    right: 0.8rem;
+    bottom: 0.8rem;
+    width: 58px;
+    height: 58px;
+  }
+
+  .mock-launcher-fab img {
+    width: 28px;
+    height: 28px;
+  }
+}
+.auth-alt-link {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  color: var(--ui-card-muted);
+  font-size: 0.92rem;
+}
+
+.auth-alt-link a {
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-alt-link a:hover {
+  text-decoration: underline;
 }

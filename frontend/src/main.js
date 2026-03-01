@@ -943,9 +943,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const manualStateInput = document.querySelector("#studentManualState");
   const manualCityInput = document.querySelector("#studentManualCity");
   const passwordToggles = document.querySelectorAll(".password-toggle");
+  const loginToMockSignupLink = document.querySelector("#loginToMockSignup");
   const pageParams = new URLSearchParams(window.location.search);
   const referralCodeFromLink = String(pageParams.get("ref") || "").trim();
   const authModeFromLink = String(pageParams.get("auth") || "").trim().toLowerCase();
+  let pendingAuthRedirect = String(pageParams.get("redirect") || "").trim().toLowerCase();
   let lockedRegisterMobile = "";
 
   const navigateByCourse = (courseValue) => {
@@ -994,6 +996,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const setEnrollMessage = (text, type) => {
     setMessage(enrollMobileMessage, text, type);
+  };
+
+  const buildMockSignupPath = async (mobile = "") => {
+    const mockPath = await resolvePagePath([
+      "./mock-test-registration.html",
+      "./mock-test-registration",
+    ], "Mock Test Registration");
+    const url = new URL(mockPath, window.location.href);
+    url.searchParams.set("signup", "1");
+    if (mobile) url.searchParams.set("mobile", mobile);
+    return `${url.pathname}${url.search}${url.hash}`;
+  };
+
+  const syncMockSignupLink = async (mobile = "") => {
+    if (!(loginToMockSignupLink instanceof HTMLAnchorElement)) return;
+    loginToMockSignupLink.href = await buildMockSignupPath(mobile);
+  };
+
+  const resolvePostAuthPath = async (userRole) => {
+    if (String(userRole || "").trim().toUpperCase() === "ADMIN") {
+      return resolvePagePath([
+        "./admin.html",
+        "./frontend/admin.html",
+      ],
+      "Admin Panel"
+      );
+    }
+    if (pendingAuthRedirect === "mock" || pendingAuthRedirect === "mock-test-registration") {
+      return resolvePagePath([
+        "./mock-test-registration.html",
+        "./mock-test-registration",
+      ],
+      "Mock Test Registration"
+      );
+    }
+    return resolvePagePath([
+      "./dashboard.html",
+      "./frontend/dashboard.html",
+    ],
+    "Student Dashboard"
+    );
+  };
+
+  const loginStudentAndRedirect = async (mobile, password) => {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile, password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Login failed");
+    }
+    localStorage.setItem("cc_token", data.token);
+    localStorage.setItem("cc_user", JSON.stringify(data.user));
+    const nextPath = await resolvePostAuthPath(data?.user?.role);
+    window.location.href = nextPath;
   };
 
   const setRegisterMobile = (mobile, locked) => {
@@ -1242,6 +1301,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      if (pendingAuthRedirect === "mock" || pendingAuthRedirect === "mock-test-registration") {
+        setMessage(registerMessage, "Registration successful. Opening mock page...", "success");
+        await loginStudentAndRedirect(payload.mobile, payload.password);
+        return;
+      }
+
       setMessage(registerMessage, "Registration successful. Please login now.", "success");
       if (loginForm) {
         const loginMobileInput = loginForm.querySelector("#loginMobile");
@@ -1453,7 +1518,9 @@ document.addEventListener("DOMContentLoaded", () => {
         setEnrollMessage("Checking mobile...");
         const exists = await checkMobileExists(mobile);
         if (exists) {
-          openModal("login");
+          pendingAuthRedirect = pendingAuthRedirect || "";
+      syncMockSignupLink();
+      openModal("login");
           if (loginForm) {
             const loginMobileInput = loginForm.querySelector("#loginMobile");
             if (loginMobileInput instanceof HTMLInputElement) {
@@ -1466,9 +1533,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         lockedRegisterMobile = mobile;
-        openModal("register");
-        setRegisterMobile(lockedRegisterMobile, true);
-        setEnrollMessage("");
+        const mockSignupPath = await buildMockSignupPath(lockedRegisterMobile);
+        window.location.href = mockSignupPath;
+        return;
       } catch (error) {
         setEnrollMessage(error.message || "Unable to continue. Try again.", "error");
       }
@@ -1480,10 +1547,28 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       lockedRegisterMobile = "";
       setRegisterMobile("", true);
+      pendingAuthRedirect = pendingAuthRedirect || "";
+      syncMockSignupLink();
       openModal("login");
     });
   });
 
+  if (loginToMockSignupLink instanceof HTMLAnchorElement) {
+    loginToMockSignupLink.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const loginMobileInput = loginForm?.querySelector("#loginMobile");
+      const mobileValue = loginMobileInput instanceof HTMLInputElement ? loginMobileInput.value.trim() : "";
+      const mockSignupPath = await buildMockSignupPath(mobileValue);
+      window.location.href = mockSignupPath;
+    });
+  }
+
+  window.addEventListener("cc-open-auth-login", async (event) => {
+    const requestedRedirect = String(event?.detail?.redirect || "").trim().toLowerCase();
+    if (requestedRedirect) pendingAuthRedirect = requestedRedirect;
+    await syncMockSignupLink();
+    openModal("login");
+  });
   [referEarnBtn, mobileReferEarnBtn].forEach((button) => {
     if (!(button instanceof HTMLElement)) return;
     button.addEventListener("click", (event) => {
@@ -1540,8 +1625,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   if (authModeFromLink === "login") {
+    syncMockSignupLink();
     openModal("login");
   } else if (authModeFromLink === "register") {
-    openModal("register");
+    buildMockSignupPath().then((mockSignupPath) => {
+      window.location.href = mockSignupPath;
+    });
   }
 });

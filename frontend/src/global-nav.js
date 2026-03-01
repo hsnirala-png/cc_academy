@@ -40,12 +40,18 @@
   };
 
   const getStudentDashboardPath = () => resolveRoute("dashboard");
+  const getMockRegistrationPath = () => resolveRoute("mock-test-registration");
   const getAdminDashboardPath = () => resolveRoute("admin");
   const getStudentNavItems = () => [
     {
       href: resolveRoute("dashboard"),
       label: "Dashboard",
       className: "nav-link-dashboard",
+    },
+    {
+      href: resolveRoute("profile"),
+      label: "Profile",
+      className: "nav-link-profile",
     },
     {
       href: resolveRoute("lessons"),
@@ -71,11 +77,6 @@
       href: resolveRoute("refer-earn"),
       label: "Refer & Earn",
       className: "nav-link-refer",
-    },
-    {
-      href: resolveRoute("profile"),
-      label: "Profile",
-      className: "nav-link-profile",
     },
   ];
 
@@ -106,6 +107,17 @@
       "/products",
       "/products.html",
     ].some((suffix) => normalized.endsWith(suffix));
+  };
+
+  const isMockNavPage = () => {
+    const { pathname } = getPathContext();
+    const normalized = String(pathname || "").toLowerCase();
+    return ["/mock-tests", "/mock-tests.html", "/mock-history", "/mock-history.html", "/mock-attempt", "/mock-attempt.html", "/mock-test-registration", "/mock-test-registration.html"].some((suffix) => normalized.endsWith(suffix));
+  };
+
+  const applyPageContextClasses = () => {
+    if (!(document.body instanceof HTMLElement)) return;
+    document.body.classList.toggle("is-mock-page", isMockNavPage());
   };
 
   const isCurrentStudentNavItem = (href) => {
@@ -278,6 +290,50 @@
     return false;
   };
 
+  const buildMockAuthRedirectUrl = () => {
+    const homeUrl = new URL(getHomePath(), window.location.href);
+    homeUrl.searchParams.set("auth", "login");
+    homeUrl.searchParams.set("redirect", "mock-test-registration");
+    return homeUrl.toString();
+  };
+
+  const shouldShowMockLauncher = () => {
+    const { pathname } = getPathContext();
+    const normalized = String(pathname || "").toLowerCase();
+    if (normalized.includes("/admin")) return false;
+    if (isAdminSession()) return false;
+    if (isMockNavPage()) return false;
+    return true;
+  };
+
+  const attachMockLauncher = () => {
+    if (!shouldShowMockLauncher()) return;
+    if (!(document.body instanceof HTMLElement)) return;
+    if (document.querySelector("#globalMockLauncher")) return;
+
+    const launcher = document.createElement("button");
+    launcher.type = "button";
+    launcher.id = "globalMockLauncher";
+    launcher.className = "mock-launcher-fab";
+    launcher.setAttribute("aria-label", "Open mock test page");
+    launcher.setAttribute("title", "Mock Test");
+    launcher.innerHTML = '<img src="./public/mock_icon.png" alt="" aria-hidden="true" />';
+    launcher.addEventListener("click", () => {
+      if (isStudentSession()) {
+        window.location.href = getMockRegistrationPath();
+        return;
+      }
+      const authModal = document.querySelector("#authModal");
+      if (authModal instanceof HTMLElement) {
+        window.dispatchEvent(new CustomEvent("cc-open-auth-login", { detail: { redirect: "mock-test-registration" } }));
+        return;
+      }
+      window.location.href = buildMockAuthRedirectUrl();
+    });
+
+    document.body.appendChild(launcher);
+  };
+
   const applyStudentDashboardLinking = () => {
     if (!isStudentSession()) return;
 
@@ -301,7 +357,9 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     normalizeStudentNavigation();
+    applyPageContextClasses();
     attachBackButton();
     applyStudentDashboardLinking();
+    attachMockLauncher();
   });
 })();

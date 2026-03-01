@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const searchParams = new URLSearchParams(window.location.search);
   const requestedMockTestId = String(searchParams.get("mockTestId") || "").trim();
+  const requestedSignupMobile = String(searchParams.get("mobile") || "").trim();
   const requestedFriendReferralCode = String(
     searchParams.get("ref") || searchParams.get("referralCode") || ""
   )
@@ -126,6 +127,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     studentReferralCode: "",
     noChancePromptShown: false,
     productsCatalog: [],
+    productsWindowStart: 0,
+    productsCardsPerView: 3,
+    productsIsMobileView: false,
   };
 
   const setStatus = (text, type = "") => {
@@ -171,6 +175,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const getProductsPagePath = () => (isExtensionlessRoute() ? "./products" : "./products.html");
+
+  const getMockProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
+  const getMockProductsCardsPerView = () => 3;
 
   const getRegistrationPagePath = () => {
     const currentPath = (window.location.pathname || "").toLowerCase();
@@ -218,6 +225,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const openGuestRegisterModal = () => {
     if (!(guestRegisterModal instanceof HTMLElement)) return;
+    if (guestMobileInput instanceof HTMLInputElement && requestedSignupMobile) {
+      guestMobileInput.value = requestedSignupMobile;
+    }
     guestRegisterModal.classList.add("open");
     guestRegisterModal.setAttribute("aria-hidden", "false");
   };
@@ -250,6 +260,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
     if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
+
     if (buyMockBtn instanceof HTMLButtonElement) {
       buyMockBtn.disabled = false;
       buyMockBtn.addEventListener("click", () => {
@@ -395,8 +406,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(mockProductsGrid instanceof HTMLElement)) return;
     if (mockAllProductsLink instanceof HTMLAnchorElement) {
       mockAllProductsLink.href = buildMockProductsPageUrl();
+      mockAllProductsLink.classList.add("hidden");
     }
     const products = Array.isArray(state.productsCatalog) ? state.productsCatalog : [];
+    mockProductsGrid.classList.remove("catalog-window-host");
     if (!products.length) {
       mockProductsGrid.innerHTML = "";
       if (mockProductsMessage instanceof HTMLElement) {
@@ -409,7 +422,72 @@ document.addEventListener("DOMContentLoaded", async () => {
       mockProductsMessage.textContent = "";
       mockProductsMessage.classList.remove("error");
     }
-    mockProductsGrid.innerHTML = products.map((product) => renderMockProductCard(product)).join("");
+
+    const isMobileView = getMockProductsIsMobileView();
+    const cardsPerView = Math.min(getMockProductsCardsPerView(), products.length);
+    state.productsCardsPerView = cardsPerView;
+    state.productsIsMobileView = isMobileView;
+    const maxWindowStart = Math.max(0, products.length - cardsPerView);
+    if (isMobileView) {
+      state.productsWindowStart = 0;
+    } else {
+      state.productsWindowStart = Math.max(0, Math.min(state.productsWindowStart, maxWindowStart));
+    }
+
+    const visibleProducts = isMobileView
+      ? products.slice(0, cardsPerView)
+      : products.slice(state.productsWindowStart, state.productsWindowStart + cardsPerView);
+    const canPrev = !isMobileView && state.productsWindowStart > 0;
+    const canNext = !isMobileView && state.productsWindowStart + cardsPerView < products.length;
+    const allProductsAnchorIndex = visibleProducts.length
+      ? isMobileView
+        ? 0
+        : Math.min(cardsPerView - 1, visibleProducts.length - 1)
+      : -1;
+
+    mockProductsGrid.classList.add("catalog-window-host");
+    mockProductsGrid.innerHTML = `
+      <div class="catalog-window">
+        ${
+          isMobileView
+            ? ""
+            : `
+              <div class="catalog-window-nav" aria-label="Mock products navigation">
+                <button
+                  type="button"
+                  class="catalog-nav-btn"
+                  data-mock-product-nav="prev"
+                  aria-label="Previous products"
+                  ${canPrev ? "" : "disabled"}
+                >&lt;</button>
+                <button
+                  type="button"
+                  class="catalog-nav-btn"
+                  data-mock-product-nav="next"
+                  aria-label="Next products"
+                  ${canNext ? "" : "disabled"}
+                >&gt;</button>
+              </div>
+            `
+        }
+        <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
+          ${visibleProducts
+            .map(
+              (product, index) => `
+                <div class="catalog-window-item">
+                  ${
+                    index === allProductsAnchorIndex
+                      ? `<a class="catalog-all-products-btn" href="${escapeHtml(buildMockProductsPageUrl())}">All Products</a>`
+                      : ""
+                  }
+                  ${renderMockProductCard(product)}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
   };
 
   const loadMockProducts = async () => {
@@ -434,6 +512,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         mockProductsMessage.classList.add("error");
       }
     }
+  };
+
+  let mockProductsViewportTimerId = null;
+
+  const refreshMockProductsViewport = () => {
+    const nextIsMobileView = getMockProductsIsMobileView();
+    if (nextIsMobileView === state.productsIsMobileView) return;
+    state.productsIsMobileView = nextIsMobileView;
+    state.productsWindowStart = 0;
+    renderMockProducts();
   };
 
   const renderChanceCard = (option, { inactiveSelection = false } = {}) => {
@@ -554,6 +642,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       await navigator.clipboard.writeText(payload.shareUrl);
+
       if (copyReferralBtn instanceof HTMLButtonElement) {
         copyReferralBtn.classList.add("is-copied");
         if (copyReferralFeedbackTimer) {
@@ -998,6 +1087,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  state.productsIsMobileView = getMockProductsIsMobileView();
+
   await loadMockProducts();
 
   if (isGuestMode) {
@@ -1079,7 +1170,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  if (copyReferralBtn instanceof HTMLButtonElement) {
+  if (mockProductsGrid instanceof HTMLElement) {
+    mockProductsGrid.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const navBtn = target.closest("[data-mock-product-nav]");
+      if (!(navBtn instanceof HTMLElement)) return;
+      const direction = String(navBtn.getAttribute("data-mock-product-nav") || "").trim();
+      const step = Math.max(1, state.productsCardsPerView || 3);
+      const maxWindowStart = Math.max(0, state.productsCatalog.length - step);
+      if (direction === "prev") {
+        state.productsWindowStart = Math.max(0, state.productsWindowStart - step);
+      } else if (direction === "next") {
+        state.productsWindowStart = Math.min(maxWindowStart, state.productsWindowStart + step);
+      }
+      renderMockProducts();
+    });
+  }
+
+      if (copyReferralBtn instanceof HTMLButtonElement) {
     copyReferralBtn.addEventListener("click", async () => {
       await copyReferralLink();
     });
@@ -1211,7 +1320,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  if (buyMockBtn instanceof HTMLButtonElement) {
+  window.addEventListener(
+    "resize",
+    () => {
+      if (mockProductsViewportTimerId) window.clearTimeout(mockProductsViewportTimerId);
+      mockProductsViewportTimerId = window.setTimeout(() => {
+        mockProductsViewportTimerId = null;
+        refreshMockProductsViewport();
+      }, 120);
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    "orientationchange",
+    () => {
+      refreshMockProductsViewport();
+    },
+    { passive: true }
+  );
+
+    if (buyMockBtn instanceof HTMLButtonElement) {
     buyMockBtn.addEventListener("click", () => {
       const option = selectedOption();
       const url = String(option?.buyNowUrl || "").trim();
