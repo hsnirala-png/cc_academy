@@ -98,6 +98,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const timeSlotInputs = Array.from(document.querySelectorAll('input[name="regTimeSlot"]'));
   const startAttemptBtn = document.querySelector("#startAttemptBtn");
   const buyMockBtn = document.querySelector("#buyMockBtn");
+  const publishedMockTestsBody = document.querySelector("#publishedMockTestsBody");
+  const mockTableQuotaText = document.querySelector("#mockTableQuotaText");
   const friendReferralCodeInput = document.querySelector("#regFriendReferralCode");
   const noFriendReferralCodeInput = document.querySelector("#regNoFriendReferralCode");
   const referralIdTextEl = document.querySelector("#regReferralIdText");
@@ -117,6 +119,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const guestEmailInput = document.querySelector("#mockGuestEmail");
   const guestPasswordInput = document.querySelector("#mockGuestPassword");
   const guestRegisterSubmitBtn = document.querySelector("#mockGuestRegisterSubmit");
+  const mockReattemptConfirmModal = document.querySelector("#mockReattemptConfirmModal");
+  const mockReattemptConfirmBtn = document.querySelector("#mockReattemptConfirmBtn");
+  const mockReattemptCancelBtn = document.querySelector("#mockReattemptCancelBtn");
   const mockProductsGrid = document.querySelector("#mockProductsGrid");
   const mockProductsMessage = document.querySelector("#mockProductsMessage");
   const mockAllProductsLink = document.querySelector("#mockAllProductsLink");
@@ -139,6 +144,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     productsWindowStart: 0,
     productsCardsPerView: 3,
     productsIsMobileView: false,
+    programStatus: null,
+    pendingReattemptMockTestId: "",
   };
 
   const setStatus = (text, type = "") => {
@@ -293,6 +300,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const selectedOption = () =>
     state.options.find((item) => item.mockTestId === state.selectedMockTestId) || null;
+
+  const getOptionByMockTestId = (mockTestId) =>
+    state.options.find((item) => item.mockTestId === String(mockTestId || "").trim()) || null;
 
   const getReferenceOption = () => selectedOption() || pickBestOption(state.options) || null;
 
@@ -983,6 +993,98 @@ document.addEventListener("DOMContentLoaded", async () => {
     reminderCard.classList.remove("hidden");
   };
 
+  const closeReattemptConfirmModal = () => {
+    if (!(mockReattemptConfirmModal instanceof HTMLElement)) return;
+    mockReattemptConfirmModal.classList.remove("open");
+    mockReattemptConfirmModal.setAttribute("aria-hidden", "true");
+    state.pendingReattemptMockTestId = "";
+  };
+
+  const openReattemptConfirmModal = (mockTestId) => {
+    if (!(mockReattemptConfirmModal instanceof HTMLElement)) return;
+    state.pendingReattemptMockTestId = String(mockTestId || "").trim();
+    mockReattemptConfirmModal.classList.add("open");
+    mockReattemptConfirmModal.setAttribute("aria-hidden", "false");
+  };
+
+  const renderPublishedMocksTable = () => {
+    if (!(publishedMockTestsBody instanceof HTMLElement)) return;
+    const rows = Array.isArray(state.options)
+      ? [...state.options].sort((a, b) => {
+          const aTs = toScheduleTimestamp(a?.scheduledDate, a?.scheduledTimeSlot);
+          const bTs = toScheduleTimestamp(b?.scheduledDate, b?.scheduledTimeSlot);
+          if (Number.isFinite(aTs) && Number.isFinite(bTs) && aTs !== bTs) return aTs - bTs;
+          if (Number.isFinite(aTs) && !Number.isFinite(bTs)) return -1;
+          if (!Number.isFinite(aTs) && Number.isFinite(bTs)) return 1;
+          return String(a?.mockTestTitle || a?.title || "").localeCompare(String(b?.mockTestTitle || b?.title || ""));
+        })
+      : [];
+
+    const allowedFreshMockCount = Number(state.programStatus?.allowedFreshMockCount || 0);
+    const usedFreshMockCount = Number(state.programStatus?.usedFreshMockCount || 0);
+    const remainingFreshMockCount = Math.max(0, Number(state.programStatus?.remainingFreshMockCount || 0));
+    if (mockTableQuotaText instanceof HTMLElement) {
+      mockTableQuotaText.textContent = state.programStatus?.isRegistered
+        ? `New mocks used: ${usedFreshMockCount}/${allowedFreshMockCount} | Remaining picks: ${remainingFreshMockCount}`
+        : "Complete registration to activate mock attempts.";
+    }
+
+    if (!rows.length) {
+      publishedMockTestsBody.innerHTML = `
+        <tr>
+          <td colspan="6">No published mock tests are available right now.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    publishedMockTestsBody.innerHTML = rows
+      .map((item, index) => {
+        const mockTestId = String(item?.mockTestId || "").trim();
+        const name = String(item?.mockTestTitle || item?.title || "Mock Test").trim();
+        const hasAttempted = Boolean(item?.hasAttempted);
+        const canPlay = Boolean(item?.canStartNew);
+        const canReattempt = Boolean(item?.canReattempt);
+        const scoreText =
+          item?.latestScorePercent === null || item?.latestScorePercent === undefined
+            ? "-"
+            : `${Number(item.latestScorePercent || 0).toFixed(0)}%`;
+        const statusText = hasAttempted ? "Attempted" : "Not Attempted";
+        const lockedReason = String(item?.actionLockedReason || "").trim();
+        return `
+          <tr data-mock-table-row="${escapeHtml(mockTestId)}">
+            <td>${index + 1}</td>
+            <td>${escapeHtml(name)}</td>
+            <td>
+              <button
+                class="table-btn ${canPlay ? "edit" : ""}"
+                type="button"
+                data-mock-play="${escapeHtml(mockTestId)}"
+                ${canPlay ? "" : "disabled"}
+                title="${escapeHtml(lockedReason || (hasAttempted ? "Already attempted. Use reattempt." : ""))}"
+              >
+                Play
+              </button>
+            </td>
+            <td>${escapeHtml(statusText)}</td>
+            <td>${escapeHtml(scoreText)}</td>
+            <td>
+              <button
+                class="table-btn ${canReattempt ? "edit" : ""}"
+                type="button"
+                data-mock-reattempt="${escapeHtml(mockTestId)}"
+                ${canReattempt ? "" : "disabled"}
+                title="${escapeHtml(lockedReason || (!hasAttempted ? "Attempt this mock first." : ""))}"
+              >
+                Reattempt
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  };
+
   const applySelectionByFilters = () => {
     const filtered = getFilteredOptions();
     const picked = pickBestOption(filtered);
@@ -1007,6 +1109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (startAttemptBtn instanceof HTMLButtonElement) startAttemptBtn.disabled = true;
       if (reminderCard instanceof HTMLElement) reminderCard.classList.add("hidden");
       syncRegistrationAvailability(null);
+      renderPublishedMocksTable();
       renderMockProducts();
       return;
     }
@@ -1052,6 +1155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderReminderCard(option);
 
     syncRegistrationAvailability(option);
+    renderPublishedMocksTable();
     renderMockProducts();
   };
 
@@ -1068,12 +1172,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     state.options = Array.isArray(data?.options) ? data.options : [];
     state.studentReferralCode = String(data?.studentReferralCode || "").trim().toUpperCase();
+    state.programStatus =
+      data?.programStatus && typeof data.programStatus === "object" ? data.programStatus : null;
 
     if (!state.options.length) {
       renderExamTypeOptions();
       renderStreamOptions();
       state.selectedMockTestId = "";
       renderSelectedOption();
+      renderPublishedMocksTable();
       return;
     }
 
@@ -1105,24 +1212,90 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     renderSelectedOption();
+    renderPublishedMocksTable();
     syncNoChancePrompt();
   };
 
-  const startAttempt = async () => {
-    const option = selectedOption();
-    if (!option?.mockTestId) throw new Error("Please select mock chance first.");
+  const startAttempt = async (mockTestId, { confirmChanceUse = false } = {}) => {
+    const targetMockTestId = String(mockTestId || selectedOption()?.mockTestId || "").trim();
+    if (!targetMockTestId) throw new Error("Please select mock chance first.");
 
     const data = await apiRequest({
       path: "/student/attempts",
       method: "POST",
       token,
-      body: { mockTestId: option.mockTestId },
+      body: { mockTestId: targetMockTestId, confirmChanceUse },
     });
     const attemptId = String(data?.attempt?.id || "").trim();
     if (!attemptId) throw new Error("Unable to start attempt.");
     const attemptPagePath = await resolveAttemptPagePath();
     const sep = attemptPagePath.includes("?") ? "&" : "?";
     window.location.href = `${attemptPagePath}${sep}attemptId=${encodeURIComponent(attemptId)}`;
+  };
+
+  const handleAttemptStartError = (error, option) => {
+    const payload = error?.payload || {};
+    const errorCode = String(payload?.code || "").trim();
+    if (error?.status === 401 || error?.status === 403) {
+      if (errorCode === "MOCK_REG_REQUIRED") {
+        setStatus("Please complete registration first.", "error");
+        return;
+      }
+      if (errorCode === "MOCK_DAILY_NEW_LIMIT_REACHED") {
+        setStatus(error?.message || "You can attempt only 2 new mocks per day.", "error");
+        return;
+      }
+      if (errorCode === "MOCK_NOT_PUBLISHED") {
+        setStatus(error?.message || "This mock test is not published yet.", "error");
+        return;
+      }
+    }
+    if (error?.status === 409 && errorCode === "MOCK_REATTEMPT_CONFIRM_REQUIRED") {
+      openReattemptConfirmModal(option?.mockTestId || "");
+      return;
+    }
+    if (error?.status === 402 || errorCode === "MOCK_ATTEMPTS_EXHAUSTED") {
+      const buyNowUrl = String(payload?.details?.buyNowUrl || option?.buyNowUrl || "").trim();
+      if (buyNowUrl) {
+        window.location.href = buyNowUrl;
+        return;
+      }
+      setStatus(error?.message || "Free attempts exhausted. Please buy mock.", "error");
+      return;
+    }
+    setStatus(error?.message || "Unable to start attempt.", "error");
+  };
+
+  const handleMockAction = async (mockTestId, mode, { confirmChanceUse = false } = {}) => {
+    const option = getOptionByMockTestId(mockTestId);
+    if (!option) {
+      setStatus("Selected mock test is unavailable.", "error");
+      return;
+    }
+    state.selectedMockTestId = option.mockTestId;
+    renderSelectedOption();
+
+    if (mode === "play" && !option.canStartNew) {
+      setStatus(option.actionLockedReason || "This mock test is not available for a new attempt right now.", "error");
+      return;
+    }
+    if (mode === "reattempt") {
+      if (!option.canReattempt) {
+        setStatus(option.actionLockedReason || "Reattempt is not available for this mock test.", "error");
+        return;
+      }
+      if (option.requiresChanceConfirm && !confirmChanceUse) {
+        openReattemptConfirmModal(option.mockTestId);
+        return;
+      }
+    }
+
+    try {
+      setStatus(mode === "reattempt" ? "Starting reattempt..." : "Starting attempt...");
+      await startAttempt(option.mockTestId, { confirmChanceUse });
+    } catch (error) {
+      handleAttemptStartError(error, option);
+    }
   };
 
   const handleGuestRegisterSubmit = async (event) => {
@@ -1338,6 +1511,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (publishedMockTestsBody instanceof HTMLElement) {
+    publishedMockTestsBody.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const playBtn = target.closest("[data-mock-play]");
+      if (playBtn instanceof HTMLElement) {
+        const mockTestId = String(playBtn.getAttribute("data-mock-play") || "").trim();
+        if (!mockTestId) return;
+        await handleMockAction(mockTestId, "play");
+        return;
+      }
+      const reattemptBtn = target.closest("[data-mock-reattempt]");
+      if (reattemptBtn instanceof HTMLElement) {
+        const mockTestId = String(reattemptBtn.getAttribute("data-mock-reattempt") || "").trim();
+        if (!mockTestId) return;
+        await handleMockAction(mockTestId, "reattempt");
+      }
+    });
+  }
+
+  if (mockReattemptConfirmBtn instanceof HTMLButtonElement) {
+    mockReattemptConfirmBtn.addEventListener("click", async () => {
+      const mockTestId = String(state.pendingReattemptMockTestId || "").trim();
+      closeReattemptConfirmModal();
+      if (!mockTestId) return;
+      await handleMockAction(mockTestId, "reattempt", { confirmChanceUse: true });
+    });
+  }
+
+  if (mockReattemptCancelBtn instanceof HTMLButtonElement) {
+    mockReattemptCancelBtn.addEventListener("click", () => {
+      closeReattemptConfirmModal();
+    });
+  }
+
+  if (mockReattemptConfirmModal instanceof HTMLElement) {
+    mockReattemptConfirmModal.addEventListener("click", (event) => {
+      if (event.target === mockReattemptConfirmModal) {
+        closeReattemptConfirmModal();
+      }
+    });
+  }
+
       if (copyReferralBtn instanceof HTMLButtonElement) {
     copyReferralBtn.addEventListener("click", async () => {
       await copyReferralLink();
@@ -1438,34 +1654,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           openNoChanceModal();
         }
         setStatus(error?.message || "Unable to save registration.", "error");
-      }
-    });
-  }
-
-  if (startAttemptBtn instanceof HTMLButtonElement) {
-    startAttemptBtn.addEventListener("click", async () => {
-      try {
-        setStatus("Starting attempt...");
-        await startAttempt();
-      } catch (error) {
-        const payload = error?.payload || {};
-        const errorCode = String(payload?.code || "").trim();
-        if (error?.status === 401 || error?.status === 403) {
-          if (errorCode === "MOCK_REG_REQUIRED") {
-            setStatus("Please complete registration first.", "error");
-            return;
-          }
-        }
-        if (error?.status === 402 || errorCode === "MOCK_ATTEMPTS_EXHAUSTED") {
-          const buyNowUrl = String(payload?.details?.buyNowUrl || "").trim();
-          if (buyNowUrl) {
-            window.location.href = buyNowUrl;
-            return;
-          }
-          setStatus(error?.message || "Free attempts exhausted. Please buy mock.", "error");
-          return;
-        }
-        setStatus(error?.message || "Unable to start attempt.", "error");
       }
     });
   }

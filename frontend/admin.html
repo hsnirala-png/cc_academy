@@ -141,9 +141,12 @@
       }
 
       .admin-table-wrap {
-        overflow-x: auto;
+        max-height: calc(var(--admin-table-head-size) + (var(--list-visible-items) * var(--admin-table-row-size)));
+        overflow: auto;
         border: 1px solid var(--border);
         border-radius: 12px;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
       }
 
       .admin-table {
@@ -161,6 +164,9 @@
       }
 
       .admin-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
         background: #f2f7ff;
         font-size: 0.82rem;
         text-transform: uppercase;

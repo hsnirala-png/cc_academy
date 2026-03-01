@@ -285,6 +285,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `${basePath}?mockTestId=${encodeURIComponent(mockSourceMockTestId)}`;
   };
 
+  const createMockRegistrationHref = (mockTestId) => {
+    const basePath = isExtensionlessRoute() ? "./mock-test-registration" : "./mock-test-registration.html";
+    const safeMockTestId = String(mockTestId || "").trim();
+    if (!safeMockTestId) return basePath;
+    return `${basePath}?mockTestId=${encodeURIComponent(safeMockTestId)}`;
+  };
+
   const ensureHeadingActionsWrap = () => {
     if (!(productsHeadingRow instanceof HTMLElement)) return null;
     let actions = productsHeadingRow.querySelector(".products-heading-actions");
@@ -2206,6 +2213,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               setMessage("Opening lesson...");
               const opened = await openLessonByMockTestContext(learningId, { autoplay: true });
               if (opened) return;
+            }
+
+            if (learningAction === "ATTEMPT_TEST") {
+              setMessage("Opening mock page...");
+              window.location.href = createMockRegistrationHref(learningId);
+              return;
             }
 
             setMessage("Starting learning attempt...");

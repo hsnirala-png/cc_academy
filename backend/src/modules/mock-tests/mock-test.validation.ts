@@ -148,6 +148,7 @@ export const studentMockTestsQuerySchema = z.object({
 
 export const studentStartAttemptSchema = z.object({
   mockTestId: z.string().cuid(),
+  confirmChanceUse: z.coerce.boolean().optional(),
 });
 
 export const studentSaveAnswerSchema = z.object({

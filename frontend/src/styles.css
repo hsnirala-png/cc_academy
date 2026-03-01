@@ -25,6 +25,14 @@
   --catalog-card-width-sm: calc(var(--catalog-card-thumb-size-sm) + var(--catalog-card-content-size));
   --catalog-card-body-pad-y: 0.58rem;
   --catalog-card-body-pad-x: 0.62rem;
+  --list-visible-items: 10;
+  --list-option-row-size: 2.35rem;
+  --admin-table-head-size: 2.9rem;
+  --admin-table-row-size: 2.8rem;
+  --product-table-head-size: 2.35rem;
+  --product-table-row-size: 3.1rem;
+  --mock-table-head-size: 3rem;
+  --mock-table-row-size: 3.45rem;
 }
 
 *,
@@ -1853,10 +1861,12 @@ h1 {
 }
 
 .filter-options {
-  max-height: 210px;
+  max-height: calc(var(--list-visible-items) * var(--list-option-row-size));
   overflow: auto;
   display: grid;
   gap: 0.42rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .filter-option {
@@ -3020,7 +3030,10 @@ h1 {
 }
 
 .product-learn-table-wrap {
-  overflow-x: auto;
+  max-height: calc(var(--product-table-head-size) + (var(--list-visible-items) * var(--product-table-row-size)));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .product-learn-table {
@@ -3039,6 +3052,10 @@ h1 {
 }
 
 .product-learn-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7fbff;
   font-size: 0.78rem;
   color: #355799;
   font-weight: 700;
@@ -3161,7 +3178,7 @@ h1 {
 }
 
 .admin-inline-checklist {
-  max-height: 200px;
+  max-height: calc(var(--list-visible-items) * var(--list-option-row-size));
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -3169,6 +3186,8 @@ h1 {
   display: grid;
   gap: 0.4rem;
   background: #fff;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .admin-inline-checklist .filter-option {
@@ -4005,6 +4024,78 @@ h1 {
   padding: 1.05rem 1rem 1.1rem;
 }
 
+.mock-registration-table-card {
+  margin-top: 1rem;
+  background: #fff;
+  border: 1px solid var(--ui-card-border);
+  box-shadow: 0 12px 28px rgba(15, 83, 189, 0.08);
+  padding: 1rem;
+}
+
+.mock-table-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mock-table-header h3 {
+  margin: 0;
+}
+
+.mock-table-quota {
+  margin: 0;
+  color: #29518f;
+  font-weight: 700;
+}
+
+.mock-table-wrap {
+  width: 100%;
+  max-height: calc(var(--mock-table-head-size) + (var(--list-visible-items) * var(--mock-table-row-size)));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.mock-tests-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+}
+
+.mock-tests-table th,
+.mock-tests-table td {
+  padding: 0.8rem 0.65rem;
+  border-bottom: 1px solid #e4ecfb;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.mock-tests-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7fbff;
+  color: #2b4775;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mock-tests-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.mock-tests-table td:nth-child(1),
+.mock-tests-table td:nth-child(3),
+.mock-tests-table td:nth-child(4),
+.mock-tests-table td:nth-child(5),
+.mock-tests-table td:nth-child(6) {
+  white-space: nowrap;
+}
+
 .mock-form-locked {
   opacity: 0.72;
 }
@@ -4168,6 +4259,28 @@ h1 {
 
 .mock-no-chance-dialog {
   width: min(520px, 96vw);
+}
+
+.mock-reattempt-modal-card {
+  width: min(420px, 96vw);
+  padding: 1.1rem;
+}
+
+.mock-reattempt-modal-card h3 {
+  margin: 0;
+}
+
+.mock-reattempt-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.mock-reattempt-actions .btn-primary,
+.mock-reattempt-actions .btn-secondary {
+  flex: 1 1 150px;
+  justify-content: center;
 }
 
 .mock-no-chance-title {
@@ -5616,9 +5729,12 @@ h1 {
 }
 
 .admin-table-wrap {
-  overflow-x: auto;
+  max-height: calc(var(--admin-table-head-size) + (var(--list-visible-items) * var(--admin-table-row-size)));
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: 12px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .admin-table {
@@ -5636,6 +5752,9 @@ h1 {
 }
 
 .admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: #f2f7ff;
   font-size: 0.82rem;
   text-transform: uppercase;

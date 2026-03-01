@@ -194,6 +194,61 @@ type RegistrationEntryDetails = {
   referredByUserId: string;
 };
 
+type UserRegistrationProgram = {
+  hasJoined: boolean;
+  joinedAt: Date | null;
+  profile: {
+    fullName: string;
+    mobile: string;
+    email: string;
+    preferredExamType: string;
+    preferredStreamChoice: string;
+    preferredDate: string;
+    preferredTimeSlot: string;
+    friendReferralCode: string;
+    noFriendReferralCode: boolean;
+    referredByUserId: string;
+  } | null;
+};
+
+type LatestSubmittedAttemptSummary = {
+  attemptId: string;
+  scorePercent: number;
+  submittedAt: string;
+};
+
+const IST_OFFSET_MINUTES = 330;
+const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toScheduleTimestamp = (dateValue: unknown, timeValue: unknown): number => {
+  const dateText = String(dateValue || "").trim();
+  const timeText = String(timeValue || "").trim();
+  if (!dateText) return Number.NaN;
+  const normalizedTime = /^\d{2}:\d{2}$/.test(timeText) ? timeText : "00:00";
+  const stamp = Date.parse(`${dateText}T${normalizedTime}:00+05:30`);
+  return Number.isFinite(stamp) ? stamp : Number.NaN;
+};
+
+const isGatePublished = (gate: Pick<RegistrationGateRow, "scheduledDate" | "scheduledTimeSlot">): boolean => {
+  const stamp = toScheduleTimestamp(gate.scheduledDate, gate.scheduledTimeSlot);
+  if (!Number.isFinite(stamp)) return true;
+  return stamp <= Date.now();
+};
+
+const getIstDayNumber = (value: Date | string | number): number => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return Number.NaN;
+  return Math.floor((date.getTime() + IST_OFFSET_MINUTES * 60 * 1000) / MILLIS_PER_DAY);
+};
+
+const getAllowedFreshMockCount = (joinedAt: Date | null): number => {
+  if (!joinedAt) return 0;
+  const joinedDay = getIstDayNumber(joinedAt);
+  const todayDay = getIstDayNumber(new Date());
+  if (!Number.isFinite(joinedDay) || !Number.isFinite(todayDay) || todayDay < joinedDay) return 0;
+  return (todayDay - joinedDay + 1) * 2;
+};
+
 const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) => {
   if (!gateIds.length) return new Map<string, RegistrationEntryDetails>();
   const placeholders = gateIds.map(() => "?").join(", ");
@@ -246,6 +301,71 @@ const hasAnyUserRegistrationEntry = async (userId: string) => {
   return Boolean(rows[0]);
 };
 
+const loadUserRegistrationProgram = async (userId: string): Promise<UserRegistrationProgram> => {
+  const joinedRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT createdAt
+      FROM MockTestRegistrationEntry
+      WHERE userId = ?
+      ORDER BY createdAt ASC
+      LIMIT 1
+    `,
+    userId
+  )) as Array<{ createdAt: Date | string }>;
+  const profileRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        fullName,
+        mobile,
+        email,
+        preferredExamType,
+        preferredStreamChoice,
+        preferredDate,
+        preferredTimeSlot,
+        friendReferralCode,
+        noFriendReferral,
+        referredByUserId
+      FROM MockTestRegistrationEntry
+      WHERE userId = ?
+      ORDER BY updatedAt DESC, createdAt DESC
+      LIMIT 1
+    `,
+    userId
+  )) as Array<{
+    fullName: string | null;
+    mobile: string | null;
+    email: string | null;
+    preferredExamType: string | null;
+    preferredStreamChoice: string | null;
+    preferredDate: string | Date | null;
+    preferredTimeSlot: string | null;
+    friendReferralCode: string | null;
+    noFriendReferral: number | boolean | null;
+    referredByUserId: string | null;
+  }>;
+  const joinedAtRaw = joinedRows[0]?.createdAt;
+  const joinedAt = joinedAtRaw ? new Date(joinedAtRaw) : null;
+  const profileRow = profileRows[0];
+  return {
+    hasJoined: Boolean(joinedAt),
+    joinedAt: joinedAt && !Number.isNaN(joinedAt.getTime()) ? joinedAt : null,
+    profile: profileRow
+      ? {
+          fullName: String(profileRow.fullName || "").trim(),
+          mobile: String(profileRow.mobile || "").trim(),
+          email: String(profileRow.email || "").trim(),
+          preferredExamType: String(profileRow.preferredExamType || "").trim(),
+          preferredStreamChoice: String(profileRow.preferredStreamChoice || "").trim(),
+          preferredDate: toDateOnly(profileRow.preferredDate),
+          preferredTimeSlot: String(profileRow.preferredTimeSlot || "").trim(),
+          friendReferralCode: String(profileRow.friendReferralCode || "").trim(),
+          noFriendReferralCode: toBoolean(profileRow.noFriendReferral),
+          referredByUserId: String(profileRow.referredByUserId || "").trim(),
+        }
+      : null,
+  };
+};
+
 const loadReferralBonusCountMap = async (userId: string, gateIds: string[]) => {
   if (!gateIds.length) return new Map<string, number>();
   const placeholders = gateIds.map(() => "?").join(", ");
@@ -278,6 +398,143 @@ const loadUsedAttemptCountMap = async (userId: string, mockTestIds: string[]) =>
     ...mockTestIds
   )) as Array<{ mockTestId: string; usedAttempts: number | string }>;
   return new Map(rows.map((row) => [row.mockTestId, Number(row.usedAttempts || 0)]));
+};
+
+const loadAttemptedMockTestIds = async (userId: string, mockTestIds: string[]) => {
+  if (!mockTestIds.length) return new Set<string>();
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT DISTINCT mockTestId
+      FROM Attempt
+      WHERE userId = ?
+        AND mockTestId IN (${placeholders})
+    `,
+    userId,
+    ...mockTestIds
+  )) as Array<{ mockTestId: string }>;
+  return new Set(rows.map((row) => row.mockTestId));
+};
+
+const loadLatestSubmittedAttemptMap = async (userId: string, mockTestIds: string[]) => {
+  if (!mockTestIds.length) return new Map<string, LatestSubmittedAttemptSummary>();
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT id, mockTestId, scorePercent, submittedAt
+      FROM Attempt
+      WHERE userId = ?
+        AND status = 'SUBMITTED'
+        AND mockTestId IN (${placeholders})
+      ORDER BY submittedAt DESC, startedAt DESC
+    `,
+    userId,
+    ...mockTestIds
+  )) as Array<{
+    id: string;
+    mockTestId: string;
+    scorePercent: number | string | null;
+    submittedAt: Date | string | null;
+  }>;
+  const map = new Map<string, LatestSubmittedAttemptSummary>();
+  rows.forEach((row) => {
+    if (map.has(row.mockTestId)) return;
+    map.set(row.mockTestId, {
+      attemptId: row.id,
+      scorePercent: Number(row.scorePercent || 0),
+      submittedAt: row.submittedAt ? new Date(row.submittedAt).toISOString() : "",
+    });
+  });
+  return map;
+};
+
+const hasInProgressAttemptForMockTest = async (userId: string, mockTestId: string) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT id
+      FROM Attempt
+      WHERE userId = ?
+        AND mockTestId = ?
+        AND status = 'IN_PROGRESS'
+      ORDER BY startedAt DESC
+      LIMIT 1
+    `,
+    userId,
+    mockTestId
+  )) as Array<{ id: string }>;
+  return Boolean(rows[0]?.id);
+};
+
+const ensureGateEntryForJoinedUser = async (
+  userId: string,
+  gate: RegistrationGateRow,
+  program: UserRegistrationProgram,
+  fallback: { fullName: string; mobile: string; email: string }
+) => {
+  if (!program.profile) return;
+  const now = new Date();
+  const effectiveDate = String(
+    toDateOnly(gate.scheduledDate) || program.profile.preferredDate || new Date().toISOString().slice(0, 10)
+  ).trim();
+  const effectiveTimeSlot = String(
+    gate.scheduledTimeSlot || program.profile.preferredTimeSlot || "09:00"
+  ).trim() as "09:00" | "17:00";
+  const preferredDate = new Date(`${effectiveDate}T00:00:00.000Z`);
+  if (Number.isNaN(preferredDate.getTime())) {
+    throw new AppError("Please select a valid date.", 400);
+  }
+
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO MockTestRegistrationEntry (
+        id, gateId, mockTestId, userId, fullName, mobile, email, friendReferralCode, referredByUserId, noFriendReferral, preferredExamType, preferredStreamChoice, preferredDate, preferredTimeSlot, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        fullName = VALUES(fullName),
+        mobile = VALUES(mobile),
+        email = VALUES(email),
+        preferredExamType = VALUES(preferredExamType),
+        preferredStreamChoice = VALUES(preferredStreamChoice),
+        preferredDate = VALUES(preferredDate),
+        preferredTimeSlot = VALUES(preferredTimeSlot),
+        updatedAt = VALUES(updatedAt)
+    `,
+    `${userId}:${gate.id}`,
+    gate.id,
+    gate.mockTestId,
+    userId,
+    program.profile.fullName || fallback.fullName,
+    program.profile.mobile || fallback.mobile,
+    program.profile.email || fallback.email,
+    program.profile.friendReferralCode || null,
+    program.profile.referredByUserId || null,
+    program.profile.noFriendReferralCode ? 1 : 0,
+    program.profile.preferredExamType || String(gate.examType || "").trim().toUpperCase() || "PSTET_1",
+    program.profile.preferredStreamChoice || resolveStreamChoice(gate.streamChoice, gate.subject) || null,
+    preferredDate,
+    effectiveTimeSlot,
+    now,
+    now
+  );
+};
+
+const loadUserBasicProfile = async (userId: string) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT name, mobile, email
+      FROM User
+      WHERE id = ?
+      LIMIT 1
+    `,
+    userId
+  )) as Array<{ name: string | null; mobile: string | null; email: string | null }>;
+  const row = rows[0];
+  return {
+    fullName: String(row?.name || "").trim(),
+    mobile: String(row?.mobile || "").trim(),
+    email: String(row?.email || "").trim(),
+  };
 };
 
 const hasPaidAccessForMockTest = async (userId: string, mockTestId: string) => {
@@ -381,17 +638,41 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
 
 studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, async (req, res, next) => {
   try {
-    const gates = await loadAllActiveRegistrationGates();
+    const gates = (await loadAllActiveRegistrationGates())
+      .filter((gate) => isGatePublished(gate))
+      .sort((a, b) => {
+        const aTs = toScheduleTimestamp(a.scheduledDate, a.scheduledTimeSlot);
+        const bTs = toScheduleTimestamp(b.scheduledDate, b.scheduledTimeSlot);
+        if (Number.isFinite(aTs) && Number.isFinite(bTs) && aTs !== bTs) return aTs - bTs;
+        if (Number.isFinite(aTs) && !Number.isFinite(bTs)) return -1;
+        if (!Number.isFinite(aTs) && Number.isFinite(bTs)) return 1;
+        return String(a.mockTestTitle || a.title || "").localeCompare(String(b.mockTestTitle || b.title || ""));
+      });
     const mockTestIds = gates.map((item) => item.mockTestId);
     const gateIds = gates.map((item) => item.id);
 
-    const [entryMap, usedAttemptMap, paidAccessSet, referralBonusMap, studentReferralCode] = await Promise.all([
+    const [
+      entryMap,
+      usedAttemptMap,
+      paidAccessSet,
+      referralBonusMap,
+      studentReferralCode,
+      program,
+      attemptedMockIds,
+      latestSubmittedAttemptMap,
+    ] = await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, gateIds),
       loadUsedAttemptCountMap(req.user!.userId, mockTestIds),
       loadPaidAccessMockTestSet(req.user!.userId, mockTestIds),
       loadReferralBonusCountMap(req.user!.userId, gateIds),
       ensureUserReferralCode(req.user!.userId).catch(() => ""),
+      loadUserRegistrationProgram(req.user!.userId),
+      loadAttemptedMockTestIds(req.user!.userId, mockTestIds),
+      loadLatestSubmittedAttemptMap(req.user!.userId, mockTestIds),
     ]);
+    const allowedFreshMockCount = getAllowedFreshMockCount(program.joinedAt);
+    const usedFreshMockCount = attemptedMockIds.size;
+    const remainingFreshMockCount = Math.max(0, allowedFreshMockCount - usedFreshMockCount);
 
     const options = gates.map((gate) => {
       const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
@@ -400,9 +681,23 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       const usedAttempts = Math.max(0, usedAttemptMap.get(gate.mockTestId) || 0);
       const hasPaidAccess = paidAccessSet.has(gate.mockTestId);
       const entry = entryMap.get(gate.id);
+      const hasAttempted = attemptedMockIds.has(gate.mockTestId);
+      const latestSubmittedAttempt = latestSubmittedAttemptMap.get(gate.mockTestId);
       const remainingAttempts = hasPaidAccess
         ? Number.MAX_SAFE_INTEGER
         : Math.max(0, totalFreeAttemptLimit - usedAttempts);
+      const canStartNew =
+        program.hasJoined && !hasAttempted && remainingFreshMockCount > 0 && (hasPaidAccess || remainingAttempts > 0);
+      const canReattempt =
+        program.hasJoined && hasAttempted && (hasPaidAccess || remainingAttempts > 0);
+      let actionLockedReason = "";
+      if (!program.hasJoined) {
+        actionLockedReason = "Complete registration first.";
+      } else if (!hasAttempted && remainingFreshMockCount <= 0) {
+        actionLockedReason = "Daily new mock limit reached.";
+      } else if (!hasPaidAccess && remainingAttempts <= 0) {
+        actionLockedReason = "No chance left for this mock.";
+      }
       return {
         gateId: gate.id,
         mockTestId: gate.mockTestId,
@@ -423,8 +718,22 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
         usedAttempts,
         remainingAttempts,
         hasPaidAccess,
+        hasAttempted,
+        attemptStatus: hasAttempted ? "ATTEMPTED" : "NOT_ATTEMPTED",
+        latestScorePercent: latestSubmittedAttempt?.scorePercent ?? null,
+        latestAttemptId: latestSubmittedAttempt?.attemptId || "",
+        latestSubmittedAt: latestSubmittedAttempt?.submittedAt || "",
+        canStartNew,
+        canReattempt,
+        requiresChanceConfirm: !hasPaidAccess && hasAttempted && remainingAttempts > 0,
+        actionLockedReason,
+        isProgramRegistered: program.hasJoined,
+        joinedAt: program.joinedAt ? program.joinedAt.toISOString() : "",
+        allowedFreshMockCount,
+        usedFreshMockCount,
+        remainingFreshMockCount,
         studentReferralCode: String(studentReferralCode || "").trim(),
-        isRegistered: Boolean(entry?.isRegistered),
+        isRegistered: Boolean(entry?.isRegistered) || program.hasJoined,
         friendReferralCode: entry?.friendReferralCode || "",
         noFriendReferralCode: Boolean(entry?.noFriendReferralCode),
         referredByUserId: entry?.referredByUserId || "",
@@ -438,7 +747,17 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       };
     });
 
-    res.json({ options, studentReferralCode: String(studentReferralCode || "").trim() });
+    res.json({
+      options,
+      studentReferralCode: String(studentReferralCode || "").trim(),
+      programStatus: {
+        isRegistered: program.hasJoined,
+        joinedAt: program.joinedAt ? program.joinedAt.toISOString() : "",
+        allowedFreshMockCount,
+        usedFreshMockCount,
+        remainingFreshMockCount,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -740,15 +1059,23 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
     const gateMap = await loadActiveRegistrationGates([input.mockTestId]);
     const gate = gateMap.get(input.mockTestId);
     if (gate) {
-      const [entryMap, usedAttemptMap, paidAccess, referralBonusMap] = await Promise.all([
+      if (!isGatePublished(gate)) {
+        throw new AppError("This mock test is not published yet.", 403, "MOCK_NOT_PUBLISHED");
+      }
+
+      const [entryMap, usedAttemptMap, paidAccess, referralBonusMap, program, attemptedMockIds, userProfile, hasInProgressAttempt] =
+        await Promise.all([
         loadUserRegistrationEntries(req.user!.userId, [gate.id]),
         loadUsedAttemptCountMap(req.user!.userId, [input.mockTestId]),
         hasPaidAccessForMockTest(req.user!.userId, input.mockTestId),
         loadReferralBonusCountMap(req.user!.userId, [gate.id]),
+        loadUserRegistrationProgram(req.user!.userId),
+        loadAttemptedMockTestIds(req.user!.userId, [input.mockTestId]),
+        loadUserBasicProfile(req.user!.userId),
+        hasInProgressAttemptForMockTest(req.user!.userId, input.mockTestId),
       ]);
       const entry = entryMap.get(gate.id);
-      const isRegistered = Boolean(entry?.isRegistered);
-      if (!isRegistered) {
+      if (!program.hasJoined) {
         throw new AppError(
           "Please complete mock registration first.",
           403,
@@ -761,11 +1088,48 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
         );
       }
 
-      if (!paidAccess) {
+      if (!entry?.isRegistered) {
+        await ensureGateEntryForJoinedUser(req.user!.userId, gate, program, userProfile);
+      }
+
+      const hasAttempted = attemptedMockIds.has(input.mockTestId);
+      if (!hasAttempted && !hasInProgressAttempt) {
+        const allPublishedGates = (await loadAllActiveRegistrationGates()).filter((item) => isGatePublished(item));
+        const publishedMockIds = allPublishedGates.map((item) => item.mockTestId);
+        const allAttemptedPublishedMockIds = await loadAttemptedMockTestIds(req.user!.userId, publishedMockIds);
+        const allowedFreshMockCount = getAllowedFreshMockCount(program.joinedAt);
+        const usedFreshMockCount = allAttemptedPublishedMockIds.size;
+        if (usedFreshMockCount >= allowedFreshMockCount) {
+          throw new AppError(
+            "You can attempt only 2 new mocks per day. Try another new mock tomorrow.",
+            403,
+            "MOCK_DAILY_NEW_LIMIT_REACHED",
+            {
+              mockTestId: input.mockTestId,
+              allowedFreshMockCount,
+              usedFreshMockCount,
+              remainingFreshMockCount: Math.max(0, allowedFreshMockCount - usedFreshMockCount),
+            }
+          );
+        }
+      }
+
+      if (!paidAccess && !hasInProgressAttempt) {
         const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
         const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
         const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
         const usedAttempts = Math.max(0, usedAttemptMap.get(input.mockTestId) || 0);
+        if (hasAttempted && usedAttempts < totalFreeAttemptLimit && !input.confirmChanceUse) {
+          throw new AppError(
+            "You will use 1 chance for this attempt.",
+            409,
+            "MOCK_REATTEMPT_CONFIRM_REQUIRED",
+            {
+              mockTestId: input.mockTestId,
+              remainingAttempts: Math.max(0, totalFreeAttemptLimit - usedAttempts),
+            }
+          );
+        }
         if (usedAttempts >= totalFreeAttemptLimit) {
           throw new AppError(
             "Free attempt limit reached for this mock test. Please buy the mock to continue.",
