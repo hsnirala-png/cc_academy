@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const uploadThumbnailBtn = document.querySelector("#uploadThumbnailBtn");
   const thumbnailPreview = document.querySelector("#productThumbnailPreview");
   const attachmentTypeFilter = document.querySelector("#attachmentTypeFilter");
+  const attachmentUpcomingFilter = document.querySelector("#attachmentUpcomingFilter");
   const attachmentCourseFilter = document.querySelector("#attachmentCourseFilter");
   const attachmentSubjectFilter = document.querySelector("#attachmentSubjectFilter");
   const attachmentChapterFilter = document.querySelector("#attachmentChapterFilter");
@@ -91,9 +92,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectedDemoMockTestIds = new Set();
   const selectedLessonMockTestIds = new Set();
   const selectedMockMockTestIds = new Set();
+  const selectedDemoUpcomingMockTestIds = new Set();
+  const selectedLessonUpcomingMockTestIds = new Set();
+  const selectedMockUpcomingMockTestIds = new Set();
   const selectedComboProductIds = new Set();
   const attachmentFilters = {
     type: "DEMO",
+    upcoming: false,
     course: "",
     subject: "",
     chapter: "",
@@ -972,15 +977,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const normalizeAttachmentType = (value) => {
     const code = String(value || "").trim().toUpperCase();
-    if (code === "DEMO" || code === "LESSON" || code === "MOCK" || code === "UPCOMING") return code;
+    if (code === "DEMO" || code === "LESSON" || code === "MOCK") return code;
     return "MOCK";
   };
 
   const getSelectedSetByAttachmentType = (type) => {
     if (type === "DEMO") return selectedDemoMockTestIds;
-    if (type === "UPCOMING") return selectedLessonMockTestIds;
     if (type === "LESSON") return selectedLessonMockTestIds;
     return selectedMockMockTestIds;
+  };
+
+  const getUpcomingSetByAttachmentType = (type) => {
+    if (type === "DEMO") return selectedDemoUpcomingMockTestIds;
+    if (type === "LESSON") return selectedLessonUpcomingMockTestIds;
+    return selectedMockUpcomingMockTestIds;
+  };
+
+  const setAttachmentSelection = (type, testId, selected, isUpcoming = false) => {
+    const selectedSet = getSelectedSetByAttachmentType(type);
+    const upcomingSet = getUpcomingSetByAttachmentType(type);
+    if (!selected) {
+      selectedSet.delete(testId);
+      upcomingSet.delete(testId);
+      return;
+    }
+    selectedSet.add(testId);
+    if (isUpcoming) upcomingSet.add(testId);
+    else upcomingSet.delete(testId);
   };
 
   const toAttachmentTestRecord = (item) => ({
@@ -989,6 +1012,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     examType: String(item?.examType || "").trim(),
     subject: String(item?.subject || "").trim(),
     accessCode: normalizeAttachmentType(item?.accessCode),
+    isUpcoming: Boolean(item?.isUpcoming),
     languageMode: String(item?.languageMode || "").trim(),
     courseTitle: String(item?.courseTitle || "").trim(),
     chapterTitle: String(item?.chapterTitle || "").trim(),
@@ -997,7 +1021,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const getAttachmentTypeMatch = (type, accessCode) => {
     if (type === "DEMO") return accessCode === "DEMO";
-    if (type === "UPCOMING") return accessCode === "UPCOMING";
     if (type === "LESSON") return accessCode === "LESSON";
     return accessCode === "MOCK";
   };
@@ -1091,6 +1114,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pageStart = (attachmentFilters.page - 1) * ATTACHMENT_PAGE_SIZE;
     const pageRows = filtered.slice(pageStart, pageStart + ATTACHMENT_PAGE_SIZE);
     const selectedSet = getSelectedSetByAttachmentType(selectedType);
+    const upcomingSet = getUpcomingSetByAttachmentType(selectedType);
+    const filterUpcoming = Boolean(attachmentFilters.upcoming);
 
     if (attachmentListWrap instanceof HTMLElement) {
       if (!pageRows.length) {
@@ -1100,12 +1125,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         attachmentListWrap.innerHTML = pageRows
           .map((item) => {
             const inputId = `attachment-${selectedType.toLowerCase()}-${item.id}`;
+            const savedAsUpcoming = upcomingSet.has(item.id);
+            const isChecked = selectedSet.has(item.id) && savedAsUpcoming === filterUpcoming;
             const subtitle = [
               item.courseTitle ? `Course: ${item.courseTitle}` : "",
               item.chapterTitle ? `Chapter: ${item.chapterTitle}` : "",
               item.lessonTitle ? `Lesson: ${item.lessonTitle}` : "",
               item.subject ? `Subject: ${item.subject}` : "",
               item.languageMode ? `Language: ${item.languageMode}` : "",
+              selectedSet.has(item.id) ? `Current: ${savedAsUpcoming ? "Upcoming" : "Live"}` : "",
             ]
               .filter(Boolean)
               .join(" | ");
@@ -1117,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   type="checkbox"
                   data-attachment-test-id="${escapeHtml(item.id)}"
                   data-attachment-type="${escapeHtml(selectedType)}"
-                  ${selectedSet.has(item.id) ? "checked" : ""}
+                  ${isChecked ? "checked" : ""}
                 />
                 <span>
                   <strong class="attachment-item-title">${escapeHtml(item.title)}</strong>
@@ -1145,10 +1173,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedDemoMockTestIds.clear();
     selectedLessonMockTestIds.clear();
     selectedMockMockTestIds.clear();
+    selectedDemoUpcomingMockTestIds.clear();
+    selectedLessonUpcomingMockTestIds.clear();
+    selectedMockUpcomingMockTestIds.clear();
     const demoRows = Array.isArray(product?.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
     demoRows.forEach((item) => {
       const id = String(item?.id || "").trim();
-      if (id) selectedDemoMockTestIds.add(id);
+      if (!id) return;
+      setAttachmentSelection("DEMO", id, true, Boolean(item?.isUpcoming));
     });
 
     const linkedRows = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
@@ -1157,9 +1189,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!id) return;
       const code = normalizeAttachmentType(item?.accessCode);
       if (code === "LESSON") {
-        selectedLessonMockTestIds.add(id);
+        setAttachmentSelection("LESSON", id, true, Boolean(item?.isUpcoming));
       } else {
-        selectedMockMockTestIds.add(id);
+        setAttachmentSelection("MOCK", id, true, Boolean(item?.isUpcoming));
       }
     });
   };
@@ -1176,8 +1208,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedDemoMockTestIds.clear();
     selectedLessonMockTestIds.clear();
     selectedMockMockTestIds.clear();
+    selectedDemoUpcomingMockTestIds.clear();
+    selectedLessonUpcomingMockTestIds.clear();
+    selectedMockUpcomingMockTestIds.clear();
     selectedComboProductIds.clear();
     attachmentFilters.type = "DEMO";
+    attachmentFilters.upcoming = false;
     attachmentFilters.course = "";
     attachmentFilters.subject = "";
     attachmentFilters.chapter = "";
@@ -1185,6 +1221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachmentFilters.language = "";
     attachmentFilters.page = 1;
     if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentUpcomingFilter instanceof HTMLInputElement) attachmentUpcomingFilter.checked = false;
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
     renderAttachmentList();
     if (isComboInput instanceof HTMLInputElement) isComboInput.checked = false;
@@ -1241,8 +1278,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       accessDays: accessDaysInput?.value ? Number(accessDaysInput.value) : 0,
       validityLabel: validityInput?.value?.trim() || undefined,
       thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
-      mockTestIds: Array.from(new Set([...selectedLessonMockTestIds, ...selectedMockMockTestIds])),
-      demoMockTestIds: Array.from(selectedDemoMockTestIds),
+      mockTestLinks: [
+        ...Array.from(selectedLessonMockTestIds).map((mockTestId) => ({
+          mockTestId,
+          isUpcoming: selectedLessonUpcomingMockTestIds.has(mockTestId),
+        })),
+        ...Array.from(selectedMockMockTestIds).map((mockTestId) => ({
+          mockTestId,
+          isUpcoming: selectedMockUpcomingMockTestIds.has(mockTestId),
+        })),
+      ],
+      demoMockTestLinks: Array.from(selectedDemoMockTestIds).map((mockTestId) => ({
+        mockTestId,
+        isUpcoming: selectedDemoUpcomingMockTestIds.has(mockTestId),
+      })),
       comboProductIds: isComboInput?.checked ? Array.from(selectedComboProductIds) : [],
       addons: buildProductContentFromForm(),
       description: descriptionInput?.value?.trim() || undefined,
@@ -1679,6 +1728,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderComboProductList();
     syncAttachmentSelectionsFromProduct(product);
     attachmentFilters.type = "DEMO";
+    attachmentFilters.upcoming = false;
     attachmentFilters.page = 1;
     attachmentFilters.course = "";
     attachmentFilters.subject = "";
@@ -1686,6 +1736,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachmentFilters.title = "";
     attachmentFilters.language = "";
     if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentUpcomingFilter instanceof HTMLInputElement) attachmentUpcomingFilter.checked = false;
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
     renderAttachmentList();
 
@@ -1985,6 +2036,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (attachmentUpcomingFilter instanceof HTMLInputElement) {
+    attachmentUpcomingFilter.addEventListener("change", () => {
+      attachmentFilters.upcoming = attachmentUpcomingFilter.checked;
+      attachmentFilters.page = 1;
+      renderAttachmentList();
+    });
+  }
+
   if (attachmentCourseFilter instanceof HTMLSelectElement) {
     attachmentCourseFilter.addEventListener("change", () => {
       attachmentFilters.course = String(attachmentCourseFilter.value || "").trim();
@@ -2046,9 +2105,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const testId = String(target.getAttribute("data-attachment-test-id") || "").trim();
       const type = normalizeAttachmentType(target.getAttribute("data-attachment-type"));
       if (!testId) return;
-      const setRef = getSelectedSetByAttachmentType(type);
-      if (target.checked) setRef.add(testId);
-      else setRef.delete(testId);
+      setAttachmentSelection(type, testId, target.checked, attachmentFilters.upcoming);
+      renderAttachmentList();
     });
   }
 

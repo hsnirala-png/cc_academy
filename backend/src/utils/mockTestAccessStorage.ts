@@ -29,10 +29,19 @@ const ensureProductMockTestTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS \`ProductMockTest\` (
       \`productId\` VARCHAR(191) NOT NULL,
       \`mockTestId\` VARCHAR(191) NOT NULL,
+      \`isUpcoming\` BOOLEAN NOT NULL DEFAULT false,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       PRIMARY KEY (\`productId\`, \`mockTestId\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("ProductMockTest", "isUpcoming"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductMockTest` ADD COLUMN `isUpcoming` BOOLEAN NOT NULL DEFAULT false"
+      )
+      .catch(() => undefined);
+  }
 
   if (!(await hasIndex("ProductMockTest", "ProductMockTest_mockTestId_idx"))) {
     await prisma
@@ -64,10 +73,19 @@ const ensureProductDemoMockTestTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS \`ProductDemoMockTest\` (
       \`productId\` VARCHAR(191) NOT NULL,
       \`mockTestId\` VARCHAR(191) NOT NULL,
+      \`isUpcoming\` BOOLEAN NOT NULL DEFAULT false,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       PRIMARY KEY (\`productId\`, \`mockTestId\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("ProductDemoMockTest", "isUpcoming"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductDemoMockTest` ADD COLUMN `isUpcoming` BOOLEAN NOT NULL DEFAULT false"
+      )
+      .catch(() => undefined);
+  }
 
   if (!(await hasIndex("ProductDemoMockTest", "ProductDemoMockTest_mockTestId_idx"))) {
     await prisma

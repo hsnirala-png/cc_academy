@@ -106,6 +106,11 @@ const addonsSchema = z.preprocess((value) => {
   return value;
 }, z.union([z.array(z.string().trim().min(1).max(500)).max(60), structuredAddonsSchema]).optional());
 
+const productMockTestLinkSchema = z.object({
+  mockTestId: z.string().trim().min(1),
+  isUpcoming: optionalBoolean.default(false),
+});
+
 const createProductSchema = z.object({
   title: z.string().trim().min(2).max(180),
   examCategory: z.string().trim().min(2).max(120),
@@ -125,6 +130,8 @@ const createProductSchema = z.object({
   demoLessonUrl: optionalTrimmedString(1000),
   mockTestIds: z.array(z.string().trim().min(1)).max(200).optional(),
   demoMockTestIds: z.array(z.string().trim().min(1)).max(200).optional(),
+  mockTestLinks: z.array(productMockTestLinkSchema).max(200).optional(),
+  demoMockTestLinks: z.array(productMockTestLinkSchema).max(200).optional(),
   comboProductIds: z.array(z.string().trim().min(1)).optional(),
   isActive: optionalBoolean,
 });
@@ -267,6 +274,7 @@ type ProductMockTestRow = {
   mockTestSubject: string;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
+  isUpcoming: number | boolean;
 };
 
 type ProductDemoMockTestRow = {
@@ -277,6 +285,7 @@ type ProductDemoMockTestRow = {
   mockTestSubject: string;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
+  isUpcoming: number | boolean;
 };
 
 type ProductComboRow = {
@@ -389,11 +398,11 @@ const parseAddons = (value: unknown): ProductDetailsContent => {
   return normalizeProductDetailsContent(value);
 };
 
-const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" | "UPCOMING" => {
+const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   const normalized = String(value || "")
     .trim()
     .toUpperCase();
-  if (normalized === "MOCK" || normalized === "LESSON" || normalized === "UPCOMING") return normalized;
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
   return "DEMO";
 };
 
@@ -404,6 +413,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   subject: row.mockTestSubject,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
   isActive: toBoolean(row.mockTestIsActive),
+  isUpcoming: toBoolean(row.isUpcoming),
 });
 
 const toLinkedComboProduct = (row: ProductComboRow) => ({
@@ -426,6 +436,7 @@ const loadMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pmt.productId,
         pmt.mockTestId,
+        pmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -458,6 +469,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pdmt.productId,
         pdmt.mockTestId,
+        pdmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -708,10 +720,39 @@ const validateComboProductIds = async (
   return unique;
 };
 
-const syncProductMockTests = async (productId: string, mockTestIds: string[]) => {
-  const validIds = await validateMockTestIds(mockTestIds);
+type ProductMockTestLinkInput = {
+  mockTestId?: string | null;
+  isUpcoming?: boolean | null;
+};
+
+const normalizeMockTestLinks = (
+  links: ProductMockTestLinkInput[] | undefined,
+  fallbackIds: string[] | undefined
+): ProductMockTestLinkInput[] => {
+  const source = Array.isArray(links)
+    ? links
+    : Array.isArray(fallbackIds)
+      ? fallbackIds.map((mockTestId) => ({ mockTestId, isUpcoming: false }))
+      : [];
+  const deduped = new Map<string, ProductMockTestLinkInput>();
+  source.forEach((item) => {
+    const mockTestId = String(item?.mockTestId || "").trim();
+    if (!mockTestId) return;
+    deduped.set(mockTestId, {
+      mockTestId,
+      isUpcoming: Boolean(item?.isUpcoming),
+    });
+  });
+  return Array.from(deduped.values());
+};
+
+const syncProductMockTests = async (productId: string, mockTestLinks: ProductMockTestLinkInput[]) => {
+  const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
+  const upcomingMap = new Map(
+    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)])
+  );
 
   const baseMs = Date.now();
   for (let index = 0; index < validIds.length; index += 1) {
@@ -719,20 +760,24 @@ const syncProductMockTests = async (productId: string, mockTestIds: string[]) =>
     const createdAt = new Date(baseMs + index);
     await prisma.$executeRawUnsafe(
       `
-        INSERT INTO ProductMockTest (productId, mockTestId, createdAt)
-        VALUES (?, ?, ?)
+        INSERT INTO ProductMockTest (productId, mockTestId, isUpcoming, createdAt)
+        VALUES (?, ?, ?, ?)
       `,
       productId,
       mockTestId,
+      upcomingMap.get(mockTestId) ? 1 : 0,
       createdAt
     );
   }
 };
 
-const syncProductDemoMockTests = async (productId: string, mockTestIds: string[]) => {
-  const validIds = await validateMockTestIds(mockTestIds);
+const syncProductDemoMockTests = async (productId: string, mockTestLinks: ProductMockTestLinkInput[]) => {
+  const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductDemoMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
+  const upcomingMap = new Map(
+    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)])
+  );
 
   const baseMs = Date.now();
   for (let index = 0; index < validIds.length; index += 1) {
@@ -740,11 +785,12 @@ const syncProductDemoMockTests = async (productId: string, mockTestIds: string[]
     const createdAt = new Date(baseMs + index);
     await prisma.$executeRawUnsafe(
       `
-        INSERT INTO ProductDemoMockTest (productId, mockTestId, createdAt)
-        VALUES (?, ?, ?)
+        INSERT INTO ProductDemoMockTest (productId, mockTestId, isUpcoming, createdAt)
+        VALUES (?, ?, ?, ?)
       `,
       productId,
       mockTestId,
+      upcomingMap.get(mockTestId) ? 1 : 0,
       createdAt
     );
   }
@@ -988,6 +1034,8 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
 
     const productId = randomUUID();
     const now = new Date();
+    const mockTestLinks = normalizeMockTestLinks(input.mockTestLinks, input.mockTestIds);
+    const demoMockTestLinks = normalizeMockTestLinks(input.demoMockTestLinks, input.demoMockTestIds);
 
     await prisma.$executeRawUnsafe(
       `
@@ -1040,8 +1088,8 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
       now
     );
     await Promise.all([
-      syncProductMockTests(productId, input.mockTestIds || []),
-      syncProductDemoMockTests(productId, input.demoMockTestIds || []),
+      syncProductMockTests(productId, mockTestLinks),
+      syncProductDemoMockTests(productId, demoMockTestLinks),
       syncProductComboItems(productId, input.comboProductIds || []),
     ]);
 
@@ -1103,6 +1151,14 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
     const nextSalePrice = updates.salePrice ?? toNumber(existing.salePrice);
     const nextReferralDiscountAmount =
       updates.referralDiscountAmount ?? toNumber(existing.referralDiscountAmount);
+    const nextMockTestLinks =
+      updates.mockTestLinks !== undefined || updates.mockTestIds !== undefined
+        ? normalizeMockTestLinks(updates.mockTestLinks, updates.mockTestIds)
+        : undefined;
+    const nextDemoMockTestLinks =
+      updates.demoMockTestLinks !== undefined || updates.demoMockTestIds !== undefined
+        ? normalizeMockTestLinks(updates.demoMockTestLinks, updates.demoMockTestIds)
+        : undefined;
     assertPricing(nextListPrice, nextSalePrice);
     assertReferralDiscount(nextSalePrice, nextReferralDiscountAmount);
 
@@ -1141,11 +1197,11 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
       setValue("demoLessonUrl", updates.demoLessonUrl ?? null);
     }
     if (updates.isActive !== undefined) setValue("isActive", updates.isActive ? 1 : 0);
-    if (updates.mockTestIds !== undefined) {
-      await syncProductMockTests(productId, updates.mockTestIds || []);
+    if (nextMockTestLinks !== undefined) {
+      await syncProductMockTests(productId, nextMockTestLinks);
     }
-    if (updates.demoMockTestIds !== undefined) {
-      await syncProductDemoMockTests(productId, updates.demoMockTestIds || []);
+    if (nextDemoMockTestLinks !== undefined) {
+      await syncProductDemoMockTests(productId, nextDemoMockTestLinks);
     }
     if (updates.comboProductIds !== undefined) {
       await syncProductComboItems(productId, updates.comboProductIds || []);

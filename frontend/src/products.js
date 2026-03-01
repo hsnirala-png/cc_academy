@@ -1344,7 +1344,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         .toUpperCase();
     const resolveLinkedAccessPriority = (rawValue) => {
       const normalized = normalizeLinkedAccessCode(rawValue);
-      if (normalized === "UPCOMING") return 0;
       if (
         normalized === "DEMO" ||
         normalized.startsWith("DEMO ") ||
@@ -1378,13 +1377,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const demoId = String(demoTest?.id || "").trim();
       if (!demoId) return;
       const demoTitle = String(demoTest.title || "Demo Lesson");
+      const isUpcomingDemo = Boolean(demoTest?.isUpcoming);
       items.push({
         productId,
         id: demoId,
         title: normalizeLearningDisplayTitle(demoTitle),
-        accessType: "DEMO",
-        unlocked: true,
-        action: "OPEN_LESSON_OR_ATTEMPT",
+        accessType: isUpcomingDemo ? "UPCOMING" : "DEMO",
+        unlocked: !isUpcomingDemo,
+        disabled: isUpcomingDemo,
+        action: isUpcomingDemo ? "UPCOMING" : "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
         subjectTabKey: resolveSubjectTabKey(demoTest.subject, demoTitle),
       });
@@ -1408,7 +1409,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const accessCode = String(item?.accessCode || "MOCK")
         .trim()
         .toUpperCase();
-      const isUpcomingAccess = accessCode === "UPCOMING";
+      const isUpcomingAccess = Boolean(item?.isUpcoming);
       const isDemoAccess =
         accessCode === "DEMO" ||
         accessCode.startsWith("DEMO ") ||

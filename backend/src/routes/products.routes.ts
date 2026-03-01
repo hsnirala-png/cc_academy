@@ -74,6 +74,7 @@ type ProductMockTestRow = {
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
+  isUpcoming: number | boolean;
 };
 
 type ProductChapterSubSubjectRow = {
@@ -175,11 +176,11 @@ const toBoolean = (value: unknown): boolean => {
   return Number(value) === 1;
 };
 
-const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" | "UPCOMING" => {
+const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   const normalized = String(value || "")
     .trim()
     .toUpperCase();
-  if (normalized === "MOCK" || normalized === "LESSON" || normalized === "UPCOMING") return normalized;
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
   return "DEMO";
 };
 
@@ -273,6 +274,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
+  isUpcoming: toBoolean(row.isUpcoming),
 });
 
 const normalizeLookupText = (value: unknown) =>
@@ -333,6 +335,7 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pmt.productId,
         pmt.mockTestId,
+        pmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -375,6 +378,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         linked.productId,
         linked.mockTestId,
+        linked.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -396,11 +400,13 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
         SELECT
           rawLinks.productId,
           rawLinks.mockTestId,
+          MAX(rawLinks.isUpcoming) AS isUpcoming,
           MIN(rawLinks.linkCreatedAt) AS linkCreatedAt
         FROM (
           SELECT
             pdmt.productId,
             pdmt.mockTestId,
+            pdmt.isUpcoming AS isUpcoming,
             pdmt.createdAt AS linkCreatedAt
           FROM ProductDemoMockTest pdmt
           WHERE pdmt.productId IN (${placeholders})
@@ -410,6 +416,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
           SELECT
             pmt.productId,
             pmt.mockTestId,
+            pmt.isUpcoming AS isUpcoming,
             pmt.createdAt AS linkCreatedAt
           FROM ProductMockTest pmt
           WHERE pmt.productId IN (${placeholders})

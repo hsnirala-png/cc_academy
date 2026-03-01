@@ -2027,7 +2027,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     DEMO: "DEMO",
     MOCK: "MOCK",
     LESSON: "LESSON",
-    UPCOMING: "UPCOMING",
   };
   const DEFAULT_QUESTION_SECTIONS = [
     "Comprehension",

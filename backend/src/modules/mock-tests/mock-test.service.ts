@@ -19,7 +19,7 @@ import { calculateAttemptScore } from "./mock-test.scoring";
 import { getRequiredQuestionCount, validateMockTestRule } from "./mock-test.rules";
 
 type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI";
-type AccessCode = "DEMO" | "MOCK" | "LESSON" | "UPCOMING";
+type AccessCode = "DEMO" | "MOCK" | "LESSON";
 type MockTestSectionType =
   | "COMPREHENSION"
   | "GENERAL_MCQ"
@@ -62,7 +62,7 @@ const normalizeAccessCode = (value: unknown): AccessCode => {
   const normalized = String(value || "")
     .trim()
     .toUpperCase();
-  if (normalized === "MOCK" || normalized === "LESSON" || normalized === "UPCOMING") return normalized;
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
   return "DEMO";
 };
 
@@ -220,7 +220,6 @@ const canUserAccessMockTest = (
   productEntitled: Set<string>,
   lessonEntitled: Set<string>
 ) => {
-  if (accessCode === "UPCOMING") return false;
   if (accessCode === "DEMO") return true;
   if (demoEntitled.has(mockTestId)) return true;
   if (productEntitled.has(mockTestId)) return true;
@@ -627,9 +626,6 @@ const fetchAttemptDetails = async (attemptId: string) => {
 const assertStudentCanAccessMockTest = async (userId: string, mockTestId: string) => {
   const accessMap = await loadMockTestAccessMap([mockTestId]);
   const accessCode = accessMap.get(mockTestId) || "DEMO";
-  if (accessCode === "UPCOMING") {
-    throw new AppError("This lesson is marked as Upcoming and is not available yet.", 403);
-  }
   if (accessCode === "DEMO") return accessCode;
 
   const [demoEntitledSet, productEntitledSet, lessonEntitledSet] = await Promise.all([
@@ -1646,7 +1642,6 @@ export const mockTestService = {
         : Promise.resolve([] as Array<{ courseId: string }>),
     ]);
     const accessCode = accessMap.get(mockTestId) || "DEMO";
-    if (accessCode === "UPCOMING") return null;
     const isDemoLessonContext = accessCode === "DEMO" || demoEntitledSet.has(mockTestId);
     const enrolledCourseIds = new Set(enrollments.map((row) => row.courseId));
     const isProductLessonContext = productEntitledSet.has(mockTestId);

@@ -43,7 +43,7 @@ export const adminCreateMockTestSchema = z.object({
   ]),
   streamChoice: optionalStreamChoiceSchema,
   languageMode: optionalLanguageModeSchema,
-  accessCode: z.enum(["DEMO", "MOCK", "LESSON", "UPCOMING"]).optional(),
+  accessCode: z.enum(["DEMO", "MOCK", "LESSON"]).optional(),
   isActive: z.boolean().optional(),
 });
 
