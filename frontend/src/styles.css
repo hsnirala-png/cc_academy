@@ -606,6 +606,33 @@ h1 {
   font-weight: 600;
 }
 
+.field-hint {
+  min-height: 1rem;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.field-hint.success {
+  color: #2b8a3e;
+}
+
+.field-hint.error {
+  color: #e03131;
+}
+
+.field-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.field-inline-check input {
+  width: 16px;
+  height: 16px;
+}
+
 .field input,
 .field select {
   border: 1px solid #dbdbdb;
@@ -3050,6 +3077,13 @@ h1 {
 
 .product-play-icon-btn.is-locked {
   opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.product-play-icon-btn.is-upcoming {
+  opacity: 0.5;
+  background: #94a3b8;
+  border-color: #94a3b8;
   cursor: not-allowed;
 }
 

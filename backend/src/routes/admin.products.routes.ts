@@ -389,11 +389,11 @@ const parseAddons = (value: unknown): ProductDetailsContent => {
   return normalizeProductDetailsContent(value);
 };
 
-const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
+const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" | "UPCOMING" => {
   const normalized = String(value || "")
     .trim()
     .toUpperCase();
-  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
+  if (normalized === "MOCK" || normalized === "LESSON" || normalized === "UPCOMING") return normalized;
   return "DEMO";
 };
 

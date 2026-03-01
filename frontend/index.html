@@ -296,6 +296,27 @@
           </div>
 
           <div class="field">
+            <label for="studentSponsorStudentId">Sponsor Student ID</label>
+            <input
+              id="studentSponsorStudentId"
+              name="sponsorStudentId"
+              type="text"
+              placeholder="Enter sponsor student ID"
+              autocomplete="off"
+            />
+            <p id="studentSponsorStudentIdHint" class="field-hint"></p>
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
+            <label class="field-inline-check" for="studentNoSponsorStudentId">
+              <input id="studentNoSponsorStudentId" name="noSponsorStudentId" type="checkbox" />
+              <span>I have no refer student ID</span>
+            </label>
+            <small class="error-text"></small>
+          </div>
+
+          <div class="field">
             <label for="studentState">State</label>
             <select id="studentState" name="state">
               <option value="">Select state</option>

@@ -20,6 +20,7 @@ const registerSchema = z.object({
   city: z.string().trim().min(2, "City is required").max(120),
   password: z.string().min(8, "Password must be at least 8 characters"),
   referralCode: z.string().trim().min(4).max(40).optional(),
+  noReferralStudentId: z.coerce.boolean().optional(),
 });
 
 const mockReferralRegisterSchema = z.object({
@@ -28,6 +29,7 @@ const mockReferralRegisterSchema = z.object({
   email: z.string().trim().email("Enter a valid email").max(191),
   password: z.string().min(8, "Password must be at least 8 characters").max(191),
   referralCode: z.string().trim().min(4).max(64).optional(),
+  noReferralStudentId: z.coerce.boolean().optional(),
   mockTestId: z.string().trim().min(1).max(191).optional(),
 });
 
@@ -38,6 +40,10 @@ const loginSchema = z.object({
 
 const checkMobileSchema = z.object({
   mobile: z.string().regex(/^\d{10,15}$/, "Mobile must be 10-15 digits"),
+});
+
+const sponsorLookupSchema = z.object({
+  referralCode: z.string().trim().min(4).max(64),
 });
 
 const safeEnsureReferralCode = async (userId: string): Promise<string | null> => {
@@ -78,6 +84,11 @@ type MockRegistrationGateRow = {
 authRouter.post("/register", async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
+
+    if (input.referralCode && input.noReferralStudentId) {
+      res.status(400).json({ message: "Use sponsor student ID or no refer student ID, not both." });
+      return;
+    }
 
     const existingUser = await prisma.user.findFirst({
       where: { mobile: input.mobile },
@@ -149,6 +160,11 @@ authRouter.post("/register", async (req, res, next) => {
 authRouter.post("/mock-referral-register", async (req, res, next) => {
   try {
     const input = mockReferralRegisterSchema.parse(req.body);
+
+    if (input.referralCode && input.noReferralStudentId) {
+      res.status(400).json({ message: "Use sponsor student ID or no refer student ID, not both." });
+      return;
+    }
 
     await ensureMockTestRegistrationStorageReady();
 
@@ -255,6 +271,7 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
       const effectiveTimeSlot = String(gate.scheduledTimeSlot || "09:00").trim() || "09:00";
       const preferredDate = new Date(`${effectiveDate}T00:00:00.000Z`);
       const friendReferralCode = String(input.referralCode || "").trim().toUpperCase();
+      const noReferralStudentId = Boolean(input.noReferralStudentId) || !friendReferralCode;
       const now = new Date();
 
       await prisma.$executeRawUnsafe(
@@ -273,7 +290,7 @@ authRouter.post("/mock-referral-register", async (req, res, next) => {
         input.email.trim(),
         friendReferralCode || null,
         referrerId,
-        friendReferralCode ? 0 : 1,
+        noReferralStudentId ? 1 : 0,
         gateExamType,
         derivedGateStreamChoice || null,
         preferredDate,
@@ -385,6 +402,40 @@ authRouter.post("/check-mobile", async (req, res, next) => {
     res.json({
       exists: Boolean(existingUser),
       role: existingUser?.role || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.get("/sponsor-lookup", async (req, res, next) => {
+  try {
+    const input = sponsorLookupSchema.parse(req.query);
+    const referralCode = String(input.referralCode || "").trim().toUpperCase();
+    const sponsorId = await getReferrerIdByCode(referralCode);
+
+    if (!sponsorId) {
+      res.status(404).json({ valid: false, message: "Wrong sponsor student ID." });
+      return;
+    }
+
+    const sponsor = await prisma.user.findUnique({
+      where: { id: sponsorId },
+      select: { id: true, name: true, role: true },
+    });
+
+    if (!sponsor || sponsor.role !== Role.STUDENT) {
+      res.status(404).json({ valid: false, message: "Wrong sponsor student ID." });
+      return;
+    }
+
+    res.json({
+      valid: true,
+      sponsor: {
+        id: sponsor.id,
+        name: sponsor.name,
+        referralCode,
+      },
     });
   } catch (error) {
     next(error);

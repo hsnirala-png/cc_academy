@@ -937,6 +937,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginMessage = document.querySelector("#loginMessage");
   const stateSelect = document.querySelector("#studentState");
   const citySelect = document.querySelector("#studentCity");
+  const sponsorStudentIdInput = document.querySelector("#studentSponsorStudentId");
+  const noSponsorStudentIdInput = document.querySelector("#studentNoSponsorStudentId");
+  const sponsorStudentIdHint = document.querySelector("#studentSponsorStudentIdHint");
   const citySelectWrap = document.querySelector("#citySelectWrap");
   const manualStateWrap = document.querySelector("#manualStateWrap");
   const manualCityWrap = document.querySelector("#manualCityWrap");
@@ -945,10 +948,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const passwordToggles = document.querySelectorAll(".password-toggle");
   const loginToMockSignupLink = document.querySelector("#loginToMockSignup");
   const pageParams = new URLSearchParams(window.location.search);
-  const referralCodeFromLink = String(pageParams.get("ref") || "").trim();
+  const referralCodeFromLink = String(pageParams.get("ref") || "").trim().toUpperCase();
   const authModeFromLink = String(pageParams.get("auth") || "").trim().toLowerCase();
   let pendingAuthRedirect = String(pageParams.get("redirect") || "").trim().toLowerCase();
   let lockedRegisterMobile = "";
+  let sponsorLookupRequestId = 0;
+  let sponsorLookupState = {
+    code: "",
+    valid: false,
+    name: "",
+  };
 
   const navigateByCourse = (courseValue) => {
     if (!courseValue) return;
@@ -992,6 +1001,13 @@ document.addEventListener("DOMContentLoaded", () => {
     el.textContent = text || "";
     el.classList.remove("error", "success");
     if (type) el.classList.add(type);
+  };
+
+  const setSponsorHint = (text, type = "") => {
+    if (!(sponsorStudentIdHint instanceof HTMLElement)) return;
+    sponsorStudentIdHint.textContent = text || "";
+    sponsorStudentIdHint.classList.remove("error", "success");
+    if (type) sponsorStudentIdHint.classList.add(type);
   };
 
   const setEnrollMessage = (text, type) => {
@@ -1178,6 +1194,83 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const syncSponsorStudentIdState = () => {
+    if (!(sponsorStudentIdInput instanceof HTMLInputElement)) return;
+    const hasNoSponsorId =
+      noSponsorStudentIdInput instanceof HTMLInputElement && noSponsorStudentIdInput.checked;
+
+    sponsorStudentIdInput.disabled = hasNoSponsorId;
+    if (hasNoSponsorId) {
+      sponsorStudentIdInput.value = "";
+      sponsorLookupState = { code: "", valid: false, name: "" };
+      setSponsorHint("");
+      if (noSponsorStudentIdInput instanceof HTMLInputElement) {
+        noSponsorStudentIdInput.disabled = false;
+      }
+      return;
+    }
+
+    if (!sponsorStudentIdInput.value.trim() && referralCodeFromLink) {
+      sponsorStudentIdInput.value = referralCodeFromLink;
+    }
+
+    if (noSponsorStudentIdInput instanceof HTMLInputElement) {
+      noSponsorStudentIdInput.disabled = Boolean(
+        sponsorStudentIdInput.value.trim() && sponsorLookupState.valid
+      );
+    }
+  };
+
+  const lookupSponsorStudentId = async () => {
+    if (!(sponsorStudentIdInput instanceof HTMLInputElement)) return;
+    const sponsorStudentId = String(sponsorStudentIdInput.value || "").trim().toUpperCase();
+    sponsorStudentIdInput.value = sponsorStudentId;
+
+    sponsorLookupRequestId += 1;
+    const requestId = sponsorLookupRequestId;
+
+    if (!sponsorStudentId) {
+      sponsorLookupState = { code: "", valid: false, name: "" };
+      setSponsorHint("");
+      syncSponsorStudentIdState();
+      return;
+    }
+
+    setSponsorHint("Checking sponsor student ID...");
+    try {
+      const response = await fetch(
+        `${API_BASE}/auth/sponsor-lookup?referralCode=${encodeURIComponent(sponsorStudentId)}`,
+        { headers: { Accept: "application/json" } }
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (requestId !== sponsorLookupRequestId) return;
+
+      if (!response.ok || !data?.valid) {
+        sponsorLookupState = { code: sponsorStudentId, valid: false, name: "" };
+        setSponsorHint(data?.message || "Wrong sponsor student ID.", "error");
+        syncSponsorStudentIdState();
+        return;
+      }
+
+      sponsorLookupState = {
+        code: sponsorStudentId,
+        valid: true,
+        name: String(data?.sponsor?.name || "").trim(),
+      };
+      setSponsorHint(
+        sponsorLookupState.name ? `Sponsor: ${sponsorLookupState.name}` : "Sponsor student ID verified.",
+        "success"
+      );
+      syncSponsorStudentIdState();
+    } catch {
+      if (requestId !== sponsorLookupRequestId) return;
+      sponsorLookupState = { code: sponsorStudentId, valid: false, name: "" };
+      setSponsorHint("Unable to verify sponsor student ID right now.", "error");
+      syncSponsorStudentIdState();
+    }
+  };
+
   const validateRegister = () => {
     if (!registerForm) return null;
     clearFormErrors(registerForm);
@@ -1189,10 +1282,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const cityInput = registerForm.querySelector("#studentCity");
     const passwordInput = registerForm.querySelector("#studentPassword");
     const confirmPasswordInput = registerForm.querySelector("#studentConfirmPassword");
+    const sponsorInput = registerForm.querySelector("#studentSponsorStudentId");
+    const noSponsorInput = registerForm.querySelector("#studentNoSponsorStudentId");
 
     let state = stateInput.value.trim();
     let city = cityInput.value.trim();
+    const sponsorStudentId = String(sponsorInput?.value || "").trim().toUpperCase();
+    const hasNoSponsorStudentId = Boolean(noSponsorInput?.checked);
     let hasError = false;
+
+    if (sponsorInput instanceof HTMLInputElement) {
+      sponsorInput.value = sponsorStudentId;
+    }
 
     if (!nameInput.value.trim()) {
       setFieldError(nameInput, "Name is required");
@@ -1201,6 +1302,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!/^\d{10,15}$/.test(mobileInput.value.trim())) {
       setFieldError(mobileInput, "Enter valid mobile (10-15 digits)");
+      hasError = true;
+    }
+
+    if (!sponsorStudentId && !hasNoSponsorStudentId) {
+      setFieldError(sponsorInput, "Enter sponsor student ID or select the checkbox");
+      hasError = true;
+    }
+
+    if (sponsorStudentId && hasNoSponsorStudentId) {
+      setFieldError(sponsorInput, "Use sponsor student ID or the checkbox, not both");
+      hasError = true;
+    }
+
+    if (
+      sponsorStudentId &&
+      (!sponsorLookupState.valid || sponsorLookupState.code !== sponsorStudentId)
+    ) {
+      setFieldError(sponsorInput, "Wrong sponsor student ID");
       hasError = true;
     }
 
@@ -1252,7 +1371,8 @@ document.addEventListener("DOMContentLoaded", () => {
       state,
       city,
       password: passwordInput.value,
-      referralCode: referralCodeFromLink || undefined,
+      referralCode: sponsorStudentId || undefined,
+      noReferralStudentId: hasNoSponsorStudentId || undefined,
     };
   };
 
@@ -1585,6 +1705,33 @@ document.addEventListener("DOMContentLoaded", () => {
   if (citySelect) citySelect.addEventListener("change", handleCityChange);
   if (registerForm) registerForm.addEventListener("submit", handleRegisterSubmit);
   if (loginForm) loginForm.addEventListener("submit", handleLoginSubmit);
+  if (sponsorStudentIdInput instanceof HTMLInputElement) {
+    sponsorStudentIdInput.addEventListener("input", () => {
+      sponsorStudentIdInput.value = sponsorStudentIdInput.value.trim().toUpperCase();
+      if (
+        noSponsorStudentIdInput instanceof HTMLInputElement &&
+        sponsorStudentIdInput.value &&
+        sponsorLookupState.valid
+      ) {
+        noSponsorStudentIdInput.checked = false;
+      }
+      sponsorLookupState = {
+        code: sponsorStudentIdInput.value,
+        valid: false,
+        name: "",
+      };
+      syncSponsorStudentIdState();
+      void lookupSponsorStudentId();
+    });
+    sponsorStudentIdInput.addEventListener("blur", () => {
+      void lookupSponsorStudentId();
+    });
+  }
+  if (noSponsorStudentIdInput instanceof HTMLInputElement) {
+    noSponsorStudentIdInput.addEventListener("change", () => {
+      syncSponsorStudentIdState();
+    });
+  }
 
   if (authModal) {
     authModal.addEventListener("click", (event) => {
@@ -1623,6 +1770,11 @@ document.addEventListener("DOMContentLoaded", () => {
       toggle.setAttribute("title", showing ? "Show password" : "Hide password");
     });
   });
+
+  syncSponsorStudentIdState();
+  if (referralCodeFromLink) {
+    void lookupSponsorStudentId();
+  }
 
   if (authModeFromLink === "login") {
     syncMockSignupLink();

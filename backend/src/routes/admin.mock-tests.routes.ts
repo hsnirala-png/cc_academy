@@ -71,7 +71,7 @@ const toDateOnly = (value: string | Date | null | undefined): string => {
   return date.toISOString().slice(0, 10);
 };
 
-const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "MOCK" | "LESSON"> => {
+const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "MOCK" | "LESSON" | "UPCOMING"> => {
   const rows = (await prisma.$queryRawUnsafe(
     `
       SELECT
@@ -91,7 +91,7 @@ const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "
   const code = String(rows[0]?.accessCode || "DEMO")
     .trim()
     .toUpperCase();
-  if (code === "MOCK" || code === "LESSON") return code;
+  if (code === "MOCK" || code === "LESSON" || code === "UPCOMING") return code;
   return "DEMO";
 };
 

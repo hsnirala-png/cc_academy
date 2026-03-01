@@ -972,12 +972,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const normalizeAttachmentType = (value) => {
     const code = String(value || "").trim().toUpperCase();
-    if (code === "DEMO" || code === "LESSON" || code === "MOCK") return code;
+    if (code === "DEMO" || code === "LESSON" || code === "MOCK" || code === "UPCOMING") return code;
     return "MOCK";
   };
 
   const getSelectedSetByAttachmentType = (type) => {
     if (type === "DEMO") return selectedDemoMockTestIds;
+    if (type === "UPCOMING") return selectedLessonMockTestIds;
     if (type === "LESSON") return selectedLessonMockTestIds;
     return selectedMockMockTestIds;
   };
@@ -996,6 +997,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const getAttachmentTypeMatch = (type, accessCode) => {
     if (type === "DEMO") return accessCode === "DEMO";
+    if (type === "UPCOMING") return accessCode === "UPCOMING";
     if (type === "LESSON") return accessCode === "LESSON";
     return accessCode === "MOCK";
   };

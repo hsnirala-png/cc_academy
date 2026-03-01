@@ -1274,13 +1274,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         const action = item.action || "ATTEMPT_TEST";
         const playAction = isPlayAction(action);
         const isLocked = !item.unlocked;
+        const isDisabled = Boolean(item.disabled);
         const buttonClass = item.unlocked
-          ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}`
-          : "btn-secondary product-play-icon-btn is-locked";
+          ? `btn-secondary${playAction ? " product-play-icon-btn" : ""}${isDisabled ? " is-upcoming" : ""}`
+          : `btn-secondary product-play-icon-btn is-locked${isDisabled ? " is-upcoming" : ""}`;
         const buttonLabel =
-          playAction || isLocked
+          playAction || isLocked || isDisabled
             ? '<span aria-hidden="true">&#9654;</span><span class="sr-only">Play lesson</span>'
             : escapeHtml(item.ctaLabel || "Start");
+        const buttonTitle = isDisabled
+          ? "Upcoming lesson. It will unlock after admin updates its status."
+          : isLocked
+            ? "Buy premium product to unlock."
+            : "";
 
         return `
           <tr>
@@ -1297,8 +1303,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 data-learning-product-id="${escapeHtml(item.productId || "")}"
                 data-start-learning-action="${escapeHtml(action)}"
                 data-learning-locked="${isLocked ? "true" : "false"}"
-                ${playAction || isLocked ? 'aria-label="Play lesson"' : ""}
-                ${isLocked ? 'aria-disabled="true" title="Buy premium product to unlock."' : ""}
+                data-learning-disabled="${isDisabled ? "true" : "false"}"
+                ${playAction || isLocked || isDisabled ? 'aria-label="Play lesson"' : ""}
+                ${isLocked || isDisabled ? `aria-disabled="true" title="${escapeHtml(buttonTitle)}"` : ""}
+                ${isDisabled ? "disabled" : ""}
               >
                 ${buttonLabel}
               </button>
@@ -1336,6 +1344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         .toUpperCase();
     const resolveLinkedAccessPriority = (rawValue) => {
       const normalized = normalizeLinkedAccessCode(rawValue);
+      if (normalized === "UPCOMING") return 0;
       if (
         normalized === "DEMO" ||
         normalized.startsWith("DEMO ") ||
@@ -1399,6 +1408,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const accessCode = String(item?.accessCode || "MOCK")
         .trim()
         .toUpperCase();
+      const isUpcomingAccess = accessCode === "UPCOMING";
       const isDemoAccess =
         accessCode === "DEMO" ||
         accessCode.startsWith("DEMO ") ||
@@ -1411,9 +1421,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         productId,
         id: String(item?.id || "").trim(),
         title: normalizeLearningDisplayTitle(itemTitle),
-        accessType: isDemoAccess ? "DEMO" : "PREMIUM",
-        unlocked: isDemoAccess ? true : premiumUnlocked,
-        action: shouldOpenLessonFirst ? "OPEN_LESSON_OR_ATTEMPT" : "ATTEMPT_TEST",
+        accessType: isUpcomingAccess ? "UPCOMING" : accessCode || (isDemoAccess ? "DEMO" : "MOCK"),
+        unlocked: isUpcomingAccess ? false : isDemoAccess ? true : premiumUnlocked,
+        disabled: isUpcomingAccess,
+        action: isUpcomingAccess
+          ? "UPCOMING"
+          : shouldOpenLessonFirst
+            ? "OPEN_LESSON_OR_ATTEMPT"
+            : "ATTEMPT_TEST",
         ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
         subjectTabKey: resolveSubjectTabKey(item?.subject, itemTitle),
       });
@@ -2169,7 +2184,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             learningButton.getAttribute("data-start-learning-action") || "ATTEMPT_TEST"
           ).trim();
           const locked = learningButton.getAttribute("data-learning-locked") === "true";
+          const disabled = learningButton.getAttribute("data-learning-disabled") === "true";
           if (!learningId) return;
+          if (disabled) return;
           if (locked) {
             navigateToProductCheckout(learningProductId);
             return;
