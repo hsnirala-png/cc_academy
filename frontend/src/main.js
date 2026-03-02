@@ -951,6 +951,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const referralCodeFromLink = String(pageParams.get("ref") || "").trim().toUpperCase();
   const authModeFromLink = String(pageParams.get("auth") || "").trim().toLowerCase();
   let pendingAuthRedirect = String(pageParams.get("redirect") || "").trim().toLowerCase();
+  const pendingAuthRedirectPath = String(pageParams.get("redirectPath") || pageParams.get("next") || "").trim();
   let lockedRegisterMobile = "";
   let sponsorLookupRequestId = 0;
   let sponsorLookupState = {
@@ -1038,6 +1039,16 @@ document.addEventListener("DOMContentLoaded", () => {
       ],
       "Admin Panel"
       );
+    }
+    if (pendingAuthRedirectPath) {
+      try {
+        const nextUrl = new URL(pendingAuthRedirectPath, window.location.origin);
+        if (nextUrl.origin === window.location.origin) {
+          return `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+        }
+      } catch {
+        // Fall back to existing post-auth routing.
+      }
     }
     if (pendingAuthRedirect === "mock" || pendingAuthRedirect === "mock-test-registration") {
       return resolvePagePath([

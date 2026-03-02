@@ -256,6 +256,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedProductId: "",
   };
 
+  const redirectGuestToLogin = () => {
+    const currentUrl = `${window.location.pathname || "/products.html"}${window.location.search || ""}${window.location.hash || ""}`;
+    const params = new URLSearchParams();
+    params.set("auth", "login");
+    params.set("redirectPath", currentUrl);
+    window.location.href = `./index.html?${params.toString()}`;
+  };
+
   const escapeHtml = (value) =>
     String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -1022,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const openCheckoutModal = async (productId, seededReferralCode = "") => {
     const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
-      window.location.href = "./index.html?auth=login";
+      redirectGuestToLogin();
       return;
     }
     const product = state.products.find((item) => String(item?.id || "").trim() === String(productId || "").trim());
@@ -1051,7 +1059,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const startLearningAttempt = async (mockTestId, { autoplay = false } = {}) => {
     const { token } = getAuthState();
     if (!token) {
-      window.location.href = "./index.html#home";
+      redirectGuestToLogin();
       return;
     }
 
@@ -1097,7 +1105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const openLessonByMockTestContext = async (mockTestId, { autoplay = false } = {}) => {
     const { token } = getAuthState();
     if (!token) {
-      window.location.href = "./index.html#home";
+      redirectGuestToLogin();
       return false;
     }
 
@@ -2225,6 +2233,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (learningAction === "ATTEMPT_TEST") {
+              const auth = getAuthState();
+              if (!auth.token) {
+                redirectGuestToLogin();
+                return;
+              }
               setMessage("Opening mock page...");
               window.location.href = createMockRegistrationHref(learningId);
               return;
