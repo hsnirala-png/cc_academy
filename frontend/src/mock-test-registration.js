@@ -315,7 +315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
     syncGuestRegisterHeaderCta();
-    setStatus("Complete the popup registration to continue to your student dashboard.");
+    setStatus("");
     openGuestRegisterModal();
   };
 
