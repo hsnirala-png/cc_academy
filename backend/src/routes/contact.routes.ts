@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../utils/prisma";
+import { verifyToken } from "../utils/jwt";
 
 export const contactRouter = Router();
 
@@ -28,11 +29,26 @@ const summarizeMessage = (value: string) => {
   return `${normalized.slice(0, 177)}...`;
 };
 
+const resolveOptionalStudentId = (authHeader: unknown): string | null => {
+  const rawHeader = String(authHeader || "").trim();
+  if (!rawHeader.startsWith("Bearer ")) return null;
+  const token = rawHeader.slice("Bearer ".length).trim();
+  if (!token) return null;
+  try {
+    const payload = verifyToken(token);
+    return payload.role === "STUDENT" ? payload.userId : null;
+  } catch {
+    return null;
+  }
+};
+
 contactRouter.post("/contact", async (req, res, next) => {
   try {
     const input = createContactSchema.parse(req.body || {});
+    const studentUserId = resolveOptionalStudentId(req.headers.authorization);
     const conversation = await prisma.contactConversation.create({
       data: {
+        ...(studentUserId ? { user: { connect: { id: studentUserId } } } : {}),
         name: input.name,
         email: input.email,
         sourcePage: input.sourcePage,

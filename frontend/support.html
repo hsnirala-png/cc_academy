@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Support | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=55" />
+  </head>
+  <body class="products-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./profile.html" data-label="Profile" aria-label="Profile">Profile</a>
+          <a href="./lessons.html" data-label="Lessons" aria-label="Lessons">Lessons</a>
+          <a href="./my-subscriptions.html" data-label="My Subscriptions" aria-label="My Subscriptions">My Subscriptions</a>
+          <a href="./mock-tests.html" data-label="Mock Tests" aria-label="Mock Tests">Mock Tests</a>
+          <a href="./mock-history.html" data-label="History" aria-label="History">History</a>
+          <a href="./support.html" data-label="Support" aria-label="Support">Support</a>
+          <a href="./refer-earn.html" data-label="Refer & Earn" aria-label="Refer & Earn">Refer & Earn</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="support-wrap">
+      <section class="support-hero">
+        <div>
+          <h1>Support Chat</h1>
+          <p>Start a query, view admin replies, and continue the same thread from your student account.</p>
+        </div>
+        <div class="support-hero-stats">
+          <article class="overview-card">
+            <p class="overview-k">Open</p>
+            <p id="supportOverviewOpen" class="overview-v">0</p>
+          </article>
+          <article class="overview-card">
+            <p class="overview-k">Replied</p>
+            <p id="supportOverviewReplied" class="overview-v">0</p>
+          </article>
+          <article class="overview-card">
+            <p class="overview-k">Closed</p>
+            <p id="supportOverviewClosed" class="overview-v">0</p>
+          </article>
+        </div>
+      </section>
+
+      <p id="supportPageMessage" class="form-message"></p>
+
+      <section class="support-layout">
+        <aside class="support-sidebar">
+          <section class="support-card">
+            <div class="support-card-head">
+              <h2>New Query</h2>
+              <p>Start a fresh conversation with admin.</p>
+            </div>
+            <form id="supportCreateForm" class="support-new-form">
+              <div class="admin-field">
+                <label for="supportSubject">Subject</label>
+                <input id="supportSubject" maxlength="191" placeholder="Payment issue / Lesson access / Test query" required />
+              </div>
+              <div class="admin-field">
+                <label for="supportInitialMessage">Message</label>
+                <textarea id="supportInitialMessage" rows="5" placeholder="Explain your query clearly." required></textarea>
+              </div>
+              <button id="supportCreateBtn" class="btn-primary" type="submit">Start Conversation</button>
+              <p id="supportCreateMessage" class="form-message"></p>
+            </form>
+          </section>
+
+          <section class="support-card">
+            <div class="support-card-head">
+              <h2>Your Conversations</h2>
+              <button id="supportRefreshBtn" class="btn-ghost" type="button">Refresh</button>
+            </div>
+            <div id="supportConversationList" class="contact-query-list"></div>
+          </section>
+        </aside>
+
+        <section class="support-main">
+          <section class="support-card support-thread-card">
+            <div id="supportThreadEmpty" class="contact-thread-empty">
+              Select a conversation from the left or start a new query.
+            </div>
+
+            <div id="supportThreadContent" class="contact-thread-content hidden">
+              <div class="contact-thread-header">
+                <div>
+                  <h2 id="supportThreadTitle">-</h2>
+                  <p id="supportThreadMeta" class="admin-subtitle">-</p>
+                </div>
+                <span id="supportThreadStatus" class="chip inactive">Open</span>
+              </div>
+
+              <div id="supportMessagesList" class="contact-messages-list"></div>
+
+              <form id="supportReplyForm" class="contact-reply-form">
+                <div class="admin-field">
+                  <label for="supportReplyMessage">Send Message</label>
+                  <textarea id="supportReplyMessage" rows="5" placeholder="Write your reply here." required></textarea>
+                </div>
+                <div class="support-reply-footer">
+                  <p class="admin-subtitle">Your new message will reopen the thread for admin if it was closed.</p>
+                  <button id="supportReplyBtn" class="btn-primary" type="submit">Send Reply</button>
+                </div>
+                <p id="supportReplyMessageText" class="form-message"></p>
+              </form>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/support.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

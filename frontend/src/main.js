@@ -1229,6 +1229,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const submitBtn = contactForm.querySelector('button[type="submit"]');
     const originalLabel = submitBtn instanceof HTMLButtonElement ? submitBtn.textContent : "";
+    const studentAuth = readStudentAuth();
 
     try {
       if (submitBtn instanceof HTMLButtonElement) {
@@ -1240,6 +1241,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(studentAuth?.token ? { Authorization: `Bearer ${studentAuth.token}` } : {}),
         },
         body: JSON.stringify(payload),
       });

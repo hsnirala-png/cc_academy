@@ -75,6 +75,11 @@
       className: "nav-link-history",
     },
     {
+      href: resolveRoute("support"),
+      label: "Support",
+      className: "nav-link-support",
+    },
+    {
       href: resolveRoute("refer-earn"),
       label: "Refer & Earn",
       className: "nav-link-refer",
@@ -95,6 +100,8 @@
       "/mock-tests.html",
       "/mock-history",
       "/mock-history.html",
+      "/support",
+      "/support.html",
       "/mock-attempt",
       "/mock-attempt.html",
       "/mock-test-registration",

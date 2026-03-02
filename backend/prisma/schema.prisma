@@ -114,6 +114,7 @@ model User {
   referralTransactions ReferralTransaction[]
   referralWithdrawals ReferralWithdrawal[]
   productPurchases ProductPurchase[]
+  contactConversations ContactConversation[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -465,6 +466,7 @@ model ReferralTransaction {
 
 model ContactConversation {
   id                String                    @id @default(cuid())
+  userId            String?
   name              String
   email             String
   sourcePage        String?
@@ -473,12 +475,14 @@ model ContactConversation {
   latestMessageText String?                   @db.VarChar(500)
   repliedAt         DateTime?
   closedAt          DateTime?
+  user              User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
   messages          ContactMessage[]
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
 
   @@index([status, updatedAt])
   @@index([email, createdAt])
+  @@index([userId, updatedAt])
 }
 
 model ContactMessage {
