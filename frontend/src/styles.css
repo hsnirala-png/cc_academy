@@ -3706,17 +3706,21 @@ h1 {
 }
 
 .mock-guest-inline-cta {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
   margin-top: -0.2rem;
   margin-bottom: 0.65rem;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .mock-guest-inline-cta .dash-k {
   margin: 0;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .mock-guest-register-link {
@@ -3725,7 +3729,8 @@ h1 {
   padding: 0;
   color: #0f53bd;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: inherit;
+  line-height: inherit;
   cursor: pointer;
 }
 
