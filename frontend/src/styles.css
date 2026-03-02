@@ -3705,16 +3705,17 @@ h1 {
   color: var(--muted);
 }
 
-.mock-guest-banner-cta {
+.mock-guest-inline-cta {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin-top: 0.45rem;
+  margin-top: -0.2rem;
+  margin-bottom: 0.65rem;
 }
 
-.mock-guest-banner-cta .dash-k {
+.mock-guest-inline-cta .dash-k {
   margin: 0;
 }
 
