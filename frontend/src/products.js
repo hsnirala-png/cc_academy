@@ -1813,7 +1813,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `
       <div class="product-card-stack">
         <article class="product-card product-card-wide">
-        ${product.validityLabel ? `<span class="product-badge">${escapeHtml(product.validityLabel)}</span>` : ""}
         <div class="product-main">
           <img
             class="product-thumb"
