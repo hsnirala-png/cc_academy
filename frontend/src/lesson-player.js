@@ -370,6 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     transcriptScrollVirtual: 0,
     autoPlayRequested: /^(1|true|yes)$/i.test(getQueryParam("autoplay")),
     autoPlayAttempted: false,
+    assessmentLaunchInFlight: false,
   };
 
   const setStatus = (text, type) => {
@@ -587,6 +588,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     const canStart = hasAssessment;
     startAssessmentBtn.classList.toggle("hidden", !canStart);
     startAssessmentBtn.disabled = !canStart;
+  };
+
+  const launchAssessment = async ({ skipConfirm = false } = {}) => {
+    const testId = state.lesson?.assessmentTestId;
+    if (!testId || state.assessmentLaunchInFlight) return;
+
+    if (!skipConfirm) {
+      const confirmed = await showConfirmDialog({
+        title: "Confirm",
+        message: "Are you sure you want to close transcript?",
+        cancelText: "Cancel",
+        confirmText: "Confirm",
+      });
+      if (!confirmed) return;
+    }
+
+    try {
+      state.assessmentLaunchInFlight = true;
+      setStatus(
+        state.returnAttemptId ? "Returning to test..." : "Starting test attempt..."
+      );
+      const lessonStartMs = getPlayerCurrentMs();
+      await startAssessmentAttempt(token, testId, {
+        lessonStartMs,
+        autoplay: true,
+        existingAttemptId: state.returnAttemptId || "",
+        attemptQuestionIndex: state.returnAttemptQuestionIndex,
+      });
+    } catch (error) {
+      state.assessmentLaunchInFlight = false;
+      const message = error instanceof Error ? error.message : "Unable to start assessment.";
+      setStatus(message, "error");
+    }
   };
 
   const applyMode = (mode, { preservePosition = true } = {}) => {
@@ -816,6 +850,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       toggleAssessmentButton();
       setProgressText();
       saveProgress({ force: true, completed: true }).catch(() => {});
+      if (state.lesson?.assessmentTestId) {
+        setStatus("Lesson completed. Opening test...", "success");
+        window.setTimeout(() => {
+          launchAssessment({ skipConfirm: true }).catch(() => {});
+        }, 120);
+        return;
+      }
       setStatus("Lesson completed.", "success");
     };
 
@@ -1008,29 +1049,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (startAssessmentBtn) {
     startAssessmentBtn.addEventListener("click", async () => {
-      const testId = state.lesson?.assessmentTestId;
-      if (!testId) return;
-      const confirmed = await showConfirmDialog({
-        title: "Confirm",
-        message: "Are you sure you want to close transcript?",
-        cancelText: "Cancel",
-        confirmText: "Confirm",
-      });
-      if (!confirmed) return;
-
-      try {
-        setStatus(state.returnAttemptId ? "Returning to test..." : "Starting test attempt...");
-        const lessonStartMs = getPlayerCurrentMs();
-        await startAssessmentAttempt(token, testId, {
-          lessonStartMs,
-          autoplay: true,
-          existingAttemptId: state.returnAttemptId || "",
-          attemptQuestionIndex: state.returnAttemptQuestionIndex,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to start assessment.";
-        setStatus(message, "error");
-      }
+      await launchAssessment();
     });
   }
 
