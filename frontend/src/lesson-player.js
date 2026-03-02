@@ -777,6 +777,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (!state.isCompleted && getCompletionRuleHit()) {
         state.isCompleted = true;
+        toggleAssessmentButton();
+        setProgressText();
         saveProgress({ force: true, completed: true }).catch(() => {});
         setStatus("Lesson completed.", "success");
       }
@@ -811,6 +813,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const handleEnded = () => {
       stopSyncLoop();
       state.isCompleted = true;
+      toggleAssessmentButton();
+      setProgressText();
       saveProgress({ force: true, completed: true }).catch(() => {});
       setStatus("Lesson completed.", "success");
     };
