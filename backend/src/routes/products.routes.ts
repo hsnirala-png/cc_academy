@@ -74,6 +74,7 @@ type ProductMockTestRow = {
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
+  mockTestHasTranscriptFlow?: number | boolean | null;
   isUpcoming: number | boolean;
 };
 
@@ -274,6 +275,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
+  hasTranscriptFlow: toBoolean(row.mockTestHasTranscriptFlow),
   isUpcoming: toBoolean(row.isUpcoming),
 });
 
@@ -352,7 +354,20 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
           FROM Lesson lesson
           WHERE lesson.assessmentTestId = mt.id
           LIMIT 1
-        ) AS mockTestHasLessonContext
+        ) AS mockTestHasLessonContext,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+            AND (
+              NULLIF(TRIM(COALESCE(lesson.transcriptText, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.transcriptUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.audioUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.videoUrl, '')), '') IS NOT NULL
+              OR lesson.transcriptSegments IS NOT NULL
+            )
+          LIMIT 1
+        ) AS mockTestHasTranscriptFlow
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       WHERE pmt.productId IN (${placeholders})
@@ -395,7 +410,20 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
           FROM Lesson lesson
           WHERE lesson.assessmentTestId = mt.id
           LIMIT 1
-        ) AS mockTestHasLessonContext
+        ) AS mockTestHasLessonContext,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+            AND (
+              NULLIF(TRIM(COALESCE(lesson.transcriptText, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.transcriptUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.audioUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.videoUrl, '')), '') IS NOT NULL
+              OR lesson.transcriptSegments IS NOT NULL
+            )
+          LIMIT 1
+        ) AS mockTestHasTranscriptFlow
       FROM (
         SELECT
           rawLinks.productId,

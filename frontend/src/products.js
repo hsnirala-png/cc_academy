@@ -1142,6 +1142,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const lessonId = String(payload?.lesson?.id || "").trim();
     if (!lessonId) return false;
+    const lessonHasTranscriptFlow = Boolean(
+      String(payload?.lesson?.transcriptUrl || "").trim() ||
+        String(payload?.lesson?.transcriptText || "").trim() ||
+        String(payload?.lesson?.audioUrl || "").trim() ||
+        String(payload?.lesson?.videoUrl || "").trim() ||
+        (Array.isArray(payload?.lesson?.transcriptSegments) && payload.lesson.transcriptSegments.length)
+    );
+    if (!lessonHasTranscriptFlow) {
+      await startLearningAttempt(mockTestId, { autoplay: true });
+      return true;
+    }
 
     const chapterId = String(payload?.lesson?.chapter?.id || "").trim();
     const lessonPagePath = await resolveLessonPlayerPagePath();
@@ -1405,12 +1416,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const uniquePremium = Array.from(premiumById.values());
 
     const items = [];
+    const hasTranscriptFlow = (item) => Boolean(item?.hasTranscriptFlow);
 
     demoItemsFromLink.forEach((demoTest) => {
       const demoId = String(demoTest?.id || "").trim();
       if (!demoId) return;
       const demoTitle = String(demoTest.title || "Demo Lesson");
       const isUpcomingDemo = Boolean(demoTest?.isUpcoming);
+      const directAttemptOnly = Boolean(demoTest?.hasLessonContext) && !hasTranscriptFlow(demoTest);
       items.push({
         productId,
         id: demoId,
@@ -1418,9 +1431,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         accessType: isUpcomingDemo ? "UPCOMING" : "DEMO",
         unlocked: !isUpcomingDemo,
         disabled: isUpcomingDemo,
-        action: isUpcomingDemo ? "UPCOMING" : "OPEN_LESSON_OR_ATTEMPT",
+        action: isUpcomingDemo ? "UPCOMING" : directAttemptOnly ? "DIRECT_ATTEMPT" : "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
-        subjectTabKey: resolveSubjectTabKey(demoTest.subject, demoTitle),
+        subjectTabKey: directAttemptOnly ? "" : resolveSubjectTabKey(demoTest.subject, demoTitle),
+        directAttemptOnly,
       });
     });
 
@@ -1450,6 +1464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const isLessonLinked = accessCode === "LESSON";
       const hasLessonContext = Boolean(item?.hasLessonContext);
       const shouldOpenLessonFirst = isLessonLinked || hasLessonContext;
+      const directAttemptOnly = shouldOpenLessonFirst && !hasTranscriptFlow(item);
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
@@ -1460,11 +1475,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         disabled: isUpcomingAccess,
         action: isUpcomingAccess
           ? "UPCOMING"
-          : shouldOpenLessonFirst
+          : directAttemptOnly
+            ? "DIRECT_ATTEMPT"
+            : shouldOpenLessonFirst
             ? "OPEN_LESSON_OR_ATTEMPT"
             : "ATTEMPT_TEST",
         ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
-        subjectTabKey: resolveSubjectTabKey(item?.subject, itemTitle),
+        subjectTabKey: directAttemptOnly ? "" : resolveSubjectTabKey(item?.subject, itemTitle),
+        directAttemptOnly,
       });
     });
 
@@ -1476,7 +1494,30 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `<p class="product-learn-empty">Demo lesson is not configured for this product yet.</p>`;
     }
     const isPlayAction = (action) =>
-      action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT";
+      action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT" || action === "DIRECT_ATTEMPT";
+    const hideSubjectTabs = items.every((item) => Boolean(item?.directAttemptOnly));
+    if (hideSubjectTabs) {
+      const sortedItems = [...items].sort((left, right) => {
+        const leftUpcoming = String(left?.accessType || "").trim().toUpperCase() === "UPCOMING";
+        const rightUpcoming = String(right?.accessType || "").trim().toUpperCase() === "UPCOMING";
+        if (leftUpcoming === rightUpcoming) return 0;
+        return leftUpcoming ? 1 : -1;
+      });
+      return `
+        <div class="product-learn-table-wrap">
+          <table class="product-learn-table">
+            <thead>
+              <tr>
+                <th>Sr No</th>
+                <th>Name Of Product</th>
+                <th>Start Learning</th>
+              </tr>
+            </thead>
+            <tbody>${renderLearningTableRows(sortedItems, isPlayAction)}</tbody>
+          </table>
+        </div>
+      `;
+    }
     const tabs = resolveTocTabsForProduct(product, items);
     const grouped = new Map(tabs.map((tabCode) => [tabCode, []]));
     const fallbackTab = tabs[0];
@@ -2247,6 +2288,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               setMessage("Opening lesson...");
               const opened = await openLessonByMockTestContext(learningId, { autoplay: true });
               if (opened) return;
+            }
+
+            if (learningAction === "DIRECT_ATTEMPT") {
+              setMessage("Starting test attempt...");
+              await startLearningAttempt(learningId, { autoplay: true });
+              return;
             }
 
             if (learningAction === "ATTEMPT_TEST") {

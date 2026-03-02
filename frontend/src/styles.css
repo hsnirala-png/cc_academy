@@ -4594,6 +4594,8 @@ h1 {
   align-items: flex-start;
   gap: 0.55rem;
   cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .attempt-option input {

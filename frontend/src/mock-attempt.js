@@ -53,6 +53,8 @@ const getMockTestsPagePath = (role = "STUDENT") => {
 
 const getMockAttemptPagePath = () => getPagePath("mock-attempt");
 const getLessonPlayerPagePath = () => getPagePath("lesson-player");
+const LEFT_LANGUAGE_LABEL = "PBI Language";
+const RIGHT_LANGUAGE_LABEL = "ENG Language";
 
 const TRANSCRIPT_SEGMENT_DURATION_MS = 3000;
 
@@ -342,6 +344,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const leftPanel = questionPanelsEl.querySelector('[data-language-panel="left"]');
     const rightPanel = questionPanelsEl.querySelector('[data-language-panel="right"]');
     if (!(leftPanel instanceof HTMLElement) || !(rightPanel instanceof HTMLElement)) return;
+    const leftLabel = leftPanel.querySelector(".attempt-language-label");
+    const rightLabel = rightPanel.querySelector(".attempt-language-label");
+    if (leftLabel instanceof HTMLElement) leftLabel.textContent = LEFT_LANGUAGE_LABEL;
+    if (rightLabel instanceof HTMLElement) rightLabel.textContent = RIGHT_LANGUAGE_LABEL;
 
     leftPanel.classList.toggle("attempt-question-panel-half", bilingual);
     rightPanel.classList.toggle("attempt-question-panel-half", bilingual);
@@ -361,6 +367,50 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     leftPanel.classList.toggle("hidden", state.currentBilingualView !== "left");
     rightPanel.classList.toggle("hidden", state.currentBilingualView !== "right");
+  };
+
+  const syncBilingualDesktopAlignment = () => {
+    if (!(questionPanelsEl instanceof HTMLElement)) return;
+    const isDesktop = window.matchMedia("(min-width: 769px)").matches;
+    const leftPanel = questionPanelsEl.querySelector('[data-language-panel="left"]');
+    const rightPanel = questionPanelsEl.querySelector('[data-language-panel="right"]');
+    if (!(leftPanel instanceof HTMLElement) || !(rightPanel instanceof HTMLElement)) return;
+    const leftQuestion = leftPanel.querySelector(".attempt-question-text");
+    const rightQuestion = rightPanel.querySelector(".attempt-question-text");
+    const leftOptions = Array.from(leftPanel.querySelectorAll(".attempt-option"));
+    const rightOptions = Array.from(rightPanel.querySelectorAll(".attempt-option"));
+
+    [leftQuestion, rightQuestion, ...leftOptions, ...rightOptions].forEach((node) => {
+      if (node instanceof HTMLElement) {
+        node.style.minHeight = "";
+      }
+    });
+
+    if (
+      !isDesktop ||
+      leftPanel.classList.contains("hidden") ||
+      rightPanel.classList.contains("hidden") ||
+      !leftOptions.length ||
+      !rightOptions.length
+    ) {
+      return;
+    }
+
+    if (leftQuestion instanceof HTMLElement && rightQuestion instanceof HTMLElement) {
+      const questionHeight = Math.max(leftQuestion.offsetHeight, rightQuestion.offsetHeight);
+      leftQuestion.style.minHeight = `${questionHeight}px`;
+      rightQuestion.style.minHeight = `${questionHeight}px`;
+    }
+
+    const optionPairs = Math.min(leftOptions.length, rightOptions.length);
+    for (let index = 0; index < optionPairs; index += 1) {
+      const leftOption = leftOptions[index];
+      const rightOption = rightOptions[index];
+      if (!(leftOption instanceof HTMLElement) || !(rightOption instanceof HTMLElement)) continue;
+      const optionHeight = Math.max(leftOption.offsetHeight, rightOption.offsetHeight);
+      leftOption.style.minHeight = `${optionHeight}px`;
+      rightOption.style.minHeight = `${optionHeight}px`;
+    }
   };
 
   const getCurrentLessonPlayer = () => {
@@ -924,6 +974,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       optionsFormAltEl.innerHTML = isBilingualQuestion(current) ? buildAttemptOptionsMarkup(current, { useAlt: true }) : "";
     }
     syncAttemptLanguageUi(current);
+    syncBilingualDesktopAlignment();
 
     if (prevBtn) prevBtn.disabled = state.currentIndex <= 0 || (!state.isSubmitted && isTimeOver());
     persistAttemptQuestionState();
@@ -1241,6 +1292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const current = state.questions[state.currentIndex];
       if (!current) return;
       syncAttemptLanguageUi(current);
+      syncBilingualDesktopAlignment();
     });
   }
 
@@ -1248,6 +1300,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const current = state.questions[state.currentIndex];
     if (!current) return;
     syncAttemptLanguageUi(current);
+    syncBilingualDesktopAlignment();
   });
 
   if (prevBtn) {

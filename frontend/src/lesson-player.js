@@ -207,6 +207,15 @@ const buildOverviewLink = (chapterId, role = "STUDENT") => {
   return getPagePath("dashboard");
 };
 
+const lessonHasTranscriptFlow = (lesson) =>
+  Boolean(
+    String(lesson?.transcriptUrl || "").trim() ||
+      String(lesson?.transcriptText || "").trim() ||
+      String(lesson?.audioUrl || "").trim() ||
+      String(lesson?.videoUrl || "").trim() ||
+      (Array.isArray(lesson?.transcriptSegments) && lesson.transcriptSegments.length)
+  );
+
 const normalizeScrollSpeed = (value) => {
   const next = String(value || "").trim().toLowerCase();
   if (
@@ -960,6 +969,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.completionThresholdSec = Number(payload?.completionThresholdSec || 0);
     state.lastSavedPositionMs = Math.max(0, Number(payload?.lesson?.progress?.lastPositionSec || 0) * 1000);
     state.isCompleted = Boolean(payload?.lesson?.progress?.completed);
+
+    if (state.lesson?.assessmentTestId && !lessonHasTranscriptFlow(state.lesson)) {
+      toggleAssessmentButton();
+      setStatus("Starting test attempt...");
+      await launchAssessment({ skipConfirm: true });
+      return;
+    }
 
     if (!state.chapterId && payload?.chapter?.id) {
       state.chapterId = payload.chapter.id;
