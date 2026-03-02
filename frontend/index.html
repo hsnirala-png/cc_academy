@@ -237,7 +237,7 @@
           <p>Send a message and we'll get back to you within 24 hours.</p>
         </div>
 
-        <form class="contact-form card" action="/api/contact" method="POST">
+        <form id="contactForm" class="contact-form card" action="/api/contact" method="POST">
           <label for="name">Name</label>
           <input id="name" name="name" type="text" placeholder="Your name" required />
 
@@ -259,6 +259,7 @@
             required
           ></textarea>
 
+          <p id="contactMessage" class="form-message"></p>
           <button type="submit" class="btn-primary">Send Message</button>
         </form>
       </section>
@@ -397,7 +398,7 @@
         </form>
       </div>
     </div>
-    <script src="./src/main.js?v=24"></script>
+    <script src="./src/main.js?v=25"></script>
     <script src="./src/global-nav.js?v=9"></script>
   </body>
 </html>

@@ -9,6 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const homeLatestProductsGrid = document.querySelector("#homeLatestProductsGrid");
   const homeLatestProductsMessage = document.querySelector("#homeLatestProductsMessage");
   const homeLatestViewAllLink = document.querySelector(".home-latest-view-all");
+  const contactForm = document.querySelector("#contactForm");
+  const contactMessage = document.querySelector("#contactMessage");
   const navLinks = document.querySelectorAll(".nav-links a");
   if (!header) return;
 
@@ -47,6 +49,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const role = String(auth?.user?.role || "").trim().toUpperCase();
     if (!auth?.token || role !== "STUDENT") return null;
     return auth;
+  };
+
+  const setContactMessage = (text, type = "") => {
+    if (!(contactMessage instanceof HTMLElement)) return;
+    contactMessage.textContent = text || "";
+    contactMessage.classList.remove("error", "success");
+    if (type) contactMessage.classList.add(type);
   };
 
   const homeSliderState = {
@@ -1205,6 +1214,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const handleContactFormSubmit = async (event) => {
+    event.preventDefault();
+    if (!(contactForm instanceof HTMLFormElement)) return;
+
+    const formData = new FormData(contactForm);
+    const payload = {
+      name: String(formData.get("name") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      message: String(formData.get("message") || "").trim(),
+      sourcePage: "landing",
+      sourceUrl: window.location.href,
+    };
+
+    const submitBtn = contactForm.querySelector('button[type="submit"]');
+    const originalLabel = submitBtn instanceof HTMLButtonElement ? submitBtn.textContent : "";
+
+    try {
+      if (submitBtn instanceof HTMLButtonElement) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Sending...";
+      }
+      setContactMessage("Sending your message...");
+      const response = await fetch(`${API_BASE}/api/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.message || "Unable to send your message right now.");
+      }
+      contactForm.reset();
+      setContactMessage(result?.message || "Your message has been sent to the admin team.", "success");
+    } catch (error) {
+      setContactMessage(error?.message || "Unable to send your message right now.", "error");
+    } finally {
+      if (submitBtn instanceof HTMLButtonElement) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel || "Send Message";
+      }
+    }
+  };
+
   const syncSponsorStudentIdState = () => {
     if (!(sponsorStudentIdInput instanceof HTMLInputElement)) return;
     const hasNoSponsorId =
@@ -1714,6 +1768,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (showLoginTab) showLoginTab.addEventListener("click", activateLogin);
   if (stateSelect) stateSelect.addEventListener("change", handleStateChange);
   if (citySelect) citySelect.addEventListener("change", handleCityChange);
+  if (contactForm instanceof HTMLFormElement) contactForm.addEventListener("submit", handleContactFormSubmit);
   if (registerForm) registerForm.addEventListener("submit", handleRegisterSubmit);
   if (loginForm) loginForm.addEventListener("submit", handleLoginSubmit);
   if (sponsorStudentIdInput instanceof HTMLInputElement) {

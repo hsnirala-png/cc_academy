@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Contact Queries</title>
+    <link rel="stylesheet" href="./src/styles.css?v=54" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-mock-registrations.html">Mock Registration</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link active" href="./admin-contact-queries.html">Contact Queries</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Contact Queries</h1>
+              <p class="admin-subtitle">Review landing-page messages and manage internal replies for future bot integrations.</p>
+            </div>
+          </section>
+
+          <p id="contactQueriesMessage" class="form-message"></p>
+
+          <section class="contact-query-overview">
+            <article class="overview-card">
+              <p class="overview-k">Open</p>
+              <p id="contactOverviewOpen" class="overview-v">0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Replied</p>
+              <p id="contactOverviewReplied" class="overview-v">0</p>
+            </article>
+            <article class="overview-card">
+              <p class="overview-k">Closed</p>
+              <p id="contactOverviewClosed" class="overview-v">0</p>
+            </article>
+          </section>
+
+          <section class="admin-panel">
+            <div class="contact-query-toolbar">
+              <div class="admin-field">
+                <label for="contactQuerySearch">Search</label>
+                <input id="contactQuerySearch" placeholder="Name, email, message..." />
+              </div>
+              <div class="admin-field">
+                <label for="contactQueryStatusFilter">Status</label>
+                <select id="contactQueryStatusFilter">
+                  <option value="">All</option>
+                  <option value="OPEN">Open</option>
+                  <option value="REPLIED">Replied</option>
+                  <option value="CLOSED">Closed</option>
+                </select>
+              </div>
+              <div class="admin-actions">
+                <button id="contactQuerySearchBtn" class="btn-primary" type="button">Apply</button>
+                <button id="contactQueryRefreshBtn" class="btn-ghost" type="button">Refresh</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="contact-query-layout">
+            <section class="admin-panel contact-query-list-panel">
+              <div class="admin-header-row" style="margin-bottom: 0.75rem">
+                <h2 style="margin: 0">Inbox</h2>
+              </div>
+              <div id="contactQueryList" class="contact-query-list"></div>
+            </section>
+
+            <section class="admin-panel contact-query-thread-panel">
+              <div id="contactThreadEmptyState" class="contact-thread-empty">
+                Select a query to view the conversation.
+              </div>
+
+              <div id="contactThreadContent" class="contact-thread-content hidden">
+                <div class="contact-thread-header">
+                  <div>
+                    <h2 id="contactThreadName">-</h2>
+                    <p id="contactThreadMeta" class="admin-subtitle">-</p>
+                  </div>
+                  <div class="contact-thread-status">
+                    <span id="contactThreadStatusChip" class="chip inactive">Open</span>
+                    <button id="contactThreadStatusSaveBtn" class="btn-ghost" type="button">Save Status</button>
+                  </div>
+                </div>
+
+                <div class="contact-thread-controls">
+                  <div class="admin-field">
+                    <label for="contactThreadStatusSelect">Conversation Status</label>
+                    <select id="contactThreadStatusSelect">
+                      <option value="OPEN">Open</option>
+                      <option value="REPLIED">Replied</option>
+                      <option value="CLOSED">Closed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div id="contactMessagesList" class="contact-messages-list"></div>
+
+                <form id="contactReplyForm" class="contact-reply-form">
+                  <div class="admin-field">
+                    <label for="contactReplyMessage">Reply / Internal Chat Entry</label>
+                    <textarea
+                      id="contactReplyMessage"
+                      rows="5"
+                      placeholder="Type your reply. This will be stored in the conversation thread for later WhatsApp/Telegram integration."
+                      required
+                    ></textarea>
+                  </div>
+                  <div class="contact-reply-actions">
+                    <div class="admin-field">
+                      <label for="contactReplyStatus">Status After Reply</label>
+                      <select id="contactReplyStatus">
+                        <option value="REPLIED">Replied</option>
+                        <option value="OPEN">Keep Open</option>
+                        <option value="CLOSED">Close Conversation</option>
+                      </select>
+                    </div>
+                    <button id="contactReplySubmitBtn" class="btn-primary" type="submit">Save Reply</button>
+                  </div>
+                  <p id="contactReplyMessageText" class="form-message"></p>
+                </form>
+              </div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-contact-queries.js?v=1"></script>
+  </body>
+</html>
