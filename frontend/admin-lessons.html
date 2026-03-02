@@ -571,6 +571,12 @@
                     placeholder="Add transcript/passage for this section."
                   ></textarea>
                 </div>
+                <div class="admin-actions" style="margin-top: -0.2rem">
+                  <label class="admin-field inline-check" style="margin: 0">
+                    <input id="lessonSectionSkipTranscript" type="checkbox" />
+                    <span>Skip transcript for this section</span>
+                  </label>
+                </div>
                 <div class="admin-actions">
                   <button id="lessonSectionSaveBtn" class="btn-secondary" type="submit">Save Section</button>
                   <button id="lessonSectionCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
@@ -607,25 +613,47 @@
                   <input id="lessonQuestionEquationText" placeholder="e.g. 6CO2 + 6H2O -> C6H12O6 + 6O2" />
                 </div>
                 <div class="admin-field">
-                  <label for="lessonQuestionText">Question Text</label>
+                  <label for="lessonQuestionText">Left Question Text</label>
                   <textarea id="lessonQuestionText" required></textarea>
+                </div>
+                <div id="lessonQuestionBilingualWrap" class="admin-field hidden">
+                  <label for="lessonQuestionTextAlt">Right Question Text</label>
+                  <textarea id="lessonQuestionTextAlt"></textarea>
                 </div>
                 <div class="admin-form-row">
                   <div class="admin-field">
-                    <label for="lessonOptionA">Option A</label>
+                    <label for="lessonOptionA">Left Option A</label>
                     <input id="lessonOptionA" required />
                   </div>
                   <div class="admin-field">
-                    <label for="lessonOptionB">Option B</label>
+                    <label for="lessonOptionB">Left Option B</label>
                     <input id="lessonOptionB" required />
                   </div>
                   <div class="admin-field">
-                    <label for="lessonOptionC">Option C</label>
+                    <label for="lessonOptionC">Left Option C</label>
                     <input id="lessonOptionC" required />
                   </div>
                   <div class="admin-field">
-                    <label for="lessonOptionD">Option D</label>
+                    <label for="lessonOptionD">Left Option D</label>
                     <input id="lessonOptionD" required />
+                  </div>
+                </div>
+                <div id="lessonQuestionBilingualOptionsWrap" class="admin-form-row hidden">
+                  <div class="admin-field">
+                    <label for="lessonOptionAAlt">Right Option A</label>
+                    <input id="lessonOptionAAlt" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionBAlt">Right Option B</label>
+                    <input id="lessonOptionBAlt" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionCAlt">Right Option C</label>
+                    <input id="lessonOptionCAlt" />
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonOptionDAlt">Right Option D</label>
+                    <input id="lessonOptionDAlt" />
                   </div>
                 </div>
                 <div class="admin-form-row">
@@ -649,8 +677,12 @@
                     </select>
                   </div>
                   <div class="admin-field">
-                    <label for="lessonQuestionExplanation">Explanation (optional)</label>
+                    <label for="lessonQuestionExplanation">Left Explanation (optional)</label>
                     <input id="lessonQuestionExplanation" />
+                  </div>
+                  <div id="lessonQuestionExplanationAltWrap" class="admin-field hidden">
+                    <label for="lessonQuestionExplanationAlt">Right Explanation (optional)</label>
+                    <input id="lessonQuestionExplanationAlt" />
                   </div>
                 </div>
                 <div class="admin-actions">
@@ -666,8 +698,14 @@
               </form>
 
               <div class="admin-field">
-                <label for="lessonBulkImportText">Bulk Import (question|A|B|C|D|correct|explanation|section)</label>
+                <label for="lessonBulkImportText">Left Bulk Import (question|A|B|C|D|correct|explanation|section)</label>
                 <textarea id="lessonBulkImportText" rows="4"></textarea>
+                <div id="lessonBulkImportAltWrap" class="admin-field hidden" style="margin-top: 0.6rem">
+                  <label for="lessonBulkImportTextAlt">
+                    Right Bulk Import (question|A|B|C|D|correct|explanation|section)
+                  </label>
+                  <textarea id="lessonBulkImportTextAlt" rows="4"></textarea>
+                </div>
                 <div class="admin-actions">
                   <div class="admin-field" style="margin: 0">
                     <label for="lessonBulkImportSection" style="margin-bottom: 0.2rem">Default Section</label>
@@ -685,7 +723,7 @@
 
               <div class="admin-field" style="margin-top: 0.75rem">
                 <label for="lessonBulkImportCsvFile">
-                  CSV Upload (required: questionText/question, optionA, optionB, optionC, optionD, correctOption;
+                  Left CSV Upload (required: questionText/question, optionA, optionB, optionC, optionD, correctOption;
                   optional: passage/paragraph, formula, equation, explanation, isActive, sectionLabel)
                 </label>
                 <p class="admin-subtitle" style="margin: 0.25rem 0 0.4rem">
@@ -693,6 +731,13 @@
                 </p>
                 <div class="admin-actions">
                   <input id="lessonBulkImportCsvFile" type="file" accept=".csv,text/csv" />
+                  <input
+                    id="lessonBulkImportCsvFileAlt"
+                    class="hidden"
+                    type="file"
+                    accept=".csv,text/csv"
+                    aria-label="Right language CSV upload"
+                  />
                   <label class="admin-field inline-check" style="margin: 0">
                     <input id="lessonBulkImportReplaceExisting" type="checkbox" />
                     <span>Replace all existing questions with CSV</span>
@@ -721,13 +766,17 @@
                     Download Sample CSV
                   </button>
                 </div>
+                <p id="lessonBulkImportCsvAltHint" class="admin-subtitle hidden" style="margin: 0.4rem 0 0">
+                  In bilingual mode, upload both left and right CSV files in the same row order.
+                </p>
               </div>
 
               <div class="admin-table-wrap" style="margin-top: 1rem">
                 <table class="admin-table">
                   <thead>
                     <tr>
-                      <th>Question</th>
+                      <th>Left Question</th>
+                      <th>Right Question</th>
                       <th>A</th>
                       <th>B</th>
                       <th>C</th>
@@ -967,25 +1016,47 @@
         <form id="lessonQuestionEditForm" class="admin-form">
           <input id="lessonQuestionEditId" type="hidden" />
           <div class="admin-field">
-            <label for="lessonQuestionEditText">Question Text</label>
+            <label for="lessonQuestionEditText">Left Question Text</label>
             <textarea id="lessonQuestionEditText" required></textarea>
+          </div>
+          <div id="lessonQuestionEditBilingualWrap" class="admin-field hidden">
+            <label for="lessonQuestionEditTextAlt">Right Question Text</label>
+            <textarea id="lessonQuestionEditTextAlt"></textarea>
           </div>
           <div class="admin-form-row">
             <div class="admin-field">
-              <label for="lessonQuestionEditOptionA">Option A</label>
+              <label for="lessonQuestionEditOptionA">Left Option A</label>
               <input id="lessonQuestionEditOptionA" required />
             </div>
             <div class="admin-field">
-              <label for="lessonQuestionEditOptionB">Option B</label>
+              <label for="lessonQuestionEditOptionB">Left Option B</label>
               <input id="lessonQuestionEditOptionB" required />
             </div>
             <div class="admin-field">
-              <label for="lessonQuestionEditOptionC">Option C</label>
+              <label for="lessonQuestionEditOptionC">Left Option C</label>
               <input id="lessonQuestionEditOptionC" required />
             </div>
             <div class="admin-field">
-              <label for="lessonQuestionEditOptionD">Option D</label>
+              <label for="lessonQuestionEditOptionD">Left Option D</label>
               <input id="lessonQuestionEditOptionD" required />
+            </div>
+          </div>
+          <div id="lessonQuestionEditBilingualOptionsWrap" class="admin-form-row hidden">
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionAAlt">Right Option A</label>
+              <input id="lessonQuestionEditOptionAAlt" />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionBAlt">Right Option B</label>
+              <input id="lessonQuestionEditOptionBAlt" />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionCAlt">Right Option C</label>
+              <input id="lessonQuestionEditOptionCAlt" />
+            </div>
+            <div class="admin-field">
+              <label for="lessonQuestionEditOptionDAlt">Right Option D</label>
+              <input id="lessonQuestionEditOptionDAlt" />
             </div>
           </div>
           <div class="admin-form-row">
@@ -1009,8 +1080,12 @@
               </select>
             </div>
             <div class="admin-field">
-              <label for="lessonQuestionEditExplanation">Explanation (optional)</label>
+              <label for="lessonQuestionEditExplanation">Left Explanation (optional)</label>
               <input id="lessonQuestionEditExplanation" />
+            </div>
+            <div id="lessonQuestionEditExplanationAltWrap" class="admin-field hidden">
+              <label for="lessonQuestionEditExplanationAlt">Right Explanation (optional)</label>
+              <input id="lessonQuestionEditExplanationAlt" />
             </div>
           </div>
           <div class="admin-actions">
@@ -1025,7 +1100,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=83"></script>
+    <script type="module" src="./src/admin-lessons.js?v=84"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

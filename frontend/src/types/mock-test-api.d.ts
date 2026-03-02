@@ -45,13 +45,19 @@ export interface AttemptQuestionDetail {
   orderIndex: number;
   questionId: string;
   questionText: string;
+  questionTextAlt: string | null;
   optionA: string;
+  optionAAlt: string | null;
   optionB: string;
+  optionBAlt: string | null;
   optionC: string;
+  optionCAlt: string | null;
   optionD: string;
+  optionDAlt: string | null;
   selectedOption: MockOption | null;
   correctOption?: MockOption;
   explanation?: string | null;
+  explanationAlt?: string | null;
 }
 
 export interface AttemptDetailResponse {

@@ -88,6 +88,64 @@ const normalizeSectionType = (value: unknown): MockTestSectionType => {
   return "GENERAL_MCQ";
 };
 
+const normalizeOptionalText = (value: unknown): string | null => {
+  const normalized = String(value ?? "").trim();
+  return normalized || null;
+};
+
+const hasAnyAltQuestionContent = (input: {
+  questionTextAlt?: string | null;
+  optionAAlt?: string | null;
+  optionBAlt?: string | null;
+  optionCAlt?: string | null;
+  optionDAlt?: string | null;
+  explanationAlt?: string | null;
+}) =>
+  Boolean(
+    normalizeOptionalText(input.questionTextAlt) ||
+      normalizeOptionalText(input.optionAAlt) ||
+      normalizeOptionalText(input.optionBAlt) ||
+      normalizeOptionalText(input.optionCAlt) ||
+      normalizeOptionalText(input.optionDAlt) ||
+      normalizeOptionalText(input.explanationAlt)
+  );
+
+const assertBilingualQuestionContent = (
+  languageMode: LanguageMode | null | undefined,
+  input: {
+    questionTextAlt?: string | null;
+    optionAAlt?: string | null;
+    optionBAlt?: string | null;
+    optionCAlt?: string | null;
+    optionDAlt?: string | null;
+    explanationAlt?: string | null;
+  }
+) => {
+  const altQuestionText = normalizeOptionalText(input.questionTextAlt);
+  const altOptionA = normalizeOptionalText(input.optionAAlt);
+  const altOptionB = normalizeOptionalText(input.optionBAlt);
+  const altOptionC = normalizeOptionalText(input.optionCAlt);
+  const altOptionD = normalizeOptionalText(input.optionDAlt);
+  const missingAltFields = [
+    !altQuestionText ? "questionTextAlt" : "",
+    !altOptionA ? "optionAAlt" : "",
+    !altOptionB ? "optionBAlt" : "",
+    !altOptionC ? "optionCAlt" : "",
+    !altOptionD ? "optionDAlt" : "",
+  ].filter(Boolean);
+
+  if (languageMode === "BILINGUAL" && missingAltFields.length) {
+    throw new AppError(
+      `Bilingual tests require both left and right question content. Missing: ${missingAltFields.join(", ")}.`,
+      400
+    );
+  }
+
+  if (languageMode !== "BILINGUAL" && hasAnyAltQuestionContent(input)) {
+    throw new AppError("Right language content is allowed only when language mode is Bilingual.", 400);
+  }
+};
+
 const loadMockTestAccessMap = async (mockTestIds: string[]) => {
   if (!mockTestIds.length) return new Map<string, AccessCode>();
   const placeholders = mockTestIds.map(() => "?").join(", ");
@@ -125,40 +183,6 @@ const upsertMockTestAccessCode = async (mockTestId: string, accessCode: AccessCo
     now,
     now
   );
-
-  // Keep product demo linkage aligned with current access code:
-  // any test marked DEMO should appear as free in product TOC.
-  try {
-    if (accessCode === "DEMO") {
-      await prisma.$executeRawUnsafe(
-        `
-          INSERT INTO ProductDemoMockTest (productId, mockTestId, createdAt)
-          SELECT pmt.productId, pmt.mockTestId, ?
-          FROM ProductMockTest pmt
-          WHERE pmt.mockTestId = ?
-          ON DUPLICATE KEY UPDATE
-            createdAt = ProductDemoMockTest.createdAt
-        `,
-        now,
-        mockTestId
-      );
-      return;
-    }
-
-    await prisma.$executeRawUnsafe(
-      `
-        DELETE FROM ProductDemoMockTest
-        WHERE mockTestId = ?
-      `,
-      mockTestId
-    );
-  } catch (error) {
-    const message = String((error as { message?: string })?.message || "").toLowerCase();
-    const missingDemoLinkTable =
-      (message.includes("1146") || message.includes("p2010")) &&
-      message.includes("productdemomocktest");
-    if (!missingDemoLinkTable) throw error;
-  }
 };
 
 const loadLinkedProductCountMap = async (mockTestIds: string[]) => {
@@ -296,12 +320,18 @@ const serializeQuestion = (item: {
   id: string;
   mockTestId: string;
   questionText: string;
+  questionTextAlt: string | null;
   optionA: string;
+  optionAAlt: string | null;
   optionB: string;
+  optionBAlt: string | null;
   optionC: string;
+  optionCAlt: string | null;
   optionD: string;
+  optionDAlt: string | null;
   correctOption: MockOption;
   explanation: string | null;
+  explanationAlt: string | null;
   sectionLabel: string | null;
   isActive: boolean;
   createdAt: Date;
@@ -438,12 +468,18 @@ const loadAttemptQuestionRows = async (attemptId: string) =>
         aq.orderIndex,
         aq.questionId,
         COALESCE(aq.snapshotQuestionText, q.questionText) AS questionText,
+        COALESCE(aq.snapshotQuestionTextAlt, q.questionTextAlt) AS questionTextAlt,
         COALESCE(aq.snapshotOptionA, q.optionA) AS optionA,
+        COALESCE(aq.snapshotOptionAAlt, q.optionAAlt) AS optionAAlt,
         COALESCE(aq.snapshotOptionB, q.optionB) AS optionB,
+        COALESCE(aq.snapshotOptionBAlt, q.optionBAlt) AS optionBAlt,
         COALESCE(aq.snapshotOptionC, q.optionC) AS optionC,
+        COALESCE(aq.snapshotOptionCAlt, q.optionCAlt) AS optionCAlt,
         COALESCE(aq.snapshotOptionD, q.optionD) AS optionD,
+        COALESCE(aq.snapshotOptionDAlt, q.optionDAlt) AS optionDAlt,
         COALESCE(aq.snapshotCorrectOption, q.correctOption) AS correctOption,
-        COALESCE(aq.snapshotExplanation, q.explanation) AS explanation
+        COALESCE(aq.snapshotExplanation, q.explanation) AS explanation,
+        COALESCE(aq.snapshotExplanationAlt, q.explanationAlt) AS explanationAlt
       FROM AttemptQuestion aq
       LEFT JOIN Question q ON q.id = aq.questionId
       WHERE aq.attemptId = ?
@@ -454,12 +490,18 @@ const loadAttemptQuestionRows = async (attemptId: string) =>
     orderIndex: number;
     questionId: string;
     questionText: string | null;
+    questionTextAlt: string | null;
     optionA: string | null;
+    optionAAlt: string | null;
     optionB: string | null;
+    optionBAlt: string | null;
     optionC: string | null;
+    optionCAlt: string | null;
     optionD: string | null;
+    optionDAlt: string | null;
     correctOption: MockOption | string | null;
     explanation: string | null;
+    explanationAlt: string | null;
   }>;
 
 const snapshotAttemptQuestionsForQuestion = async (
@@ -472,12 +514,18 @@ const snapshotAttemptQuestionsForQuestion = async (
       INNER JOIN Question q ON q.id = aq.questionId
       SET
         aq.snapshotQuestionText = COALESCE(aq.snapshotQuestionText, q.questionText),
+        aq.snapshotQuestionTextAlt = COALESCE(aq.snapshotQuestionTextAlt, q.questionTextAlt),
         aq.snapshotOptionA = COALESCE(aq.snapshotOptionA, q.optionA),
+        aq.snapshotOptionAAlt = COALESCE(aq.snapshotOptionAAlt, q.optionAAlt),
         aq.snapshotOptionB = COALESCE(aq.snapshotOptionB, q.optionB),
+        aq.snapshotOptionBAlt = COALESCE(aq.snapshotOptionBAlt, q.optionBAlt),
         aq.snapshotOptionC = COALESCE(aq.snapshotOptionC, q.optionC),
+        aq.snapshotOptionCAlt = COALESCE(aq.snapshotOptionCAlt, q.optionCAlt),
         aq.snapshotOptionD = COALESCE(aq.snapshotOptionD, q.optionD),
+        aq.snapshotOptionDAlt = COALESCE(aq.snapshotOptionDAlt, q.optionDAlt),
         aq.snapshotCorrectOption = COALESCE(aq.snapshotCorrectOption, q.correctOption),
         aq.snapshotExplanation = COALESCE(aq.snapshotExplanation, q.explanation),
+        aq.snapshotExplanationAlt = COALESCE(aq.snapshotExplanationAlt, q.explanationAlt),
         aq.snapshotSectionLabel = COALESCE(aq.snapshotSectionLabel, q.sectionLabel)
       WHERE aq.questionId = ?
     `,
@@ -495,12 +543,18 @@ const snapshotAttemptQuestionsForAttempt = async (
       INNER JOIN Question q ON q.id = aq.questionId
       SET
         aq.snapshotQuestionText = COALESCE(aq.snapshotQuestionText, q.questionText),
+        aq.snapshotQuestionTextAlt = COALESCE(aq.snapshotQuestionTextAlt, q.questionTextAlt),
         aq.snapshotOptionA = COALESCE(aq.snapshotOptionA, q.optionA),
+        aq.snapshotOptionAAlt = COALESCE(aq.snapshotOptionAAlt, q.optionAAlt),
         aq.snapshotOptionB = COALESCE(aq.snapshotOptionB, q.optionB),
+        aq.snapshotOptionBAlt = COALESCE(aq.snapshotOptionBAlt, q.optionBAlt),
         aq.snapshotOptionC = COALESCE(aq.snapshotOptionC, q.optionC),
+        aq.snapshotOptionCAlt = COALESCE(aq.snapshotOptionCAlt, q.optionCAlt),
         aq.snapshotOptionD = COALESCE(aq.snapshotOptionD, q.optionD),
+        aq.snapshotOptionDAlt = COALESCE(aq.snapshotOptionDAlt, q.optionDAlt),
         aq.snapshotCorrectOption = COALESCE(aq.snapshotCorrectOption, q.correctOption),
         aq.snapshotExplanation = COALESCE(aq.snapshotExplanation, q.explanation),
+        aq.snapshotExplanationAlt = COALESCE(aq.snapshotExplanationAlt, q.explanationAlt),
         aq.snapshotSectionLabel = COALESCE(aq.snapshotSectionLabel, q.sectionLabel)
       WHERE aq.attemptId = ?
     `,
@@ -600,14 +654,20 @@ const fetchAttemptDetails = async (attemptId: string) => {
       orderIndex: item.orderIndex,
       questionId: item.questionId,
       questionText: item.questionText || "",
+      questionTextAlt: item.questionTextAlt || null,
       optionA: item.optionA || "",
+      optionAAlt: item.optionAAlt || null,
       optionB: item.optionB || "",
+      optionBAlt: item.optionBAlt || null,
       optionC: item.optionC || "",
+      optionCAlt: item.optionCAlt || null,
       optionD: item.optionD || "",
+      optionDAlt: item.optionDAlt || null,
       correctOption: (item.correctOption || "A") as MockOption,
       selectedOption: answer?.selectedOption ?? null,
       answeredAt: toIso(answer?.answeredAt ?? null),
       explanation: item.explanation,
+      explanationAlt: item.explanationAlt,
     };
   });
 
@@ -930,12 +990,18 @@ export const mockTestService = {
           id,
           mockTestId,
           questionText,
+          questionTextAlt,
           optionA,
+          optionAAlt,
           optionB,
+          optionBAlt,
           optionC,
+          optionCAlt,
           optionD,
+          optionDAlt,
           correctOption,
           explanation,
+          explanationAlt,
           sectionLabel,
           isActive,
           createdAt,
@@ -950,12 +1016,18 @@ export const mockTestService = {
       id: string;
       mockTestId: string;
       questionText: string;
+      questionTextAlt: string | null;
       optionA: string;
+      optionAAlt: string | null;
       optionB: string;
+      optionBAlt: string | null;
       optionC: string;
+      optionCAlt: string | null;
       optionD: string;
+      optionDAlt: string | null;
       correctOption: MockOption;
       explanation: string | null;
+      explanationAlt: string | null;
       sectionLabel: string | null;
       isActive: boolean | number;
       createdAt: Date | string;
@@ -976,17 +1048,24 @@ export const mockTestService = {
     mockTestId: string,
     input: {
       questionText: string;
+      questionTextAlt?: string;
       optionA: string;
+      optionAAlt?: string;
       optionB: string;
+      optionBAlt?: string;
       optionC: string;
+      optionCAlt?: string;
       optionD: string;
+      optionDAlt?: string;
       correctOption: MockOption;
       explanation?: string;
+      explanationAlt?: string;
       sectionLabel?: string;
       isActive?: boolean;
     }
   ) {
-    await ensureMockTestExists(mockTestId);
+    const mockTest = await ensureMockTestExists(mockTestId);
+    assertBilingualQuestionContent(mockTest.languageMode as LanguageMode | null | undefined, input);
     const normalizedSectionLabel = normalizeSectionLabel(input.sectionLabel);
     await ensureQuestionLimitForSection({
       mockTestId,
@@ -997,12 +1076,18 @@ export const mockTestService = {
       data: {
         mockTestId,
         questionText: input.questionText,
+        questionTextAlt: normalizeOptionalText(input.questionTextAlt),
         optionA: input.optionA,
+        optionAAlt: normalizeOptionalText(input.optionAAlt),
         optionB: input.optionB,
+        optionBAlt: normalizeOptionalText(input.optionBAlt),
         optionC: input.optionC,
+        optionCAlt: normalizeOptionalText(input.optionCAlt),
         optionD: input.optionD,
+        optionDAlt: normalizeOptionalText(input.optionDAlt),
         correctOption: input.correctOption,
         explanation: input.explanation,
+        explanationAlt: normalizeOptionalText(input.explanationAlt),
         sectionLabel: normalizedSectionLabel,
         isActive: input.isActive ?? true,
       },
@@ -1015,12 +1100,18 @@ export const mockTestService = {
     mockTestId: string,
     rows: Array<{
       questionText: string;
+      questionTextAlt?: string;
       optionA: string;
+      optionAAlt?: string;
       optionB: string;
+      optionBAlt?: string;
       optionC: string;
+      optionCAlt?: string;
       optionD: string;
+      optionDAlt?: string;
       correctOption: MockOption;
       explanation?: string;
+      explanationAlt?: string;
       sectionLabel?: string;
       isActive?: boolean;
     }>,
@@ -1028,21 +1119,30 @@ export const mockTestService = {
       replaceExisting?: boolean;
     }
   ) {
-    await ensureMockTestExists(mockTestId);
+    const mockTest = await ensureMockTestExists(mockTestId);
     const replaceExisting = Boolean(options?.replaceExisting);
 
-    const payload = rows.map((row) => ({
-      mockTestId,
-      questionText: row.questionText.trim(),
-      optionA: row.optionA.trim(),
-      optionB: row.optionB.trim(),
-      optionC: row.optionC.trim(),
-      optionD: row.optionD.trim(),
-      correctOption: row.correctOption,
-      explanation: row.explanation?.trim() || null,
-      sectionLabel: normalizeSectionLabel(row.sectionLabel),
-      isActive: row.isActive ?? true,
-    }));
+    const payload = rows.map((row) => {
+      assertBilingualQuestionContent(mockTest.languageMode as LanguageMode | null | undefined, row);
+      return {
+        mockTestId,
+        questionText: row.questionText.trim(),
+        questionTextAlt: normalizeOptionalText(row.questionTextAlt),
+        optionA: row.optionA.trim(),
+        optionAAlt: normalizeOptionalText(row.optionAAlt),
+        optionB: row.optionB.trim(),
+        optionBAlt: normalizeOptionalText(row.optionBAlt),
+        optionC: row.optionC.trim(),
+        optionCAlt: normalizeOptionalText(row.optionCAlt),
+        optionD: row.optionD.trim(),
+        optionDAlt: normalizeOptionalText(row.optionDAlt),
+        correctOption: row.correctOption,
+        explanation: row.explanation?.trim() || null,
+        explanationAlt: normalizeOptionalText(row.explanationAlt),
+        sectionLabel: normalizeSectionLabel(row.sectionLabel),
+        isActive: row.isActive ?? true,
+      };
+    });
 
     const result = await prisma.$transaction(async (tx) => {
       if (replaceExisting) {
@@ -1129,12 +1229,18 @@ export const mockTestService = {
     questionId: string,
     updates: Partial<{
       questionText: string;
+      questionTextAlt?: string;
       optionA: string;
+      optionAAlt?: string;
       optionB: string;
+      optionBAlt?: string;
       optionC: string;
+      optionCAlt?: string;
       optionD: string;
+      optionDAlt?: string;
       correctOption: MockOption;
       explanation?: string;
+      explanationAlt?: string;
       sectionLabel?: string;
       isActive: boolean;
     }>
@@ -1143,9 +1249,18 @@ export const mockTestService = {
     if (!existing) {
       throw new AppError("Question not found", 404);
     }
+    const mockTest = await ensureMockTestExists(existing.mockTestId);
     const nextSectionLabel =
       updates.sectionLabel === undefined ? existing.sectionLabel : normalizeSectionLabel(updates.sectionLabel);
     const nextIsActive = updates.isActive === undefined ? existing.isActive : updates.isActive;
+    assertBilingualQuestionContent(mockTest.languageMode as LanguageMode | null | undefined, {
+      questionTextAlt: updates.questionTextAlt === undefined ? existing.questionTextAlt : updates.questionTextAlt,
+      optionAAlt: updates.optionAAlt === undefined ? existing.optionAAlt : updates.optionAAlt,
+      optionBAlt: updates.optionBAlt === undefined ? existing.optionBAlt : updates.optionBAlt,
+      optionCAlt: updates.optionCAlt === undefined ? existing.optionCAlt : updates.optionCAlt,
+      optionDAlt: updates.optionDAlt === undefined ? existing.optionDAlt : updates.optionDAlt,
+      explanationAlt: updates.explanationAlt === undefined ? existing.explanationAlt : updates.explanationAlt,
+    });
     if (nextIsActive && nextSectionLabel) {
       await ensureQuestionLimitForSection({
         mockTestId: existing.mockTestId,
@@ -1161,12 +1276,20 @@ export const mockTestService = {
         where: { id: questionId },
         data: {
           questionText: updates.questionText,
+          questionTextAlt:
+            updates.questionTextAlt === undefined ? undefined : normalizeOptionalText(updates.questionTextAlt),
           optionA: updates.optionA,
+          optionAAlt: updates.optionAAlt === undefined ? undefined : normalizeOptionalText(updates.optionAAlt),
           optionB: updates.optionB,
+          optionBAlt: updates.optionBAlt === undefined ? undefined : normalizeOptionalText(updates.optionBAlt),
           optionC: updates.optionC,
+          optionCAlt: updates.optionCAlt === undefined ? undefined : normalizeOptionalText(updates.optionCAlt),
           optionD: updates.optionD,
+          optionDAlt: updates.optionDAlt === undefined ? undefined : normalizeOptionalText(updates.optionDAlt),
           correctOption: updates.correctOption,
           explanation: updates.explanation,
+          explanationAlt:
+            updates.explanationAlt === undefined ? undefined : normalizeOptionalText(updates.explanationAlt),
           sectionLabel: updates.sectionLabel === undefined ? undefined : nextSectionLabel,
           isActive: updates.isActive,
         },
@@ -1434,14 +1557,20 @@ export const mockTestService = {
         orderIndex: item.orderIndex,
         questionId: item.questionId,
         questionText: item.questionText || "",
+        questionTextAlt: item.questionTextAlt || null,
         optionA: item.optionA || "",
+        optionAAlt: item.optionAAlt || null,
         optionB: item.optionB || "",
+        optionBAlt: item.optionBAlt || null,
         optionC: item.optionC || "",
+        optionCAlt: item.optionCAlt || null,
         optionD: item.optionD || "",
+        optionDAlt: item.optionDAlt || null,
         selectedOption: answer?.selectedOption ?? null,
         answeredAt: toIso(answer?.answeredAt ?? null),
         correctOption: isSubmitted ? ((item.correctOption || "A") as MockOption) : undefined,
         explanation: isSubmitted ? item.explanation : undefined,
+        explanationAlt: isSubmitted ? item.explanationAlt : undefined,
       };
     });
   },

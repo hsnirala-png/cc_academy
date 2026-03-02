@@ -136,6 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonSectionQuestionLimitInput = document.querySelector("#lessonSectionQuestionLimit");
   const lessonSectionAudioUrlInput = document.querySelector("#lessonSectionAudioUrl");
   const lessonSectionTranscriptInput = document.querySelector("#lessonSectionTranscript");
+  const lessonSectionSkipTranscriptInput = document.querySelector("#lessonSectionSkipTranscript");
   const lessonSectionSaveBtn = document.querySelector("#lessonSectionSaveBtn");
   const lessonSectionCancelBtn = document.querySelector("#lessonSectionCancelBtn");
   const lessonSectionsTableBody = document.querySelector("#lessonSectionsTableBody");
@@ -147,24 +148,37 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionFormulaTextInput = document.querySelector("#lessonQuestionFormulaText");
   const lessonQuestionEquationWrap = document.querySelector("#lessonQuestionEquationWrap");
   const lessonQuestionEquationTextInput = document.querySelector("#lessonQuestionEquationText");
+  const lessonQuestionBilingualWrap = document.querySelector("#lessonQuestionBilingualWrap");
   const lessonQuestionTextInput = document.querySelector("#lessonQuestionText");
+  const lessonQuestionTextAltInput = document.querySelector("#lessonQuestionTextAlt");
   const lessonQuestionSectionInput = document.querySelector("#lessonQuestionSection");
+  const lessonQuestionBilingualOptionsWrap = document.querySelector("#lessonQuestionBilingualOptionsWrap");
   const lessonOptionAInput = document.querySelector("#lessonOptionA");
+  const lessonOptionAAltInput = document.querySelector("#lessonOptionAAlt");
   const lessonOptionBInput = document.querySelector("#lessonOptionB");
+  const lessonOptionBAltInput = document.querySelector("#lessonOptionBAlt");
   const lessonOptionCInput = document.querySelector("#lessonOptionC");
+  const lessonOptionCAltInput = document.querySelector("#lessonOptionCAlt");
   const lessonOptionDInput = document.querySelector("#lessonOptionD");
+  const lessonOptionDAltInput = document.querySelector("#lessonOptionDAlt");
   const lessonCorrectOptionInput = document.querySelector("#lessonCorrectOption");
   const lessonQuestionExplanationInput = document.querySelector("#lessonQuestionExplanation");
+  const lessonQuestionExplanationAltWrap = document.querySelector("#lessonQuestionExplanationAltWrap");
+  const lessonQuestionExplanationAltInput = document.querySelector("#lessonQuestionExplanationAlt");
   const lessonQuestionIsActiveInput = document.querySelector("#lessonQuestionIsActive");
   const lessonQuestionSubmitBtn = document.querySelector("#lessonQuestionSubmitBtn");
   const lessonQuestionCancelBtn = document.querySelector("#lessonQuestionCancelBtn");
   const lessonQuestionsTableBody = document.querySelector("#lessonQuestionsTableBody");
   const lessonBulkImportTextInput = document.querySelector("#lessonBulkImportText");
+  const lessonBulkImportAltWrap = document.querySelector("#lessonBulkImportAltWrap");
+  const lessonBulkImportTextAltInput = document.querySelector("#lessonBulkImportTextAlt");
   const lessonBulkImportSectionInput = document.querySelector("#lessonBulkImportSection");
   const lessonBulkImportBtn = document.querySelector("#lessonBulkImportBtn");
   const lessonBulkImportCsvFileInput = document.querySelector("#lessonBulkImportCsvFile");
+  const lessonBulkImportCsvFileAltInput = document.querySelector("#lessonBulkImportCsvFileAlt");
   const lessonBulkImportReplaceExistingInput = document.querySelector("#lessonBulkImportReplaceExisting");
   const lessonBulkImportCsvSectionInput = document.querySelector("#lessonBulkImportCsvSection");
+  const lessonBulkImportCsvAltHint = document.querySelector("#lessonBulkImportCsvAltHint");
   const lessonCsvTemplateFormatInput = document.querySelector("#lessonCsvTemplateFormat");
   const lessonBulkImportCsvBtn = document.querySelector("#lessonBulkImportCsvBtn");
   const lessonSectionCsvSampleBtn = document.querySelector("#lessonSectionCsvSampleBtn");
@@ -214,14 +228,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditClose = document.querySelector("#lessonQuestionEditClose");
   const lessonQuestionEditForm = document.querySelector("#lessonQuestionEditForm");
   const lessonQuestionEditIdInput = document.querySelector("#lessonQuestionEditId");
+  const lessonQuestionEditBilingualWrap = document.querySelector("#lessonQuestionEditBilingualWrap");
   const lessonQuestionEditTextInput = document.querySelector("#lessonQuestionEditText");
+  const lessonQuestionEditTextAltInput = document.querySelector("#lessonQuestionEditTextAlt");
+  const lessonQuestionEditBilingualOptionsWrap = document.querySelector("#lessonQuestionEditBilingualOptionsWrap");
   const lessonQuestionEditOptionAInput = document.querySelector("#lessonQuestionEditOptionA");
+  const lessonQuestionEditOptionAAltInput = document.querySelector("#lessonQuestionEditOptionAAlt");
   const lessonQuestionEditOptionBInput = document.querySelector("#lessonQuestionEditOptionB");
+  const lessonQuestionEditOptionBAltInput = document.querySelector("#lessonQuestionEditOptionBAlt");
   const lessonQuestionEditOptionCInput = document.querySelector("#lessonQuestionEditOptionC");
+  const lessonQuestionEditOptionCAltInput = document.querySelector("#lessonQuestionEditOptionCAlt");
   const lessonQuestionEditOptionDInput = document.querySelector("#lessonQuestionEditOptionD");
+  const lessonQuestionEditOptionDAltInput = document.querySelector("#lessonQuestionEditOptionDAlt");
   const lessonQuestionEditSectionInput = document.querySelector("#lessonQuestionEditSection");
   const lessonQuestionEditCorrectInput = document.querySelector("#lessonQuestionEditCorrect");
   const lessonQuestionEditExplanationInput = document.querySelector("#lessonQuestionEditExplanation");
+  const lessonQuestionEditExplanationAltWrap = document.querySelector("#lessonQuestionEditExplanationAltWrap");
+  const lessonQuestionEditExplanationAltInput = document.querySelector("#lessonQuestionEditExplanationAlt");
   const lessonQuestionEditIsActiveInput = document.querySelector("#lessonQuestionEditIsActive");
   const lessonQuestionEditCancelBtn = document.querySelector("#lessonQuestionEditCancelBtn");
 
@@ -2122,6 +2145,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     return normalizedQuestion;
   };
+  const isBilingualQuestionMode = () => String(lessonMockTestLanguageModeInput?.value || "").trim() === "BILINGUAL";
+  const toggleLessonSectionTranscriptState = () => {
+    const shouldSkip = Boolean(lessonSectionSkipTranscriptInput instanceof HTMLInputElement && lessonSectionSkipTranscriptInput.checked);
+    if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
+      lessonSectionTranscriptInput.disabled = shouldSkip;
+      lessonSectionTranscriptInput.placeholder = shouldSkip
+        ? "Transcript skipped for this section."
+        : "Add transcript/passage for this section.";
+    }
+  };
+  const toggleBilingualQuestionInputs = () => {
+    const isBilingual = isBilingualQuestionMode();
+    lessonQuestionBilingualWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionBilingualOptionsWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionExplanationAltWrap?.classList.toggle("hidden", !isBilingual);
+    lessonBulkImportAltWrap?.classList.toggle("hidden", !isBilingual);
+    lessonBulkImportCsvAltHint?.classList.toggle("hidden", !isBilingual);
+    if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) {
+      lessonBulkImportCsvFileAltInput.classList.toggle("hidden", !isBilingual);
+    }
+    lessonQuestionEditBilingualWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionEditBilingualOptionsWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionEditExplanationAltWrap?.classList.toggle("hidden", !isBilingual);
+    if (!isBilingual) {
+      if (lessonQuestionTextAltInput instanceof HTMLTextAreaElement) lessonQuestionTextAltInput.value = "";
+      if (lessonOptionAAltInput instanceof HTMLInputElement) lessonOptionAAltInput.value = "";
+      if (lessonOptionBAltInput instanceof HTMLInputElement) lessonOptionBAltInput.value = "";
+      if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
+      if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
+      if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
+      if (lessonBulkImportTextAltInput instanceof HTMLTextAreaElement) lessonBulkImportTextAltInput.value = "";
+      if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) lessonBulkImportCsvFileAltInput.value = "";
+      if (lessonQuestionEditTextAltInput instanceof HTMLTextAreaElement) lessonQuestionEditTextAltInput.value = "";
+      if (lessonQuestionEditOptionAAltInput instanceof HTMLInputElement) lessonQuestionEditOptionAAltInput.value = "";
+      if (lessonQuestionEditOptionBAltInput instanceof HTMLInputElement) lessonQuestionEditOptionBAltInput.value = "";
+      if (lessonQuestionEditOptionCAltInput instanceof HTMLInputElement) lessonQuestionEditOptionCAltInput.value = "";
+      if (lessonQuestionEditOptionDAltInput instanceof HTMLInputElement) lessonQuestionEditOptionDAltInput.value = "";
+      if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
+        lessonQuestionEditExplanationAltInput.value = "";
+      }
+    }
+  };
   const getQuestionSectionOptions = () => {
     const fromSectionConfig = state.mockTestSections
       .map((section) => normalizeQuestionSectionLabel(section?.sectionLabel))
@@ -2779,6 +2844,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionPassageTextInput instanceof HTMLTextAreaElement) lessonQuestionPassageTextInput.value = "";
     if (lessonQuestionFormulaTextInput instanceof HTMLInputElement) lessonQuestionFormulaTextInput.value = "";
     if (lessonQuestionEquationTextInput instanceof HTMLInputElement) lessonQuestionEquationTextInput.value = "";
+    if (lessonQuestionTextAltInput instanceof HTMLTextAreaElement) lessonQuestionTextAltInput.value = "";
+    if (lessonOptionAAltInput instanceof HTMLInputElement) lessonOptionAAltInput.value = "";
+    if (lessonOptionBAltInput instanceof HTMLInputElement) lessonOptionBAltInput.value = "";
+    if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
+    if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
+    if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
+    toggleBilingualQuestionInputs();
     toggleQuestionStructuredFields();
   };
 
@@ -2799,6 +2871,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
       lessonSectionCancelBtn.classList.add("hidden");
     }
+    if (lessonSectionSkipTranscriptInput instanceof HTMLInputElement) {
+      lessonSectionSkipTranscriptInput.checked = false;
+    }
+    toggleLessonSectionTranscriptState();
   };
 
   const renderLessonSections = () => {
@@ -2850,7 +2926,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const buildLessonSectionPayload = () => {
     const sectionType = normalizeSectionType(lessonSectionTypeInput?.value);
     const sectionLabel = normalizeQuestionSectionLabel(lessonSectionLabelInput?.value);
-    const transcriptText = String(lessonSectionTranscriptInput?.value || "").trim();
+    const skipTranscript = Boolean(
+      lessonSectionSkipTranscriptInput instanceof HTMLInputElement && lessonSectionSkipTranscriptInput.checked
+    );
+    const transcriptText = skipTranscript ? "" : String(lessonSectionTranscriptInput?.value || "").trim();
     const audioUrl = String(lessonSectionAudioUrlInput?.value || "").trim();
     const questionLimit = Math.max(1, Math.floor(Number(lessonSectionQuestionLimitInput?.value || 0)));
     if (!sectionLabel) {
@@ -2913,6 +2992,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
       lessonSectionTranscriptInput.value = String(section.transcriptText || "");
     }
+    if (lessonSectionSkipTranscriptInput instanceof HTMLInputElement) {
+      lessonSectionSkipTranscriptInput.checked = !String(section.transcriptText || "").trim();
+    }
+    toggleLessonSectionTranscriptState();
     if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
       lessonSectionSaveBtn.textContent = "Update Section";
     }
@@ -2954,6 +3037,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditIsActiveInput instanceof HTMLInputElement) {
       lessonQuestionEditIsActiveInput.checked = true;
     }
+    if (lessonQuestionEditTextAltInput instanceof HTMLTextAreaElement) lessonQuestionEditTextAltInput.value = "";
+    if (lessonQuestionEditOptionAAltInput instanceof HTMLInputElement) lessonQuestionEditOptionAAltInput.value = "";
+    if (lessonQuestionEditOptionBAltInput instanceof HTMLInputElement) lessonQuestionEditOptionBAltInput.value = "";
+    if (lessonQuestionEditOptionCAltInput instanceof HTMLInputElement) lessonQuestionEditOptionCAltInput.value = "";
+    if (lessonQuestionEditOptionDAltInput instanceof HTMLInputElement) lessonQuestionEditOptionDAltInput.value = "";
+    if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditExplanationAltInput.value = "";
+    }
+    toggleBilingualQuestionInputs();
   };
 
   const closeLessonQuestionEditModal = () => {
@@ -2975,17 +3067,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditTextInput instanceof HTMLTextAreaElement) {
       lessonQuestionEditTextInput.value = String(question.questionText || "");
     }
+    if (lessonQuestionEditTextAltInput instanceof HTMLTextAreaElement) {
+      lessonQuestionEditTextAltInput.value = String(question.questionTextAlt || "");
+    }
     if (lessonQuestionEditOptionAInput instanceof HTMLInputElement) {
       lessonQuestionEditOptionAInput.value = String(question.optionA || "");
+    }
+    if (lessonQuestionEditOptionAAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditOptionAAltInput.value = String(question.optionAAlt || "");
     }
     if (lessonQuestionEditOptionBInput instanceof HTMLInputElement) {
       lessonQuestionEditOptionBInput.value = String(question.optionB || "");
     }
+    if (lessonQuestionEditOptionBAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditOptionBAltInput.value = String(question.optionBAlt || "");
+    }
     if (lessonQuestionEditOptionCInput instanceof HTMLInputElement) {
       lessonQuestionEditOptionCInput.value = String(question.optionC || "");
     }
+    if (lessonQuestionEditOptionCAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditOptionCAltInput.value = String(question.optionCAlt || "");
+    }
     if (lessonQuestionEditOptionDInput instanceof HTMLInputElement) {
       lessonQuestionEditOptionDInput.value = String(question.optionD || "");
+    }
+    if (lessonQuestionEditOptionDAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditOptionDAltInput.value = String(question.optionDAlt || "");
     }
     if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
       lessonQuestionEditSectionInput.value =
@@ -2997,10 +3104,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditExplanationInput instanceof HTMLInputElement) {
       lessonQuestionEditExplanationInput.value = String(question.explanation || "");
     }
+    if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditExplanationAltInput.value = String(question.explanationAlt || "");
+    }
     if (lessonQuestionEditIsActiveInput instanceof HTMLInputElement) {
       lessonQuestionEditIsActiveInput.checked = Boolean(question.isActive);
     }
 
+    toggleBilingualQuestionInputs();
     lessonQuestionEditModal.classList.add("open");
     lessonQuestionEditModal.setAttribute("aria-hidden", "false");
     lessonQuestionEditTextInput?.focus();
@@ -3010,14 +3121,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const questionId = lessonQuestionEditIdInput?.value?.trim() || "";
     const payload = {
       questionText: lessonQuestionEditTextInput?.value?.trim() || "",
+      questionTextAlt: lessonQuestionEditTextAltInput?.value?.trim() || undefined,
       optionA: lessonQuestionEditOptionAInput?.value?.trim() || "",
+      optionAAlt: lessonQuestionEditOptionAAltInput?.value?.trim() || undefined,
       optionB: lessonQuestionEditOptionBInput?.value?.trim() || "",
+      optionBAlt: lessonQuestionEditOptionBAltInput?.value?.trim() || undefined,
       optionC: lessonQuestionEditOptionCInput?.value?.trim() || "",
+      optionCAlt: lessonQuestionEditOptionCAltInput?.value?.trim() || undefined,
       optionD: lessonQuestionEditOptionDInput?.value?.trim() || "",
+      optionDAlt: lessonQuestionEditOptionDAltInput?.value?.trim() || undefined,
       sectionLabel:
         normalizeQuestionSectionLabel(lessonQuestionEditSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0],
       correctOption: lessonQuestionEditCorrectInput?.value || "A",
       explanation: lessonQuestionEditExplanationInput?.value?.trim() || undefined,
+      explanationAlt: lessonQuestionEditExplanationAltInput?.value?.trim() || undefined,
       isActive: Boolean(lessonQuestionEditIsActiveInput?.checked),
     };
 
@@ -3032,6 +3149,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       !payload.optionD
     ) {
       throw new Error("All question and options fields are required.");
+    }
+    if (
+      isBilingualQuestionMode() &&
+      (!payload.questionTextAlt ||
+        !payload.optionAAlt ||
+        !payload.optionBAlt ||
+        !payload.optionCAlt ||
+        !payload.optionDAlt)
+    ) {
+      throw new Error("Bilingual mode requires right-side question and all right-side options.");
     }
 
     return { questionId, payload };
@@ -3119,13 +3246,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLessonSections();
     const filteredQuestions = visibleMockQuestions();
     if (!state.mockQuestions.length) {
-      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='8'>No questions yet.</td></tr>";
+      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='9'>No questions yet.</td></tr>";
       updateLessonQuestionCountWarning();
       return;
     }
     if (!filteredQuestions.length) {
       lessonQuestionsTableBody.innerHTML =
-        "<tr><td colspan='8'>No questions found for selected section filter.</td></tr>";
+        "<tr><td colspan='9'>No questions found for selected section filter.</td></tr>";
       updateLessonQuestionCountWarning();
       return;
     }
@@ -3134,6 +3261,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         (question) => `
       <tr>
         <td>${escapeHtml(question.questionText || "-")}</td>
+        <td>${escapeHtml(question.questionTextAlt || "-")}</td>
         <td>${escapeHtml(question.optionA || "-")}</td>
         <td>${escapeHtml(question.optionB || "-")}</td>
         <td>${escapeHtml(question.optionC || "-")}</td>
@@ -3403,6 +3531,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const mergeBilingualQuestionRows = (leftRows, rightRows, sourceLabel = "Import") => {
+    if (leftRows.length !== rightRows.length) {
+      throw new Error(`${sourceLabel} left and right question counts must match in bilingual mode.`);
+    }
+    return leftRows.map((leftRow, index) => {
+      const rightRow = rightRows[index] || {};
+      const rightCorrect = String(rightRow.correctOption || leftRow.correctOption || "").toUpperCase();
+      if (rightCorrect && rightCorrect !== leftRow.correctOption) {
+        throw new Error(`${sourceLabel} row ${index + 1} has different correct options in left and right files.`);
+      }
+      return {
+        ...leftRow,
+        questionTextAlt: rightRow.questionText,
+        optionAAlt: rightRow.optionA,
+        optionBAlt: rightRow.optionB,
+        optionCAlt: rightRow.optionC,
+        optionDAlt: rightRow.optionD,
+        explanationAlt: rightRow.explanation || undefined,
+      };
+    });
+  };
+
   const toCsvCell = (value) => {
     const text = String(value ?? "");
     if (text.includes(",") || text.includes('"') || text.includes("\n") || text.includes("\r")) {
@@ -3622,6 +3772,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         lessonMockTestLanguageModeInput.value = "";
       }
     }
+    toggleBilingualQuestionInputs();
   };
 
   const renderMockTestsAdmin = () => {
@@ -4272,9 +4423,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMockTestsAdmin();
     updateLessonSelectedTestHint();
     setLessonQuestionBankVisibility();
-    if (state.selectedMockTestId && lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
-      lessonSectionTranscriptInput.scrollIntoView({ behavior: "smooth", block: "center" });
-      lessonSectionTranscriptInput.focus();
+    if (state.selectedMockTestId && lessonSectionLabelInput instanceof HTMLInputElement) {
+      lessonSectionLabelInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      lessonSectionLabelInput.focus();
     }
     if (!silent && state.selectedMockTestId) {
       setMessage("Question section ready for selected test.", "success");
@@ -4426,6 +4577,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sectionMeta = getSectionMetaByLabel(sectionLabel);
     const sectionType = normalizeSectionType(sectionMeta?.sectionType || SECTION_TYPE_FROM_LABEL[sectionLabel]);
     const plainQuestionText = lessonQuestionTextInput?.value?.trim() || "";
+    const plainQuestionTextAlt = lessonQuestionTextAltInput?.value?.trim() || "";
     const builtQuestionText = structuredQuestionTextFromParts({
       sectionType,
       questionText: plainQuestionText,
@@ -4434,15 +4586,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       equationText: lessonQuestionEquationTextInput?.value?.trim() || "",
       fallbackTranscript: sectionMeta?.transcriptText || "",
     });
+    const builtQuestionTextAlt = isBilingualQuestionMode() ? plainQuestionTextAlt : "";
     const payload = {
       questionText: builtQuestionText,
+      questionTextAlt: builtQuestionTextAlt || undefined,
       optionA: lessonOptionAInput?.value?.trim() || "",
+      optionAAlt: lessonOptionAAltInput?.value?.trim() || undefined,
       optionB: lessonOptionBInput?.value?.trim() || "",
+      optionBAlt: lessonOptionBAltInput?.value?.trim() || undefined,
       optionC: lessonOptionCInput?.value?.trim() || "",
+      optionCAlt: lessonOptionCAltInput?.value?.trim() || undefined,
       optionD: lessonOptionDInput?.value?.trim() || "",
+      optionDAlt: lessonOptionDAltInput?.value?.trim() || undefined,
       sectionLabel,
       correctOption: lessonCorrectOptionInput?.value || "A",
       explanation: lessonQuestionExplanationInput?.value?.trim() || undefined,
+      explanationAlt: lessonQuestionExplanationAltInput?.value?.trim() || undefined,
       isActive: Boolean(lessonQuestionIsActiveInput?.checked),
     };
 
@@ -4454,6 +4613,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       !payload.optionD
     ) {
       throw new Error("All question and options fields are required.");
+    }
+    if (
+      isBilingualQuestionMode() &&
+      (!payload.questionTextAlt ||
+        !payload.optionAAlt ||
+        !payload.optionBAlt ||
+        !payload.optionCAlt ||
+        !payload.optionDAlt)
+    ) {
+      throw new Error("Bilingual mode requires right-side question and all right-side options.");
     }
     ensureQuestionTargetCapacity(1);
 
@@ -4471,13 +4640,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!text) throw new Error("Paste lines in format: question|A|B|C|D|correct|explanation|section.");
     const defaultSection =
       normalizeQuestionSectionLabel(lessonBulkImportSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
+    const isBilingual = isBilingualQuestionMode();
+    const rightText = lessonBulkImportTextAltInput?.value?.trim() || "";
 
     const lines = text
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
+    const rightLines = rightText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (isBilingual && !rightLines.length) {
+      throw new Error("Paste right language lines also for bilingual bulk import.");
+    }
+    if (isBilingual && lines.length !== rightLines.length) {
+      throw new Error("Left and right bulk import line counts must match.");
+    }
     ensureQuestionTargetCapacity(lines.length);
-    for (const line of lines) {
+    for (const [index, line] of lines.entries()) {
       const parts = line.split("|").map((item) => item.trim());
       if (parts.length < 6) {
         throw new Error(`Invalid line: ${line}`);
@@ -4491,18 +4672,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         normalizeQuestionSectionLabel(sectionLabelRaw) ||
         normalizeQuestionSectionLabel(defaultSection) ||
         DEFAULT_QUESTION_SECTIONS[0];
+      const rightParts = isBilingual ? rightLines[index].split("|").map((item) => item.trim()) : [];
+      if (isBilingual && rightParts.length < 6) {
+        throw new Error(`Invalid right-language line: ${rightLines[index]}`);
+      }
+      const [
+        questionTextAlt,
+        optionAAlt,
+        optionBAlt,
+        optionCAlt,
+        optionDAlt,
+        rightCorrectOption,
+        explanationAlt,
+      ] = rightParts;
+      if (isBilingual && String(rightCorrectOption || "").toUpperCase() !== normalized) {
+        throw new Error(`Correct option must match in both languages for line ${index + 1}.`);
+      }
       await apiRequest({
         path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
         method: "POST",
         token,
         body: {
           questionText,
+          questionTextAlt: isBilingual ? questionTextAlt : undefined,
           optionA,
+          optionAAlt: isBilingual ? optionAAlt : undefined,
           optionB,
+          optionBAlt: isBilingual ? optionBAlt : undefined,
           optionC,
+          optionCAlt: isBilingual ? optionCAlt : undefined,
           optionD,
+          optionDAlt: isBilingual ? optionDAlt : undefined,
           correctOption: normalized,
           explanation,
+          explanationAlt: isBilingual ? explanationAlt : undefined,
           sectionLabel,
           isActive: true,
         },
@@ -4516,6 +4719,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!file) {
       throw new Error("Please choose a CSV file.");
     }
+    const isBilingual = isBilingualQuestionMode();
+    const rightFile = lessonBulkImportCsvFileAltInput?.files?.[0];
+    if (isBilingual && !rightFile) {
+      throw new Error("Please choose the right language CSV file also.");
+    }
     const defaultSection =
       normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
 
@@ -4524,10 +4732,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sectionLookup = new Map(
       state.mockTestSections.map((section) => [normalizeQuestionSectionLabel(section.sectionLabel), section])
     );
-    const rows = normalizeCsvRows(parsedRows, {
+    const leftRows = normalizeCsvRows(parsedRows, {
       defaultSectionLabel: defaultSection,
       sectionLookup,
     });
+    let rows = leftRows;
+    if (isBilingual && rightFile) {
+      const rightCsvText = await rightFile.text();
+      const rightParsedRows = parseCsvText(rightCsvText);
+      const rightRows = normalizeCsvRows(rightParsedRows, {
+        defaultSectionLabel: defaultSection,
+        sectionLookup,
+      });
+      rows = mergeBilingualQuestionRows(leftRows, rightRows, "CSV upload");
+    }
     const replaceExisting = Boolean(lessonBulkImportReplaceExistingInput?.checked);
     if (replaceExisting) {
       const target = requiredQuestionsForLesson();
@@ -5540,6 +5758,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
+    lessonMockTestLanguageModeInput.addEventListener("change", () => {
+      toggleBilingualQuestionInputs();
+    });
+  }
+
+  if (lessonSectionSkipTranscriptInput instanceof HTMLInputElement) {
+    lessonSectionSkipTranscriptInput.addEventListener("change", () => {
+      toggleLessonSectionTranscriptState();
+    });
+  }
+
   if (btnRefreshCustomVoices) {
     btnRefreshCustomVoices.addEventListener("click", async () => {
       if (getSelectedProvider() !== "openai") {
@@ -5894,6 +6124,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 csvImportedWithLesson = true;
                 if (lessonBulkImportCsvFileInput instanceof HTMLInputElement) {
                   lessonBulkImportCsvFileInput.value = "";
+                }
+                if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) {
+                  lessonBulkImportCsvFileAltInput.value = "";
                 }
                 if (lessonBulkImportReplaceExistingInput instanceof HTMLInputElement) {
                   lessonBulkImportReplaceExistingInput.checked = false;
@@ -6426,6 +6659,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (lessonBulkImportCsvFileInput instanceof HTMLInputElement) {
           lessonBulkImportCsvFileInput.value = "";
         }
+        if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) {
+          lessonBulkImportCsvFileAltInput.value = "";
+        }
         if (lessonBulkImportReplaceExistingInput instanceof HTMLInputElement) {
           lessonBulkImportReplaceExistingInput.checked = false;
         }
@@ -6831,7 +7067,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderQuestionSectionControls();
     renderLessonSections();
     resetLessonSectionForm();
+    toggleLessonSectionTranscriptState();
     toggleQuestionStructuredFields();
+    toggleBilingualQuestionInputs();
     syncCsvSectionByTemplate({ force: true });
     updateQuestionSectionSummary();
     setContextLabels();

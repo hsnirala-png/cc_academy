@@ -237,8 +237,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const progressEl = document.querySelector("#attemptProgress");
   const questionIndexEl = document.querySelector("#questionIndex");
   const attemptTimerEl = document.querySelector("#attemptTimer");
+  const attemptLanguageHintEl = document.querySelector("#attemptLanguageHint");
+  const attemptLanguageToggleEl = document.querySelector("#attemptLanguageToggle");
+  const questionPanelsEl = document.querySelector("#questionPanels");
   const questionTextEl = document.querySelector("#questionText");
+  const questionTextAltEl = document.querySelector("#questionTextAlt");
   const optionsFormEl = document.querySelector("#optionsForm");
+  const optionsFormAltEl = document.querySelector("#optionsFormAlt");
   const prevBtn = document.querySelector("#prevQuestionBtn");
   const nextBtn = document.querySelector("#nextQuestionBtn");
   const stopAttemptBtn = document.querySelector("#stopAttemptBtn");
@@ -282,6 +287,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     resumeQuestionIndex: attemptQuestionIndexFromQuery,
     autoPlayRequested: getAutoPlayFromQuery(),
     autoPlayAttempted: false,
+    currentBilingualView: "left",
   };
 
   const setStatus = (text, type) => {
@@ -289,6 +295,72 @@ document.addEventListener("DOMContentLoaded", async () => {
     statusEl.textContent = text || "";
     statusEl.classList.remove("error", "success");
     if (type) statusEl.classList.add(type);
+  };
+
+  const isBilingualQuestion = (question) =>
+    Boolean(
+      String(question?.questionTextAlt || "").trim() &&
+        String(question?.optionAAlt || "").trim() &&
+        String(question?.optionBAlt || "").trim() &&
+        String(question?.optionCAlt || "").trim() &&
+        String(question?.optionDAlt || "").trim()
+    );
+
+  const buildAttemptOptionsMarkup = (question, { useAlt = false } = {}) =>
+    ["A", "B", "C", "D"]
+      .map((option) => {
+        const checked = question?.selectedOption === option ? "checked" : "";
+        const disabled = state.isSubmitted ? "disabled" : "";
+        const optionText = question?.[`${useAlt ? `option${option}Alt` : `option${option}`}`] || "";
+        return `
+          <label class="attempt-option">
+            <input type="radio" name="attemptOption${useAlt ? "Alt" : ""}" value="${option}" data-attempt-option="${option}" ${checked} ${disabled} />
+            <span><strong>${option}.</strong> ${escapeHtml(optionText)}</span>
+          </label>
+        `;
+      })
+      .join("");
+
+  const syncAttemptLanguageUi = (question, { forceDesktopBoth = false } = {}) => {
+    const bilingual = isBilingualQuestion(question);
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (attemptLanguageHintEl instanceof HTMLElement) {
+      const showHint = bilingual && state.currentIndex === 0;
+      attemptLanguageHintEl.textContent = showHint
+        ? "This question is available in two languages. On mobile, use the toggle to view the other language."
+        : "";
+      attemptLanguageHintEl.classList.toggle("hidden", !showHint);
+    }
+    if (attemptLanguageToggleEl instanceof HTMLElement) {
+      attemptLanguageToggleEl.classList.toggle("hidden", !bilingual || !isMobile);
+      Array.from(attemptLanguageToggleEl.querySelectorAll("[data-bilingual-view]")).forEach((button) => {
+        const view = button.getAttribute("data-bilingual-view") || "left";
+        button.classList.toggle("is-active", view === state.currentBilingualView);
+      });
+    }
+    if (!(questionPanelsEl instanceof HTMLElement)) return;
+    const leftPanel = questionPanelsEl.querySelector('[data-language-panel="left"]');
+    const rightPanel = questionPanelsEl.querySelector('[data-language-panel="right"]');
+    if (!(leftPanel instanceof HTMLElement) || !(rightPanel instanceof HTMLElement)) return;
+
+    leftPanel.classList.toggle("attempt-question-panel-half", bilingual);
+    rightPanel.classList.toggle("attempt-question-panel-half", bilingual);
+    rightPanel.classList.toggle("hidden", !bilingual);
+
+    if (!bilingual) {
+      leftPanel.classList.remove("hidden");
+      rightPanel.classList.add("hidden");
+      return;
+    }
+
+    if (!isMobile || forceDesktopBoth) {
+      leftPanel.classList.remove("hidden");
+      rightPanel.classList.remove("hidden");
+      return;
+    }
+
+    leftPanel.classList.toggle("hidden", state.currentBilingualView !== "left");
+    rightPanel.classList.toggle("hidden", state.currentBilingualView !== "right");
   };
 
   const getCurrentLessonPlayer = () => {
@@ -842,21 +914,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (questionTextEl) {
       questionTextEl.textContent = current.questionText;
     }
-    if (optionsFormEl) {
-      optionsFormEl.innerHTML = ["A", "B", "C", "D"]
-        .map((option) => {
-          const checked = current.selectedOption === option ? "checked" : "";
-          const optionText = current[`option${option}`] || "";
-          const disabled = state.isSubmitted ? "disabled" : "";
-          return `
-            <label class="attempt-option">
-              <input type="radio" name="attemptOption" value="${option}" ${checked} ${disabled} />
-              <span><strong>${option}.</strong> ${escapeHtml(optionText)}</span>
-            </label>
-          `;
-        })
-        .join("");
+    if (questionTextAltEl) {
+      questionTextAltEl.textContent = current.questionTextAlt || "";
     }
+    if (optionsFormEl) {
+      optionsFormEl.innerHTML = buildAttemptOptionsMarkup(current);
+    }
+    if (optionsFormAltEl) {
+      optionsFormAltEl.innerHTML = isBilingualQuestion(current) ? buildAttemptOptionsMarkup(current, { useAlt: true }) : "";
+    }
+    syncAttemptLanguageUi(current);
 
     if (prevBtn) prevBtn.disabled = state.currentIndex <= 0 || (!state.isSubmitted && isTimeOver());
     persistAttemptQuestionState();
@@ -874,7 +941,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `
           <tr>
             <td>${question.orderIndex}</td>
-            <td>${escapeHtml(question.questionText)}</td>
+            <td>${escapeHtml(
+              question.questionTextAlt
+                ? `${question.questionText} / ${question.questionTextAlt}`
+                : question.questionText
+            )}</td>
             <td>${escapeHtml(selected)}</td>
             <td>${escapeHtml(correct)}</td>
             <td><span class="chip ${isCorrect ? "active" : "inactive"}">${isCorrect ? "Correct" : "Wrong"}</span></td>
@@ -1124,30 +1195,60 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  const handleAttemptOptionChange = async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!target.hasAttribute("data-attempt-option")) return;
+    if (state.isSubmitted) return;
+    if (isTimeOver()) return;
+
+    const current = state.questions[state.currentIndex];
+    if (!current) return;
+
+    const selectedOption = target.getAttribute("data-attempt-option") || target.value;
+    current.selectedOption = selectedOption;
+    renderCurrentQuestion();
+    updateProgress();
+
+    try {
+      setStatus("Saving answer...");
+      await saveAnswer(current.questionId, selectedOption);
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Failed to save answer", "error");
+    }
+  };
+
   if (optionsFormEl) {
     optionsFormEl.addEventListener("change", async (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      if (target.name !== "attemptOption") return;
-      if (state.isSubmitted) return;
-      if (isTimeOver()) return;
-
-      const current = state.questions[state.currentIndex];
-      if (!current) return;
-
-      const selectedOption = target.value;
-      current.selectedOption = selectedOption;
-      updateProgress();
-
-      try {
-        setStatus("Saving answer...");
-        await saveAnswer(current.questionId, selectedOption);
-        setStatus("");
-      } catch (error) {
-        setStatus(error.message || "Failed to save answer", "error");
-      }
+      await handleAttemptOptionChange(event);
     });
   }
+
+  if (optionsFormAltEl) {
+    optionsFormAltEl.addEventListener("change", async (event) => {
+      await handleAttemptOptionChange(event);
+    });
+  }
+
+  if (attemptLanguageToggleEl instanceof HTMLElement) {
+    attemptLanguageToggleEl.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const nextView = target.getAttribute("data-bilingual-view");
+      if (nextView !== "left" && nextView !== "right") return;
+      state.currentBilingualView = nextView;
+      const current = state.questions[state.currentIndex];
+      if (!current) return;
+      syncAttemptLanguageUi(current);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    const current = state.questions[state.currentIndex];
+    if (!current) return;
+    syncAttemptLanguageUi(current);
+  });
 
   if (prevBtn) {
     prevBtn.addEventListener("click", () => {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Attempt</title>
-    <link rel="stylesheet" href="./src/styles.css?v=45" />
+    <link rel="stylesheet" href="./src/styles.css?v=46" />
   </head>
   <body>
     <header class="site-header">
@@ -61,8 +61,23 @@
           <p id="questionIndex" class="attempt-index"></p>
           <p id="attemptTimer" class="attempt-timer" aria-live="polite">0:00:00</p>
         </div>
-        <h2 id="questionText" class="attempt-question-text"></h2>
-        <form id="optionsForm" class="attempt-options"></form>
+        <p id="attemptLanguageHint" class="attempt-language-hint hidden"></p>
+        <div id="attemptLanguageToggle" class="attempt-language-toggle hidden">
+          <button type="button" class="btn-ghost is-active" data-bilingual-view="left">Left Language</button>
+          <button type="button" class="btn-ghost" data-bilingual-view="right">Right Language</button>
+        </div>
+        <div id="questionPanels" class="attempt-question-panels">
+          <section class="attempt-question-panel" data-language-panel="left">
+            <p class="attempt-language-label">Left Language</p>
+            <h2 id="questionText" class="attempt-question-text"></h2>
+            <form id="optionsForm" class="attempt-options"></form>
+          </section>
+          <section class="attempt-question-panel hidden" data-language-panel="right">
+            <p class="attempt-language-label">Right Language</p>
+            <h2 id="questionTextAlt" class="attempt-question-text"></h2>
+            <form id="optionsFormAlt" class="attempt-options"></form>
+          </section>
+        </div>
 
         <div class="attempt-actions">
           <button
@@ -126,7 +141,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/mock-attempt.js?v=22"></script>
+    <script type="module" src="./src/mock-attempt.js?v=23"></script>
       <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

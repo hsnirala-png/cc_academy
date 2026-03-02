@@ -53,12 +53,18 @@ export const adminUpdateMockTestSchema = adminCreateMockTestSchema
 
 export const adminCreateQuestionSchema = z.object({
   questionText: z.string().trim().min(2),
+  questionTextAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(2).optional()),
   optionA: z.string().trim().min(1),
+  optionAAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionB: z.string().trim().min(1),
+  optionBAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionC: z.string().trim().min(1),
+  optionCAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionD: z.string().trim().min(1),
+  optionDAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   correctOption: z.enum(["A", "B", "C", "D"]),
   explanation: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
+  explanationAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
   sectionLabel: optionalSectionLabelSchema,
   isActive: z.boolean().optional(),
 });
@@ -69,12 +75,18 @@ export const adminUpdateQuestionSchema = adminCreateQuestionSchema
 
 export const adminBulkImportQuestionRowSchema = z.object({
   questionText: z.string().trim().min(2),
+  questionTextAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(2).optional()),
   optionA: z.string().trim().min(1),
+  optionAAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionB: z.string().trim().min(1),
+  optionBAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionC: z.string().trim().min(1),
+  optionCAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   optionD: z.string().trim().min(1),
+  optionDAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(1).optional()),
   correctOption: z.enum(["A", "B", "C", "D"]),
   explanation: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
+  explanationAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
   sectionLabel: optionalSectionLabelSchema,
   isActive: z.boolean().optional(),
 });

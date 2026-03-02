@@ -324,12 +324,18 @@ model Question {
   id           String      @id @default(cuid())
   mockTestId   String
   questionText String      @db.Text
+  questionTextAlt String?  @db.Text
   optionA      String      @db.Text
+  optionAAlt   String?     @db.Text
   optionB      String      @db.Text
+  optionBAlt   String?     @db.Text
   optionC      String      @db.Text
+  optionCAlt   String?     @db.Text
   optionD      String      @db.Text
+  optionDAlt   String?     @db.Text
   correctOption MockOption
   explanation  String?     @db.Text
+  explanationAlt String?   @db.Text
   sectionLabel String?     @db.VarChar(120)
   isActive     Boolean     @default(true)
   mockTest     MockTest    @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
