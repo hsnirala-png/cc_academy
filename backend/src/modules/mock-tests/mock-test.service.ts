@@ -18,7 +18,7 @@ import {
 import { calculateAttemptScore } from "./mock-test.scoring";
 import { getRequiredQuestionCount, validateMockTestRule } from "./mock-test.rules";
 
-type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI";
+type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI" | "BILINGUAL";
 type AccessCode = "DEMO" | "MOCK" | "LESSON";
 type MockTestSectionType =
   | "COMPREHENSION"

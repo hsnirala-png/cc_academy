@@ -30,6 +30,7 @@ export const LANGUAGE_LABELS = {
   PUNJABI: "Punjabi",
   ENGLISH: "English",
   HINDI: "Hindi",
+  BILINGUAL: "Bilingual",
 };
 
 export const REQUIRED_QUESTIONS_BY_SUBJECT = {

@@ -1,7 +1,7 @@
 import { ExamType, MockSubject, StreamChoice } from "@prisma/client";
 import { AppError } from "../../utils/appError";
 
-type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI";
+type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI" | "BILINGUAL";
 
 const SUBJECTS_30 = new Set<MockSubject>([
   MockSubject.PUNJABI,

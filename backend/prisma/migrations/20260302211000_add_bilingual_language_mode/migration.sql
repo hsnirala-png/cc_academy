@@ -1,0 +1,2 @@
+ALTER TABLE `MockTest`
+  MODIFY `languageMode` ENUM('PUNJABI', 'ENGLISH', 'HINDI', 'BILINGUAL') NULL;

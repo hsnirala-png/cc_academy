@@ -22,7 +22,7 @@ const optionalLanguageModeSchema = z.preprocess(
     if (value === null) return null;
     return value;
   },
-  z.enum(["PUNJABI", "ENGLISH", "HINDI"]).nullable().optional()
+  z.enum(["PUNJABI", "ENGLISH", "HINDI", "BILINGUAL"]).nullable().optional()
 );
 
 const optionalSectionLabelSchema = z.preprocess(
