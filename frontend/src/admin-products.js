@@ -993,6 +993,47 @@ document.addEventListener("DOMContentLoaded", async () => {
     return selectedMockUpcomingMockTestIds;
   };
 
+  const normalizeAttachmentLookup = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/[^a-z0-9\s]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const resolveAttachmentSubjectLabel = (item) => {
+    const subjectCode = String(item?.subject || "").trim().toUpperCase();
+    const combinedText = normalizeAttachmentLookup(
+      [item?.title, item?.courseTitle, item?.chapterTitle, item?.lessonTitle].filter(Boolean).join(" ")
+    );
+
+    if (subjectCode === "MATHS_EVS") {
+      if (combinedText.includes("environment") || /\bevs\b/.test(combinedText)) return "EVS";
+      if (
+        combinedText.includes("mathematics") ||
+        combinedText.includes("maths") ||
+        combinedText.includes("math ")
+      ) {
+        return "MATHS";
+      }
+      return "EVS";
+    }
+
+    if (subjectCode === "SCIENCE_MATH") {
+      if (combinedText.includes("science")) return "SCIENCE";
+      if (
+        combinedText.includes("mathematics") ||
+        combinedText.includes("maths") ||
+        combinedText.includes("math ")
+      ) {
+        return "MATHS";
+      }
+      return "SCIENCE_MATH";
+    }
+
+    return subjectCode;
+  };
+
   const setAttachmentSelection = (type, testId, selected, isUpcoming = false) => {
     const selectedSet = getSelectedSetByAttachmentType(type);
     const upcomingSet = getUpcomingSetByAttachmentType(type);
@@ -1011,6 +1052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     title: String(item?.title || "Untitled"),
     examType: String(item?.examType || "").trim(),
     subject: String(item?.subject || "").trim(),
+    subjectFilterLabel: resolveAttachmentSubjectLabel(item),
     accessCode: normalizeAttachmentType(item?.accessCode),
     isUpcoming: Boolean(item?.isUpcoming),
     languageMode: String(item?.languageMode || "").trim(),
@@ -1082,7 +1124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     attachmentFilters.subject = fillFilterSelect(
       attachmentSubjectFilter,
-      candidates.map((item) => item.subject),
+      candidates.map((item) => item.subjectFilterLabel),
       attachmentFilters.subject,
       "All Subjects"
     );
@@ -1102,7 +1144,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const titleSearch = String(attachmentFilters.title || "").trim().toLowerCase();
     const filtered = candidates.filter((item) => {
       if (attachmentFilters.course && item.courseTitle !== attachmentFilters.course) return false;
-      if (attachmentFilters.subject && item.subject !== attachmentFilters.subject) return false;
+      if (attachmentFilters.subject && item.subjectFilterLabel !== attachmentFilters.subject) return false;
       if (attachmentFilters.chapter && item.chapterTitle !== attachmentFilters.chapter) return false;
       if (attachmentFilters.language && item.languageMode !== attachmentFilters.language) return false;
       if (!titleSearch) return true;
@@ -1131,7 +1173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               item.courseTitle ? `Course: ${item.courseTitle}` : "",
               item.chapterTitle ? `Chapter: ${item.chapterTitle}` : "",
               item.lessonTitle ? `Lesson: ${item.lessonTitle}` : "",
-              item.subject ? `Subject: ${item.subject}` : "",
+              item.subjectFilterLabel ? `Subject: ${item.subjectFilterLabel}` : "",
               item.languageMode ? `Language: ${item.languageMode}` : "",
               selectedSet.has(item.id) ? `Current: ${savedAsUpcoming ? "Upcoming" : "Live"}` : "",
             ]
