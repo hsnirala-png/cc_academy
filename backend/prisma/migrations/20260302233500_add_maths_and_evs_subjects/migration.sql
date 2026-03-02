@@ -1,0 +1,11 @@
+ALTER TABLE `MockTest`
+  MODIFY COLUMN `subject` ENUM(
+    'PUNJABI',
+    'ENGLISH',
+    'CHILD_PEDAGOGY',
+    'MATHS',
+    'EVS',
+    'MATHS_EVS',
+    'SCIENCE_MATH',
+    'SOCIAL_STUDIES'
+  ) NOT NULL;

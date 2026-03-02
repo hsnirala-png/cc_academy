@@ -2038,6 +2038,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   ];
   const NON_LANGUAGE_SUBJECTS = new Set([
     "CHILD_PEDAGOGY",
+    "MATHS",
+    "EVS",
     "MATHS_EVS",
     "SCIENCE_MATH",
     "SOCIAL_STUDIES",
@@ -2660,22 +2662,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     return "PSTET_1";
   };
   const inferMockSubjectFromChapter = () => {
-    const title = normalizeLookupText(selectedMockChapter()?.title || "");
-    if (!title) return "PUNJABI";
-    if (title.includes("punjabi")) return "PUNJABI";
-    if (title.includes("english")) return "ENGLISH";
-    if (title.includes("child") || title.includes("pedagogy")) return "CHILD_PEDAGOGY";
-    if (title.includes("social")) return "SOCIAL_STUDIES";
-    if (title.includes("science") && title.includes("math")) return "SCIENCE_MATH";
-    if (title.includes("math") && title.includes("evs")) return "MATHS_EVS";
-    if (
-      title.includes("maths") ||
-      title.includes("mathematics") ||
-      title.includes("evs") ||
-      title.includes("environment")
-    ) {
-      return "MATHS_EVS";
-    }
+    const chapterTitle = normalizeLookupText(selectedMockChapter()?.title || "");
+    const lessonTitle = normalizeLookupText(selectedMockLesson()?.title || "");
+    const combinedTitle = `${chapterTitle} ${lessonTitle}`.trim();
+    if (!combinedTitle) return "PUNJABI";
+    if (combinedTitle.includes("punjabi")) return "PUNJABI";
+    if (combinedTitle.includes("english")) return "ENGLISH";
+    if (combinedTitle.includes("child") || combinedTitle.includes("pedagogy")) return "CHILD_PEDAGOGY";
+    if (combinedTitle.includes("social")) return "SOCIAL_STUDIES";
+    if (combinedTitle.includes("science") && combinedTitle.includes("math")) return "SCIENCE_MATH";
+
+    const mentionsEvs =
+      combinedTitle.includes("evs") ||
+      combinedTitle.includes("environment") ||
+      combinedTitle.includes("environmental");
+    const mentionsMaths =
+      combinedTitle.includes("maths") ||
+      combinedTitle.includes("mathematics") ||
+      combinedTitle.includes("math ");
+
+    if (mentionsMaths && mentionsEvs) return "MATHS_EVS";
+    if (mentionsEvs) return "EVS";
+    if (mentionsMaths) return "MATHS";
     return "CHILD_PEDAGOGY";
   };
   const syncMockTaxonomyFromScope = (options = {}) => {

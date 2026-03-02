@@ -17,6 +17,8 @@ const SUBJECTS = [
   "PUNJABI",
   "ENGLISH",
   "CHILD_PEDAGOGY",
+  "MATHS",
+  "EVS",
   "MATHS_EVS",
   "SCIENCE_MATH",
   "SOCIAL_STUDIES",
@@ -24,6 +26,8 @@ const SUBJECTS = [
 
 const NON_LANGUAGE_SUBJECTS = new Set([
   "CHILD_PEDAGOGY",
+  "MATHS",
+  "EVS",
   "MATHS_EVS",
   "SCIENCE_MATH",
   "SOCIAL_STUDIES",

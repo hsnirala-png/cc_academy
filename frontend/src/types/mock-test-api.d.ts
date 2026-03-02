@@ -4,6 +4,8 @@ export type MockSubject =
   | "PUNJABI"
   | "ENGLISH"
   | "CHILD_PEDAGOGY"
+  | "MATHS"
+  | "EVS"
   | "MATHS_EVS"
   | "SCIENCE_MATH"
   | "SOCIAL_STUDIES";

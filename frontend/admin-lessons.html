@@ -486,7 +486,19 @@
 
                 <div class="admin-form-row">
                   <input id="lessonMockTestExamType" type="hidden" value="PSTET_1" />
-                  <input id="lessonMockTestSubject" type="hidden" value="PUNJABI" />
+                  <div class="admin-field">
+                    <label for="lessonMockTestSubject">Test Subject</label>
+                    <select id="lessonMockTestSubject">
+                      <option value="PUNJABI">Punjabi</option>
+                      <option value="ENGLISH">English</option>
+                      <option value="CHILD_PEDAGOGY">Child Pedagogy</option>
+                      <option value="MATHS">Mathematics</option>
+                      <option value="EVS">EVS</option>
+                      <option value="MATHS_EVS">Maths/EVS (Legacy)</option>
+                      <option value="SCIENCE_MATH">Science/Math</option>
+                      <option value="SOCIAL_STUDIES">Social Studies</option>
+                    </select>
+                  </div>
                   <div id="lessonMockStreamWrap" class="admin-field hidden">
                     <label for="lessonMockTestStreamChoice">Stream Choice</label>
                     <select id="lessonMockTestStreamChoice">
@@ -1100,7 +1112,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=84"></script>
+    <script type="module" src="./src/admin-lessons.js?v=85"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

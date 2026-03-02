@@ -7,6 +7,8 @@ const SUBJECTS_30 = new Set<MockSubject>([
   MockSubject.PUNJABI,
   MockSubject.ENGLISH,
   MockSubject.CHILD_PEDAGOGY,
+  MockSubject.MATHS,
+  MockSubject.EVS,
 ]);
 
 const SUBJECTS_60 = new Set<MockSubject>([
@@ -19,6 +21,8 @@ const LANGUAGE_SUBJECTS = new Set<MockSubject>([MockSubject.PUNJABI, MockSubject
 
 const NON_LANGUAGE_SUBJECTS = new Set<MockSubject>([
   MockSubject.CHILD_PEDAGOGY,
+  MockSubject.MATHS,
+  MockSubject.EVS,
   MockSubject.MATHS_EVS,
   MockSubject.SCIENCE_MATH,
   MockSubject.SOCIAL_STUDIES,
@@ -44,6 +48,8 @@ export const validateMockTestRule = (
       MockSubject.PUNJABI,
       MockSubject.ENGLISH,
       MockSubject.CHILD_PEDAGOGY,
+      MockSubject.MATHS,
+      MockSubject.EVS,
       MockSubject.MATHS_EVS,
     ]);
 
