@@ -239,6 +239,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     return url.toString();
   };
 
+  const buildStudentLoginUrl = (redirectPath = "") => {
+    const loginUrl = new URL("./index.html", window.location.href);
+    loginUrl.searchParams.set("auth", "login");
+    const nextPath =
+      String(redirectPath || "").trim() ||
+      `${window.location.pathname || "/mock-test-registration.html"}${window.location.search || ""}${window.location.hash || ""}`;
+    loginUrl.searchParams.set("redirectPath", nextPath);
+    loginUrl.searchParams.set("next", nextPath);
+    return loginUrl.toString();
+  };
+
   const clearIncomingReferralParam = () => {
     if (!requestedFriendReferralCode) return;
     const nextUrl = new URL(window.location.href);
@@ -1717,7 +1728,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (error) {
     if (error?.status === 401 || error?.status === 403) {
       clearAuth();
-      window.location.href = "./index.html";
+      window.location.href = buildStudentLoginUrl();
       return;
     }
     setStatus(error?.message || "Unable to load registration details.", "error");

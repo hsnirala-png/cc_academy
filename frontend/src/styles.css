@@ -3705,16 +3705,31 @@ h1 {
   color: var(--muted);
 }
 
-.mock-guest-header-cta {
-  display: inline-flex;
+.mock-guest-banner-cta {
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin-top: 0.75rem;
+  margin-top: 0.45rem;
 }
 
-.mock-guest-header-cta .dash-k {
+.mock-guest-banner-cta .dash-k {
   margin: 0;
+}
+
+.mock-guest-register-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #0f53bd;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.mock-guest-register-link:hover {
+  text-decoration: underline;
 }
 
 .mock-filters-card {
