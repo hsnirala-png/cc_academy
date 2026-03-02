@@ -536,7 +536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(mockProductsGrid instanceof HTMLElement)) return;
     if (mockAllProductsLink instanceof HTMLAnchorElement) {
       mockAllProductsLink.href = buildMockProductsPageUrl();
-      mockAllProductsLink.classList.add("hidden");
+      mockAllProductsLink.classList.remove("hidden");
     }
     const products = Array.isArray(state.productsCatalog) ? state.productsCatalog : [];
     mockProductsGrid.classList.remove("catalog-window-host");
@@ -569,11 +569,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       : products.slice(state.productsWindowStart, state.productsWindowStart + cardsPerView);
     const canPrev = !isMobileView && state.productsWindowStart > 0;
     const canNext = !isMobileView && state.productsWindowStart + cardsPerView < products.length;
-    const allProductsAnchorIndex = visibleProducts.length
-      ? isMobileView
-        ? 0
-        : Math.min(cardsPerView - 1, visibleProducts.length - 1)
-      : -1;
+
+    if (isMobileView) {
+      mockProductsGrid.classList.remove("catalog-window-host");
+      mockProductsGrid.innerHTML = `
+        <div class="mock-products-mobile-list">
+          ${visibleProducts
+            .map(
+              (product) => `
+                <div class="mock-products-mobile-item">
+                  ${renderMockProductCard(product)}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      `;
+      return;
+    }
 
     mockProductsGrid.classList.add("catalog-window-host");
     mockProductsGrid.innerHTML = `
@@ -603,13 +616,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="catalog-window-grid ${isMobileView ? "is-mobile" : "is-desktop"}">
           ${visibleProducts
             .map(
-              (product, index) => `
+              (product) => `
                 <div class="catalog-window-item">
-                  ${
-                    index === allProductsAnchorIndex
-                      ? `<a class="catalog-all-products-btn" href="${escapeHtml(buildMockProductsPageUrl())}">All Products</a>`
-                      : ""
-                  }
                   ${renderMockProductCard(product)}
                 </div>
               `

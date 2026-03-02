@@ -4423,6 +4423,17 @@ h1 {
 
 .mock-products-heading-row {
   margin-bottom: 0.25rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mock-products-mobile-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.mock-products-mobile-item {
+  min-width: 0;
 }
 
 .attempt-card {
@@ -4763,6 +4774,29 @@ h1 {
   .products-heading-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .mock-products-heading-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .mock-products-section .btn-secondary {
+    white-space: nowrap;
+  }
+
+  .mock-products-mobile-item .home-latest-card {
+    width: 100%;
+    min-height: var(--catalog-card-thumb-size-sm);
+  }
+
+  .mock-products-mobile-item .home-latest-thumb {
+    min-height: var(--catalog-card-thumb-size-sm);
+    height: 100%;
+  }
+
+  .mock-products-mobile-item .home-latest-body {
+    padding: 0.55rem 0.58rem 0.62rem;
   }
 
   .products-heading-actions {
