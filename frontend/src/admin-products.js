@@ -1001,6 +1001,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/\s+/g, " ")
       .trim();
 
+  const ATTACHMENT_SUBJECT_FILTER_ORDER = [
+    "CHILD_PEDAGOGY",
+    "ENGLISH",
+    "EVS",
+    "MATHS",
+    "PUNJABI",
+    "SCIENCE_MATH",
+    "SOCIAL_STUDIES",
+    "MATHS_EVS",
+  ];
+
   const resolveAttachmentSubjectLabel = (item) => {
     const subjectCode = String(item?.subject || "").trim().toUpperCase();
     const combinedText = normalizeAttachmentLookup(
@@ -1016,7 +1027,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ) {
         return "MATHS";
       }
-      return "EVS";
+      return "MATHS_EVS";
     }
 
     if (subjectCode === "SCIENCE_MATH") {
@@ -1086,7 +1097,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Array.from(mergedMap.values());
   };
 
-  const fillFilterSelect = (selectEl, values, currentValue, allLabel) => {
+  const fillFilterSelect = (selectEl, values, currentValue, allLabel, preferredOrder = []) => {
     if (!(selectEl instanceof HTMLSelectElement)) return "";
     const unique = Array.from(
       new Set(
@@ -1094,7 +1105,16 @@ document.addEventListener("DOMContentLoaded", async () => {
           .map((item) => String(item || "").trim())
           .filter(Boolean)
       )
-    ).sort((a, b) => a.localeCompare(b));
+    ).sort((a, b) => {
+      const aIndex = preferredOrder.indexOf(a);
+      const bIndex = preferredOrder.indexOf(b);
+      if (aIndex !== -1 || bIndex !== -1) {
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      }
+      return a.localeCompare(b);
+    });
 
     selectEl.innerHTML = [
       `<option value="">${escapeHtml(allLabel)}</option>`,
@@ -1124,9 +1144,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     attachmentFilters.subject = fillFilterSelect(
       attachmentSubjectFilter,
-      candidates.map((item) => item.subjectFilterLabel),
+      [...ATTACHMENT_SUBJECT_FILTER_ORDER, ...candidates.map((item) => item.subjectFilterLabel)],
       attachmentFilters.subject,
-      "All Subjects"
+      "All Subjects",
+      ATTACHMENT_SUBJECT_FILTER_ORDER
     );
     attachmentFilters.chapter = fillFilterSelect(
       attachmentChapterFilter,
