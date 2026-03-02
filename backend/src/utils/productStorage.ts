@@ -3,6 +3,8 @@ import { hasColumn, hasConstraint, hasIndex } from "./schemaGuards";
 
 let isProductStorageReady = false;
 let productStoragePromise: Promise<void> | null = null;
+const PRODUCT_FILTER_INDEX = "Product_filters_idx";
+const LEGACY_PRODUCT_FILTER_INDEX = "Product_isActive_examCategory_examName_courseType_languageMode_idx";
 
 const ensureColumns = async (): Promise<void> => {
   if (!(await hasColumn("Product", "referralBonusAmount"))) {
@@ -45,10 +47,13 @@ const ensureColumns = async (): Promise<void> => {
 };
 
 const ensureIndexes = async (): Promise<void> => {
-  if (!(await hasIndex("Product", "Product_isActive_examCategory_examName_courseType_languageMode_idx"))) {
+  if (
+    !(await hasIndex("Product", PRODUCT_FILTER_INDEX)) &&
+    !(await hasIndex("Product", LEGACY_PRODUCT_FILTER_INDEX))
+  ) {
     await prisma
       .$executeRawUnsafe(
-        "CREATE INDEX `Product_isActive_examCategory_examName_courseType_languageMode_idx` ON `Product`(`isActive`, `examCategory`, `examName`, `courseType`, `languageMode`)"
+        `CREATE INDEX \`${PRODUCT_FILTER_INDEX}\` ON \`Product\`(\`isActive\`, \`examCategory\`, \`examName\`, \`courseType\`, \`languageMode\`)`
       )
       .catch(() => undefined);
   }
