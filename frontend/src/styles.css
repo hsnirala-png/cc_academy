@@ -1386,6 +1386,7 @@ h1 {
 
   .site-header .nav-links a.nav-link-dashboard::before,
   .site-header .nav-links a.nav-link-profile::before,
+  .site-header .nav-links a.nav-link-support::before,
   body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
   body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests.html"]::before,
   body:not(.is-mock-page) .site-header .nav-links a[href="./mock-tests"]::before {
@@ -1404,6 +1405,10 @@ h1 {
 
   .site-header .nav-links a.nav-link-profile::before {
     background-image: url("/public/profile_icon.jpg");
+  }
+
+  .site-header .nav-links a.nav-link-support::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b4fbf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z'/%3E%3Cpath d='M8 9h8'/%3E%3Cpath d='M8 13h5'/%3E%3C/svg%3E");
   }
 
   body:not(.is-mock-page) .site-header .nav-links a.nav-link-mock-tests::before,
@@ -4454,6 +4459,13 @@ h1 {
   align-items: center;
   gap: 0.6rem;
   margin: 0.35rem 0 0.75rem;
+}
+
+.attempt-result-hint {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 0.94rem;
 }
 
 .attempt-transcript-actions {

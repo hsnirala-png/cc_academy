@@ -292,6 +292,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentBilingualView: "left",
   };
 
+  const hasLessonTranscriptReference = (lesson) =>
+    Boolean(
+      lesson &&
+        !lesson?.directAttemptOnly &&
+        (
+          String(lesson?.transcriptText || "").trim() ||
+          String(lesson?.transcriptUrl || "").trim() ||
+          (Array.isArray(lesson?.transcriptSegments) && lesson.transcriptSegments.length)
+        )
+    );
+
   const setStatus = (text, type) => {
     if (!statusEl) return;
     statusEl.textContent = text || "";
@@ -682,7 +693,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const lesson = state.lessonContext;
-    if (!lesson) {
+    if (!hasLessonTranscriptReference(lesson)) {
       state.lessonTranscriptSegments = [];
       return;
     }
@@ -743,9 +754,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderLessonContext = () => {
     if (!(lessonRefWrap instanceof HTMLElement)) return;
     const lesson = state.lessonContext;
-    if (!lesson) {
+    const showLessonReference = hasLessonTranscriptReference(lesson);
+    if (!showLessonReference) {
       lessonRefWrap.classList.add("hidden");
+      if (playTranscriptBtn instanceof HTMLButtonElement) {
+        playTranscriptBtn.classList.add("hidden");
+      }
+      if (lessonAudioEl instanceof HTMLAudioElement) {
+        lessonAudioEl.pause();
+        lessonAudioEl.removeAttribute("src");
+        lessonAudioEl.classList.add("hidden");
+        lessonAudioEl.load();
+      }
+      if (lessonVideoEl instanceof HTMLVideoElement) {
+        lessonVideoEl.pause();
+        lessonVideoEl.removeAttribute("src");
+        lessonVideoEl.classList.add("hidden");
+        lessonVideoEl.load();
+      }
       return;
+    }
+
+    if (playTranscriptBtn instanceof HTMLButtonElement) {
+      playTranscriptBtn.classList.remove("hidden");
     }
 
     if (lessonMetaEl) {
@@ -815,7 +846,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const attemptAutoPlayLesson = () => {
-    if (!state.autoPlayRequested || state.autoPlayAttempted || state.isSubmitted) return;
+    if (
+      !state.autoPlayRequested ||
+      state.autoPlayAttempted ||
+      state.isSubmitted ||
+      !hasLessonTranscriptReference(state.lessonContext)
+    ) {
+      return;
+    }
     const player = getCurrentLessonPlayer();
     if (!(player instanceof HTMLMediaElement)) return;
     state.autoPlayAttempted = true;
@@ -937,8 +975,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       prevBtn.disabled = state.currentIndex <= 0 || (!state.isSubmitted && isTimeOver());
     }
     if (playTranscriptBtn instanceof HTMLButtonElement) {
-      const hasLesson = Boolean(String(state.lessonContext?.id || "").trim());
-      playTranscriptBtn.disabled = state.isSubmitted || isTimeOver() || !hasLesson || state.isFinalizing;
+      const hasLessonReference = hasLessonTranscriptReference(state.lessonContext);
+      playTranscriptBtn.disabled =
+        state.isSubmitted || isTimeOver() || !hasLessonReference || state.isFinalizing;
     }
   };
 
@@ -1048,9 +1087,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.lessonContext = null;
     }
     if (playTranscriptBtn instanceof HTMLButtonElement) {
-      const hasLesson = Boolean(String(state.lessonContext?.id || "").trim());
-      playTranscriptBtn.disabled = !hasLesson || state.isSubmitted;
-      playTranscriptBtn.title = hasLesson ? "Open lesson transcript and return to this test." : "Transcript not linked.";
+      const hasLessonReference = hasLessonTranscriptReference(state.lessonContext);
+      playTranscriptBtn.disabled = !hasLessonReference || state.isSubmitted;
+      playTranscriptBtn.title = hasLessonReference
+        ? "Open lesson transcript and return to this test."
+        : "Transcript not linked.";
     }
     await loadLessonTranscriptSegments();
     renderLessonContext();
@@ -1201,7 +1242,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       const lessonId = String(state.lessonContext?.id || "").trim();
-      if (!lessonId) {
+      if (!lessonId || !hasLessonTranscriptReference(state.lessonContext)) {
         setStatus("Transcript is not linked for this test.", "error");
         return;
       }
