@@ -4805,6 +4805,23 @@ h1 {
     padding: 0.55rem 0.58rem 0.62rem;
   }
 
+  .mock-guest-inline-cta {
+    display: inline;
+    white-space: normal;
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .mock-guest-inline-cta .dash-k {
+    display: inline;
+  }
+
+  .mock-guest-register-link {
+    display: inline;
+    white-space: nowrap;
+    margin-left: 0.18rem;
+  }
+
   .products-heading-actions {
     width: 100%;
     justify-content: space-between;
