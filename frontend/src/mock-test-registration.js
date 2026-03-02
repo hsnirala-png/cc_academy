@@ -69,6 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const isGuestMode = !token || !user;
 
   const searchParams = new URLSearchParams(window.location.search);
+  const signupRequested = /^(1|true|yes)$/i.test(String(searchParams.get("signup") || "").trim());
   const requestedMockTestId = String(searchParams.get("mockTestId") || "").trim();
   const requestedSignupMobile = String(searchParams.get("mobile") || "").trim();
   const requestedFriendReferralCode = String(
@@ -83,6 +84,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const menuToggle = document.querySelector(".menu-toggle");
   const titleEl = document.querySelector("#registrationTitle");
   const descriptionEl = document.querySelector("#registrationDescription");
+  const guestHeaderCta = document.querySelector("#mockGuestHeaderCta");
+  const guestHeaderRegisterBtn = document.querySelector("#mockGuestHeaderRegisterBtn");
   const attemptsInfoEl = document.querySelector("#registrationAttemptsInfo");
   const reminderCard = document.querySelector("#registrationReminderCard");
   const reminderTitleEl = document.querySelector("#registrationReminderTitle");
@@ -265,6 +268,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     guestRegisterModal.setAttribute("aria-hidden", "true");
   };
 
+  const syncGuestRegisterHeaderCta = () => {
+    if (!(guestHeaderCta instanceof HTMLElement)) return;
+    const shouldShow = isGuestMode && (signupRequested || Boolean(requestedSignupMobile));
+    guestHeaderCta.classList.toggle("hidden", !shouldShow);
+  };
+
   const applyGuestMode = () => {
     if (primaryNav instanceof HTMLElement) primaryNav.classList.add("hidden");
     if (menuToggle instanceof HTMLButtonElement) menuToggle.classList.add("hidden");
@@ -294,6 +303,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = buildMockProductsPageUrl();
       });
     }
+    syncGuestRegisterHeaderCta();
     setStatus("Complete the popup registration to continue to your student dashboard.");
     openGuestRegisterModal();
   };
@@ -1387,6 +1397,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (isGuestMode) {
     applyGuestMode();
+
+    if (guestHeaderRegisterBtn instanceof HTMLButtonElement) {
+      guestHeaderRegisterBtn.addEventListener("click", () => {
+        openGuestRegisterModal();
+      });
+    }
 
     if (guestRegisterForm instanceof HTMLFormElement) {
       guestRegisterForm.addEventListener("submit", handleGuestRegisterSubmit);

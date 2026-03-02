@@ -258,10 +258,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const redirectGuestToLogin = () => {
     const currentUrl = `${window.location.pathname || "/products.html"}${window.location.search || ""}${window.location.hash || ""}`;
-    const params = new URLSearchParams();
-    params.set("auth", "login");
-    params.set("redirectPath", currentUrl);
-    window.location.href = `./index.html?${params.toString()}`;
+    const loginUrl = new URL("./index.html", window.location.href);
+    loginUrl.searchParams.set("auth", "login");
+    loginUrl.searchParams.set("redirectPath", currentUrl);
+    loginUrl.searchParams.set("next", currentUrl);
+    window.location.href = loginUrl.toString();
   };
 
   const escapeHtml = (value) =>

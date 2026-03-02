@@ -3705,6 +3705,18 @@ h1 {
   color: var(--muted);
 }
 
+.mock-guest-header-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.mock-guest-header-cta .dash-k {
+  margin: 0;
+}
+
 .mock-filters-card {
   border: 1px solid var(--border);
   border-radius: 14px;

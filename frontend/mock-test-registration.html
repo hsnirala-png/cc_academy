@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mock Test Registration</title>
-    <link rel="stylesheet" href="./src/styles.css?v=46" />
+    <link rel="stylesheet" href="./src/styles.css?v=47" />
   </head>
   <body>
     <header class="site-header">
@@ -57,6 +57,10 @@
       <section class="mock-page-header">
         <h1>Mock Test Registration</h1>
         <p class="mock-subtitle">Register and use free attempts before buying full access.</p>
+        <div id="mockGuestHeaderCta" class="mock-guest-header-cta hidden">
+          <span class="dash-k">Only for new students</span>
+          <button id="mockGuestHeaderRegisterBtn" class="btn-primary" type="button">Register</button>
+        </div>
       </section>
       <p id="registrationStatus" class="form-message"></p>
 
@@ -274,7 +278,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/mock-test-registration.js?v=10"></script>
+    <script type="module" src="./src/mock-test-registration.js?v=11"></script>
     <script src="./src/global-nav.js?v=10"></script>
   </body>
 </html>
