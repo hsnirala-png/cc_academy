@@ -237,8 +237,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     return {
       token,
       user,
-      isStudentLoggedIn: Boolean(token && effectiveRole === "STUDENT"),
+      isStudentLoggedIn: Boolean(token && user && effectiveRole === "STUDENT"),
     };
+  };
+
+  const clearStoredAuth = () => {
+    localStorage.removeItem("cc_token");
+    localStorage.removeItem("cc_user");
+    sessionStorage.removeItem("cc_token");
+    sessionStorage.removeItem("cc_user");
   };
 
   /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null, selectedProductId: string}} */
@@ -1058,8 +1065,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const startLearningAttempt = async (mockTestId, { autoplay = false } = {}) => {
-    const { token } = getAuthState();
-    if (!token) {
+    const { token, isStudentLoggedIn } = getAuthState();
+    if (!token || !isStudentLoggedIn) {
       redirectGuestToLogin();
       return;
     }
@@ -1075,6 +1082,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearStoredAuth();
+        redirectGuestToLogin();
+        return;
+      }
       const error = new Error(payload?.message || "Unable to start learning.");
       error.status = response.status;
       error.code = payload?.code;
@@ -1104,8 +1116,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const openLessonByMockTestContext = async (mockTestId, { autoplay = false } = {}) => {
-    const { token } = getAuthState();
-    if (!token) {
+    const { token, isStudentLoggedIn } = getAuthState();
+    if (!token || !isStudentLoggedIn) {
       redirectGuestToLogin();
       return false;
     }
@@ -1120,6 +1132,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearStoredAuth();
+        redirectGuestToLogin();
+        return false;
+      }
       throw new Error(payload?.message || "Unable to open lesson.");
     }
 
@@ -2235,7 +2252,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (learningAction === "ATTEMPT_TEST") {
               const auth = getAuthState();
-              if (!auth.token) {
+              if (!auth.token || !auth.isStudentLoggedIn) {
                 redirectGuestToLogin();
                 return;
               }
