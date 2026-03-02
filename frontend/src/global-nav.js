@@ -304,6 +304,12 @@
     if (normalized.includes("/admin")) return false;
     if (isAdminSession()) return false;
     if (isMockNavPage()) return false;
+    const isMobileView = window.matchMedia("(max-width: 680px)").matches;
+    const isLessonPlayerPage =
+      normalized.endsWith("/lesson-player") || normalized.endsWith("/lesson-player.html");
+    const isMockAttemptPage =
+      normalized.endsWith("/mock-attempt") || normalized.endsWith("/mock-attempt.html");
+    if (isMobileView && (isLessonPlayerPage || isMockAttemptPage)) return false;
     return true;
   };
 
