@@ -88,6 +88,51 @@ const normalizeSectionType = (value: unknown): MockTestSectionType => {
   return "GENERAL_MCQ";
 };
 
+const isDirectAttemptSeriesText = (value: unknown) => {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return false;
+  return (
+    normalized.includes("previous paper") ||
+    normalized.includes("previous papers") ||
+    normalized.includes("full mock") ||
+    normalized.includes("mock test series")
+  );
+};
+
+const isDirectAttemptSeriesByCourseType = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toUpperCase() === "TEST_SERIES";
+
+const resolveDirectAttemptOnlyForMockTest = async (mockTestId: string) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT p.courseType, p.title
+      FROM Product p
+      INNER JOIN (
+        SELECT productId
+        FROM ProductMockTest
+        WHERE mockTestId = ?
+        UNION
+        SELECT productId
+        FROM ProductDemoMockTest
+        WHERE mockTestId = ?
+      ) links ON links.productId = p.id
+      LIMIT 20
+    `,
+    mockTestId,
+    mockTestId
+  )) as Array<{ courseType: string | null; title: string | null }>;
+
+  return rows.some(
+    (row) => isDirectAttemptSeriesByCourseType(row.courseType) || isDirectAttemptSeriesText(row.title)
+  );
+};
+
 const normalizeOptionalText = (value: unknown): string | null => {
   const normalized = String(value ?? "").trim();
   return normalized || null;
@@ -1752,7 +1797,7 @@ export const mockTestService = {
     });
 
     if (!lessons.length) return null;
-    const [accessMap, demoEntitledSet, productEntitledSet, enrollments] = await Promise.all([
+    const [accessMap, demoEntitledSet, productEntitledSet, enrollments, directAttemptOnly] = await Promise.all([
       loadMockTestAccessMap([mockTestId]),
       loadDemoLinkedMockTests([mockTestId]),
       userId ? loadUserAccessibleProductMockTests(userId, [mockTestId]) : Promise.resolve(new Set<string>()),
@@ -1769,6 +1814,7 @@ export const mockTestService = {
             },
           })
         : Promise.resolve([] as Array<{ courseId: string }>),
+      resolveDirectAttemptOnlyForMockTest(mockTestId),
     ]);
     const accessCode = accessMap.get(mockTestId) || "DEMO";
     const isDemoLessonContext = accessCode === "DEMO" || demoEntitledSet.has(mockTestId);
@@ -1817,6 +1863,7 @@ export const mockTestService = {
       transcriptUrl: normalizeLessonAssetUrl(lesson.transcriptUrl),
       transcriptText: lesson.transcriptText,
       transcriptSegments: lesson.transcriptSegments,
+      directAttemptOnly,
       chapter: {
         id: lesson.chapter.id,
         title: lesson.chapter.title,

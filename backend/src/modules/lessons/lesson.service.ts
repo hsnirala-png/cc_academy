@@ -106,6 +106,52 @@ const getAssignedCourses = async (userId: string) =>
     },
   });
 
+const isDirectAttemptSeriesText = (value: unknown) => {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return false;
+  return (
+    normalized.includes("previous paper") ||
+    normalized.includes("previous papers") ||
+    normalized.includes("full mock") ||
+    normalized.includes("mock test series")
+  );
+};
+
+const isDirectAttemptSeriesByCourseType = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toUpperCase() === "TEST_SERIES";
+
+const resolveDirectAttemptOnlyForAssessment = async (assessmentTestId: string | null): Promise<boolean> => {
+  if (!assessmentTestId) return false;
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT p.courseType, p.title
+      FROM Product p
+      INNER JOIN (
+        SELECT productId
+        FROM ProductMockTest
+        WHERE mockTestId = ?
+        UNION
+        SELECT productId
+        FROM ProductDemoMockTest
+        WHERE mockTestId = ?
+      ) links ON links.productId = p.id
+      LIMIT 20
+    `,
+    assessmentTestId,
+    assessmentTestId
+  )) as Array<{ courseType: string | null; title: string | null }>;
+
+  return rows.some(
+    (row) => isDirectAttemptSeriesByCourseType(row.courseType) || isDirectAttemptSeriesText(row.title)
+  );
+};
+
 const mapLessonProgress = (
   progress:
     | {
@@ -170,6 +216,7 @@ const mapLessonOverview = (
   },
   options?: {
     includeTranscriptContent?: boolean;
+    directAttemptOnly?: boolean;
   }
 ) => ({
   id: lesson.id,
@@ -181,6 +228,7 @@ const mapLessonOverview = (
   audioDurationMs: lesson.audioDurationMs,
   durationSec: lesson.durationSec,
   assessmentTestId: lesson.assessmentTestId,
+  directAttemptOnly: Boolean(options?.directAttemptOnly),
   assessmentLocked: Boolean(lesson.assessmentTestId && !progress.completed),
   createdAt: lesson.createdAt.toISOString(),
   updatedAt: lesson.updatedAt.toISOString(),
@@ -290,11 +338,15 @@ export const lessonService = {
     }
 
     const progress = mapLessonProgress(lesson.progress[0] ?? null);
-    const assignedCourses = await this.listAssignedCourses(userId);
+    const [assignedCourses, directAttemptOnly] = await Promise.all([
+      this.listAssignedCourses(userId),
+      resolveDirectAttemptOnlyForAssessment(lesson.assessmentTestId),
+    ]);
 
     return {
       lesson: mapLessonOverview(lesson, progress, {
         includeTranscriptContent: true,
+        directAttemptOnly,
       }),
       chapter: {
         id: lesson.chapter.id,

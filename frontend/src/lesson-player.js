@@ -970,7 +970,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.lastSavedPositionMs = Math.max(0, Number(payload?.lesson?.progress?.lastPositionSec || 0) * 1000);
     state.isCompleted = Boolean(payload?.lesson?.progress?.completed);
 
-    if (state.lesson?.assessmentTestId && !lessonHasTranscriptFlow(state.lesson)) {
+    if (
+      state.lesson?.assessmentTestId &&
+      (Boolean(state.lesson?.directAttemptOnly) || !lessonHasTranscriptFlow(state.lesson))
+    ) {
       toggleAssessmentButton();
       setStatus("Starting test attempt...");
       await launchAssessment({ skipConfirm: true });

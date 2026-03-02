@@ -1149,7 +1149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         String(payload?.lesson?.videoUrl || "").trim() ||
         (Array.isArray(payload?.lesson?.transcriptSegments) && payload.lesson.transcriptSegments.length)
     );
-    if (!lessonHasTranscriptFlow) {
+    if (Boolean(payload?.lesson?.directAttemptOnly) || !lessonHasTranscriptFlow) {
       await startLearningAttempt(mockTestId, { autoplay: true });
       return true;
     }
@@ -1312,6 +1312,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     return dynamicTabs.length ? dynamicTabs : ["CDP"];
   };
 
+  const isDirectAttemptSeriesProduct = (product) => {
+    const courseType = String(product?.courseType || "")
+      .trim()
+      .toUpperCase();
+    if (courseType === "TEST_SERIES") return true;
+
+    const titleText = `${product?.title || ""} ${product?.examName || ""} ${product?.examCategory || ""}`
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return (
+      titleText.includes("previous paper") ||
+      titleText.includes("previous papers") ||
+      titleText.includes("full mock") ||
+      titleText.includes("mock test series")
+    );
+  };
+
   const renderLearningTableRows = (items, isPlayAction) =>
     items
       .map((item, index) => {
@@ -1417,13 +1437,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const items = [];
     const hasTranscriptFlow = (item) => Boolean(item?.hasTranscriptFlow);
+    const shouldDirectAttemptFromProduct = (item) =>
+      Boolean(item?.hasLessonContext) && (Boolean(item?.directAttemptOnly) || isDirectAttemptSeriesProduct(product));
 
     demoItemsFromLink.forEach((demoTest) => {
       const demoId = String(demoTest?.id || "").trim();
       if (!demoId) return;
       const demoTitle = String(demoTest.title || "Demo Lesson");
       const isUpcomingDemo = Boolean(demoTest?.isUpcoming);
-      const directAttemptOnly = Boolean(demoTest?.hasLessonContext) && !hasTranscriptFlow(demoTest);
+      const directAttemptOnly =
+        shouldDirectAttemptFromProduct(demoTest) ||
+        (Boolean(demoTest?.hasLessonContext) && !hasTranscriptFlow(demoTest));
       items.push({
         productId,
         id: demoId,
@@ -1464,7 +1488,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const isLessonLinked = accessCode === "LESSON";
       const hasLessonContext = Boolean(item?.hasLessonContext);
       const shouldOpenLessonFirst = isLessonLinked || hasLessonContext;
-      const directAttemptOnly = shouldOpenLessonFirst && !hasTranscriptFlow(item);
+      const directAttemptOnly =
+        shouldDirectAttemptFromProduct(item) || (shouldOpenLessonFirst && !hasTranscriptFlow(item));
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
