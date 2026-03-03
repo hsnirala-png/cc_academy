@@ -295,6 +295,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hasLessonTranscriptReference = (lesson) =>
     Boolean(
       lesson &&
+        String(lesson?.accessCode || "").trim().toUpperCase() !== "MOCK" &&
         !lesson?.directAttemptOnly &&
         (
           String(lesson?.transcriptText || "").trim() ||
@@ -1091,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       playTranscriptBtn.disabled = !hasLessonReference || state.isSubmitted;
       playTranscriptBtn.title = hasLessonReference
         ? "Open lesson transcript and return to this test."
-        : "Transcript not linked.";
+        : "Transcript not available for this test.";
     }
     await loadLessonTranscriptSegments();
     renderLessonContext();

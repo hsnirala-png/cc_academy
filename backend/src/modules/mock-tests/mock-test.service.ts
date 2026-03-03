@@ -2023,6 +2023,7 @@ export const mockTestService = {
       id: lesson.id,
       title: lesson.title,
       orderIndex: lesson.orderIndex,
+      accessCode,
       durationSec: lesson.durationSec,
       videoUrl: normalizeLessonAssetUrl(lesson.videoUrl),
       audioUrl: normalizeLessonAssetUrl(lesson.audioUrl),
