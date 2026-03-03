@@ -71,6 +71,7 @@ type ProductMockTestRow = {
   mockTestTitle: string;
   mockTestExamType: string;
   mockTestSubject: string;
+  mockTestChapterSubSubject?: string | null;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
@@ -272,6 +273,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   title: row.mockTestTitle,
   examType: row.mockTestExamType,
   subject: row.mockTestSubject,
+  chapterSubSubject: String(row.mockTestChapterSubSubject || "").trim() || null,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
@@ -342,6 +344,15 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
         (
+          SELECT ch.subSubject
+          FROM Lesson lesson
+          INNER JOIN Chapter ch ON ch.id = lesson.chapterId
+          WHERE lesson.assessmentTestId = mt.id
+            AND ch.subSubject IS NOT NULL
+          ORDER BY ch.orderIndex ASC, lesson.orderIndex ASC
+          LIMIT 1
+        ) AS mockTestChapterSubSubject,
+        (
           SELECT mar2.accessCode
           FROM MockTestAccessRule mar2
           WHERE mar2.mockTestId = mt.id
@@ -397,6 +408,15 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
+        (
+          SELECT ch.subSubject
+          FROM Lesson lesson
+          INNER JOIN Chapter ch ON ch.id = lesson.chapterId
+          WHERE lesson.assessmentTestId = mt.id
+            AND ch.subSubject IS NOT NULL
+          ORDER BY ch.orderIndex ASC, lesson.orderIndex ASC
+          LIMIT 1
+        ) AS mockTestChapterSubSubject,
         (
           SELECT mar2.accessCode
           FROM MockTestAccessRule mar2

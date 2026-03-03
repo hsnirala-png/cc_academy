@@ -1437,8 +1437,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const items = [];
     const hasTranscriptFlow = (item) => Boolean(item?.hasTranscriptFlow);
-    const shouldDirectAttemptFromProduct = (item) =>
-      Boolean(item?.hasLessonContext) && (Boolean(item?.directAttemptOnly) || isDirectAttemptSeriesProduct(product));
+    const shouldDirectAttemptFromProduct = (item) => {
+      const accessCode = normalizeLinkedAccessCode(item?.accessCode);
+      if (accessCode !== "MOCK" && accessCode !== "DEMO") {
+        return Boolean(item?.directAttemptOnly);
+      }
+      return Boolean(item?.hasLessonContext) && (Boolean(item?.directAttemptOnly) || isDirectAttemptSeriesProduct(product));
+    };
 
     demoItemsFromLink.forEach((demoTest) => {
       const demoId = String(demoTest?.id || "").trim();
@@ -1457,7 +1462,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         disabled: isUpcomingDemo,
         action: isUpcomingDemo ? "UPCOMING" : directAttemptOnly ? "DIRECT_ATTEMPT" : "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
-        subjectTabKey: directAttemptOnly ? "" : resolveSubjectTabKey(demoTest.subject, demoTitle),
+        subjectTabKey: directAttemptOnly
+          ? ""
+          : resolveSubjectTabKey(demoTest.chapterSubSubject || demoTest.subject, demoTitle),
         directAttemptOnly,
       });
     });
@@ -1489,7 +1496,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const hasLessonContext = Boolean(item?.hasLessonContext);
       const shouldOpenLessonFirst = isLessonLinked || hasLessonContext;
       const directAttemptOnly =
-        shouldDirectAttemptFromProduct(item) || (shouldOpenLessonFirst && !hasTranscriptFlow(item));
+        shouldDirectAttemptFromProduct(item) ||
+        ((accessCode === "MOCK" || isDemoAccess) && shouldOpenLessonFirst && !hasTranscriptFlow(item));
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
@@ -1506,7 +1514,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "OPEN_LESSON_OR_ATTEMPT"
             : "ATTEMPT_TEST",
         ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
-        subjectTabKey: directAttemptOnly ? "" : resolveSubjectTabKey(item?.subject, itemTitle),
+        subjectTabKey: directAttemptOnly
+          ? ""
+          : resolveSubjectTabKey(item?.chapterSubSubject || item?.subject, itemTitle),
         directAttemptOnly,
       });
     });
