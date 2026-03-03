@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Digital Lessons</title>
-    <link rel="stylesheet" href="./src/styles.css?v=43" />
+    <link rel="stylesheet" href="./src/styles.css?v=44" />
   </head>
   <body>
     <div class="admin-shell">
@@ -287,7 +287,10 @@
             </div>
 
             <div id="testsChapterDetailsPanel" class="admin-form" style="margin-bottom: 1rem">
-              <h3 style="margin: 0 0 0.4rem">Chapter Details</h3>
+              <h3 style="margin: 0 0 0.25rem">Transcript</h3>
+              <p class="admin-subtitle" style="margin: 0 0 0.55rem">
+                Keep all lesson playback content here: order, transcript, audio, and voice generation.
+              </p>
               <div class="admin-form-row">
                 <div class="admin-field">
                   <label for="lessonOrderIndex">Order Index</label>
@@ -533,12 +536,60 @@
               </div>
             </form>
 
+            <div id="testsBuilderWorkspace" class="tests-builder-workspace">
+              <div class="tests-builder-tabs" role="tablist" aria-label="Test builder workflow">
+                <button
+                  type="button"
+                  class="tests-builder-tab-btn active"
+                  data-tests-builder-tab="transcript"
+                >
+                  Transcript
+                </button>
+                <button
+                  type="button"
+                  class="tests-builder-tab-btn"
+                  data-tests-builder-tab="question-bank"
+                >
+                  Question Bank
+                </button>
+              </div>
+              <div
+                id="testsTranscriptPanelHost"
+                class="tests-builder-tab-panel active"
+                data-tests-builder-panel="transcript"
+              ></div>
+              <div
+                id="testsQuestionBankPanelHost"
+                class="tests-builder-tab-panel"
+                data-tests-builder-panel="question-bank"
+              ></div>
+            </div>
+
             <section id="lessonQuestionBankPanel" class="lesson-question-bank hidden">
-              <h3 style="margin: 0 0 0.35rem">Question Bank</h3>
-              <p id="lessonSelectedTestHint" class="admin-subtitle" style="margin: 0 0 0.35rem">
-                Select course, subject, and chapter. Then create or attach a test to add questions.
-              </p>
-              <p id="lessonQuestionCountWarning" class="form-message"></p>
+              <div class="question-bank-surface-head">
+                <div>
+                  <h3 style="margin: 0 0 0.35rem">Question Bank</h3>
+                  <p id="lessonSelectedTestHint" class="admin-subtitle" style="margin: 0 0 0.2rem">
+                    Select course, subject, and chapter. Then create or attach a test to add questions.
+                  </p>
+                </div>
+                <p id="lessonQuestionCountWarning" class="form-message" style="margin: 0"></p>
+              </div>
+
+              <div class="question-bank-guide-grid">
+                <article class="question-bank-guide-card">
+                  <h4>Question Type</h4>
+                  <p id="lessonSectionTypeGuide">
+                    Use Section Setup to choose Comprehension, General MCQ, Grammar, Math Formula, Science Equation, or Chart / Graph / Custom.
+                  </p>
+                </article>
+                <article class="question-bank-guide-card">
+                  <h4>Language Handling</h4>
+                  <p id="lessonQuestionTypeGuide">
+                    In bilingual tests, you can keep a section single-language or enable both left and right language content question-wise.
+                  </p>
+                </article>
+              </div>
 
               <div class="admin-form-row">
                 <div class="admin-field">
@@ -552,8 +603,27 @@
                   </select>
                 </div>
               </div>
-              <p id="lessonQuestionSectionSummary" class="admin-subtitle" style="margin: 0.2rem 0 0.5rem"></p>
+              <p id="lessonQuestionSectionSummary" class="admin-subtitle" style="margin: 0.2rem 0 0.7rem"></p>
 
+              <div class="question-bank-mode-tabs" role="tablist" aria-label="Question bank tools">
+                <button type="button" class="question-bank-mode-btn active" data-question-bank-tab="sections">
+                  Section Setup
+                </button>
+                <button type="button" class="question-bank-mode-btn" data-question-bank-tab="manual">
+                  Manual Entry
+                </button>
+                <button type="button" class="question-bank-mode-btn" data-question-bank-tab="lines">
+                  Line Text
+                </button>
+                <button type="button" class="question-bank-mode-btn" data-question-bank-tab="csv">
+                  CSV Upload
+                </button>
+                <button type="button" class="question-bank-mode-btn" data-question-bank-tab="review">
+                  Review
+                </button>
+              </div>
+
+              <div class="question-bank-mode-panel active" data-question-bank-panel="sections">
               <form id="lessonSectionForm" class="admin-form" style="margin-bottom: 0.9rem">
                 <input id="lessonSectionId" type="hidden" />
                 <h4 style="margin: 0 0 0.4rem">Section Setup</h4>
@@ -566,7 +636,7 @@
                       <option value="GRAMMAR">Grammar</option>
                       <option value="MATH_FORMULA">Math Formula</option>
                       <option value="SCIENCE_EQUATION">Science Equation</option>
-                      <option value="CUSTOM">Custom</option>
+                      <option value="CUSTOM">Chart / Graph / Custom</option>
                     </select>
                   </div>
                   <div class="admin-field">
@@ -583,11 +653,11 @@
                   </div>
                 </div>
                 <div class="admin-field">
-                  <label for="lessonSectionTranscript">Section Transcript / Passage</label>
+                  <label for="lessonSectionTranscript">Section Transcript / Passage / Chart Notes</label>
                   <textarea
                     id="lessonSectionTranscript"
                     rows="4"
-                    placeholder="Add transcript/passage for this section."
+                    placeholder="Add passage, paragraph, chart notes, graph description, or transcript for this section."
                   ></textarea>
                 </div>
                 <div class="admin-actions" style="margin-top: -0.2rem">
@@ -616,11 +686,19 @@
                   <tbody id="lessonSectionsTableBody"></tbody>
                 </table>
               </div>
+              </div>
 
+              <div class="question-bank-mode-panel" data-question-bank-panel="manual">
               <form id="lessonQuestionForm" class="admin-form">
                 <input id="lessonQuestionId" type="hidden" />
+                <div class="admin-actions question-mode-toolbar">
+                  <label id="lessonQuestionAltToggleWrap" class="admin-field inline-check hidden" style="margin: 0">
+                    <input id="lessonQuestionAltToggle" type="checkbox" />
+                    <span>This question uses both left and right languages</span>
+                  </label>
+                </div>
                 <div id="lessonQuestionPassageWrap" class="admin-field hidden">
-                  <label for="lessonQuestionPassageText">Passage / Paragraph</label>
+                  <label for="lessonQuestionPassageText">Passage / Paragraph / Shared Context</label>
                   <textarea id="lessonQuestionPassageText" rows="4"></textarea>
                 </div>
                 <div id="lessonQuestionFormulaWrap" class="admin-field hidden">
@@ -628,7 +706,7 @@
                   <input id="lessonQuestionFormulaText" placeholder="e.g. a^2 + b^2 = c^2" />
                 </div>
                 <div id="lessonQuestionEquationWrap" class="admin-field hidden">
-                  <label for="lessonQuestionEquationText">Science Equation</label>
+                  <label for="lessonQuestionEquationText">Science Equation / Graph Reference</label>
                   <input id="lessonQuestionEquationText" placeholder="e.g. 6CO2 + 6H2O -> C6H12O6 + 6O2" />
                 </div>
                 <div class="admin-field">
@@ -715,10 +793,18 @@
                   </button>
                 </div>
               </form>
+              </div>
 
+              <div class="question-bank-mode-panel" data-question-bank-panel="lines">
               <div class="admin-field">
                 <label for="lessonBulkImportText">Left Bulk Import (question|A|B|C|D|correct|explanation|section)</label>
                 <textarea id="lessonBulkImportText" rows="4"></textarea>
+                <div class="admin-actions question-mode-toolbar">
+                  <label id="lessonBulkImportUseAltWrap" class="admin-field inline-check hidden" style="margin: 0">
+                    <input id="lessonBulkImportUseAlt" type="checkbox" />
+                    <span>These import lines include right-language pairs</span>
+                  </label>
+                </div>
                 <div id="lessonBulkImportAltWrap" class="admin-field hidden" style="margin-top: 0.6rem">
                   <label for="lessonBulkImportTextAlt">
                     Right Bulk Import (question|A|B|C|D|correct|explanation|section)
@@ -739,7 +825,9 @@
                   <button id="lessonBulkImportBtn" class="btn-secondary" type="button">Import Lines</button>
                 </div>
               </div>
+              </div>
 
+              <div class="question-bank-mode-panel" data-question-bank-panel="csv">
               <div class="admin-field" style="margin-top: 0.75rem">
                 <label for="lessonBulkImportCsvFile">
                   Left CSV Upload (required: questionText/question, optionA, optionB, optionC, optionD, correctOption;
@@ -748,6 +836,12 @@
                 <p class="admin-subtitle" style="margin: 0.25rem 0 0.4rem">
                   You can upload in parts multiple times to append questions. Use replace-all to swap the live question bank even if attempts already exist.
                 </p>
+                <div class="admin-actions question-mode-toolbar">
+                  <label id="lessonBulkImportCsvUseAltWrap" class="admin-field inline-check hidden" style="margin: 0">
+                    <input id="lessonBulkImportCsvUseAlt" type="checkbox" />
+                    <span>This CSV upload includes right-language pairs</span>
+                  </label>
+                </div>
                 <div class="admin-actions">
                   <input id="lessonBulkImportCsvFile" type="file" accept=".csv,text/csv" />
                   <input
@@ -789,7 +883,9 @@
                   In bilingual mode, upload both left and right CSV files in the same row order.
                 </p>
               </div>
+              </div>
 
+              <div class="question-bank-mode-panel" data-question-bank-panel="review">
               <div class="admin-table-wrap" style="margin-top: 1rem">
                 <table class="admin-table">
                   <thead>
@@ -814,6 +910,7 @@
                 <button id="lessonSaveQuestionsWithTestBtn" class="btn-secondary" type="button">
                   Save Questions With Test
                 </button>
+              </div>
               </div>
             </section>
 
@@ -1120,7 +1217,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=86"></script>
+    <script type="module" src="./src/admin-lessons.js?v=87"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

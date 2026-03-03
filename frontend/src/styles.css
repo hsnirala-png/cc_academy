@@ -5607,6 +5607,104 @@ h1 {
   background: #fff;
 }
 
+.tests-builder-workspace {
+  margin: 0.9rem 0 0.4rem;
+}
+
+.tests-builder-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.tests-builder-tab-btn,
+.question-bank-mode-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: #35507f;
+  padding: 0.4rem 0.82rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.tests-builder-tab-btn:hover,
+.question-bank-mode-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.tests-builder-tab-btn.active,
+.question-bank-mode-btn.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: #184b9f;
+}
+
+.tests-builder-tab-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.tests-builder-tab-panel,
+.question-bank-mode-panel {
+  display: none;
+}
+
+.tests-builder-tab-panel.active,
+.question-bank-mode-panel.active {
+  display: block;
+}
+
+.question-bank-surface-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.question-bank-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.question-bank-guide-card {
+  border: 1px solid #d9e6ff;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.7rem 0.8rem;
+}
+
+.question-bank-guide-card h4 {
+  margin: 0 0 0.32rem;
+  font-size: 0.95rem;
+  color: #184b9f;
+}
+
+.question-bank-guide-card p {
+  margin: 0;
+  color: #35507f;
+  line-height: 1.5;
+  font-size: 0.88rem;
+}
+
+.question-bank-mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.question-mode-toolbar {
+  justify-content: flex-start;
+}
+
 .admin-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6145,6 +6243,20 @@ h1 {
   .tests-subtab-btn {
     width: 100%;
     text-align: center;
+  }
+
+  .tests-builder-tab-btn,
+  .question-bank-mode-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .question-bank-surface-head {
+    flex-direction: column;
+  }
+
+  .question-bank-guide-grid {
+    grid-template-columns: 1fr;
   }
 
   .admin-actions .tts-compact-select {

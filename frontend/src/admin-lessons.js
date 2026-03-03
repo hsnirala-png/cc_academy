@@ -31,6 +31,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tabButtons = Array.from(document.querySelectorAll("[data-admin-tab]"));
   const tabPanels = Array.from(document.querySelectorAll("[data-admin-tab-panel]"));
   const testsModeButtons = Array.from(document.querySelectorAll("[data-tests-mode]"));
+  const testsBuilderTabButtons = Array.from(document.querySelectorAll("[data-tests-builder-tab]"));
+  const testsBuilderTabPanels = Array.from(document.querySelectorAll("[data-tests-builder-panel]"));
+  const questionBankModeButtons = Array.from(document.querySelectorAll("[data-question-bank-tab]"));
+  const questionBankModePanels = Array.from(document.querySelectorAll("[data-question-bank-panel]"));
 
   const courseForm = document.querySelector("#courseForm");
   const courseIdInput = document.querySelector("#courseId");
@@ -99,6 +103,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonMockContext = document.querySelector("#lessonMockContext");
   const lessonMockTestForm = document.querySelector("#lessonMockTestForm");
   const lessonMockTestIdInput = document.querySelector("#lessonMockTestId");
+  const testsBuilderWorkspace = document.querySelector("#testsBuilderWorkspace");
+  const testsTranscriptPanelHost = document.querySelector("#testsTranscriptPanelHost");
+  const testsQuestionBankPanelHost = document.querySelector("#testsQuestionBankPanelHost");
   const testsCreatePanel = document.querySelector("#testsCreatePanel");
   const testsAttachPanel = document.querySelector("#testsAttachPanel");
   const testsTrackPanel = document.querySelector("#testsTrackPanel");
@@ -143,6 +150,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonSectionsTableBody = document.querySelector("#lessonSectionsTableBody");
   const lessonQuestionForm = document.querySelector("#lessonQuestionForm");
   const lessonQuestionIdInput = document.querySelector("#lessonQuestionId");
+  const lessonQuestionAltToggleWrap = document.querySelector("#lessonQuestionAltToggleWrap");
+  const lessonQuestionAltToggleInput = document.querySelector("#lessonQuestionAltToggle");
   const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
   const lessonQuestionPassageTextInput = document.querySelector("#lessonQuestionPassageText");
   const lessonQuestionFormulaWrap = document.querySelector("#lessonQuestionFormulaWrap");
@@ -171,11 +180,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionCancelBtn = document.querySelector("#lessonQuestionCancelBtn");
   const lessonQuestionsTableBody = document.querySelector("#lessonQuestionsTableBody");
   const lessonBulkImportTextInput = document.querySelector("#lessonBulkImportText");
+  const lessonBulkImportUseAltWrap = document.querySelector("#lessonBulkImportUseAltWrap");
+  const lessonBulkImportUseAltInput = document.querySelector("#lessonBulkImportUseAlt");
   const lessonBulkImportAltWrap = document.querySelector("#lessonBulkImportAltWrap");
   const lessonBulkImportTextAltInput = document.querySelector("#lessonBulkImportTextAlt");
   const lessonBulkImportSectionInput = document.querySelector("#lessonBulkImportSection");
   const lessonBulkImportBtn = document.querySelector("#lessonBulkImportBtn");
   const lessonBulkImportCsvFileInput = document.querySelector("#lessonBulkImportCsvFile");
+  const lessonBulkImportCsvUseAltWrap = document.querySelector("#lessonBulkImportCsvUseAltWrap");
+  const lessonBulkImportCsvUseAltInput = document.querySelector("#lessonBulkImportCsvUseAlt");
   const lessonBulkImportCsvFileAltInput = document.querySelector("#lessonBulkImportCsvFileAlt");
   const lessonBulkImportReplaceExistingInput = document.querySelector("#lessonBulkImportReplaceExisting");
   const lessonBulkImportCsvSectionInput = document.querySelector("#lessonBulkImportCsvSection");
@@ -183,6 +196,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonCsvTemplateFormatInput = document.querySelector("#lessonCsvTemplateFormat");
   const lessonBulkImportCsvBtn = document.querySelector("#lessonBulkImportCsvBtn");
   const lessonSectionCsvSampleBtn = document.querySelector("#lessonSectionCsvSampleBtn");
+  const lessonSectionTypeGuide = document.querySelector("#lessonSectionTypeGuide");
+  const lessonQuestionTypeGuide = document.querySelector("#lessonQuestionTypeGuide");
   const lessonSaveTestBtn = document.querySelector("#lessonSaveTestBtn");
   const lessonSaveQuestionsWithTestBtn = document.querySelector("#lessonSaveQuestionsWithTestBtn");
   const lessonMockTestsTableBody = document.querySelector("#lessonMockTestsTableBody");
@@ -249,9 +264,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditIsActiveInput = document.querySelector("#lessonQuestionEditIsActive");
   const lessonQuestionEditCancelBtn = document.querySelector("#lessonQuestionEditCancelBtn");
 
-  // Keep test creation selectors at top of Tests tab, with transcript/settings below.
-  if (lessonMockTestForm instanceof HTMLElement && testsChapterDetailsPanel instanceof HTMLElement) {
-    lessonMockTestForm.insertAdjacentElement("afterend", testsChapterDetailsPanel);
+  if (testsTranscriptPanelHost instanceof HTMLElement && testsChapterDetailsPanel instanceof HTMLElement) {
+    testsTranscriptPanelHost.appendChild(testsChapterDetailsPanel);
+  }
+  if (testsQuestionBankPanelHost instanceof HTMLElement && lessonQuestionBankPanel instanceof HTMLElement) {
+    testsQuestionBankPanelHost.appendChild(lessonQuestionBankPanel);
   }
 
   if (btnGenerateVoice instanceof HTMLButtonElement) {
@@ -283,6 +300,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     createdTestIds: [],
     lastAutoMockTitle: "",
     currentTab: "courses",
+    testsBuilderTab: "transcript",
+    questionBankMode: "sections",
     previewAudioUrl: "",
     previewAudioPlayer: null,
   };
@@ -2071,7 +2090,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     GRAMMAR: "Grammar",
     MATH_FORMULA: "Math Formulas",
     SCIENCE_EQUATION: "Science Equations",
-    CUSTOM: "Custom",
+    CUSTOM: "Chart / Graph / Custom",
   };
   const SECTION_TYPE_FROM_LABEL = {
     Comprehension: "COMPREHENSION",
@@ -2085,6 +2104,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     comprehension: "Comprehension",
     math: "Math Formulas",
     science: "Science Equations",
+  };
+  const SECTION_TYPE_GUIDE_TEXT = {
+    COMPREHENSION:
+      "Comprehension keeps one paragraph or passage at section level, then lets you add its questions manually, by line import, or by CSV.",
+    GENERAL_MCQ:
+      "General MCQ is the fastest mode for standard one-question items. Use manual entry, line text, or CSV without extra shared context.",
+    GRAMMAR:
+      "Grammar sections behave like single questions or grouped language drills. You can keep them single-language or bilingual question-wise.",
+    MATH_FORMULA:
+      "Math Formula sections carry one formula/context with each question. Manual, line import, and CSV all keep the same save flow.",
+    SCIENCE_EQUATION:
+      "Science Equation sections work like structured science items and can also carry graph/equation references before the question text.",
+    CUSTOM:
+      "Chart / Graph / Custom sections let you store chart notes, graph descriptions, or any custom prompt and then add questions by any mode.",
   };
   const normalizeSectionType = (value) => {
     const normalized = String(value || "").trim().toUpperCase();
@@ -2170,29 +2203,88 @@ document.addEventListener("DOMContentLoaded", async () => {
         String(payload?.optionCAlt || "").trim() &&
         String(payload?.optionDAlt || "").trim()
     );
+  const isManualQuestionAltEnabled = () =>
+    isBilingualQuestionMode() &&
+    Boolean(lessonQuestionAltToggleInput instanceof HTMLInputElement && lessonQuestionAltToggleInput.checked);
+  const isLineImportAltEnabled = () =>
+    isBilingualQuestionMode() &&
+    Boolean(lessonBulkImportUseAltInput instanceof HTMLInputElement && lessonBulkImportUseAltInput.checked);
+  const isCsvImportAltEnabled = () =>
+    isBilingualQuestionMode() &&
+    Boolean(lessonBulkImportCsvUseAltInput instanceof HTMLInputElement && lessonBulkImportCsvUseAltInput.checked);
+  const setTestsBuilderTab = (tab) => {
+    const nextTab = tab === "question-bank" ? "question-bank" : "transcript";
+    state.testsBuilderTab = nextTab;
+    testsBuilderTabButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
+      button.classList.toggle("active", button.getAttribute("data-tests-builder-tab") === nextTab);
+    });
+    testsBuilderTabPanels.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      panel.classList.toggle("active", panel.getAttribute("data-tests-builder-panel") === nextTab);
+    });
+  };
+  const setQuestionBankMode = (mode) => {
+    const nextMode = ["manual", "lines", "csv", "review"].includes(mode) ? mode : "sections";
+    state.questionBankMode = nextMode;
+    questionBankModeButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
+      button.classList.toggle("active", button.getAttribute("data-question-bank-tab") === nextMode);
+    });
+    questionBankModePanels.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      panel.classList.toggle("active", panel.getAttribute("data-question-bank-panel") === nextMode);
+    });
+  };
+  const updateSectionTypeGuide = () => {
+    if (!(lessonSectionTypeGuide instanceof HTMLElement)) return;
+    const sectionType = normalizeSectionType(lessonSectionTypeInput?.value);
+    lessonSectionTypeGuide.textContent =
+      SECTION_TYPE_GUIDE_TEXT[sectionType] || SECTION_TYPE_GUIDE_TEXT.GENERAL_MCQ;
+  };
+  const updateQuestionLanguageGuide = () => {
+    if (!(lessonQuestionTypeGuide instanceof HTMLElement)) return;
+    if (!isBilingualQuestionMode()) {
+      lessonQuestionTypeGuide.textContent =
+        "This test is single-language, so questions, line import, and CSV upload use only the left-side fields.";
+      return;
+    }
+    const manualMode = isManualQuestionAltEnabled() ? "both languages" : "one language";
+    lessonQuestionTypeGuide.textContent =
+      `This test is bilingual. Manual entry is currently set for ${manualMode}; line import and CSV can also stay single-language unless you enable their right-language pairs.`;
+  };
   const toggleLessonSectionTranscriptState = () => {
     const shouldSkip = Boolean(lessonSectionSkipTranscriptInput instanceof HTMLInputElement && lessonSectionSkipTranscriptInput.checked);
     if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
       lessonSectionTranscriptInput.disabled = shouldSkip;
       lessonSectionTranscriptInput.placeholder = shouldSkip
         ? "Transcript skipped for this section."
-        : "Add transcript/passage for this section.";
+        : "Add passage, paragraph, chart notes, graph description, or transcript for this section.";
     }
   };
   const toggleBilingualQuestionInputs = () => {
     const isBilingual = isBilingualQuestionMode();
-    lessonQuestionBilingualWrap?.classList.toggle("hidden", !isBilingual);
-    lessonQuestionBilingualOptionsWrap?.classList.toggle("hidden", !isBilingual);
-    lessonQuestionExplanationAltWrap?.classList.toggle("hidden", !isBilingual);
-    lessonBulkImportAltWrap?.classList.toggle("hidden", !isBilingual);
-    lessonBulkImportCsvAltHint?.classList.toggle("hidden", !isBilingual);
+    const manualAlt = isManualQuestionAltEnabled();
+    const lineAlt = isLineImportAltEnabled();
+    const csvAlt = isCsvImportAltEnabled();
+    lessonQuestionAltToggleWrap?.classList.toggle("hidden", !isBilingual);
+    lessonBulkImportUseAltWrap?.classList.toggle("hidden", !isBilingual);
+    lessonBulkImportCsvUseAltWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionBilingualWrap?.classList.toggle("hidden", !manualAlt);
+    lessonQuestionBilingualOptionsWrap?.classList.toggle("hidden", !manualAlt);
+    lessonQuestionExplanationAltWrap?.classList.toggle("hidden", !manualAlt);
+    lessonBulkImportAltWrap?.classList.toggle("hidden", !lineAlt);
+    lessonBulkImportCsvAltHint?.classList.toggle("hidden", !csvAlt);
     if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) {
-      lessonBulkImportCsvFileAltInput.classList.toggle("hidden", !isBilingual);
+      lessonBulkImportCsvFileAltInput.classList.toggle("hidden", !csvAlt);
     }
     lessonQuestionEditBilingualWrap?.classList.toggle("hidden", !isBilingual);
     lessonQuestionEditBilingualOptionsWrap?.classList.toggle("hidden", !isBilingual);
     lessonQuestionEditExplanationAltWrap?.classList.toggle("hidden", !isBilingual);
     if (!isBilingual) {
+      if (lessonQuestionAltToggleInput instanceof HTMLInputElement) lessonQuestionAltToggleInput.checked = false;
+      if (lessonBulkImportUseAltInput instanceof HTMLInputElement) lessonBulkImportUseAltInput.checked = false;
+      if (lessonBulkImportCsvUseAltInput instanceof HTMLInputElement) lessonBulkImportCsvUseAltInput.checked = false;
       if (lessonQuestionTextAltInput instanceof HTMLTextAreaElement) lessonQuestionTextAltInput.value = "";
       if (lessonOptionAAltInput instanceof HTMLInputElement) lessonOptionAAltInput.value = "";
       if (lessonOptionBAltInput instanceof HTMLInputElement) lessonOptionBAltInput.value = "";
@@ -2209,7 +2301,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
         lessonQuestionEditExplanationAltInput.value = "";
       }
+    } else {
+      if (!(lessonQuestionAltToggleInput instanceof HTMLInputElement && lessonQuestionAltToggleInput.checked)) {
+        if (lessonQuestionTextAltInput instanceof HTMLTextAreaElement) lessonQuestionTextAltInput.value = "";
+        if (lessonOptionAAltInput instanceof HTMLInputElement) lessonOptionAAltInput.value = "";
+        if (lessonOptionBAltInput instanceof HTMLInputElement) lessonOptionBAltInput.value = "";
+        if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
+        if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
+        if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
+      }
+      if (!(lessonBulkImportUseAltInput instanceof HTMLInputElement && lessonBulkImportUseAltInput.checked)) {
+        if (lessonBulkImportTextAltInput instanceof HTMLTextAreaElement) lessonBulkImportTextAltInput.value = "";
+      }
+      if (!(lessonBulkImportCsvUseAltInput instanceof HTMLInputElement && lessonBulkImportCsvUseAltInput.checked)) {
+        if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) lessonBulkImportCsvFileAltInput.value = "";
+      }
     }
+    updateQuestionLanguageGuide();
   };
   const getQuestionSectionOptions = () => {
     const fromSectionConfig = state.mockTestSections
@@ -2796,12 +2904,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (testsTrackPanel instanceof HTMLElement) {
       testsTrackPanel.classList.toggle("hidden", nextMode !== "attach");
     }
-    if (testsChapterDetailsPanel instanceof HTMLElement) {
-      testsChapterDetailsPanel.classList.toggle("hidden", nextMode !== "create");
+    if (testsBuilderWorkspace instanceof HTMLElement) {
+      testsBuilderWorkspace.classList.toggle("hidden", nextMode !== "create");
     }
     if (nextMode === "attach") {
       renderAttachExistingTestOptions();
       renderMockTestsAdmin();
+    } else {
+      setTestsBuilderTab(state.testsBuilderTab || "transcript");
     }
     setLessonQuestionBankVisibility();
   };
@@ -2871,6 +2981,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionIsActiveInput instanceof HTMLInputElement) lessonQuestionIsActiveInput.checked = true;
     if (lessonQuestionSubmitBtn instanceof HTMLButtonElement) lessonQuestionSubmitBtn.textContent = "Add Question";
     if (lessonQuestionCancelBtn instanceof HTMLButtonElement) lessonQuestionCancelBtn.classList.add("hidden");
+    if (lessonQuestionAltToggleInput instanceof HTMLInputElement) lessonQuestionAltToggleInput.checked = false;
     if (lessonQuestionPassageTextInput instanceof HTMLTextAreaElement) lessonQuestionPassageTextInput.value = "";
     if (lessonQuestionFormulaTextInput instanceof HTMLInputElement) lessonQuestionFormulaTextInput.value = "";
     if (lessonQuestionEquationTextInput instanceof HTMLInputElement) lessonQuestionEquationTextInput.value = "";
@@ -2882,6 +2993,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
     toggleBilingualQuestionInputs();
     toggleQuestionStructuredFields();
+    updateQuestionLanguageGuide();
   };
 
   const resetLessonSectionForm = () => {
@@ -2905,6 +3017,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonSectionSkipTranscriptInput.checked = false;
     }
     toggleLessonSectionTranscriptState();
+    updateSectionTypeGuide();
   };
 
   const renderLessonSections = () => {
@@ -3003,6 +3116,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const openLessonSectionForEdit = (section) => {
     if (!section) return;
+    setTestsBuilderTab("question-bank");
+    setQuestionBankMode("sections");
     if (lessonSectionIdInput instanceof HTMLInputElement) {
       lessonSectionIdInput.value = String(section.id || "");
     }
@@ -3032,6 +3147,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
       lessonSectionCancelBtn.classList.remove("hidden");
     }
+    updateSectionTypeGuide();
   };
 
   const toggleQuestionStructuredFields = () => {
@@ -3326,6 +3442,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(lessonQuestionBankPanel instanceof HTMLElement)) return;
     const shouldShow = isMockScopeReady() && state.testsMode === "create";
     lessonQuestionBankPanel.classList.toggle("hidden", !shouldShow);
+    testsBuilderTabButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
+      const isQuestionBankButton = button.getAttribute("data-tests-builder-tab") === "question-bank";
+      button.disabled = isQuestionBankButton && !shouldShow;
+      button.title =
+        isQuestionBankButton && !shouldShow
+          ? "Create or select a test first."
+          : "";
+    });
+    if (!shouldShow && state.testsBuilderTab === "question-bank") {
+      setTestsBuilderTab("transcript");
+    }
     updateLessonSelectedTestHint();
     updateLessonQuestionCountWarning();
     if (lessonSubmitBtn instanceof HTMLButtonElement) {
@@ -3988,6 +4116,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!lessonMockTestForm) return;
     lessonMockTestForm.reset();
     setTestsMode("create");
+    setTestsBuilderTab("transcript");
+    setQuestionBankMode("sections");
     if (lessonMockTestIdInput) lessonMockTestIdInput.value = "";
     if (mockLinkCourseIdInput instanceof HTMLSelectElement) {
       mockLinkCourseIdInput.value = state.selectedMockCourseId || "";
@@ -4016,6 +4146,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderAttachExistingTestOptions();
     renderMockTestsAdmin();
     setLessonQuestionBankVisibility();
+    toggleBilingualQuestionInputs();
+    updateQuestionLanguageGuide();
   };
 
   const renderAssessmentOptions = (selectedValue = "") => {
@@ -4886,6 +5018,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (resetAfterSave) {
       resetLessonMockTestForm();
     }
+    setTestsBuilderTab("question-bank");
+    setQuestionBankMode("sections");
     return savedTestId;
   };
 
@@ -6520,6 +6654,40 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (lessonSectionLabelInput instanceof HTMLInputElement && !lessonSectionLabelInput.value.trim()) {
         lessonSectionLabelInput.value = SECTION_TYPE_LABELS[sectionType] || "Section";
       }
+      updateSectionTypeGuide();
+    });
+  }
+
+  testsBuilderTabButtons.forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      setTestsBuilderTab(button.getAttribute("data-tests-builder-tab") || "transcript");
+    });
+  });
+
+  questionBankModeButtons.forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.addEventListener("click", () => {
+      setQuestionBankMode(button.getAttribute("data-question-bank-tab") || "sections");
+    });
+  });
+
+  if (lessonQuestionAltToggleInput instanceof HTMLInputElement) {
+    lessonQuestionAltToggleInput.addEventListener("change", () => {
+      toggleBilingualQuestionInputs();
+    });
+  }
+
+  if (lessonBulkImportUseAltInput instanceof HTMLInputElement) {
+    lessonBulkImportUseAltInput.addEventListener("change", () => {
+      toggleBilingualQuestionInputs();
+    });
+  }
+
+  if (lessonBulkImportCsvUseAltInput instanceof HTMLInputElement) {
+    lessonBulkImportCsvUseAltInput.addEventListener("change", () => {
+      toggleBilingualQuestionInputs();
     });
   }
 
@@ -6695,8 +6863,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (lessonBulkImportTextInput instanceof HTMLTextAreaElement) {
           lessonBulkImportTextInput.value = "";
         }
+        if (lessonBulkImportTextAltInput instanceof HTMLTextAreaElement) {
+          lessonBulkImportTextAltInput.value = "";
+        }
         await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestsAdmin(), loadAssessments()]);
         setPendingTestChanges(true);
+        setQuestionBankMode("review");
         setMessage("Bulk import completed.", "success");
       } catch (error) {
         setMessage(error.message || "Bulk import failed.", "error");
@@ -6720,6 +6892,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestsAdmin(), loadAssessments()]);
         setPendingTestChanges(true);
+        setQuestionBankMode("review");
         setMessage(`CSV import completed. Added ${result.createdCount}/${result.totalRows} questions.`, "success");
       } catch (error) {
         setMessage(error.message || "CSV import failed.", "error");
@@ -7119,10 +7292,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMockLessonOptions();
     renderQuestionSectionControls();
     renderLessonSections();
+    setTestsBuilderTab("transcript");
+    setQuestionBankMode("sections");
     resetLessonSectionForm();
     toggleLessonSectionTranscriptState();
     toggleQuestionStructuredFields();
     toggleBilingualQuestionInputs();
+    updateSectionTypeGuide();
+    updateQuestionLanguageGuide();
     syncCsvSectionByTemplate({ force: true });
     updateQuestionSectionSummary();
     setContextLabels();
