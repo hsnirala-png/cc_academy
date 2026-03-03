@@ -1329,11 +1329,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const isDirectAttemptSeriesProduct = (product) => {
-    const courseType = String(product?.courseType || "")
-      .trim()
-      .toUpperCase();
-    if (courseType === "TEST_SERIES") return true;
-
     const titleText = `${product?.title || ""} ${product?.examName || ""} ${product?.examCategory || ""}`
       .toLowerCase()
       .replace(/[_-]+/g, " ")
@@ -1343,6 +1338,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return (
       titleText.includes("previous paper") ||
       titleText.includes("previous papers") ||
+      titleText.includes("held on") ||
       titleText.includes("full mock") ||
       titleText.includes("mock test series")
     );

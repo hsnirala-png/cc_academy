@@ -295,7 +295,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hasLessonTranscriptReference = (lesson) =>
     Boolean(
       lesson &&
-        String(lesson?.accessCode || "").trim().toUpperCase() !== "MOCK" &&
         !lesson?.directAttemptOnly &&
         (
           String(lesson?.transcriptText || "").trim() ||

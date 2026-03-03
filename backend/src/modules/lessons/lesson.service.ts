@@ -121,11 +121,6 @@ const isDirectAttemptSeriesText = (value: unknown) => {
   );
 };
 
-const isDirectAttemptSeriesByCourseType = (value: unknown) =>
-  String(value || "")
-    .trim()
-    .toUpperCase() === "TEST_SERIES";
-
 const resolveDirectAttemptOnlyForAssessment = async (assessmentTestId: string | null): Promise<boolean> => {
   if (!assessmentTestId) return false;
   const rows = (await prisma.$queryRawUnsafe(
@@ -148,7 +143,7 @@ const resolveDirectAttemptOnlyForAssessment = async (assessmentTestId: string | 
   )) as Array<{ courseType: string | null; title: string | null }>;
 
   return rows.some(
-    (row) => isDirectAttemptSeriesByCourseType(row.courseType) || isDirectAttemptSeriesText(row.title)
+    (row) => isDirectAttemptSeriesText(row.title)
   );
 };
 

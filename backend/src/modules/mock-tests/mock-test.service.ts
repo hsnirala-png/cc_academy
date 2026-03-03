@@ -114,11 +114,6 @@ const isDirectAttemptSeriesText = (value: unknown) => {
   );
 };
 
-const isDirectAttemptSeriesByCourseType = (value: unknown) =>
-  String(value || "")
-    .trim()
-    .toUpperCase() === "TEST_SERIES";
-
 const resolveDirectAttemptOnlyForMockTest = async (mockTestId: string) => {
   const rows = (await prisma.$queryRawUnsafe(
     `
@@ -140,7 +135,7 @@ const resolveDirectAttemptOnlyForMockTest = async (mockTestId: string) => {
   )) as Array<{ courseType: string | null; title: string | null }>;
 
   return rows.some(
-    (row) => isDirectAttemptSeriesByCourseType(row.courseType) || isDirectAttemptSeriesText(row.title)
+    (row) => isDirectAttemptSeriesText(row.title)
   );
 };
 
