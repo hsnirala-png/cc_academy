@@ -177,6 +177,9 @@ const assertBilingualQuestionContent = (
   const altOptionB = normalizeOptionalText(input.optionBAlt);
   const altOptionC = normalizeOptionalText(input.optionCAlt);
   const altOptionD = normalizeOptionalText(input.optionDAlt);
+  const hasAnyAltContent =
+    Boolean(altQuestionText || altOptionA || altOptionB || altOptionC || altOptionD) ||
+    Boolean(normalizeOptionalText(input.explanationAlt));
   const missingAltFields = [
     !altQuestionText ? "questionTextAlt" : "",
     !altOptionA ? "optionAAlt" : "",
@@ -185,9 +188,9 @@ const assertBilingualQuestionContent = (
     !altOptionD ? "optionDAlt" : "",
   ].filter(Boolean);
 
-  if (languageMode === "BILINGUAL" && missingAltFields.length) {
+  if (languageMode === "BILINGUAL" && hasAnyAltContent && missingAltFields.length) {
     throw new AppError(
-      `Bilingual tests require both left and right question content. Missing: ${missingAltFields.join(", ")}.`,
+      `When right language content is used, all right-side question fields are required. Missing: ${missingAltFields.join(", ")}.`,
       400
     );
   }

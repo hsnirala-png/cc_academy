@@ -2153,6 +2153,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     return normalizedQuestion;
   };
   const isBilingualQuestionMode = () => String(lessonMockTestLanguageModeInput?.value || "").trim() === "BILINGUAL";
+  const hasAnyAltQuestionPayload = (payload) =>
+    Boolean(
+      String(payload?.questionTextAlt || "").trim() ||
+        String(payload?.optionAAlt || "").trim() ||
+        String(payload?.optionBAlt || "").trim() ||
+        String(payload?.optionCAlt || "").trim() ||
+        String(payload?.optionDAlt || "").trim() ||
+        String(payload?.explanationAlt || "").trim()
+    );
+  const hasCompleteAltQuestionPayload = (payload) =>
+    Boolean(
+      String(payload?.questionTextAlt || "").trim() &&
+        String(payload?.optionAAlt || "").trim() &&
+        String(payload?.optionBAlt || "").trim() &&
+        String(payload?.optionCAlt || "").trim() &&
+        String(payload?.optionDAlt || "").trim()
+    );
   const toggleLessonSectionTranscriptState = () => {
     const shouldSkip = Boolean(lessonSectionSkipTranscriptInput instanceof HTMLInputElement && lessonSectionSkipTranscriptInput.checked);
     if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
@@ -3163,15 +3180,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       throw new Error("All question and options fields are required.");
     }
-    if (
-      isBilingualQuestionMode() &&
-      (!payload.questionTextAlt ||
-        !payload.optionAAlt ||
-        !payload.optionBAlt ||
-        !payload.optionCAlt ||
-        !payload.optionDAlt)
-    ) {
-      throw new Error("Bilingual mode requires right-side question and all right-side options.");
+    if (isBilingualQuestionMode() && hasAnyAltQuestionPayload(payload) && !hasCompleteAltQuestionPayload(payload)) {
+      throw new Error("If you add right language content, fill all right-side question and option fields.");
     }
 
     return { questionId, payload };
@@ -3550,9 +3560,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     return leftRows.map((leftRow, index) => {
       const rightRow = rightRows[index] || {};
+      const hasAnyRightContent =
+        Boolean(String(rightRow.questionText || "").trim()) ||
+        Boolean(String(rightRow.optionA || "").trim()) ||
+        Boolean(String(rightRow.optionB || "").trim()) ||
+        Boolean(String(rightRow.optionC || "").trim()) ||
+        Boolean(String(rightRow.optionD || "").trim()) ||
+        Boolean(String(rightRow.explanation || "").trim());
+      if (!hasAnyRightContent) {
+        return {
+          ...leftRow,
+        };
+      }
       const rightCorrect = String(rightRow.correctOption || leftRow.correctOption || "").toUpperCase();
       if (rightCorrect && rightCorrect !== leftRow.correctOption) {
         throw new Error(`${sourceLabel} row ${index + 1} has different correct options in left and right files.`);
+      }
+      if (
+        !String(rightRow.questionText || "").trim() ||
+        !String(rightRow.optionA || "").trim() ||
+        !String(rightRow.optionB || "").trim() ||
+        !String(rightRow.optionC || "").trim() ||
+        !String(rightRow.optionD || "").trim()
+      ) {
+        throw new Error(`${sourceLabel} row ${index + 1} has partial right-language content.`);
       }
       return {
         ...leftRow,
@@ -4631,15 +4662,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       throw new Error("All question and options fields are required.");
     }
-    if (
-      isBilingualQuestionMode() &&
-      (!payload.questionTextAlt ||
-        !payload.optionAAlt ||
-        !payload.optionBAlt ||
-        !payload.optionCAlt ||
-        !payload.optionDAlt)
-    ) {
-      throw new Error("Bilingual mode requires right-side question and all right-side options.");
+    if (isBilingualQuestionMode() && hasAnyAltQuestionPayload(payload) && !hasCompleteAltQuestionPayload(payload)) {
+      throw new Error("If you add right language content, fill all right-side question and option fields.");
     }
     ensureQuestionTargetCapacity(1);
 
@@ -4668,10 +4692,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    if (isBilingual && !rightLines.length) {
-      throw new Error("Paste right language lines also for bilingual bulk import.");
-    }
-    if (isBilingual && lines.length !== rightLines.length) {
+    if (isBilingual && rightLines.length && lines.length !== rightLines.length) {
       throw new Error("Left and right bulk import line counts must match.");
     }
     ensureQuestionTargetCapacity(lines.length);
@@ -4689,9 +4710,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         normalizeQuestionSectionLabel(sectionLabelRaw) ||
         normalizeQuestionSectionLabel(defaultSection) ||
         DEFAULT_QUESTION_SECTIONS[0];
-      const rightParts = isBilingual ? rightLines[index].split("|").map((item) => item.trim()) : [];
-      if (isBilingual && rightParts.length < 6) {
-        throw new Error(`Invalid right-language line: ${rightLines[index]}`);
+      const rightLine = isBilingual ? String(rightLines[index] || "").trim() : "";
+      const rightParts = rightLine ? rightLine.split("|").map((item) => item.trim()) : [];
+      if (isBilingual && rightLine && rightParts.length < 6) {
+        throw new Error(`Invalid right-language line: ${rightLine}`);
       }
       const [
         questionTextAlt,
@@ -4702,8 +4724,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         rightCorrectOption,
         explanationAlt,
       ] = rightParts;
-      if (isBilingual && String(rightCorrectOption || "").toUpperCase() !== normalized) {
+      if (isBilingual && rightLine && String(rightCorrectOption || "").toUpperCase() !== normalized) {
         throw new Error(`Correct option must match in both languages for line ${index + 1}.`);
+      }
+      if (
+        isBilingual &&
+        rightLine &&
+        (
+          !questionTextAlt ||
+          !optionAAlt ||
+          !optionBAlt ||
+          !optionCAlt ||
+          !optionDAlt
+        )
+      ) {
+        throw new Error(`Line ${index + 1} has partial right-language content.`);
       }
       await apiRequest({
         path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
@@ -4711,18 +4746,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         token,
         body: {
           questionText,
-          questionTextAlt: isBilingual ? questionTextAlt : undefined,
+          questionTextAlt: isBilingual && rightLine ? questionTextAlt : undefined,
           optionA,
-          optionAAlt: isBilingual ? optionAAlt : undefined,
+          optionAAlt: isBilingual && rightLine ? optionAAlt : undefined,
           optionB,
-          optionBAlt: isBilingual ? optionBAlt : undefined,
+          optionBAlt: isBilingual && rightLine ? optionBAlt : undefined,
           optionC,
-          optionCAlt: isBilingual ? optionCAlt : undefined,
+          optionCAlt: isBilingual && rightLine ? optionCAlt : undefined,
           optionD,
-          optionDAlt: isBilingual ? optionDAlt : undefined,
+          optionDAlt: isBilingual && rightLine ? optionDAlt : undefined,
           correctOption: normalized,
           explanation,
-          explanationAlt: isBilingual ? explanationAlt : undefined,
+          explanationAlt: isBilingual && rightLine ? explanationAlt : undefined,
           sectionLabel,
           isActive: true,
         },
@@ -4738,9 +4773,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const isBilingual = isBilingualQuestionMode();
     const rightFile = lessonBulkImportCsvFileAltInput?.files?.[0];
-    if (isBilingual && !rightFile) {
-      throw new Error("Please choose the right language CSV file also.");
-    }
     const defaultSection =
       normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
 
