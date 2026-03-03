@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   AttemptStatus,
   ExamType,
@@ -73,6 +74,8 @@ const normalizeMockCategory = (value: unknown): MockCategory => {
     .toUpperCase();
   return normalized === "FREE" ? "FREE" : "PREMIUM";
 };
+
+const DEFAULT_FREE_MOCK_ATTEMPT_LIMIT = 1;
 
 const normalizeSectionLabel = (value: unknown): string | null => {
   const normalized = String(value ?? "").trim();
@@ -318,16 +321,117 @@ const loadUserLessonEntitledMockTests = async (userId: string, mockTestIds: stri
 
 const canUserAccessMockTest = (
   accessCode: AccessCode,
+  mockCategory: MockCategory,
   mockTestId: string,
   demoEntitled: Set<string>,
   productEntitled: Set<string>,
   lessonEntitled: Set<string>
 ) => {
   if (accessCode === "DEMO") return true;
+  if (accessCode === "MOCK" && mockCategory === "FREE") return true;
   if (demoEntitled.has(mockTestId)) return true;
   if (productEntitled.has(mockTestId)) return true;
   if (accessCode === "LESSON" && lessonEntitled.has(mockTestId)) return true;
   return false;
+};
+
+const ensureDefaultFreeMockRegistrationGate = async (mockTestId: string) => {
+  const mockTest = await prisma.mockTest.findUnique({
+    where: { id: mockTestId },
+    select: {
+      id: true,
+      title: true,
+      createdBy: true,
+      isActive: true,
+    },
+  });
+  if (!mockTest || !mockTest.isActive) return null;
+
+  const settingsMap = await loadMockTestAccessSettingsMap([mockTestId]);
+  const settings = settingsMap.get(mockTestId);
+  if (!settings || settings.accessCode !== "MOCK" || settings.mockCategory !== "FREE") {
+    return null;
+  }
+
+  const existingRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT id, title, freeAttemptLimit, isActive
+      FROM MockTestRegistrationGate
+      WHERE mockTestId = ?
+      LIMIT 1
+    `,
+    mockTestId
+  )) as Array<{
+    id: string;
+    title: string | null;
+    freeAttemptLimit: number | string | null;
+    isActive: number | boolean | null;
+  }>;
+
+  const now = new Date();
+  const existing = existingRows[0];
+  if (existing) {
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE MockTestRegistrationGate
+        SET
+          title = CASE
+            WHEN NULLIF(TRIM(COALESCE(title, '')), '') IS NULL THEN ?
+            ELSE title
+          END,
+          freeAttemptLimit = CASE
+            WHEN freeAttemptLimit IS NULL OR freeAttemptLimit < 1 THEN ?
+            ELSE freeAttemptLimit
+          END,
+          isActive = 1,
+          updatedAt = ?
+        WHERE id = ?
+      `,
+      mockTest.title,
+      DEFAULT_FREE_MOCK_ATTEMPT_LIMIT,
+      now,
+      existing.id
+    );
+    return existing.id;
+  }
+
+  const gateId = randomUUID();
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO MockTestRegistrationGate (
+        id,
+        mockTestId,
+        title,
+        description,
+        popupImageUrl,
+        freeAttemptLimit,
+        buyNowUrl,
+        ctaLabel,
+        scheduledDate,
+        scheduledTimeSlot,
+        isActive,
+        createdBy,
+        createdAt,
+        updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    gateId,
+    mockTestId,
+    mockTest.title,
+    "Register and use your free mock chances.",
+    null,
+    DEFAULT_FREE_MOCK_ATTEMPT_LIMIT,
+    null,
+    "Buy Mock",
+    null,
+    null,
+    1,
+    mockTest.createdBy,
+    now,
+    now
+  );
+  return gateId;
 };
 
 const serializeMockTest = (item: {
@@ -766,9 +870,13 @@ const fetchAttemptDetails = async (attemptId: string) => {
 };
 
 const assertStudentCanAccessMockTest = async (userId: string, mockTestId: string) => {
-  const accessMap = await loadMockTestAccessMap([mockTestId]);
-  const accessCode = accessMap.get(mockTestId) || "DEMO";
-  if (accessCode === "DEMO") return accessCode;
+  const settingsMap = await loadMockTestAccessSettingsMap([mockTestId]);
+  const settings = settingsMap.get(mockTestId);
+  const accessCode = settings?.accessCode || "DEMO";
+  const mockCategory = settings?.mockCategory || "PREMIUM";
+  if (accessCode === "DEMO" || (accessCode === "MOCK" && mockCategory === "FREE")) {
+    return accessCode;
+  }
 
   const [demoEntitledSet, productEntitledSet, lessonEntitledSet] = await Promise.all([
     loadDemoLinkedMockTests([mockTestId]),
@@ -777,6 +885,7 @@ const assertStudentCanAccessMockTest = async (userId: string, mockTestId: string
   ]);
   const allowed = canUserAccessMockTest(
     accessCode,
+    mockCategory,
     mockTestId,
     demoEntitledSet,
     productEntitledSet,
@@ -796,6 +905,7 @@ const assertStudentCanAccessMockTest = async (userId: string, mockTestId: string
 };
 
 export const mockTestService = {
+  ensureDefaultFreeMockRegistrationGate,
   async listMockTests() {
     const tests = await prisma.mockTest.findMany({
       orderBy: { createdAt: "desc" },
@@ -856,6 +966,7 @@ export const mockTestService = {
       normalizeAccessCode(input.accessCode),
       normalizeMockCategory(input.mockCategory)
     );
+    await ensureDefaultFreeMockRegistrationGate(created.id);
 
     return this.getMockTestById(created.id);
   },
@@ -945,6 +1056,7 @@ export const mockTestService = {
         normalizeMockCategory(updates.mockCategory ?? currentSettings?.mockCategory ?? "PREMIUM")
       );
     }
+    await ensureDefaultFreeMockRegistrationGate(updated.id);
 
     return this.getMockTestById(updated.id);
   },
@@ -1501,10 +1613,10 @@ export const mockTestService = {
     });
 
     const mockTestIds = mockTests.map((item) => item.id);
-    const [activeCountMap, accessMap, linkedProductCountMap, demoEntitledSet, productEntitledSet, lessonEntitledSet] =
+    const [activeCountMap, accessSettingsMap, linkedProductCountMap, demoEntitledSet, productEntitledSet, lessonEntitledSet] =
       await Promise.all([
         buildActiveQuestionCountMap(mockTestIds),
-        loadMockTestAccessMap(mockTestIds),
+        loadMockTestAccessSettingsMap(mockTestIds),
         loadLinkedProductCountMap(mockTestIds),
         loadDemoLinkedMockTests(mockTestIds),
         loadUserAccessibleProductMockTests(input.userId, mockTestIds),
@@ -1513,9 +1625,12 @@ export const mockTestService = {
 
     return mockTests
       .filter((item) => {
-        const accessCode = accessMap.get(item.id) || "DEMO";
+        const settings = accessSettingsMap.get(item.id);
+        const accessCode = settings?.accessCode || "DEMO";
+        const mockCategory = settings?.mockCategory || "PREMIUM";
         return canUserAccessMockTest(
           accessCode,
+          mockCategory,
           item.id,
           demoEntitledSet,
           productEntitledSet,
@@ -1526,7 +1641,8 @@ export const mockTestService = {
         serializeMockTestWithCounts(
           {
             ...item,
-            accessCode: accessMap.get(item.id) || "DEMO",
+            accessCode: accessSettingsMap.get(item.id)?.accessCode || "DEMO",
+            mockCategory: accessSettingsMap.get(item.id)?.mockCategory || "PREMIUM",
             linkedProductCount: linkedProductCountMap.get(item.id) || 0,
           },
           activeCountMap.get(item.id) || 0

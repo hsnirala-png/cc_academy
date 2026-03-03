@@ -648,6 +648,18 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
       userId: req.user!.userId,
     };
     const mockTests = await mockTestService.listStudentMockTests(input);
+    const freeMockIds = mockTests
+      .filter(
+        (item) =>
+          String(item?.accessCode || "").trim().toUpperCase() === "MOCK" &&
+          String(item?.mockCategory || "").trim().toUpperCase() === "FREE"
+      )
+      .map((item) => item.id);
+    if (freeMockIds.length) {
+      await Promise.all(
+        freeMockIds.map((mockTestId) => mockTestService.ensureDefaultFreeMockRegistrationGate(mockTestId))
+      );
+    }
 
     const mockTestIds = mockTests.map((item) => item.id);
     const gateMap = await loadActiveRegistrationGates(mockTestIds);
@@ -875,6 +887,7 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
   try {
     const mockTestId = String(req.params.mockTestId || "").trim();
     if (!mockTestId) throw new AppError("Mock test id is required.", 400);
+    await mockTestService.ensureDefaultFreeMockRegistrationGate(mockTestId);
 
     const gateMap = await loadActiveRegistrationGates([mockTestId]);
     const gate = gateMap.get(mockTestId);
@@ -954,6 +967,7 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
     const input = registerForMockSchema.parse(req.body || {});
     const mockTestId = String(req.params.mockTestId || "").trim();
     if (!mockTestId) throw new AppError("Mock test id is required.", 400);
+    await mockTestService.ensureDefaultFreeMockRegistrationGate(mockTestId);
 
     const gateMap = await loadActiveRegistrationGates([mockTestId]);
     const gate = gateMap.get(mockTestId);
@@ -1185,6 +1199,7 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/lesson-context", ...ensureSt
 studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next) => {
   try {
     const input = studentStartAttemptSchema.parse(req.body);
+    await mockTestService.ensureDefaultFreeMockRegistrationGate(input.mockTestId);
     const gateMap = await loadActiveRegistrationGates([input.mockTestId]);
     const gate = gateMap.get(input.mockTestId);
     if (gate) {
