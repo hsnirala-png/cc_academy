@@ -221,8 +221,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (titleEl instanceof HTMLElement) titleEl.textContent = registration.title || test.title || "Mock Registration";
     if (descEl instanceof HTMLElement) descEl.textContent = registration.description || "";
     if (attemptsEl instanceof HTMLElement) {
-      if (registration.hasPaidAccess) {
-        attemptsEl.textContent = "Paid access detected. Unlimited attempts available.";
+      if (registration.hasPremiumAccess || registration.hasPaidAccess) {
+        const dailyAttemptLimit = Number(registration.dailyAttemptLimit || 2);
+        attemptsEl.textContent = `Premium access active. Daily limit: ${dailyAttemptLimit} attempts.`;
       } else {
         attemptsEl.textContent = `Free chances: ${registration.freeAttemptLimit} | Used: ${registration.usedAttempts} | Remaining: ${registration.remainingAttempts}`;
       }
@@ -281,8 +282,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const required = Number(test.requiredQuestions || 0) || REQUIRED_QUESTIONS_BY_SUBJECT[test.subject] || 30;
         const registration = test.registration && test.registration.enabled ? test.registration : null;
         const registrationLine = registration
-          ? registration.hasPaidAccess
-            ? `<p class="mock-test-meta">Registration: Paid access unlocked.</p>`
+          ? registration.hasPremiumAccess || registration.hasPaidAccess
+            ? `<p class="mock-test-meta">Registration: Premium access active. Daily cap applies.</p>`
             : `<p class="mock-test-meta">Registration: Free ${registration.freeAttemptLimit}, Used ${registration.usedAttempts}, Remaining ${registration.remainingAttempts}</p>`
           : "";
         const registrationActions = registration
@@ -557,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             openRegistrationModal(mockTestId);
             return;
           }
-          if (!registration.hasPaidAccess && Number(registration.remainingAttempts || 0) <= 0) {
+          if (!registration.hasPremiumAccess && !registration.hasPaidAccess && Number(registration.remainingAttempts || 0) <= 0) {
             setStatus("Free attempts completed. Please buy mock to continue.", "error");
             window.location.href = resolveRegistrationBuyUrl(registration);
             return;
@@ -578,6 +579,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = buyNowUrl;
             return;
           }
+        }
+        if (errorCode === "MOCK_DAILY_ATTEMPT_LIMIT_REACHED") {
+          setStatus(error.message || "You can attempt only 2 mocks per day.", "error");
+          return;
         }
         setStatus(error.message || "Unable to start attempt", "error");
       }

@@ -9,11 +9,20 @@ const ensureMockTestAccessRuleTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS \`MockTestAccessRule\` (
       \`mockTestId\` VARCHAR(191) NOT NULL,
       \`accessCode\` VARCHAR(20) NOT NULL DEFAULT 'DEMO',
+      \`mockCategory\` VARCHAR(20) NOT NULL DEFAULT 'PREMIUM',
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       \`updatedAt\` DATETIME(3) NOT NULL,
       PRIMARY KEY (\`mockTestId\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("MockTestAccessRule", "mockCategory"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `MockTestAccessRule` ADD COLUMN `mockCategory` VARCHAR(20) NOT NULL DEFAULT 'PREMIUM'"
+      )
+      .catch(() => undefined);
+  }
 
   if (!(await hasConstraint("MockTestAccessRule", "MockTestAccessRule_mockTestId_fkey", "FOREIGN KEY"))) {
     await prisma

@@ -144,6 +144,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     return normalized || "-";
   };
 
+  const mockCategoryLabel = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (normalized === "FREE") return "Free";
+    return "Premium";
+  };
+
   const timeLabel = (value) => {
     const normalized = String(value || "").trim();
     if (normalized === "09:00") return "09:00 am";
@@ -212,6 +218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           const labels = [
             EXAM_LABELS[test.examType] || test.examType,
             SUBJECT_LABELS[test.subject] || test.subject,
+            mockCategoryLabel(test.mockCategory),
           ];
           if (test.streamChoice) labels.push(STREAM_LABELS[test.streamChoice] || test.streamChoice);
           if (test.languageMode) labels.push(LANGUAGE_LABELS[test.languageMode] || test.languageMode);
@@ -240,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderRegistrations = () => {
     if (!(tableBody instanceof HTMLElement)) return;
     if (!state.registrations.length) {
-      tableBody.innerHTML = `<tr><td colspan="8">No registration configs yet.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="9">No registration configs yet.</td></tr>`;
       return;
     }
 
@@ -253,6 +260,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <strong>${escapeHtml(item.mockTestTitle || item.title)}</strong><br />
               <small>${escapeHtml(item.title)}</small>
             </td>
+            <td>${escapeHtml(mockCategoryLabel(item.mockCategory))}</td>
             <td>${Number(item.freeAttemptLimit || 0)}</td>
             <td>${Number(item.registeredCount || 0)}</td>
             <td><span class="chip ${item.isActive ? "active" : "inactive"}">${
@@ -375,7 +383,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (mockTestIdInput instanceof HTMLSelectElement) {
-    mockTestIdInput.addEventListener("change", syncRegistrationLinkField);
+    mockTestIdInput.addEventListener("change", () => {
+      syncRegistrationLinkField();
+      const selected = state.mockTests.find((item) => item.id === String(mockTestIdInput.value || "").trim());
+      if (!selected || !(freeAttemptsInput instanceof HTMLInputElement)) return;
+      if (String(selected.mockCategory || "").trim().toUpperCase() === "FREE" && Number(freeAttemptsInput.value || 0) < 1) {
+        freeAttemptsInput.value = "1";
+      }
+    });
   }
   if (examTypeFilterInput instanceof HTMLSelectElement) {
     examTypeFilterInput.addEventListener("change", syncTestFilters);

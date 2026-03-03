@@ -331,13 +331,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const hasAnyChanceAvailable = () =>
     state.options.some(
-      (item) => Boolean(item?.hasPaidAccess) || Math.max(0, Number(item?.remainingAttempts || 0)) > 0
+      (item) => Boolean(item?.hasPremiumAccess || item?.hasPaidAccess) || Math.max(0, Number(item?.remainingAttempts || 0)) > 0
     );
 
   const canEditRegistration = (option) =>
     Boolean(option) &&
     (Boolean(option?.isRegistered) ||
-      Boolean(option?.hasPaidAccess) ||
+      Boolean(option?.hasPremiumAccess || option?.hasPaidAccess) ||
       Math.max(0, Number(option?.remainingAttempts || 0)) > 0);
 
   const buildReferralShareUrl = (option = selectedOption()) => {
@@ -671,24 +671,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (option.hasPaidAccess) {
+    const dailyAttemptLimit = Math.max(0, Number(option.dailyAttemptLimit || state.programStatus?.dailyAttemptLimit || 2));
+    const usedDailyAttemptCount = Math.max(0, Number(option.usedDailyAttemptCount || state.programStatus?.usedDailyAttemptCount || 0));
+    const remainingDailyAttempts = Math.max(
+      0,
+      Number(option.remainingDailyAttempts || state.programStatus?.remainingDailyAttempts || 0)
+    );
+
+    if (option.hasPremiumAccess || option.hasPaidAccess) {
       attemptsInfoEl.className = "mock-chance-panel";
       attemptsInfoEl.innerHTML = `
         <div class="mock-chance-summary">
-          <span class="mock-chance-total">Paid</span>
+          <span class="mock-chance-total">Premium</span>
           <span class="mock-chance-summary-label">Access Status</span>
         </div>
         <div class="mock-chance-grid">
           <div class="mock-chance-item">
-            <span class="mock-chance-item-label">Attempts</span>
-            <span class="mock-chance-item-value">Unlimited</span>
+            <span class="mock-chance-item-label">Category</span>
+            <span class="mock-chance-item-value">${escapeHtml(String(option.mockCategory || "PREMIUM"))}</span>
           </div>
           <div class="mock-chance-item">
-            <span class="mock-chance-item-label">Mock Type</span>
-            <span class="mock-chance-item-value">Any Active</span>
+            <span class="mock-chance-item-label">Daily Limit</span>
+            <span class="mock-chance-item-value">${dailyAttemptLimit}</span>
+          </div>
+          <div class="mock-chance-item">
+            <span class="mock-chance-item-label">Used Today</span>
+            <span class="mock-chance-item-value">${usedDailyAttemptCount}</span>
+          </div>
+          <div class="mock-chance-item">
+            <span class="mock-chance-item-label">Left Today</span>
+            <span class="mock-chance-item-value">${remainingDailyAttempts}</span>
           </div>
         </div>
-        <p class="mock-chance-note">You can use your access for any active mock test.</p>
+        <p class="mock-chance-note">Premium access skips mock-chance consumption, but you can attempt only ${dailyAttemptLimit} mocks per day.</p>
       `;
       return;
     }
@@ -725,11 +740,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           <span class="mock-chance-item-label">Remaining</span>
           <span class="mock-chance-item-value">${remainingAttempts}</span>
         </div>
+        <div class="mock-chance-item">
+          <span class="mock-chance-item-label">Left Today</span>
+          <span class="mock-chance-item-value">${remainingDailyAttempts}</span>
+        </div>
       </div>
       <p class="mock-chance-note">${
         inactiveSelection
           ? "Selected test type is inactive. Switch to any active mock and use the same available chance."
-          : "You can use this chance on any active PSTET mock, including PSTET-1, PSTET-2, SST, or SCI/MATHS."
+          : `You can use this chance on active mocks, but only ${dailyAttemptLimit} attempts are allowed per day.`
       }</p>
     `;
   };
@@ -897,7 +916,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (startAttemptBtn instanceof HTMLButtonElement) {
       const hasAttemptsRemaining =
-        Boolean(option?.hasPaidAccess) || Math.max(0, Number(option?.remainingAttempts || 0)) > 0;
+        Boolean(option?.hasPremiumAccess || option?.hasPaidAccess) ||
+        Math.max(0, Number(option?.remainingAttempts || 0)) > 0;
       startAttemptBtn.disabled = !option?.isRegistered || !hasAttemptsRemaining;
     }
   };
@@ -951,7 +971,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const registered = rows.find((item) => item.isRegistered);
     if (registered) return registered;
 
-    const pending = rows.find((item) => !item.hasPaidAccess && Number(item.remainingAttempts || 0) > 0);
+    const pending = rows.find(
+      (item) => !item.hasPremiumAccess && !item.hasPaidAccess && Number(item.remainingAttempts || 0) > 0
+    );
     if (pending) return pending;
 
     return rows[0];
@@ -1049,12 +1071,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         })
       : [];
 
-    const allowedFreshMockCount = Number(state.programStatus?.allowedFreshMockCount || 0);
-    const usedFreshMockCount = Number(state.programStatus?.usedFreshMockCount || 0);
-    const remainingFreshMockCount = Math.max(0, Number(state.programStatus?.remainingFreshMockCount || 0));
+    const dailyAttemptLimit = Number(state.programStatus?.dailyAttemptLimit || 2);
+    const usedDailyAttemptCount = Number(state.programStatus?.usedDailyAttemptCount || 0);
+    const remainingDailyAttempts = Math.max(0, Number(state.programStatus?.remainingDailyAttempts || 0));
     if (mockTableQuotaText instanceof HTMLElement) {
       mockTableQuotaText.textContent = state.programStatus?.isRegistered
-        ? `New mocks used: ${usedFreshMockCount}/${allowedFreshMockCount} | Remaining picks: ${remainingFreshMockCount}`
+        ? `Attempts today: ${usedDailyAttemptCount}/${dailyAttemptLimit} | Left today: ${remainingDailyAttempts}`
         : "Complete registration to activate mock attempts.";
     }
 
@@ -1270,8 +1292,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         setStatus("Please complete registration first.", "error");
         return;
       }
-      if (errorCode === "MOCK_DAILY_NEW_LIMIT_REACHED") {
-        setStatus(error?.message || "You can attempt only 2 new mocks per day.", "error");
+      if (errorCode === "MOCK_DAILY_ATTEMPT_LIMIT_REACHED") {
+        setStatus(error?.message || "You can attempt only 2 mocks per day.", "error");
         return;
       }
       if (errorCode === "MOCK_NOT_PUBLISHED") {

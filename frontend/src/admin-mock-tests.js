@@ -33,6 +33,11 @@ const NON_LANGUAGE_SUBJECTS = new Set([
   "SOCIAL_STUDIES",
 ]);
 
+const MOCK_CATEGORY_LABELS = {
+  FREE: "Free",
+  PREMIUM: "Premium",
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
   if (!auth) return;
@@ -61,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const testStreamInput = document.querySelector("#mockTestStreamChoice");
   const testLanguageModeInput = document.querySelector("#mockTestLanguageMode");
   const testAccessCodeInput = document.querySelector("#mockTestAccessCode");
+  const testCategoryInput = document.querySelector("#mockTestCategory");
   const testActiveInput = document.querySelector("#mockTestIsActive");
   const testSubmitBtn = document.querySelector("#mockTestSubmitBtn");
   const testCancelBtn = document.querySelector("#mockTestCancelBtn");
@@ -118,6 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (testIdInput) testIdInput.value = "";
     if (testActiveInput) testActiveInput.checked = true;
     if (testAccessCodeInput) testAccessCodeInput.value = "DEMO";
+    if (testCategoryInput) testCategoryInput.value = "PREMIUM";
     if (testSubmitBtn) testSubmitBtn.textContent = "Create Mock Test";
     if (testCancelBtn) testCancelBtn.classList.add("hidden");
     toggleSubjectDependentFields();
@@ -166,7 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderMockTests = () => {
     if (!testTableBody) return;
     if (!state.filteredTests.length) {
-      testTableBody.innerHTML = "<tr><td colspan='10'>No mock tests found.</td></tr>";
+      testTableBody.innerHTML = "<tr><td colspan='11'>No mock tests found.</td></tr>";
       return;
     }
 
@@ -181,6 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${escapeHtml(test.streamChoice ? STREAM_LABELS[test.streamChoice] : "-")}</td>
             <td>${escapeHtml(test.languageMode ? LANGUAGE_LABELS[test.languageMode] : "-")}</td>
             <td>${escapeHtml(test.accessCode || "DEMO")}</td>
+            <td>${escapeHtml(MOCK_CATEGORY_LABELS[test.mockCategory] || test.mockCategory || "Premium")}</td>
             <td>${Number(test.activeQuestions ?? test._count?.questions ?? 0)}</td>
             <td><span class="chip ${test.isActive ? "active" : "inactive"}">${
           test.isActive ? "Active" : "Inactive"
@@ -367,6 +375,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       streamChoice: testStreamInput?.value || null,
       languageMode: testLanguageModeInput?.value || null,
       accessCode: testAccessCodeInput?.value || "DEMO",
+      mockCategory: testCategoryInput?.value || "PREMIUM",
       isActive: Boolean(testActiveInput?.checked),
     };
     if (!payload.title) throw new Error("Mock test title is required");
@@ -664,6 +673,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (testStreamInput) testStreamInput.value = mockTest.streamChoice || "";
         if (testLanguageModeInput) testLanguageModeInput.value = mockTest.languageMode || "";
         if (testAccessCodeInput) testAccessCodeInput.value = mockTest.accessCode || "DEMO";
+        if (testCategoryInput) testCategoryInput.value = mockTest.mockCategory || "PREMIUM";
         if (testActiveInput) testActiveInput.checked = Boolean(mockTest.isActive);
         if (testSubmitBtn) testSubmitBtn.textContent = "Update Mock Test";
         if (testCancelBtn) testCancelBtn.classList.remove("hidden");

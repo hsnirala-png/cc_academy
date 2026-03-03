@@ -20,6 +20,7 @@ import { getRequiredQuestionCount, validateMockTestRule } from "./mock-test.rule
 
 type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI" | "BILINGUAL";
 type AccessCode = "DEMO" | "MOCK" | "LESSON";
+type MockCategory = "FREE" | "PREMIUM";
 type MockTestSectionType =
   | "COMPREHENSION"
   | "GENERAL_MCQ"
@@ -64,6 +65,13 @@ const normalizeAccessCode = (value: unknown): AccessCode => {
     .toUpperCase();
   if (normalized === "MOCK" || normalized === "LESSON") return normalized;
   return "DEMO";
+};
+
+const normalizeMockCategory = (value: unknown): MockCategory => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  return normalized === "FREE" ? "FREE" : "PREMIUM";
 };
 
 const normalizeSectionLabel = (value: unknown): string | null => {
@@ -191,8 +199,8 @@ const assertBilingualQuestionContent = (
   }
 };
 
-const loadMockTestAccessMap = async (mockTestIds: string[]) => {
-  if (!mockTestIds.length) return new Map<string, AccessCode>();
+const loadMockTestAccessSettingsMap = async (mockTestIds: string[]) => {
+  if (!mockTestIds.length) return new Map<string, { accessCode: AccessCode; mockCategory: MockCategory }>();
   const placeholders = mockTestIds.map(() => "?").join(", ");
   const rows = (await prisma.$queryRawUnsafe(
     `
@@ -204,27 +212,53 @@ const loadMockTestAccessMap = async (mockTestIds: string[]) => {
           WHERE mar.mockTestId = mt.id
           ORDER BY mar.updatedAt DESC, mar.createdAt DESC
           LIMIT 1
-        ) AS accessCode
+        ) AS accessCode,
+        (
+          SELECT mar.mockCategory
+          FROM MockTestAccessRule mar
+          WHERE mar.mockTestId = mt.id
+          ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+          LIMIT 1
+        ) AS mockCategory
       FROM MockTest mt
       WHERE mt.id IN (${placeholders})
     `,
     ...mockTestIds
-  )) as Array<{ mockTestId: string; accessCode: string | null }>;
-  return new Map(rows.map((row) => [row.mockTestId, normalizeAccessCode(row.accessCode)]));
+  )) as Array<{ mockTestId: string; accessCode: string | null; mockCategory: string | null }>;
+  return new Map(
+    rows.map((row) => [
+      row.mockTestId,
+      {
+        accessCode: normalizeAccessCode(row.accessCode),
+        mockCategory: normalizeMockCategory(row.mockCategory),
+      },
+    ])
+  );
 };
 
-const upsertMockTestAccessCode = async (mockTestId: string, accessCode: AccessCode) => {
+const loadMockTestAccessMap = async (mockTestIds: string[]) => {
+  const settingsMap = await loadMockTestAccessSettingsMap(mockTestIds);
+  return new Map(Array.from(settingsMap.entries()).map(([mockTestId, settings]) => [mockTestId, settings.accessCode]));
+};
+
+const upsertMockTestAccessSettings = async (
+  mockTestId: string,
+  accessCode: AccessCode,
+  mockCategory: MockCategory
+) => {
   const now = new Date();
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO MockTestAccessRule (mockTestId, accessCode, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO MockTestAccessRule (mockTestId, accessCode, mockCategory, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         accessCode = VALUES(accessCode),
+        mockCategory = VALUES(mockCategory),
         updatedAt = VALUES(updatedAt)
     `,
     mockTestId,
     accessCode,
+    mockCategory,
     now,
     now
   );
@@ -308,11 +342,13 @@ const serializeMockTest = (item: {
   createdAt: Date;
   updatedAt: Date;
   accessCode?: AccessCode;
+  mockCategory?: MockCategory;
   linkedProductCount?: number;
   _count?: { questions: number };
 }) => ({
   ...item,
   accessCode: normalizeAccessCode(item.accessCode),
+  mockCategory: normalizeMockCategory(item.mockCategory),
   linkedProductCount: Math.max(0, Number(item.linkedProductCount || 0)),
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
@@ -331,6 +367,7 @@ const serializeMockTestWithCounts = (
     createdAt: Date;
     updatedAt: Date;
     accessCode?: AccessCode;
+    mockCategory?: MockCategory;
     linkedProductCount?: number;
     _count?: { questions: number };
   },
@@ -770,9 +807,9 @@ export const mockTestService = {
     });
 
     const testIds = tests.map((item) => item.id);
-    const [activeCountMap, accessMap, linkedProductCountMap] = await Promise.all([
+    const [activeCountMap, accessSettingsMap, linkedProductCountMap] = await Promise.all([
       buildActiveQuestionCountMap(testIds),
-      loadMockTestAccessMap(testIds),
+      loadMockTestAccessSettingsMap(testIds),
       loadLinkedProductCountMap(testIds),
     ]);
 
@@ -780,7 +817,8 @@ export const mockTestService = {
       serializeMockTestWithCounts(
         {
           ...item,
-          accessCode: accessMap.get(item.id) || "DEMO",
+          accessCode: accessSettingsMap.get(item.id)?.accessCode || "DEMO",
+          mockCategory: accessSettingsMap.get(item.id)?.mockCategory || "PREMIUM",
           linkedProductCount: linkedProductCountMap.get(item.id) || 0,
         },
         activeCountMap.get(item.id) || 0
@@ -795,6 +833,7 @@ export const mockTestService = {
     streamChoice?: StreamChoice | null;
     languageMode?: LanguageMode | null;
     accessCode?: AccessCode;
+    mockCategory?: MockCategory;
     isActive?: boolean;
     createdBy: string;
   }) {
@@ -812,7 +851,11 @@ export const mockTestService = {
       },
     });
 
-    await upsertMockTestAccessCode(created.id, normalizeAccessCode(input.accessCode));
+    await upsertMockTestAccessSettings(
+      created.id,
+      normalizeAccessCode(input.accessCode),
+      normalizeMockCategory(input.mockCategory)
+    );
 
     return this.getMockTestById(created.id);
   },
@@ -842,15 +885,16 @@ export const mockTestService = {
     )) as Array<{ activeCount: number | string }>;
     const activeCount = Number(activeCountRows[0]?.activeCount || 0);
 
-    const [accessMap, linkedProductCountMap] = await Promise.all([
-      loadMockTestAccessMap([mockTestId]),
+    const [accessSettingsMap, linkedProductCountMap] = await Promise.all([
+      loadMockTestAccessSettingsMap([mockTestId]),
       loadLinkedProductCountMap([mockTestId]),
     ]);
 
     return serializeMockTestWithCounts(
       {
         ...mockTest,
-        accessCode: accessMap.get(mockTestId) || "DEMO",
+        accessCode: accessSettingsMap.get(mockTestId)?.accessCode || "DEMO",
+        mockCategory: accessSettingsMap.get(mockTestId)?.mockCategory || "PREMIUM",
         linkedProductCount: linkedProductCountMap.get(mockTestId) || 0,
       },
       activeCount
@@ -866,6 +910,7 @@ export const mockTestService = {
       streamChoice?: StreamChoice | null;
       languageMode?: LanguageMode | null;
       accessCode: AccessCode;
+      mockCategory: MockCategory;
       isActive: boolean;
     }>
   ) {
@@ -891,8 +936,14 @@ export const mockTestService = {
       },
     });
 
-    if (updates.accessCode !== undefined) {
-      await upsertMockTestAccessCode(updated.id, normalizeAccessCode(updates.accessCode));
+    if (updates.accessCode !== undefined || updates.mockCategory !== undefined) {
+      const accessSettingsMap = await loadMockTestAccessSettingsMap([updated.id]);
+      const currentSettings = accessSettingsMap.get(updated.id);
+      await upsertMockTestAccessSettings(
+        updated.id,
+        normalizeAccessCode(updates.accessCode ?? currentSettings?.accessCode ?? "DEMO"),
+        normalizeMockCategory(updates.mockCategory ?? currentSettings?.mockCategory ?? "PREMIUM")
+      );
     }
 
     return this.getMockTestById(updated.id);

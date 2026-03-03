@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonMockTestStreamChoiceInput = document.querySelector("#lessonMockTestStreamChoice");
   const lessonMockTestLanguageModeInput = document.querySelector("#lessonMockTestLanguageMode");
   const lessonMockTestAccessCodeInput = document.querySelector("#lessonMockTestAccessCode");
+  const lessonMockTestCategoryInput = document.querySelector("#lessonMockTestCategory");
   const lessonMockTestIsActiveInput = document.querySelector("#lessonMockTestIsActive");
   const lessonMockSubmitBtn = document.querySelector("#lessonMockSubmitBtn");
   const lessonMockCancelBtn = document.querySelector("#lessonMockCancelBtn");
@@ -2053,6 +2054,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     MOCK: "MOCK",
     LESSON: "LESSON",
   };
+  const MOCK_CATEGORY_LABELS = {
+    FREE: "Free",
+    PREMIUM: "Premium",
+  };
   const DEFAULT_QUESTION_SECTIONS = [
     "Comprehension",
     "Grammar",
@@ -3788,7 +3793,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const testsToRender = state.testsMode === "attach" ? getAttachFilteredTests() : state.mockTestsAdmin;
     if (!testsToRender.length) {
       lessonMockTestsTableBody.innerHTML =
-        '<tr><td colspan="10" style="text-align:center;color:#666;">No tests found.</td></tr>';
+        '<tr><td colspan="11" style="text-align:center;color:#666;">No tests found.</td></tr>';
       return;
     }
 
@@ -3804,6 +3809,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${escapeHtml(test.streamChoice ? STREAM_LABELS[test.streamChoice] || test.streamChoice : "")}</td>
             <td>${escapeHtml(test.languageMode ? LANGUAGE_LABELS[test.languageMode] || test.languageMode : "-")}</td>
             <td>${escapeHtml(ACCESS_CODE_LABELS[test.accessCode] || test.accessCode || "DEMO")}</td>
+            <td>${escapeHtml(MOCK_CATEGORY_LABELS[test.mockCategory] || test.mockCategory || "Premium")}</td>
             <td>${Number(test.activeQuestions ?? test._count?.questions ?? 0)}</td>
             <td><span class="chip ${test.isActive ? "active" : "inactive"}">${
               test.isActive ? "Active" : "Inactive"
@@ -3966,6 +3972,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (lessonMockTestAccessCodeInput) {
       lessonMockTestAccessCodeInput.value = "DEMO";
+    }
+    if (lessonMockTestCategoryInput) {
+      lessonMockTestCategoryInput.value = "PREMIUM";
     }
     if (lessonMockSubmitBtn) lessonMockSubmitBtn.textContent = "Publish Test";
     if (lessonMockCancelBtn) lessonMockCancelBtn.classList.add("hidden");
@@ -4790,6 +4799,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       streamChoice: lessonMockTestStreamChoiceInput?.value || null,
       languageMode: lessonMockTestLanguageModeInput?.value || null,
       accessCode: lessonMockTestAccessCodeInput?.value || "DEMO",
+      mockCategory: lessonMockTestCategoryInput?.value || "PREMIUM",
       isActive: Boolean(lessonMockTestIsActiveInput?.checked),
     };
 
@@ -6396,6 +6406,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (lessonMockTestAccessCodeInput) {
           lessonMockTestAccessCodeInput.value = test.accessCode || "DEMO";
+        }
+        if (lessonMockTestCategoryInput) {
+          lessonMockTestCategoryInput.value = test.mockCategory || "PREMIUM";
         }
         if (lessonMockTestIsActiveInput instanceof HTMLInputElement) {
           lessonMockTestIsActiveInput.checked = Boolean(test.isActive);

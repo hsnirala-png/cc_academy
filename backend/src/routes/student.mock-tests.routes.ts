@@ -6,7 +6,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { mockTestService } from "../modules/mock-tests/mock-test.service";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { ensureMockTestRegistrationStorageReady } from "../utils/mockTestRegistrationStorage";
-import { loadAccessibleMockTestIdsForUser } from "../utils/productCombos";
+import { getEffectiveAccessibleProductIds, loadAccessibleMockTestIdsForUser } from "../utils/productCombos";
 import { AppError } from "../utils/appError";
 import { prisma } from "../utils/prisma";
 import { ensureUserReferralCode, getReferrerIdByCode } from "../modules/referrals/referral.utils";
@@ -20,6 +20,7 @@ export const studentMockTestsRouter = Router();
 
 const ensureStudent = [requireAuth, requireRole(Role.STUDENT, Role.ADMIN)] as const;
 const registrationPagePath = "./mock-test-registration.html";
+const DAILY_ATTEMPT_LIMIT = 2;
 
 const registerForMockSchema = z.object({
   fullName: z.string().trim().min(2).max(191),
@@ -53,6 +54,7 @@ type RegistrationGateRow = {
   subject?: string | null;
   streamChoice?: string | null;
   languageMode?: string | null;
+  mockCategory?: string | null;
 };
 
 const toBoolean = (value: unknown): boolean => {
@@ -70,6 +72,13 @@ const resolveStreamChoice = (streamChoice: unknown, subject: unknown): string =>
     .toUpperCase();
   if (normalizedSubject === "SCIENCE_MATH" || normalizedSubject === "SOCIAL_STUDIES") return normalizedSubject;
   return "";
+};
+
+const normalizeMockCategory = (value: unknown): "FREE" | "PREMIUM" => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  return normalized === "FREE" ? "FREE" : "PREMIUM";
 };
 
 const toDateOnly = (value: string | Date | null | undefined): string => {
@@ -112,7 +121,17 @@ const loadActiveRegistrationGates = async (mockTestIds: string[]) => {
         mt.examType,
         mt.subject,
         mt.streamChoice,
-        mt.languageMode
+        mt.languageMode,
+        COALESCE(
+          (
+            SELECT mar.mockCategory
+            FROM MockTestAccessRule mar
+            WHERE mar.mockTestId = mt.id
+            ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+            LIMIT 1
+          ),
+          'PREMIUM'
+        ) AS mockCategory
       FROM MockTestRegistrationGate g
       INNER JOIN MockTest mt ON mt.id = g.mockTestId
       WHERE g.isActive = 1
@@ -162,7 +181,17 @@ const loadAllActiveRegistrationGates = async () => {
         mt.examType,
         mt.subject,
         mt.streamChoice,
-        mt.languageMode
+        mt.languageMode,
+        COALESCE(
+          (
+            SELECT mar.mockCategory
+            FROM MockTestAccessRule mar
+            WHERE mar.mockTestId = mt.id
+            ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+            LIMIT 1
+          ),
+          'PREMIUM'
+        ) AS mockCategory
       FROM MockTestRegistrationGate g
       INNER JOIN MockTest mt ON mt.id = g.mockTestId
       WHERE g.isActive = 1
@@ -220,6 +249,17 @@ type LatestSubmittedAttemptSummary = {
 const IST_OFFSET_MINUTES = 330;
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
 
+const getIstDayWindow = (value: Date | number | string = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  const utcTime = date.getTime();
+  const istTime = utcTime + IST_OFFSET_MINUTES * 60 * 1000;
+  const dayStartIst = Math.floor(istTime / MILLIS_PER_DAY) * MILLIS_PER_DAY;
+  return {
+    startUtc: new Date(dayStartIst - IST_OFFSET_MINUTES * 60 * 1000),
+    endUtc: new Date(dayStartIst + MILLIS_PER_DAY - IST_OFFSET_MINUTES * 60 * 1000),
+  };
+};
+
 const toScheduleTimestamp = (dateValue: unknown, timeValue: unknown): number => {
   const dateText = String(dateValue || "").trim();
   const timeText = String(timeValue || "").trim();
@@ -241,12 +281,9 @@ const getIstDayNumber = (value: Date | string | number): number => {
   return Math.floor((date.getTime() + IST_OFFSET_MINUTES * 60 * 1000) / MILLIS_PER_DAY);
 };
 
-const getAllowedFreshMockCount = (joinedAt: Date | null): number => {
-  if (!joinedAt) return 0;
-  const joinedDay = getIstDayNumber(joinedAt);
-  const todayDay = getIstDayNumber(new Date());
-  if (!Number.isFinite(joinedDay) || !Number.isFinite(todayDay) || todayDay < joinedDay) return 0;
-  return (todayDay - joinedDay + 1) * 2;
+const resolveFreeAttemptLimit = (gate: Pick<RegistrationGateRow, "freeAttemptLimit" | "mockCategory">) => {
+  const configured = Math.max(0, Number(gate.freeAttemptLimit || 0));
+  return normalizeMockCategory(gate.mockCategory) === "FREE" ? Math.max(1, configured || 1) : configured;
 };
 
 const loadUserRegistrationEntries = async (userId: string, gateIds: string[]) => {
@@ -381,6 +418,44 @@ const loadReferralBonusCountMap = async (userId: string, gateIds: string[]) => {
     ...gateIds
   )) as Array<{ gateId: string; referralWins: number | string }>;
   return new Map(rows.map((row) => [row.gateId, Number(row.referralWins || 0)]));
+};
+
+const loadInProgressAttemptSet = async (userId: string, mockTestIds: string[]) => {
+  if (!mockTestIds.length) return new Set<string>();
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT DISTINCT mockTestId
+      FROM Attempt
+      WHERE userId = ?
+        AND status = 'IN_PROGRESS'
+        AND mockTestId IN (${placeholders})
+    `,
+    userId,
+    ...mockTestIds
+  )) as Array<{ mockTestId: string }>;
+  return new Set(rows.map((row) => row.mockTestId));
+};
+
+const loadTodayAttemptCount = async (userId: string, mockTestIds: string[]) => {
+  if (!mockTestIds.length) return 0;
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const { startUtc, endUtc } = getIstDayWindow();
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT COUNT(*) AS attemptCount
+      FROM Attempt
+      WHERE userId = ?
+        AND mockTestId IN (${placeholders})
+        AND startedAt >= ?
+        AND startedAt < ?
+    `,
+    userId,
+    ...mockTestIds,
+    startUtc,
+    endUtc
+  )) as Array<{ attemptCount: number | string }>;
+  return Math.max(0, Number(rows[0]?.attemptCount || 0));
 };
 
 const loadUsedAttemptCountMap = async (userId: string, mockTestIds: string[]) => {
@@ -546,6 +621,11 @@ const loadPaidAccessMockTestSet = async (userId: string, mockTestIds: string[]) 
   return loadAccessibleMockTestIdsForUser(userId, mockTestIds);
 };
 
+const loadHasAnyPremiumAccess = async (userId: string) => {
+  const accessibleProductIds = await getEffectiveAccessibleProductIds(userId);
+  return accessibleProductIds.size > 0;
+};
+
 studentMockTestsRouter.use(async (_req, _res, next) => {
   try {
     await Promise.all([
@@ -572,29 +652,35 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
     const mockTestIds = mockTests.map((item) => item.id);
     const gateMap = await loadActiveRegistrationGates(mockTestIds);
     const gateIds = Array.from(gateMap.values()).map((item) => item.id);
-    const [entryMap, usedAttemptMap, paidAccessSet, referralBonusMap, studentReferralCode] = await Promise.all([
+    const [entryMap, usedAttemptMap, paidAccessSet, referralBonusMap, studentReferralCode, hasAnyPremiumAccess] =
+      await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, gateIds),
       loadUsedAttemptCountMap(req.user!.userId, mockTestIds),
       loadPaidAccessMockTestSet(req.user!.userId, mockTestIds),
       loadReferralBonusCountMap(req.user!.userId, gateIds),
       ensureUserReferralCode(req.user!.userId).catch(() => ""),
+      loadHasAnyPremiumAccess(req.user!.userId),
     ]);
 
     const enrichedMockTests = mockTests.map((item) => {
       const gate = gateMap.get(item.id);
       if (!gate) return item;
-      const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+      const mockCategory = normalizeMockCategory(gate.mockCategory);
+      const freeAttemptLimit = resolveFreeAttemptLimit(gate);
       const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
       const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
       const usedAttempts = Math.max(0, usedAttemptMap.get(item.id) || 0);
+      const hasCategoryPremiumAccess = mockCategory === "FREE" && hasAnyPremiumAccess;
       const hasPaidAccess = paidAccessSet.has(item.id);
+      const hasPremiumAccess = hasPaidAccess || hasCategoryPremiumAccess;
       const entry = entryMap.get(gate.id);
-      const remainingAttempts = hasPaidAccess
+      const remainingAttempts = hasPremiumAccess
         ? Number.MAX_SAFE_INTEGER
         : Math.max(0, totalFreeAttemptLimit - usedAttempts);
       const registration = {
         enabled: true,
         gateId: gate.id,
+        mockCategory,
         mockTestTitle: gate.mockTestTitle || item.title,
         examType: gate.examType || item.examType,
         subject: gate.subject || item.subject,
@@ -611,7 +697,10 @@ studentMockTestsRouter.get("/mock-tests", ...ensureStudent, async (req, res, nex
         totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
+        hasPremiumAccess,
         hasPaidAccess,
+        hasAnyPremiumAccess,
+        hasCategoryPremiumAccess,
         studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered),
         friendReferralCode: entry?.friendReferralCode || "",
@@ -660,6 +749,9 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       program,
       attemptedMockIds,
       latestSubmittedAttemptMap,
+      inProgressAttemptSet,
+      dailyAttemptCount,
+      hasAnyPremiumAccess,
     ] = await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, gateIds),
       loadUsedAttemptCountMap(req.user!.userId, mockTestIds),
@@ -669,38 +761,50 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       loadUserRegistrationProgram(req.user!.userId),
       loadAttemptedMockTestIds(req.user!.userId, mockTestIds),
       loadLatestSubmittedAttemptMap(req.user!.userId, mockTestIds),
+      loadInProgressAttemptSet(req.user!.userId, mockTestIds),
+      loadTodayAttemptCount(req.user!.userId, mockTestIds),
+      loadHasAnyPremiumAccess(req.user!.userId),
     ]);
-    const allowedFreshMockCount = getAllowedFreshMockCount(program.joinedAt);
-    const usedFreshMockCount = attemptedMockIds.size;
-    const remainingFreshMockCount = Math.max(0, allowedFreshMockCount - usedFreshMockCount);
+    const remainingDailyAttempts = Math.max(0, DAILY_ATTEMPT_LIMIT - dailyAttemptCount);
 
     const options = gates.map((gate) => {
-      const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+      const mockCategory = normalizeMockCategory(gate.mockCategory);
+      const freeAttemptLimit = resolveFreeAttemptLimit(gate);
       const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
       const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
       const usedAttempts = Math.max(0, usedAttemptMap.get(gate.mockTestId) || 0);
+      const hasCategoryPremiumAccess = mockCategory === "FREE" && hasAnyPremiumAccess;
       const hasPaidAccess = paidAccessSet.has(gate.mockTestId);
+      const hasPremiumAccess = hasPaidAccess || hasCategoryPremiumAccess;
       const entry = entryMap.get(gate.id);
       const hasAttempted = attemptedMockIds.has(gate.mockTestId);
+      const hasInProgressAttempt = inProgressAttemptSet.has(gate.mockTestId);
       const latestSubmittedAttempt = latestSubmittedAttemptMap.get(gate.mockTestId);
-      const remainingAttempts = hasPaidAccess
+      const remainingAttempts = hasPremiumAccess
         ? Number.MAX_SAFE_INTEGER
         : Math.max(0, totalFreeAttemptLimit - usedAttempts);
       const canStartNew =
-        program.hasJoined && !hasAttempted && remainingFreshMockCount > 0 && (hasPaidAccess || remainingAttempts > 0);
+        program.hasJoined &&
+        !hasAttempted &&
+        remainingDailyAttempts > 0 &&
+        (hasPremiumAccess || remainingAttempts > 0);
       const canReattempt =
-        program.hasJoined && hasAttempted && (hasPaidAccess || remainingAttempts > 0);
+        program.hasJoined &&
+        hasAttempted &&
+        (hasInProgressAttempt || remainingDailyAttempts > 0) &&
+        (hasPremiumAccess || remainingAttempts > 0 || hasInProgressAttempt);
       let actionLockedReason = "";
       if (!program.hasJoined) {
         actionLockedReason = "Complete registration first.";
-      } else if (!hasAttempted && remainingFreshMockCount <= 0) {
-        actionLockedReason = "Daily new mock limit reached.";
-      } else if (!hasPaidAccess && remainingAttempts <= 0) {
+      } else if (!hasInProgressAttempt && remainingDailyAttempts <= 0) {
+        actionLockedReason = "Daily attempt limit reached.";
+      } else if (!hasPremiumAccess && remainingAttempts <= 0) {
         actionLockedReason = "No chance left for this mock.";
       }
       return {
         gateId: gate.id,
         mockTestId: gate.mockTestId,
+        mockCategory,
         mockTestTitle: gate.mockTestTitle || "",
         examType: gate.examType || "",
         subject: gate.subject || "",
@@ -717,21 +821,25 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
         totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
+        hasPremiumAccess,
         hasPaidAccess,
+        hasAnyPremiumAccess,
+        hasCategoryPremiumAccess,
         hasAttempted,
+        hasInProgressAttempt,
         attemptStatus: hasAttempted ? "ATTEMPTED" : "NOT_ATTEMPTED",
         latestScorePercent: latestSubmittedAttempt?.scorePercent ?? null,
         latestAttemptId: latestSubmittedAttempt?.attemptId || "",
         latestSubmittedAt: latestSubmittedAttempt?.submittedAt || "",
         canStartNew,
         canReattempt,
-        requiresChanceConfirm: !hasPaidAccess && hasAttempted && remainingAttempts > 0,
+        requiresChanceConfirm: !hasPremiumAccess && hasAttempted && remainingAttempts > 0 && !hasInProgressAttempt,
         actionLockedReason,
         isProgramRegistered: program.hasJoined,
         joinedAt: program.joinedAt ? program.joinedAt.toISOString() : "",
-        allowedFreshMockCount,
-        usedFreshMockCount,
-        remainingFreshMockCount,
+        dailyAttemptLimit: DAILY_ATTEMPT_LIMIT,
+        usedDailyAttemptCount: dailyAttemptCount,
+        remainingDailyAttempts,
         studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered) || program.hasJoined,
         friendReferralCode: entry?.friendReferralCode || "",
@@ -753,9 +861,9 @@ studentMockTestsRouter.get("/mock-registrations/options", ...ensureStudent, asyn
       programStatus: {
         isRegistered: program.hasJoined,
         joinedAt: program.joinedAt ? program.joinedAt.toISOString() : "",
-        allowedFreshMockCount,
-        usedFreshMockCount,
-        remainingFreshMockCount,
+        dailyAttemptLimit: DAILY_ATTEMPT_LIMIT,
+        usedDailyAttemptCount: dailyAttemptCount,
+        remainingDailyAttempts,
       },
     });
   } catch (error) {
@@ -775,19 +883,24 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
       return;
     }
 
-    const [entryMap, usedAttemptMap, paidAccess, referralBonusMap, studentReferralCode] = await Promise.all([
+    const [entryMap, usedAttemptMap, paidAccess, referralBonusMap, studentReferralCode, hasAnyPremiumAccess] =
+      await Promise.all([
       loadUserRegistrationEntries(req.user!.userId, [gate.id]),
       loadUsedAttemptCountMap(req.user!.userId, [mockTestId]),
       hasPaidAccessForMockTest(req.user!.userId, mockTestId),
       loadReferralBonusCountMap(req.user!.userId, [gate.id]),
       ensureUserReferralCode(req.user!.userId).catch(() => ""),
+      loadHasAnyPremiumAccess(req.user!.userId),
     ]);
-    const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+    const mockCategory = normalizeMockCategory(gate.mockCategory);
+    const freeAttemptLimit = resolveFreeAttemptLimit(gate);
     const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
     const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
     const usedAttempts = Math.max(0, usedAttemptMap.get(mockTestId) || 0);
     const entry = entryMap.get(gate.id);
-    const remainingAttempts = paidAccess
+    const hasCategoryPremiumAccess = mockCategory === "FREE" && hasAnyPremiumAccess;
+    const hasPremiumAccess = paidAccess || hasCategoryPremiumAccess;
+    const remainingAttempts = hasPremiumAccess
       ? Number.MAX_SAFE_INTEGER
       : Math.max(0, totalFreeAttemptLimit - usedAttempts);
 
@@ -796,6 +909,7 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         enabled: true,
         gateId: gate.id,
         mockTestId,
+        mockCategory,
         mockTestTitle: gate.mockTestTitle || "",
         examType: gate.examType || "",
         subject: gate.subject || "",
@@ -812,6 +926,7 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         totalFreeAttemptLimit,
         usedAttempts,
         remainingAttempts,
+        hasPremiumAccess,
         studentReferralCode: String(studentReferralCode || "").trim(),
         isRegistered: Boolean(entry?.isRegistered),
         friendReferralCode: entry?.friendReferralCode || "",
@@ -822,6 +937,8 @@ studentMockTestsRouter.get("/mock-tests/:mockTestId/registration", ...ensureStud
         preferredDate: entry?.preferredDate || "",
         preferredTimeSlot: entry?.preferredTimeSlot || "",
         hasPaidAccess: paidAccess,
+        hasAnyPremiumAccess,
+        hasCategoryPremiumAccess,
         buyNowUrl: gate.buyNowUrl || "",
         ctaLabel: gate.ctaLabel || "Buy Mock",
         registrationPageUrl: `${registrationPagePath}?mockTestId=${encodeURIComponent(mockTestId)}`,
@@ -879,26 +996,38 @@ studentMockTestsRouter.post("/mock-tests/:mockTestId/register", ...ensureStudent
       .toUpperCase();
     const rawNoFriendReferralCode = Boolean(input.noFriendReferralCode);
 
-    const [studentReferralCode, entryMap, usedAttemptMap, paidAccess, referralBonusMap, hadAnyRegistrationBefore] =
-      await Promise.all([
+    const [
+      studentReferralCode,
+      entryMap,
+      usedAttemptMap,
+      paidAccess,
+      referralBonusMap,
+      hadAnyRegistrationBefore,
+      hasAnyPremiumAccess,
+    ] = await Promise.all([
         ensureUserReferralCode(req.user!.userId).catch(() => ""),
         loadUserRegistrationEntries(req.user!.userId, [gate.id]),
         loadUsedAttemptCountMap(req.user!.userId, [mockTestId]),
         hasPaidAccessForMockTest(req.user!.userId, mockTestId),
         loadReferralBonusCountMap(req.user!.userId, [gate.id]),
         hasAnyUserRegistrationEntry(req.user!.userId),
+        loadHasAnyPremiumAccess(req.user!.userId),
       ]);
 
     const normalizedStudentReferralCode = String(studentReferralCode || "").trim().toUpperCase();
     const existingEntry = entryMap.get(gate.id);
     const hasExistingGateRegistration = Boolean(existingEntry?.isRegistered);
-    const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+    const mockCategory = normalizeMockCategory(gate.mockCategory);
+    const freeAttemptLimit = resolveFreeAttemptLimit(gate);
     const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
     const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
     const usedAttempts = Math.max(0, usedAttemptMap.get(mockTestId) || 0);
-    const remainingAttempts = paidAccess ? Number.MAX_SAFE_INTEGER : Math.max(0, totalFreeAttemptLimit - usedAttempts);
+    const hasPremiumAccess = paidAccess || (mockCategory === "FREE" && hasAnyPremiumAccess);
+    const remainingAttempts = hasPremiumAccess
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(0, totalFreeAttemptLimit - usedAttempts);
 
-    if (!hasExistingGateRegistration && !paidAccess && remainingAttempts <= 0) {
+    if (!hasExistingGateRegistration && !hasPremiumAccess && remainingAttempts <= 0) {
       throw new AppError(
         "You do not have any chance Refer a friend to win free chance or buy the Mock test",
         402,
@@ -1063,7 +1192,17 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
         throw new AppError("This mock test is not published yet.", 403, "MOCK_NOT_PUBLISHED");
       }
 
-      const [entryMap, usedAttemptMap, paidAccess, referralBonusMap, program, attemptedMockIds, userProfile, hasInProgressAttempt] =
+      const [
+        entryMap,
+        usedAttemptMap,
+        paidAccess,
+        referralBonusMap,
+        program,
+        attemptedMockIds,
+        userProfile,
+        hasInProgressAttempt,
+        hasAnyPremiumAccess,
+      ] =
         await Promise.all([
         loadUserRegistrationEntries(req.user!.userId, [gate.id]),
         loadUsedAttemptCountMap(req.user!.userId, [input.mockTestId]),
@@ -1073,6 +1212,7 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
         loadAttemptedMockTestIds(req.user!.userId, [input.mockTestId]),
         loadUserBasicProfile(req.user!.userId),
         hasInProgressAttemptForMockTest(req.user!.userId, input.mockTestId),
+        loadHasAnyPremiumAccess(req.user!.userId),
       ]);
       const entry = entryMap.get(gate.id);
       if (!program.hasJoined) {
@@ -1093,29 +1233,29 @@ studentMockTestsRouter.post("/attempts", ...ensureStudent, async (req, res, next
       }
 
       const hasAttempted = attemptedMockIds.has(input.mockTestId);
-      if (!hasAttempted && !hasInProgressAttempt) {
+      if (!hasInProgressAttempt) {
         const allPublishedGates = (await loadAllActiveRegistrationGates()).filter((item) => isGatePublished(item));
         const publishedMockIds = allPublishedGates.map((item) => item.mockTestId);
-        const allAttemptedPublishedMockIds = await loadAttemptedMockTestIds(req.user!.userId, publishedMockIds);
-        const allowedFreshMockCount = getAllowedFreshMockCount(program.joinedAt);
-        const usedFreshMockCount = allAttemptedPublishedMockIds.size;
-        if (usedFreshMockCount >= allowedFreshMockCount) {
+        const dailyAttemptCount = await loadTodayAttemptCount(req.user!.userId, publishedMockIds);
+        if (dailyAttemptCount >= DAILY_ATTEMPT_LIMIT) {
           throw new AppError(
-            "You can attempt only 2 new mocks per day. Try another new mock tomorrow.",
+            "You can attempt only 2 mocks per day. Try again tomorrow.",
             403,
-            "MOCK_DAILY_NEW_LIMIT_REACHED",
+            "MOCK_DAILY_ATTEMPT_LIMIT_REACHED",
             {
               mockTestId: input.mockTestId,
-              allowedFreshMockCount,
-              usedFreshMockCount,
-              remainingFreshMockCount: Math.max(0, allowedFreshMockCount - usedFreshMockCount),
+              dailyAttemptLimit: DAILY_ATTEMPT_LIMIT,
+              usedDailyAttemptCount: dailyAttemptCount,
+              remainingDailyAttempts: Math.max(0, DAILY_ATTEMPT_LIMIT - dailyAttemptCount),
             }
           );
         }
       }
 
-      if (!paidAccess && !hasInProgressAttempt) {
-        const freeAttemptLimit = Math.max(0, Number(gate.freeAttemptLimit || 0));
+      const hasPremiumAccess = paidAccess || (normalizeMockCategory(gate.mockCategory) === "FREE" && hasAnyPremiumAccess);
+
+      if (!hasPremiumAccess && !hasInProgressAttempt) {
+        const freeAttemptLimit = resolveFreeAttemptLimit(gate);
         const referralBonusAttempts = Math.max(0, referralBonusMap.get(gate.id) || 0);
         const totalFreeAttemptLimit = freeAttemptLimit + referralBonusAttempts;
         const usedAttempts = Math.max(0, usedAttemptMap.get(input.mockTestId) || 0);

@@ -71,6 +71,13 @@ const toDateOnly = (value: string | Date | null | undefined): string => {
   return date.toISOString().slice(0, 10);
 };
 
+const normalizeMockCategory = (value: unknown): "FREE" | "PREMIUM" => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  return normalized === "FREE" ? "FREE" : "PREMIUM";
+};
+
 const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "MOCK" | "LESSON"> => {
   const rows = (await prisma.$queryRawUnsafe(
     `
@@ -93,6 +100,26 @@ const resolveMockTestAccessCode = async (mockTestId: string): Promise<"DEMO" | "
     .toUpperCase();
   if (code === "MOCK" || code === "LESSON") return code;
   return "DEMO";
+};
+
+const resolveMockTestCategory = async (mockTestId: string): Promise<"FREE" | "PREMIUM"> => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        (
+          SELECT mar.mockCategory
+          FROM MockTestAccessRule mar
+          WHERE mar.mockTestId = mt.id
+          ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+          LIMIT 1
+        ) AS mockCategory
+      FROM MockTest mt
+      WHERE mt.id = ?
+      LIMIT 1
+    `,
+    mockTestId
+  )) as Array<{ mockCategory: string | null }>;
+  return normalizeMockCategory(rows[0]?.mockCategory);
 };
 
 const createRegistrationGateSchema = z.object({
@@ -135,6 +162,7 @@ type GateRow = {
   subject: string | null;
   streamChoice: string | null;
   languageMode: string | null;
+  mockCategory: string | null;
   registeredCount: number | string;
 };
 
@@ -158,6 +186,7 @@ const serializeGate = (row: GateRow) => ({
   subject: row.subject || "",
   streamChoice: row.streamChoice || "",
   languageMode: row.languageMode || "",
+  mockCategory: normalizeMockCategory(row.mockCategory),
   registeredCount: Number(row.registeredCount || 0),
 });
 
@@ -184,6 +213,16 @@ const fetchRegistrationGates = async (includeInactive: boolean) => {
         mt.subject,
         mt.streamChoice,
         mt.languageMode,
+        COALESCE(
+          (
+            SELECT mar.mockCategory
+            FROM MockTestAccessRule mar
+            WHERE mar.mockTestId = mt.id
+            ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+            LIMIT 1
+          ),
+          'PREMIUM'
+        ) AS mockCategory,
         COUNT(DISTINCT e.userId) AS registeredCount
       FROM MockTestRegistrationGate g
       INNER JOIN MockTest mt ON mt.id = g.mockTestId
@@ -209,6 +248,17 @@ const fetchRegistrationGates = async (includeInactive: boolean) => {
         mt.subject,
         mt.streamChoice,
         mt.languageMode
+        ,
+        COALESCE(
+          (
+            SELECT mar.mockCategory
+            FROM MockTestAccessRule mar
+            WHERE mar.mockTestId = mt.id
+            ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+            LIMIT 1
+          ),
+          'PREMIUM'
+        )
       ORDER BY g.updatedAt DESC
     `
   )) as GateRow[];
@@ -227,7 +277,7 @@ adminMockTestsRouter.use("/mock-tests", async (_req, _res, next) => {
 
 adminMockTestsRouter.use("/mock-test-registrations", async (_req, _res, next) => {
   try {
-    await ensureMockTestRegistrationStorageReady();
+    await Promise.all([ensureMockTestAccessStorageReady(), ensureMockTestRegistrationStorageReady()]);
     next();
   } catch (error) {
     next(error);
@@ -284,6 +334,9 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
     if (accessCode !== "MOCK") {
       throw new AppError("Only MOCK access tests can be linked to mock registration.", 400);
     }
+    const mockCategory = await resolveMockTestCategory(input.mockTestId);
+    const normalizedFreeAttemptLimit =
+      mockCategory === "FREE" ? Math.max(1, Number(input.freeAttemptLimit || 0)) : Math.max(0, Number(input.freeAttemptLimit || 0));
 
     const existingRows = (await prisma.$queryRawUnsafe(
       `
@@ -317,7 +370,7 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
         input.title,
         normalizeOptionalText(input.description, 5000),
         normalizeOptionalText(input.popupImageUrl, 1000),
-        Number(input.freeAttemptLimit),
+        normalizedFreeAttemptLimit,
         normalizeOptionalText(input.buyNowUrl, 1000),
         normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
         normalizeOptionalText(input.scheduledDate, 10),
@@ -339,7 +392,7 @@ adminMockTestsRouter.post("/mock-test-registrations", ...ensureAdmin, async (req
         input.title,
         normalizeOptionalText(input.description, 5000),
         normalizeOptionalText(input.popupImageUrl, 1000),
-        Number(input.freeAttemptLimit),
+        normalizedFreeAttemptLimit,
         normalizeOptionalText(input.buyNowUrl, 1000),
         normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock",
         normalizeOptionalText(input.scheduledDate, 10),
@@ -387,6 +440,22 @@ adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async
     }>;
     const existing = existingRows[0];
     if (!existing) throw new AppError("Registration config not found.", 404);
+    const mockTestRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT mockTestId
+        FROM MockTestRegistrationGate
+        WHERE id = ?
+        LIMIT 1
+      `,
+      gateId
+    )) as Array<{ mockTestId: string }>;
+    const mockCategory = await resolveMockTestCategory(mockTestRows[0]?.mockTestId || "");
+    const normalizedFreeAttemptLimit =
+      input.freeAttemptLimit !== undefined
+        ? mockCategory === "FREE"
+          ? Math.max(1, Number(input.freeAttemptLimit))
+          : Math.max(0, Number(input.freeAttemptLimit))
+        : Number(existing.freeAttemptLimit || 0);
 
     await prisma.$executeRawUnsafe(
       `
@@ -409,7 +478,7 @@ adminMockTestsRouter.patch("/mock-test-registrations/:id", ...ensureAdmin, async
       input.popupImageUrl !== undefined
         ? normalizeOptionalText(input.popupImageUrl, 1000)
         : existing.popupImageUrl,
-      input.freeAttemptLimit !== undefined ? Number(input.freeAttemptLimit) : Number(existing.freeAttemptLimit || 0),
+      normalizedFreeAttemptLimit,
       input.buyNowUrl !== undefined ? normalizeOptionalText(input.buyNowUrl, 1000) : existing.buyNowUrl,
       input.ctaLabel !== undefined
         ? normalizeOptionalText(input.ctaLabel, 120) || "Buy Mock"
