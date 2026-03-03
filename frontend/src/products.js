@@ -1244,7 +1244,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (titleText.includes("child pedagogy") || titleText.includes("child development")) return "CDP";
     if (titleText.includes("punjabi")) return "PBI";
     if (titleText.includes("english")) return "ENG";
+    if (
+      titleText.includes("comprehension") ||
+      titleText.includes("grammar") ||
+      titleText.includes("vocabulary") ||
+      titleText.includes("reading passage")
+    ) {
+      return "ENG";
+    }
     if (titleText.includes("environment") || titleText.includes("evs")) return "EVS";
+    if (
+      titleText.includes("history") ||
+      titleText.includes("geography") ||
+      titleText.includes("civics") ||
+      titleText.includes("economics")
+    ) {
+      return "SST";
+    }
     if (titleText.includes("social studies") || /\bsst\b/.test(titleText)) return "SST";
     if (titleText.includes("science")) return "SCI";
     if (
@@ -1439,7 +1455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hasTranscriptFlow = (item) => Boolean(item?.hasTranscriptFlow);
     const shouldDirectAttemptFromProduct = (item) => {
       const accessCode = normalizeLinkedAccessCode(item?.accessCode);
-      if (accessCode !== "MOCK" && accessCode !== "DEMO") {
+      if (accessCode !== "MOCK") {
         return Boolean(item?.directAttemptOnly);
       }
       return Boolean(item?.hasLessonContext) && (Boolean(item?.directAttemptOnly) || isDirectAttemptSeriesProduct(product));
