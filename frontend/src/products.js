@@ -1478,9 +1478,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         disabled: isUpcomingDemo,
         action: isUpcomingDemo ? "UPCOMING" : directAttemptOnly ? "DIRECT_ATTEMPT" : "OPEN_LESSON_OR_ATTEMPT",
         ctaLabel: "Play",
-        subjectTabKey: directAttemptOnly
-          ? ""
-          : resolveSubjectTabKey(demoTest.chapterSubSubject || demoTest.subject, demoTitle),
+        subjectTabKey: resolveSubjectTabKey(demoTest.chapterSubSubject || demoTest.subject, demoTitle),
         directAttemptOnly,
       });
     });
@@ -1530,9 +1528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "OPEN_LESSON_OR_ATTEMPT"
             : "ATTEMPT_TEST",
         ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
-        subjectTabKey: directAttemptOnly
-          ? ""
-          : resolveSubjectTabKey(item?.chapterSubSubject || item?.subject, itemTitle),
+        subjectTabKey: resolveSubjectTabKey(item?.chapterSubSubject || item?.subject, itemTitle),
         directAttemptOnly,
       });
     });
@@ -1546,7 +1542,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const isPlayAction = (action) =>
       action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT" || action === "DIRECT_ATTEMPT";
-    const hideSubjectTabs = items.every((item) => Boolean(item?.directAttemptOnly));
+    const hideSubjectTabs = isDirectAttemptSeriesProduct(product) && items.every((item) => Boolean(item?.directAttemptOnly));
     if (hideSubjectTabs) {
       const sortedItems = [...items].sort((left, right) => {
         const leftUpcoming = String(left?.accessType || "").trim().toUpperCase() === "UPCOMING";
