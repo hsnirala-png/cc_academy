@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Students</title>
-    <link rel="stylesheet" href="./src/styles.css?v=43" />
+    <link rel="stylesheet" href="./src/styles.css?v=44" />
   </head>
   <body>
     <div class="admin-shell">
@@ -38,7 +38,7 @@
           <section class="admin-header-row">
             <div>
               <h1>Students</h1>
-              <p class="admin-subtitle">Monitor students and assign courses/products.</p>
+              <p class="admin-subtitle">Monitor students and assign course or product access manually without purchase.</p>
             </div>
           </section>
 
@@ -76,7 +76,38 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-students.js?v=3"></script>
+    <div id="studentAssignmentModal" class="admin-modal hidden" aria-hidden="true">
+      <div class="admin-modal-backdrop" data-assignment-close></div>
+      <div class="admin-modal-card student-assignment-modal-card">
+        <div class="admin-modal-head">
+          <div>
+            <h3 id="studentAssignmentTitle">Assign Access</h3>
+            <p id="studentAssignmentSubtitle" class="admin-subtitle" style="margin: 0.2rem 0 0"></p>
+          </div>
+          <button id="studentAssignmentCloseBtn" class="table-btn" type="button">Close</button>
+        </div>
+
+        <div class="student-assignment-toolbar">
+          <label>
+            <span>Search</span>
+            <input id="studentAssignmentSearch" type="search" placeholder="Search by title..." />
+          </label>
+          <label id="studentAssignmentCategoryWrap">
+            <span>Category</span>
+            <select id="studentAssignmentCategory"></select>
+          </label>
+        </div>
+
+        <div id="studentAssignmentList" class="student-assignment-list"></div>
+
+        <div class="admin-actions" style="justify-content: flex-end; margin-top: 0.9rem">
+          <button id="studentAssignmentCancelBtn" class="btn-ghost" type="button">Cancel</button>
+          <button id="studentAssignmentConfirmBtn" class="btn-primary" type="button">Assign Selected</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-students.js?v=4"></script>
       <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

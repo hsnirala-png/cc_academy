@@ -18,11 +18,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   const logoutBtn = document.querySelector("#adminLogoutBtn");
   const studentsTableBody = document.querySelector("#studentsTableBody");
   const studentsCountText = document.querySelector("#studentsCountText");
+  const assignmentModal = document.querySelector("#studentAssignmentModal");
+  const assignmentTitleEl = document.querySelector("#studentAssignmentTitle");
+  const assignmentSubtitleEl = document.querySelector("#studentAssignmentSubtitle");
+  const assignmentSearchInput = document.querySelector("#studentAssignmentSearch");
+  const assignmentCategoryWrap = document.querySelector("#studentAssignmentCategoryWrap");
+  const assignmentCategorySelect = document.querySelector("#studentAssignmentCategory");
+  const assignmentListEl = document.querySelector("#studentAssignmentList");
+  const assignmentCloseBtn = document.querySelector("#studentAssignmentCloseBtn");
+  const assignmentCancelBtn = document.querySelector("#studentAssignmentCancelBtn");
+  const assignmentConfirmBtn = document.querySelector("#studentAssignmentConfirmBtn");
 
   const state = {
     courses: [],
     products: [],
     students: [],
+    assignment: {
+      studentId: "",
+      studentName: "",
+      mode: "course",
+      search: "",
+      category: "",
+      selectedItemId: "",
+    },
   };
 
   const setMessage = (text, type) => {
@@ -64,6 +82,159 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.products = productsData.products || [];
   };
 
+  const closeAssignmentModal = () => {
+    if (!(assignmentModal instanceof HTMLElement)) return;
+    assignmentModal.classList.add("hidden");
+    assignmentModal.setAttribute("aria-hidden", "true");
+    state.assignment.studentId = "";
+    state.assignment.studentName = "";
+    state.assignment.mode = "course";
+    state.assignment.search = "";
+    state.assignment.category = "";
+    state.assignment.selectedItemId = "";
+    if (assignmentSearchInput instanceof HTMLInputElement) assignmentSearchInput.value = "";
+    if (assignmentCategorySelect instanceof HTMLSelectElement) assignmentCategorySelect.innerHTML = "";
+  };
+
+  const getAssignmentItems = () => {
+    const search = state.assignment.search.trim().toLowerCase();
+    if (state.assignment.mode === "product") {
+      return state.products.filter((product) => {
+        const category = String(product?.examCategory || "").trim();
+        if (state.assignment.category && category !== state.assignment.category) return false;
+        if (!search) return true;
+        const haystack = [
+          product?.title,
+          product?.examCategory,
+          product?.examName,
+          product?.courseType,
+          product?.languageMode,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(search);
+      });
+    }
+
+    return state.courses.filter((course) => {
+      if (!search) return true;
+      const haystack = [course?.title, course?.description].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(search);
+    });
+  };
+
+  const renderAssignmentCategoryOptions = () => {
+    if (!(assignmentCategoryWrap instanceof HTMLElement) || !(assignmentCategorySelect instanceof HTMLSelectElement)) {
+      return;
+    }
+    if (state.assignment.mode !== "product") {
+      assignmentCategoryWrap.classList.add("hidden");
+      assignmentCategorySelect.innerHTML = "";
+      return;
+    }
+
+    assignmentCategoryWrap.classList.remove("hidden");
+    const categories = Array.from(
+      new Set(
+        state.products
+          .map((product) => String(product?.examCategory || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((left, right) => left.localeCompare(right));
+    assignmentCategorySelect.innerHTML = [
+      '<option value="">All Categories</option>',
+      ...categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`),
+    ].join("");
+    assignmentCategorySelect.value = state.assignment.category;
+  };
+
+  const renderAssignmentList = () => {
+    if (!(assignmentListEl instanceof HTMLElement)) return;
+    if (assignmentTitleEl instanceof HTMLElement) {
+      assignmentTitleEl.textContent =
+        state.assignment.mode === "product" ? "Assign Product Access" : "Assign Course Access";
+    }
+    if (assignmentSubtitleEl instanceof HTMLElement) {
+      assignmentSubtitleEl.textContent = state.assignment.studentName
+        ? `Student: ${state.assignment.studentName}`
+        : "";
+    }
+
+    const items = getAssignmentItems();
+    if (!items.length) {
+      assignmentListEl.innerHTML = `<p class="student-assignment-empty">No ${
+        state.assignment.mode === "product" ? "products" : "courses"
+      } found for the selected filter.</p>`;
+      if (assignmentConfirmBtn instanceof HTMLButtonElement) assignmentConfirmBtn.disabled = true;
+      return;
+    }
+
+    assignmentListEl.innerHTML = items
+      .map((item) => {
+        const id = String(item?.id || "").trim();
+        const checked = id === state.assignment.selectedItemId ? "checked" : "";
+        const inactive = item?.isActive ? "" : " (Inactive)";
+        const meta =
+          state.assignment.mode === "product"
+            ? [item?.examCategory, item?.examName, item?.courseType, item?.languageMode].filter(Boolean).join(" | ")
+            : String(item?.description || "").trim();
+        return `
+          <label class="student-assignment-option">
+            <input type="radio" name="studentAssignmentItem" value="${escapeHtml(id)}" ${checked} />
+            <div class="student-assignment-option-body">
+              <strong>${escapeHtml(String(item?.title || "-"))}${inactive}</strong>
+              <span>${escapeHtml(meta || " ")}</span>
+            </div>
+          </label>
+        `;
+      })
+      .join("");
+    if (assignmentConfirmBtn instanceof HTMLButtonElement) {
+      assignmentConfirmBtn.disabled = !state.assignment.selectedItemId;
+    }
+  };
+
+  const openAssignmentModal = (studentId, mode) => {
+    const student = state.students.find((item) => item.id === studentId);
+    if (!student || !(assignmentModal instanceof HTMLElement)) return;
+    state.assignment.studentId = studentId;
+    state.assignment.studentName = String(student.name || student.studentCode || "").trim();
+    state.assignment.mode = mode === "product" ? "product" : "course";
+    state.assignment.search = "";
+    state.assignment.category = "";
+    state.assignment.selectedItemId = "";
+    if (assignmentSearchInput instanceof HTMLInputElement) assignmentSearchInput.value = "";
+    renderAssignmentCategoryOptions();
+    renderAssignmentList();
+    assignmentModal.classList.remove("hidden");
+    assignmentModal.setAttribute("aria-hidden", "false");
+    assignmentSearchInput?.focus();
+  };
+
+  const assignSelectedAccess = async () => {
+    const studentId = String(state.assignment.studentId || "").trim();
+    const selectedItemId = String(state.assignment.selectedItemId || "").trim();
+    if (!studentId || !selectedItemId) {
+      setMessage(`Select a ${state.assignment.mode} first.`, "error");
+      return;
+    }
+
+    const isProductMode = state.assignment.mode === "product";
+    setMessage(isProductMode ? "Assigning product..." : "Assigning course...");
+    await apiRequest({
+      path: isProductMode
+        ? `/admin/users/${encodeURIComponent(studentId)}/product-access`
+        : `/admin/users/${encodeURIComponent(studentId)}/enrollments`,
+      method: "POST",
+      token,
+      body: isProductMode ? { productId: selectedItemId } : { courseId: selectedItemId },
+    });
+    await refreshStudents();
+    closeAssignmentModal();
+    setMessage(isProductMode ? "Product assigned to student." : "Course assigned to student.", "success");
+  };
+
   const renderStudents = () => {
     if (studentsCountText) {
       studentsCountText.textContent = `Total Students: ${state.students.length}`;
@@ -75,22 +246,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         '<tr><td colspan="12" style="text-align:center;color:#666;">No students found.</td></tr>';
       return;
     }
-
-    const courseOptions = [
-      '<option value="">Assign course...</option>',
-      ...state.courses.map(
-        (course) =>
-          `<option value="${course.id}">${escapeHtml(course.title)}${course.isActive ? "" : " (Inactive)"}</option>`
-      ),
-    ].join("");
-
-    const productOptions = [
-      '<option value="">Assign product...</option>',
-      ...state.products.map(
-        (product) =>
-          `<option value="${product.id}">${escapeHtml(product.title)}${product.isActive ? "" : " (Inactive)"}</option>`
-      ),
-    ].join("");
 
     studentsTableBody.innerHTML = state.students
       .map((user) => {
@@ -136,19 +291,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${assignedCourses || "-"}</td>
             <td>
               <div class="table-actions">
-                <select data-course-select="${user.id}">
-                  ${courseOptions}
-                </select>
-                <button class="table-btn" type="button" data-assign-course="${user.id}">Assign</button>
+                <button class="table-btn" type="button" data-open-assignment="${user.id}" data-assignment-mode="course">
+                  Assign Course
+                </button>
               </div>
             </td>
             <td>${assignedProducts || "-"}</td>
             <td>
               <div class="table-actions">
-                <select data-product-select="${user.id}">
-                  ${productOptions}
-                </select>
-                <button class="table-btn" type="button" data-assign-product="${user.id}">Assign</button>
+                <button class="table-btn" type="button" data-open-assignment="${user.id}" data-assignment-mode="product">
+                  Assign Product
+                </button>
               </div>
             </td>
             <td>${escapeHtml(formatDateTime(user.createdAt))}</td>
@@ -188,64 +341,71 @@ document.addEventListener("DOMContentLoaded", async () => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
 
-      const courseButton = target.closest("[data-assign-course]");
-      if (courseButton instanceof HTMLElement) {
-        const studentId = courseButton.getAttribute("data-assign-course");
+      const assignmentTrigger = target.closest("[data-open-assignment]");
+      if (assignmentTrigger instanceof HTMLElement) {
+        const studentId = String(assignmentTrigger.getAttribute("data-open-assignment") || "").trim();
+        const mode = String(assignmentTrigger.getAttribute("data-assignment-mode") || "course").trim();
         if (!studentId) return;
-
-        const courseSelect = studentsTableBody.querySelector(`select[data-course-select="${studentId}"]`);
-        if (!(courseSelect instanceof HTMLSelectElement)) return;
-
-        const courseId = String(courseSelect.value || "").trim();
-        if (!courseId) {
-          setMessage("Select a course first.", "error");
-          return;
-        }
-
-        try {
-          setMessage("Assigning course...");
-          await apiRequest({
-            path: `/admin/users/${encodeURIComponent(studentId)}/enrollments`,
-            method: "POST",
-            token,
-            body: { courseId },
-          });
-          await refreshStudents();
-          setMessage("Course assigned to student.", "success");
-        } catch (error) {
-          setMessage(error.message || "Unable to assign course.", "error");
-        }
-        return;
-      }
-
-      const productButton = target.closest("[data-assign-product]");
-      if (!(productButton instanceof HTMLElement)) return;
-
-      const studentId = productButton.getAttribute("data-assign-product");
-      if (!studentId) return;
-
-      const productSelect = studentsTableBody.querySelector(`select[data-product-select="${studentId}"]`);
-      if (!(productSelect instanceof HTMLSelectElement)) return;
-
-      const productId = String(productSelect.value || "").trim();
-      if (!productId) {
-        setMessage("Select a product first.", "error");
-        return;
-      }
-
-      try {
-        setMessage("Assigning product...");
-        await apiRequest({
-          path: `/admin/users/${encodeURIComponent(studentId)}/product-access`,
-          method: "POST",
-          token,
-          body: { productId },
-        });
-        await refreshStudents();
-        setMessage("Product assigned to student.", "success");
-      } catch (error) {
-        setMessage(error.message || "Unable to assign product.", "error");
+        openAssignmentModal(studentId, mode);
       }
     });
   }
+
+  assignmentModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest("[data-assignment-close]")) {
+      closeAssignmentModal();
+    }
+  });
+
+  assignmentListEl?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.name !== "studentAssignmentItem") return;
+    state.assignment.selectedItemId = String(target.value || "").trim();
+    if (assignmentConfirmBtn instanceof HTMLButtonElement) {
+      assignmentConfirmBtn.disabled = !state.assignment.selectedItemId;
+    }
+  });
+
+  if (assignmentSearchInput instanceof HTMLInputElement) {
+    assignmentSearchInput.addEventListener("input", () => {
+      state.assignment.search = assignmentSearchInput.value || "";
+      state.assignment.selectedItemId = "";
+      renderAssignmentList();
+    });
+  }
+
+  if (assignmentCategorySelect instanceof HTMLSelectElement) {
+    assignmentCategorySelect.addEventListener("change", () => {
+      state.assignment.category = String(assignmentCategorySelect.value || "").trim();
+      state.assignment.selectedItemId = "";
+      renderAssignmentList();
+    });
+  }
+
+  if (assignmentConfirmBtn instanceof HTMLButtonElement) {
+    assignmentConfirmBtn.addEventListener("click", async () => {
+      try {
+        await assignSelectedAccess();
+      } catch (error) {
+        setMessage(error.message || `Unable to assign ${state.assignment.mode}.`, "error");
+      }
+    });
+  }
+
+  if (assignmentCloseBtn instanceof HTMLButtonElement) {
+    assignmentCloseBtn.addEventListener("click", closeAssignmentModal);
+  }
+
+  if (assignmentCancelBtn instanceof HTMLButtonElement) {
+    assignmentCancelBtn.addEventListener("click", closeAssignmentModal);
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && assignmentModal instanceof HTMLElement && !assignmentModal.classList.contains("hidden")) {
+      closeAssignmentModal();
+    }
+  });
 });
