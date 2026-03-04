@@ -2,42 +2,64 @@ const WORD_SUGGESTIONS = new Map(
   Object.entries({
     aj: ["ਅੱਜ", "ਅਜ", "ਆਜ"],
     ajj: ["ਅੱਜ", "ਅਜ"],
+    aaj: ["ਅੱਜ", "ਆਜ"],
     eh: ["ਇਹ", "ਏਹ"],
     eho: ["ਇਹੋ"],
+    ih: ["ਇਹ"],
     oh: ["ਉਹ", "ਓਹ"],
     asi: ["ਅਸੀਂ"],
     assi: ["ਅਸੀਂ"],
     tusi: ["ਤੁਸੀਂ"],
-    tusi: ["ਤੁਸੀਂ"],
+    tusee: ["ਤੁਸੀਂ"],
     main: ["ਮੈਂ"],
     mai: ["ਮੈਂ", "ਮੈ"],
     mera: ["ਮੇਰਾ"],
     meri: ["ਮੇਰੀ"],
     mere: ["ਮੇਰੇ"],
+    meraa: ["ਮੇਰਾ"],
+    meree: ["ਮੇਰੀ"],
     hai: ["ਹੈ"],
     haan: ["ਹਾਂ"],
     han: ["ਹਨ"],
     nahi: ["ਨਹੀਂ"],
     nahin: ["ਨਹੀਂ"],
     punjab: ["ਪੰਜਾਬ", "ਪੁੰਜਾਬ"],
-    panjab: ["ਪੰਜਾਬ", "ਪੰਜਾਬ"],
+    panjab: ["ਪੰਜਾਬ"],
+    pind: ["ਪਿੰਡ"],
+    pinda: ["ਪਿੰਡਾਂ"],
     vich: ["ਵਿਚ"],
     wich: ["ਵਿਚ"],
     vic: ["ਵਿਚ"],
-    holi: ["ਹੋਲੀ"],
+    vichon: ["ਵਿਚੋਂ"],
+    holi: ["ਹੋਲੀ", "ਹੌਲੀ"],
     hollee: ["ਹੋਲੀ"],
     school: ["ਸਕੂਲ"],
     skool: ["ਸਕੂਲ"],
-    meree: ["ਮੇਰੀ"],
-    meraa: ["ਮੇਰਾ"],
+    ghar: ["ਘਰ"],
+    sade: ["ਸਾਡੇ"],
+    saade: ["ਸਾਡੇ"],
+    sare: ["ਸਾਰੇ"],
+    saare: ["ਸਾਰੇ"],
+    nu: ["ਨੂੰ", "ਨੂ"],
+    noo: ["ਨੂੰ"],
+    ne: ["ਨੇ"],
+    da: ["ਦਾ"],
+    de: ["ਦੇ"],
+    di: ["ਦੀ"],
+    te: ["ਤੇ"],
+    ton: ["ਤੋਂ", "ਤੋੰ"],
+    toh: ["ਤੋਂ"],
+    kyon: ["ਕਿਉਂ"],
+    kyonki: ["ਕਿਉਂਕਿ"],
+    aa: ["ਆ"],
+    aan: ["ਆਂ"],
   })
 );
 
 const CONSONANT_PATTERNS = [
-  ["tth", "ਠ"],
-  ["ddh", "ਢ"],
-  ["chh", "ਛ"],
-  ["ngh", "ੰਘ"],
+  ["tth", "ੱਠ"],
+  ["ddh", "ੱਢ"],
+  ["chh", "ੱਛ"],
   ["kh", "ਖ"],
   ["gh", "ਘ"],
   ["jh", "ਝ"],
@@ -45,17 +67,12 @@ const CONSONANT_PATTERNS = [
   ["dh", "ਧ"],
   ["ph", "ਫ"],
   ["bh", "ਭ"],
-  ["sh", "ਸ਼"],
+  ["sh", "ਸ਼"],
   ["rr", "ੜ"],
   ["tt", "ਟ"],
   ["dd", "ਡ"],
-  ["nj", "ੰਜ"],
-  ["ng", "ਂਗ"],
-  ["nk", "ੰਕ"],
-  ["nd", "ੰਦ"],
-  ["mb", "ੰਬ"],
-  ["ny", "ਞ"],
   ["ch", "ਚ"],
+  ["ny", "ਞ"],
   ["f", "ਫ"],
   ["q", "ਕ"],
   ["x", "ਕਸ"],
@@ -64,7 +81,7 @@ const CONSONANT_PATTERNS = [
   ["j", "ਜ"],
   ["t", "ਤ"],
   ["d", "ਦ"],
-  ["n", "ਨ"],
+  ["n", "ਨ", "ਣ"],
   ["p", "ਪ"],
   ["b", "ਬ"],
   ["m", "ਮ"],
@@ -76,7 +93,7 @@ const CONSONANT_PATTERNS = [
   ["s", "ਸ"],
   ["h", "ਹ"],
   ["c", "ਕ"],
-  ["z", "ਜ਼"],
+  ["z", "ਜ਼"],
 ];
 
 const VOWEL_PATTERNS = [
@@ -99,8 +116,37 @@ const VOWEL_PATTERNS = [
 
 const ROMAN_WORD_PATTERN = /[A-Za-z]+(?:'[A-Za-z]+)*/;
 const ROMAN_CHAR_PATTERN = /[A-Za-z']/;
-const COMMIT_BOUNDARY_PATTERN = /[\s,.;:!?()\[\]{}"']/;
+const COMMIT_BOUNDARY_PATTERN = /[\s,.;:!?()[\]{}"']/;
 const PUNJABI_WORD_CHAR_PATTERN = /[\u0A00-\u0A7F]/u;
+const PUNJABI_WORD_PATTERN = /[\u0A00-\u0A7F]+/u;
+const PUNJABI_CONSONANT_CLASS = "[ਕਖਗਘਙਚਛਜਝਞਟਠਡਢਣਤਥਦਧਨਪਫਬਭਮਯਰਲਵਸ਼ਸਹੜਜ਼ਫ਼ਲ਼ਖ਼ਗ਼ਜ਼]";
+const NASAL_ENDING_RULES = [
+  {
+    roman: /(in|ind|ing|inj|int|ink|inch|ingh)$/,
+    replace: [
+      new RegExp(`ਿਨ(?=${PUNJABI_CONSONANT_CLASS}|$)`, "gu"),
+      "ਿੰ",
+    ],
+  },
+  {
+    roman: /(un|und|ung|unj|unt|unk)$/,
+    replace: [
+      new RegExp(`ੁਨ(?=${PUNJABI_CONSONANT_CLASS}|$)`, "gu"),
+      "ੁੰ",
+    ],
+  },
+  {
+    roman: /(on|ond|ong|onj|ont|onk)$/,
+    replace: [
+      new RegExp(`ੋਨ(?=${PUNJABI_CONSONANT_CLASS}|$)`, "gu"),
+      "ੋਂ",
+    ],
+  },
+  {
+    roman: /(an|am|ang|anj|and|amb|ank)$/,
+    replace: [new RegExp(`ਨ(?=${PUNJABI_CONSONANT_CLASS}|$)`, "gu"), "ੰ"],
+  },
+];
 
 const CONTROL_STATE = new WeakMap();
 
@@ -111,6 +157,8 @@ const dropdownState = {
   control: null,
   selection: null,
   onChoose: null,
+  anchorRect: null,
+  mode: "live",
 };
 
 const normalizeRomanToken = (value) =>
@@ -163,23 +211,21 @@ const transliterateRomanPunjabiWordBasic = (value) => {
     index += consonantMatch.pattern.length;
 
     const vowelMatch = readPattern(normalized, index, VOWEL_PATTERNS);
-    if (!vowelMatch) {
-      continue;
-    }
+    if (!vowelMatch) continue;
 
-    const isTerminalSingleA = vowelMatch.pattern === "a" && index + vowelMatch.pattern.length >= normalized.length;
-    const isTerminalSingleI = vowelMatch.pattern === "i" && index + vowelMatch.pattern.length >= normalized.length;
-    output += isTerminalSingleA ? "ਾ" : isTerminalSingleI ? "ੀ" : vowelMatch.mapped.dependent;
+    const atWordEnd = index + vowelMatch.pattern.length >= normalized.length;
+    const isSingleA = vowelMatch.pattern === "a";
+    const isSingleI = vowelMatch.pattern === "i";
+    output += atWordEnd && isSingleA ? "ਾ" : atWordEnd && isSingleI ? "ੀ" : vowelMatch.mapped.dependent;
     index += vowelMatch.pattern.length;
   }
 
   return output || String(value || "");
 };
 
-const buildSuggestionVariants = (token) => {
+const buildRomanVariants = (token) => {
   const normalized = normalizeRomanToken(token);
-  const directSuggestions = WORD_SUGGESTIONS.get(normalized) || [];
-  const heuristicTokens = [
+  return uniqueValues([
     normalized,
     normalized.replace(/^v/, "w"),
     normalized.replace(/^w/, "v"),
@@ -187,10 +233,32 @@ const buildSuggestionVariants = (token) => {
     normalized.replace(/ee/g, "i"),
     normalized.replace(/oo/g, "u"),
     normalized.replace(/i$/, "ee"),
-  ];
+    normalized.replace(/j$/, "jj"),
+    normalized.replace(/n([kgcjtdpbm])/g, "n$1"),
+  ]);
+};
 
-  const heuristicSuggestions = heuristicTokens.map((item) => transliterateRomanPunjabiWordBasic(item));
-  return uniqueValues([...directSuggestions, ...heuristicSuggestions]).slice(0, 6);
+const buildNasalVariants = (sourceToken, output) => {
+  const normalized = normalizeRomanToken(sourceToken);
+  if (!normalized || !output) return [];
+
+  return NASAL_ENDING_RULES
+    .filter((rule) => rule.roman.test(normalized))
+    .map((rule) => output.replace(rule.replace[0], rule.replace[1]))
+    .filter((variant) => variant && variant !== output);
+};
+
+const buildSuggestionVariants = (token) => {
+  const normalized = normalizeRomanToken(token);
+  if (!normalized) return [];
+
+  const directSuggestions = WORD_SUGGESTIONS.get(normalized) || [];
+  const heuristicSuggestions = buildRomanVariants(normalized).flatMap((romanVariant) => {
+    const output = transliterateRomanPunjabiWordBasic(romanVariant);
+    return [output, ...buildNasalVariants(romanVariant, output)];
+  });
+
+  return uniqueValues([...directSuggestions, ...heuristicSuggestions]).slice(0, 8);
 };
 
 const findRomanTokenRangeAtCaret = (value, caretIndex) => {
@@ -200,9 +268,7 @@ const findRomanTokenRangeAtCaret = (value, caretIndex) => {
   if (tokenEnd > 0 && !ROMAN_CHAR_PATTERN.test(raw[tokenEnd - 1])) {
     tokenEnd -= 1;
   }
-  if (tokenEnd <= 0 || !ROMAN_CHAR_PATTERN.test(raw[tokenEnd - 1])) {
-    return null;
-  }
+  if (tokenEnd <= 0 || !ROMAN_CHAR_PATTERN.test(raw[tokenEnd - 1])) return null;
 
   let tokenStart = tokenEnd - 1;
   while (tokenStart > 0 && ROMAN_CHAR_PATTERN.test(raw[tokenStart - 1])) {
@@ -212,6 +278,31 @@ const findRomanTokenRangeAtCaret = (value, caretIndex) => {
   const token = raw.slice(tokenStart, tokenEnd);
   if (!ROMAN_WORD_PATTERN.test(token)) return null;
   return { token, start: tokenStart, end: tokenEnd, safeCaret };
+};
+
+const findPunjabiWordRangeAtCaret = (value, caretIndex) => {
+  const raw = String(value || "");
+  const safeCaret = Math.max(0, Math.min(Number(caretIndex || 0), raw.length));
+  let position = safeCaret;
+
+  if (position < raw.length && PUNJABI_WORD_CHAR_PATTERN.test(raw[position] || "")) {
+    position += 1;
+  }
+  if (position > 0 && !PUNJABI_WORD_CHAR_PATTERN.test(raw[position - 1] || "")) return null;
+
+  let start = position - 1;
+  while (start > 0 && PUNJABI_WORD_CHAR_PATTERN.test(raw[start - 1])) {
+    start -= 1;
+  }
+
+  let end = position;
+  while (end < raw.length && PUNJABI_WORD_CHAR_PATTERN.test(raw[end])) {
+    end += 1;
+  }
+
+  const token = raw.slice(start, end);
+  if (!PUNJABI_WORD_PATTERN.test(token)) return null;
+  return { token, start, end };
 };
 
 const replaceRange = (value, start, end, replacement) =>
@@ -229,8 +320,8 @@ const ensureDropdown = () => {
   const root = document.createElement("div");
   root.style.position = "fixed";
   root.style.zIndex = "10000";
-  root.style.minWidth = "180px";
-  root.style.maxWidth = "280px";
+  root.style.minWidth = "220px";
+  root.style.maxWidth = "320px";
   root.style.background = "#ffffff";
   root.style.border = "1px solid #c7d5f3";
   root.style.borderRadius = "12px";
@@ -252,6 +343,8 @@ const hideDropdown = () => {
   dropdownState.control = null;
   dropdownState.selection = null;
   dropdownState.onChoose = null;
+  dropdownState.anchorRect = null;
+  dropdownState.mode = "live";
 };
 
 const updateDropdownHighlight = () => {
@@ -264,7 +357,7 @@ const updateDropdownHighlight = () => {
   });
 };
 
-const showDropdown = (control, selection, suggestions, onChoose) => {
+const showDropdown = (control, selection, suggestions, onChoose, options = {}) => {
   const root = ensureDropdown();
   if (!suggestions.length) {
     hideDropdown();
@@ -276,32 +369,42 @@ const showDropdown = (control, selection, suggestions, onChoose) => {
   dropdownState.control = control;
   dropdownState.selection = selection;
   dropdownState.onChoose = onChoose;
+  dropdownState.anchorRect = options.anchorRect || control.getBoundingClientRect();
+  dropdownState.mode = options.mode || "live";
 
-  root.innerHTML = suggestions
-    .map(
-      (suggestion, index) => `
-        <button
-          type="button"
-          data-index="${index}"
-          style="
-            display:block;
-            width:100%;
-            text-align:left;
-            border:0;
-            background:transparent;
-            border-radius:8px;
-            padding:8px 10px;
-            font-size:0.98rem;
-            cursor:pointer;
-          "
-        >${suggestion}</button>
-      `
-    )
-    .join("");
+  const hintText =
+    dropdownState.mode === "history"
+      ? `Suggestions for "${options.sourceToken || selection?.text || ""}"`
+      : `Press Tab or Enter to use the highlighted word`;
 
-  const rect = control.getBoundingClientRect();
+  root.innerHTML = `
+    <div style="padding:6px 10px 8px; font-size:0.76rem; color:#5b6f95;">${hintText}</div>
+    ${suggestions
+      .map(
+        (suggestion, index) => `
+          <button
+            type="button"
+            data-index="${index}"
+            style="
+              display:block;
+              width:100%;
+              text-align:left;
+              border:0;
+              background:transparent;
+              border-radius:8px;
+              padding:8px 10px;
+              font-size:0.98rem;
+              cursor:pointer;
+            "
+          >${suggestion}</button>
+        `
+      )
+      .join("")}
+  `;
+
+  const rect = dropdownState.anchorRect;
   root.style.left = `${Math.max(12, rect.left)}px`;
-  root.style.top = `${Math.min(window.innerHeight - 12, rect.bottom + 8)}px`;
+  root.style.top = `${Math.min(window.innerHeight - 16, rect.bottom + 8)}px`;
   root.style.display = "block";
   updateDropdownHighlight();
 
@@ -322,9 +425,99 @@ const getControlState = (control) => {
       internalUpdate: false,
       lastCommit: null,
       activeSelection: null,
+      commits: [],
+      beforeInput: null,
     });
   }
   return CONTROL_STATE.get(control);
+};
+
+const sortCommits = (commits) => commits.sort((left, right) => left.start - right.start);
+
+const removeOverlappingCommits = (commits, start, end) =>
+  commits.filter((commit) => commit.end <= start || commit.start >= end);
+
+const shiftCommitsAfterIndex = (commits, startIndex, delta) =>
+  commits.map((commit) =>
+    commit.start >= startIndex
+      ? { ...commit, start: commit.start + delta, end: commit.end + delta }
+      : commit
+  );
+
+const upsertCommit = (state, commit, replacedStart, replacedEnd, delta) => {
+  const baseCommits = removeOverlappingCommits(state.commits, replacedStart, replacedEnd);
+  const shiftedCommits = shiftCommitsAfterIndex(baseCommits, replacedEnd, delta);
+  shiftedCommits.push(commit);
+  state.commits = sortCommits(shiftedCommits);
+  state.lastCommit = commit;
+};
+
+const syncCommitsAfterUserEdit = (control, state) => {
+  const snapshot = state.beforeInput;
+  state.beforeInput = null;
+  if (!snapshot || !state.commits.length) return;
+
+  let removedStart = snapshot.start;
+  let removedEnd = snapshot.end;
+  if (snapshot.inputType === "deleteContentBackward" && removedStart === removedEnd) {
+    removedStart = Math.max(0, removedStart - 1);
+  } else if (snapshot.inputType === "deleteContentForward" && removedStart === removedEnd) {
+    removedEnd = Math.min(snapshot.value.length, removedEnd + 1);
+  }
+
+  const removedLength = Math.max(0, removedEnd - removedStart);
+  const insertedLength = Math.max(0, (control.selectionStart ?? removedStart) - removedStart);
+  const delta = insertedLength - removedLength;
+
+  const nextCommits = [];
+  for (const commit of state.commits) {
+    if (commit.end <= removedStart) {
+      nextCommits.push(commit);
+      continue;
+    }
+    if (commit.start >= removedEnd) {
+      nextCommits.push({
+        ...commit,
+        start: commit.start + delta,
+        end: commit.end + delta,
+      });
+    }
+  }
+  state.commits = sortCommits(nextCommits);
+  if (
+    state.lastCommit &&
+    !(state.lastCommit.end <= removedStart || state.lastCommit.start >= removedEnd)
+  ) {
+    state.lastCommit = null;
+  }
+};
+
+const matchesSelection = (control, selection) =>
+  Boolean(
+    selection &&
+      (control.selectionStart ?? -1) === selection.start &&
+      (control.selectionEnd ?? -1) === selection.end
+  );
+
+const applySuggestionToSelection = (control, state, selection, suggestion) => {
+  const nextValue = replaceRange(control.value, selection.start, selection.end, suggestion);
+  const nextCaret = selection.start + suggestion.length;
+  const delta = suggestion.length - (selection.end - selection.start);
+
+  state.internalUpdate = true;
+  setControlValue(control, nextValue, nextCaret);
+  state.internalUpdate = false;
+
+  const commit = {
+    sourceToken: selection.sourceToken || selection.text || "",
+    suggestions: selection.suggestions || [suggestion],
+    start: selection.start,
+    end: selection.start + suggestion.length,
+    text: suggestion,
+  };
+  upsertCommit(state, commit, selection.start, selection.end, delta);
+  state.activeSelection = null;
+  hideDropdown();
 };
 
 const commitCurrentToken = (control, state) => {
@@ -336,29 +529,53 @@ const commitCurrentToken = (control, state) => {
   const committedWord = suggestions[0] || range.token;
   if (!committedWord || committedWord === range.token) return null;
 
-  const nextValue = replaceRange(control.value, range.start, range.end, committedWord);
-  const nextCaret = range.safeCaret + (committedWord.length - range.token.length);
-
-  state.internalUpdate = true;
-  setControlValue(control, nextValue, nextCaret);
-  state.internalUpdate = false;
-  state.lastCommit = {
+  const selection = {
+    start: range.start,
+    end: range.end,
     sourceToken: range.token,
     suggestions,
-    start: range.start,
-    end: range.start + committedWord.length,
+    text: range.token,
   };
-  state.activeSelection = null;
-  hideDropdown();
+  applySuggestionToSelection(control, state, selection, committedWord);
   return state.lastCommit;
 };
 
-const matchesSelection = (control, selection) =>
-  Boolean(
-    selection &&
-      (control.selectionStart ?? -1) === selection.start &&
-      (control.selectionEnd ?? -1) === selection.end
+const findCommitAtCaret = (control, state) => {
+  const caret = control.selectionStart ?? 0;
+  const selectionEnd = control.selectionEnd ?? caret;
+  return (
+    state.commits.find(
+      (commit) =>
+        (caret >= commit.start && caret <= commit.end) ||
+        (selectionEnd >= commit.start && selectionEnd <= commit.end)
+    ) || null
   );
+};
+
+const showSuggestionsForCommit = (control, state, commit) => {
+  if (!commit) return false;
+  control.setSelectionRange(commit.start, commit.end);
+  state.activeSelection = {
+    start: commit.start,
+    end: commit.end,
+    sourceToken: commit.sourceToken,
+    suggestions: commit.suggestions,
+    text: control.value.slice(commit.start, commit.end),
+  };
+
+  showDropdown(
+    control,
+    state.activeSelection,
+    commit.suggestions,
+    (suggestion) => applySuggestionToSelection(control, state, state.activeSelection, suggestion),
+    {
+      mode: "history",
+      sourceToken: commit.sourceToken,
+      anchorRect: control.getBoundingClientRect(),
+    }
+  );
+  return true;
+};
 
 const revealSuggestionsForLastCommit = (control, state) => {
   const lastCommit = state.lastCommit;
@@ -371,29 +588,7 @@ const revealSuggestionsForLastCommit = (control, state) => {
     caret === lastCommit.end + 1 && !PUNJABI_WORD_CHAR_PATTERN.test(String(control.value || "")[caret - 1] || "");
   if (!canRevealAtWordEnd && !canRevealAfterBoundary) return false;
 
-  control.setSelectionRange(lastCommit.start, lastCommit.end);
-  state.activeSelection = {
-    start: lastCommit.start,
-    end: lastCommit.end,
-    sourceToken: lastCommit.sourceToken,
-    suggestions: lastCommit.suggestions,
-  };
-  showDropdown(control, state.activeSelection, lastCommit.suggestions, (suggestion) => {
-    const nextValue = replaceRange(control.value, state.activeSelection.start, state.activeSelection.end, suggestion);
-    const nextCaret = state.activeSelection.start + suggestion.length;
-    state.internalUpdate = true;
-    setControlValue(control, nextValue, nextCaret);
-    state.internalUpdate = false;
-    state.lastCommit = {
-      sourceToken: state.activeSelection.sourceToken,
-      suggestions: state.activeSelection.suggestions,
-      start: state.activeSelection.start,
-      end: state.activeSelection.start + suggestion.length,
-    };
-    state.activeSelection = null;
-    hideDropdown();
-  });
-  return true;
+  return showSuggestionsForCommit(control, state, lastCommit);
 };
 
 const deleteSingleLetterFromSelection = (control, state) => {
@@ -406,6 +601,7 @@ const deleteSingleLetterFromSelection = (control, state) => {
   state.internalUpdate = true;
   setControlValue(control, nextValue, deleteIndex);
   state.internalUpdate = false;
+  state.commits = removeOverlappingCommits(state.commits, activeSelection.start, activeSelection.end);
   state.lastCommit = null;
   state.activeSelection = null;
   hideDropdown();
@@ -453,17 +649,63 @@ export const applyPunjabiInputMode = (control, getMode) => {
 
   const state = getControlState(control);
 
+  const handleBeforeInput = (event) => {
+    if (state.internalUpdate) return;
+    state.beforeInput = {
+      value: control.value,
+      start: control.selectionStart ?? 0,
+      end: control.selectionEnd ?? control.selectionStart ?? 0,
+      inputType: event.inputType || "",
+    };
+  };
+
   const handleInput = (event) => {
     if (state.internalUpdate) return;
+    syncCommitsAfterUserEdit(control, state);
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+      state.activeSelection = null;
       hideDropdown();
       return;
     }
     if (event?.isComposing) return;
+
     if (COMMIT_BOUNDARY_PATTERN.test(String(event?.data || ""))) {
       commitCurrentToken(control, state);
       return;
     }
+
+    const liveToken = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
+    if (liveToken) {
+      const suggestions = buildSuggestionVariants(liveToken.token);
+      showDropdown(
+        control,
+        {
+          start: liveToken.start,
+          end: liveToken.end,
+          sourceToken: liveToken.token,
+          suggestions,
+          text: liveToken.token,
+        },
+        suggestions,
+        (suggestion) =>
+          applySuggestionToSelection(
+            control,
+            state,
+            {
+              start: liveToken.start,
+              end: liveToken.end,
+              sourceToken: liveToken.token,
+              suggestions,
+              text: liveToken.token,
+            },
+            suggestion
+          ),
+        { mode: "live" }
+      );
+      state.activeSelection = null;
+      return;
+    }
+
     state.activeSelection = null;
     hideDropdown();
   };
@@ -471,11 +713,27 @@ export const applyPunjabiInputMode = (control, getMode) => {
   const handleBlur = () => {
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") return;
     commitCurrentToken(control, state);
+    hideDropdown();
   };
 
   const handleClick = () => {
-    state.activeSelection = null;
-    hideDropdown();
+    if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+      state.activeSelection = null;
+      hideDropdown();
+      return;
+    }
+
+    const commit = findCommitAtCaret(control, state);
+    if (commit) {
+      showSuggestionsForCommit(control, state, commit);
+      return;
+    }
+
+    const punjabiRange = findPunjabiWordRangeAtCaret(control.value, control.selectionStart ?? 0);
+    if (!punjabiRange) {
+      state.activeSelection = null;
+      hideDropdown();
+    }
   };
 
   const handleKeydown = (event) => {
@@ -483,12 +741,12 @@ export const applyPunjabiInputMode = (control, getMode) => {
       hideDropdown();
       return;
     }
-    if (handleSuggestionNavigation(event)) {
-      return;
-    }
+    if (handleSuggestionNavigation(event)) return;
     if (event.key !== "Backspace") {
       state.activeSelection = null;
-      hideDropdown();
+      if (!ROMAN_CHAR_PATTERN.test(event.key || "")) {
+        hideDropdown();
+      }
       return;
     }
     if (deleteSingleLetterFromSelection(control, state)) {
@@ -500,12 +758,14 @@ export const applyPunjabiInputMode = (control, getMode) => {
     }
   };
 
+  control.addEventListener("beforeinput", handleBeforeInput);
   control.addEventListener("input", handleInput);
   control.addEventListener("blur", handleBlur);
   control.addEventListener("click", handleClick);
   control.addEventListener("keydown", handleKeydown);
 
   return () => {
+    control.removeEventListener("beforeinput", handleBeforeInput);
     control.removeEventListener("input", handleInput);
     control.removeEventListener("blur", handleBlur);
     control.removeEventListener("click", handleClick);
