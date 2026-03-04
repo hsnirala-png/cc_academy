@@ -3691,6 +3691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const updateLessonQuestionFromModal = async () => {
+    await ensureSelectedMockTestTopFieldsSaved();
     const { questionId, payload } = buildLessonQuestionEditPayload();
     await apiRequest({
       path: `/admin/questions/${encodeURIComponent(questionId)}`,
@@ -5141,6 +5142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const createOrUpdateLessonQuestion = async () => {
     if (!state.selectedMockTestId) throw new Error("Create or attach a test before adding questions.");
+    await ensureSelectedMockTestTopFieldsSaved();
     const sectionLabel =
       normalizeQuestionSectionLabel(lessonQuestionSectionInput?.value) || DEFAULT_QUESTION_SECTIONS[0];
     const sectionMeta = getSectionMetaByLabel(sectionLabel);
@@ -5199,6 +5201,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const handleLessonBulkImport = async () => {
     if (!state.selectedMockTestId) throw new Error("Create or attach a test before bulk import.");
+    await ensureSelectedMockTestTopFieldsSaved();
     const text = lessonBulkImportTextInput?.value?.trim() || "";
     if (!text) throw new Error("Paste lines in format: question|A|B|C|D|correct|explanation|section.");
     const defaultSection =
@@ -5289,6 +5292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const handleLessonCsvBulkImport = async () => {
     if (!state.selectedMockTestId) throw new Error("Create or attach a test before CSV upload.");
+    await ensureSelectedMockTestTopFieldsSaved();
     const file = lessonBulkImportCsvFileInput?.files?.[0];
     if (!file) {
       throw new Error("Please choose a CSV file.");
@@ -5338,15 +5342,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     return response?.result || { createdCount: rows.length, totalRows: rows.length };
   };
 
-  const saveAndAttachLessonMockTestFromTopFields = async (options = {}) => {
-    const { resetAfterSave = false } = options;
-    const selectedLessonId = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
-    if (!selectedLessonId) {
-      throw new Error("Select course, subject, and chapter before creating a test.");
-    }
-
+  const buildCurrentMockTestTopFieldPayload = () => {
     syncMockTaxonomyFromScope({ force: !state.selectedMockTestId });
-    const payload = {
+    return {
       title: lessonMockTestTitleInput?.value?.trim() || "",
       examType: lessonMockTestExamTypeInput?.value || "PSTET_1",
       subject: normalizeMockSubjectValue(lessonMockTestSubjectInput?.value || "PUNJABI"),
@@ -5356,6 +5354,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       mockCategory: lessonMockTestCategoryInput?.value || "PREMIUM",
       isActive: Boolean(lessonMockTestIsActiveInput?.checked),
     };
+  };
+
+  const hasMockTestTopFieldDrift = () => {
+    const selected = selectedMockTest();
+    if (!selected || !state.selectedMockTestId) return false;
+    const current = buildCurrentMockTestTopFieldPayload();
+    return (
+      String(selected.title || "").trim() !== current.title ||
+      String(selected.examType || "PSTET_1") !== current.examType ||
+      normalizeMockSubjectValue(selected.subject || "") !== current.subject ||
+      String(selected.streamChoice || "") !== String(current.streamChoice || "") ||
+      String(selected.languageMode || "") !== String(current.languageMode || "") ||
+      String(selected.accessCode || "") !== String(current.accessCode || "") ||
+      String(selected.mockCategory || "PREMIUM") !== String(current.mockCategory || "PREMIUM") ||
+      Boolean(selected.isActive) !== Boolean(current.isActive)
+    );
+  };
+
+  const ensureSelectedMockTestTopFieldsSaved = async () => {
+    if (!state.selectedMockTestId) return;
+    if (!hasMockTestTopFieldDrift()) return;
+    await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
+  };
+
+  const saveAndAttachLessonMockTestFromTopFields = async (options = {}) => {
+    const { resetAfterSave = false } = options;
+    const selectedLessonId = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
+    if (!selectedLessonId) {
+      throw new Error("Select course, subject, and chapter before creating a test.");
+    }
+
+    const payload = buildCurrentMockTestTopFieldPayload();
 
     if (!payload.title) {
       throw new Error("Test title is required.");
