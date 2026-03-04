@@ -1,3 +1,5 @@
+import { API_BASE, getStoredToken } from "./mock-api.js?v=2";
+
 const WORD_SUGGESTIONS = new Map(
   Object.entries({
     aj: ["ਅੱਜ", "ਅਜ", "ਆਜ"],
@@ -158,6 +160,11 @@ const NASAL_ENDING_RULES = [
 ];
 
 const CONTROL_STATE = new WeakMap();
+const REMOTE_SUGGESTION_CACHE = new Map();
+const PUNJABI_TRANSLITERATION_ENDPOINT = `${API_BASE}/api/admin/transliteration/punjabi`;
+const REMOTE_SUGGESTION_LIMIT = 8;
+const REMOTE_REQUEST_TIMEOUT_MS = 1500;
+const REMOTE_SUGGESTION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const dropdownState = {
   root: null,
@@ -257,21 +264,28 @@ const buildNasalVariants = (sourceToken, output) => {
     .filter((variant) => variant && variant !== output);
 };
 
-const buildSuggestionVariants = (token) => {
+const getDirectSuggestions = (token) => WORD_SUGGESTIONS.get(normalizeRomanToken(token)) || [];
+
+const buildHeuristicSuggestions = (token) => {
   const normalized = normalizeRomanToken(token);
   if (!normalized) return [];
 
-  const directSuggestions = WORD_SUGGESTIONS.get(normalized) || [];
-  if (directSuggestions.length) {
-    return uniqueValues([...directSuggestions, normalized]).slice(0, 8);
-  }
-
-  const heuristicSuggestions = buildRomanVariants(normalized).flatMap((romanVariant) => {
+  return buildRomanVariants(normalized).flatMap((romanVariant) => {
     const output = transliterateRomanPunjabiWordBasic(romanVariant);
     return [output, ...buildNasalVariants(romanVariant, output)];
   });
+};
 
-  return uniqueValues([...heuristicSuggestions, normalized]).slice(0, 8);
+const buildSuggestionVariants = (token, remoteSuggestions = []) => {
+  const normalized = normalizeRomanToken(token);
+  if (!normalized) return [];
+
+  const directSuggestions = getDirectSuggestions(normalized);
+  const mergedSuggestions = directSuggestions.length
+    ? [...directSuggestions, ...remoteSuggestions]
+    : [...remoteSuggestions, ...buildHeuristicSuggestions(normalized)];
+
+  return uniqueValues([...mergedSuggestions, normalized]).slice(0, REMOTE_SUGGESTION_LIMIT);
 };
 
 const findRomanTokenRangeAtCaret = (value, caretIndex) => {
@@ -440,9 +454,65 @@ const getControlState = (control) => {
       activeSelection: null,
       commits: [],
       beforeInput: null,
+      liveRequestId: 0,
     });
   }
   return CONTROL_STATE.get(control);
+};
+
+const fetchRemoteSuggestions = async (token) => {
+  const normalized = normalizeRomanToken(token);
+  if (!normalized) return [];
+
+  const authToken = getStoredToken();
+  if (!authToken) return [];
+
+  const cached = REMOTE_SUGGESTION_CACHE.get(normalized);
+  if (cached && Array.isArray(cached.result) && Date.now() - cached.createdAt < REMOTE_SUGGESTION_CACHE_TTL_MS) {
+    return cached.result;
+  }
+  if (cached?.promise) {
+    return cached.promise;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REMOTE_REQUEST_TIMEOUT_MS);
+  const request = fetch(PUNJABI_TRANSLITERATION_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: normalized,
+      limit: REMOTE_SUGGESTION_LIMIT,
+    }),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) return [];
+      const payload = await response.json().catch(() => ({}));
+      return Array.isArray(payload?.result) ? uniqueValues(payload.result) : [];
+    })
+    .catch(() => [])
+    .finally(() => {
+      window.clearTimeout(timeoutId);
+    });
+
+  REMOTE_SUGGESTION_CACHE.set(normalized, { promise: request });
+  const result = await request;
+  REMOTE_SUGGESTION_CACHE.set(normalized, { result, createdAt: Date.now() });
+  return result;
+};
+
+const resolveSuggestionVariants = async (token) => {
+  const directSuggestions = getDirectSuggestions(token);
+  if (directSuggestions.length) {
+    return buildSuggestionVariants(token, []);
+  }
+
+  const remoteSuggestions = await fetchRemoteSuggestions(token);
+  return buildSuggestionVariants(token, remoteSuggestions);
 };
 
 const sortCommits = (commits) => commits.sort((left, right) => left.start - right.start);
@@ -533,12 +603,15 @@ const applySuggestionToSelection = (control, state, selection, suggestion) => {
   hideDropdown();
 };
 
-const commitCurrentToken = (control, state) => {
+const commitCurrentToken = async (control, state) => {
   if (state.internalUpdate) return null;
   const range = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
   if (!range) return null;
 
-  const suggestions = buildSuggestionVariants(range.token);
+  const currentToken = control.value.slice(range.start, range.end);
+  if (normalizeRomanToken(currentToken) !== normalizeRomanToken(range.token)) return null;
+
+  const suggestions = await resolveSuggestionVariants(range.token);
   const committedWord = suggestions[0] || range.token;
   if (!committedWord || committedWord === range.token) return null;
 
@@ -676,6 +749,7 @@ export const applyPunjabiInputMode = (control, getMode) => {
     if (state.internalUpdate) return;
     syncCommitsAfterUserEdit(control, state);
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+      state.liveRequestId += 1;
       state.activeSelection = null;
       hideDropdown();
       return;
@@ -683,12 +757,14 @@ export const applyPunjabiInputMode = (control, getMode) => {
     if (event?.isComposing) return;
 
     if (COMMIT_BOUNDARY_PATTERN.test(String(event?.data || ""))) {
-      commitCurrentToken(control, state);
+      void commitCurrentToken(control, state);
       return;
     }
 
     const liveToken = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
     if (liveToken) {
+      const requestId = state.liveRequestId + 1;
+      state.liveRequestId = requestId;
       const suggestions = buildSuggestionVariants(liveToken.token);
       showDropdown(
         control,
@@ -715,22 +791,60 @@ export const applyPunjabiInputMode = (control, getMode) => {
           ),
         { mode: "live" }
       );
+      void fetchRemoteSuggestions(liveToken.token).then((remoteSuggestions) => {
+        if (state.liveRequestId !== requestId) return;
+        if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") return;
+
+        const currentToken = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
+        if (!currentToken) return;
+        if (normalizeRomanToken(currentToken.token) !== normalizeRomanToken(liveToken.token)) return;
+
+        const mergedSuggestions = buildSuggestionVariants(currentToken.token, remoteSuggestions);
+        showDropdown(
+          control,
+          {
+            start: currentToken.start,
+            end: currentToken.end,
+            sourceToken: currentToken.token,
+            suggestions: mergedSuggestions,
+            text: currentToken.token,
+          },
+          mergedSuggestions,
+          (suggestion) =>
+            applySuggestionToSelection(
+              control,
+              state,
+              {
+                start: currentToken.start,
+                end: currentToken.end,
+                sourceToken: currentToken.token,
+                suggestions: mergedSuggestions,
+                text: currentToken.token,
+              },
+              suggestion
+            ),
+          { mode: "live" }
+        );
+      });
       state.activeSelection = null;
       return;
     }
 
+    state.liveRequestId += 1;
     state.activeSelection = null;
     hideDropdown();
   };
 
   const handleBlur = () => {
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") return;
-    commitCurrentToken(control, state);
+    void commitCurrentToken(control, state);
+    state.liveRequestId += 1;
     hideDropdown();
   };
 
   const handleClick = () => {
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+      state.liveRequestId += 1;
       state.activeSelection = null;
       hideDropdown();
       return;
@@ -744,6 +858,7 @@ export const applyPunjabiInputMode = (control, getMode) => {
 
     const punjabiRange = findPunjabiWordRangeAtCaret(control.value, control.selectionStart ?? 0);
     if (!punjabiRange) {
+      state.liveRequestId += 1;
       state.activeSelection = null;
       hideDropdown();
     }
@@ -751,11 +866,13 @@ export const applyPunjabiInputMode = (control, getMode) => {
 
   const handleKeydown = (event) => {
     if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+      state.liveRequestId += 1;
       hideDropdown();
       return;
     }
     if (handleSuggestionNavigation(event)) return;
     if (event.key !== "Backspace") {
+      state.liveRequestId += 1;
       state.activeSelection = null;
       if (!ROMAN_CHAR_PATTERN.test(event.key || "")) {
         hideDropdown();
