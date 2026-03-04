@@ -1,31 +1,42 @@
-import { ExamType, MockSubject, StreamChoice } from "@prisma/client";
+import { ExamType, type MockSubject, StreamChoice } from "@prisma/client";
 import { AppError } from "../../utils/appError";
 
 type LanguageMode = "PUNJABI" | "ENGLISH" | "HINDI" | "BILINGUAL";
 
+const SUBJECT = {
+  PUNJABI: "PUNJABI",
+  ENGLISH: "ENGLISH",
+  CHILD_PEDAGOGY: "CHILD_PEDAGOGY",
+  MATHS: "MATHS",
+  EVS: "EVS",
+  MATHS_EVS: "MATHS_EVS",
+  SCIENCE_MATH: "SCIENCE_MATH",
+  SOCIAL_STUDIES: "SOCIAL_STUDIES",
+} as const satisfies Record<string, MockSubject>;
+
 const SUBJECTS_30 = new Set<MockSubject>([
-  MockSubject.PUNJABI,
-  MockSubject.ENGLISH,
-  MockSubject.CHILD_PEDAGOGY,
-  MockSubject.MATHS,
-  MockSubject.EVS,
+  SUBJECT.PUNJABI,
+  SUBJECT.ENGLISH,
+  SUBJECT.CHILD_PEDAGOGY,
+  SUBJECT.MATHS,
+  SUBJECT.EVS,
 ]);
 
 const SUBJECTS_60 = new Set<MockSubject>([
-  MockSubject.MATHS_EVS,
-  MockSubject.SCIENCE_MATH,
-  MockSubject.SOCIAL_STUDIES,
+  SUBJECT.MATHS_EVS,
+  SUBJECT.SCIENCE_MATH,
+  SUBJECT.SOCIAL_STUDIES,
 ]);
 
-const LANGUAGE_SUBJECTS = new Set<MockSubject>([MockSubject.PUNJABI, MockSubject.ENGLISH]);
+const LANGUAGE_SUBJECTS = new Set<MockSubject>([SUBJECT.PUNJABI, SUBJECT.ENGLISH]);
 
 const NON_LANGUAGE_SUBJECTS = new Set<MockSubject>([
-  MockSubject.CHILD_PEDAGOGY,
-  MockSubject.MATHS,
-  MockSubject.EVS,
-  MockSubject.MATHS_EVS,
-  MockSubject.SCIENCE_MATH,
-  MockSubject.SOCIAL_STUDIES,
+  SUBJECT.CHILD_PEDAGOGY,
+  SUBJECT.MATHS,
+  SUBJECT.EVS,
+  SUBJECT.MATHS_EVS,
+  SUBJECT.SCIENCE_MATH,
+  SUBJECT.SOCIAL_STUDIES,
 ]);
 
 export const getRequiredQuestionCount = (subject: MockSubject): number => {
@@ -45,12 +56,12 @@ export const validateMockTestRule = (
 ): void => {
   if (examType === ExamType.PSTET_1) {
     const validSubjects = new Set<MockSubject>([
-      MockSubject.PUNJABI,
-      MockSubject.ENGLISH,
-      MockSubject.CHILD_PEDAGOGY,
-      MockSubject.MATHS,
-      MockSubject.EVS,
-      MockSubject.MATHS_EVS,
+      SUBJECT.PUNJABI,
+      SUBJECT.ENGLISH,
+      SUBJECT.CHILD_PEDAGOGY,
+      SUBJECT.MATHS,
+      SUBJECT.EVS,
+      SUBJECT.MATHS_EVS,
     ]);
 
     if (!validSubjects.has(subject)) {
@@ -78,23 +89,23 @@ export const validateMockTestRule = (
 
   if (examType === ExamType.PSTET_2) {
     const validSubjects = new Set<MockSubject>([
-      MockSubject.PUNJABI,
-      MockSubject.ENGLISH,
-      MockSubject.CHILD_PEDAGOGY,
-      MockSubject.SCIENCE_MATH,
-      MockSubject.SOCIAL_STUDIES,
+      SUBJECT.PUNJABI,
+      SUBJECT.ENGLISH,
+      SUBJECT.CHILD_PEDAGOGY,
+      SUBJECT.SCIENCE_MATH,
+      SUBJECT.SOCIAL_STUDIES,
     ]);
 
     if (!validSubjects.has(subject)) {
       throw new AppError("Invalid subject for PSTET-2", 400);
     }
 
-    if (subject === MockSubject.SCIENCE_MATH && streamChoice !== StreamChoice.SCIENCE_MATH) {
+    if (subject === SUBJECT.SCIENCE_MATH && streamChoice !== StreamChoice.SCIENCE_MATH) {
       throw new AppError("PSTET-2 Science/Math test requires SCIENCE_MATH stream", 400);
     }
 
     if (
-      subject === MockSubject.SOCIAL_STUDIES &&
+      subject === SUBJECT.SOCIAL_STUDIES &&
       streamChoice !== StreamChoice.SOCIAL_STUDIES
     ) {
       throw new AppError("PSTET-2 Social Studies test requires SOCIAL_STUDIES stream", 400);
