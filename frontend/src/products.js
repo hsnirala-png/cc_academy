@@ -1215,6 +1215,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (subjectText.includes("child pedagogy") || subjectText.includes("child development")) return "CDP";
     if (subjectText.includes("punjabi")) return "PBI";
     if (subjectText.includes("english")) return "ENG";
+    if (subjectText === "evs" || subjectText.includes("environment")) return "EVS";
+    if (subjectText === "maths" || subjectText === "mathematics") return "MATHS";
     if (subjectText.includes("social studies")) return "SST";
     if (subjectText.includes("science math")) {
       if (
