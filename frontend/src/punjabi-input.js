@@ -128,8 +128,8 @@ const VOWEL_PATTERNS = [
 const ROMAN_WORD_PATTERN = /[A-Za-z]+(?:'[A-Za-z]+)*/;
 const ROMAN_CHAR_PATTERN = /[A-Za-z']/;
 const COMMIT_BOUNDARY_PATTERN = /[\s,.;:!?()[\]{}"']/;
-const PUNJABI_WORD_CHAR_PATTERN = /[\u0A00-\u0A7F]/u;
-const PUNJABI_WORD_PATTERN = /[\u0A00-\u0A7F]+/u;
+const PUNJABI_WORD_CHAR_PATTERN = /[\u0900-\u097F\u0A00-\u0A7F]/u;
+const PUNJABI_WORD_PATTERN = /[\u0900-\u097F\u0A00-\u0A7F]+/u;
 const PUNJABI_CONSONANT_CLASS = "[ਕਖਗਘਙਚਛਜਝਞਟਠਡਢਣਤਥਦਧਨਪਫਬਭਮਯਰਲਵਸ਼ਸਹੜਜ਼ਫ਼ਲ਼ਖ਼ਗ਼ਜ਼]";
 const NASAL_ENDING_RULES = [
   {
@@ -161,10 +161,19 @@ const NASAL_ENDING_RULES = [
 
 const CONTROL_STATE = new WeakMap();
 const REMOTE_SUGGESTION_CACHE = new Map();
-const PUNJABI_TRANSLITERATION_ENDPOINT = `${API_BASE}/api/admin/transliteration/punjabi`;
 const REMOTE_SUGGESTION_LIMIT = 8;
 const REMOTE_REQUEST_TIMEOUT_MS = 1500;
 const REMOTE_SUGGESTION_CACHE_TTL_MS = 5 * 60 * 1000;
+const TRANSLITERATION_MODE_CONFIGS = {
+  PUNJABI: {
+    endpoint: `${API_BASE}/api/admin/transliteration/punjabi`,
+    label: "Punjabi Transliteration",
+  },
+  HINDI: {
+    endpoint: `${API_BASE}/api/admin/transliteration/hindi`,
+    label: "Hindi Transliteration",
+  },
+};
 
 const dropdownState = {
   root: null,
@@ -192,6 +201,10 @@ const uniqueValues = (values) => {
     return true;
   });
 };
+
+const normalizeInputMode = (mode) => String(mode || "ENGLISH").trim().toUpperCase();
+
+const isTransliterationMode = (mode) => Object.prototype.hasOwnProperty.call(TRANSLITERATION_MODE_CONFIGS, normalizeInputMode(mode));
 
 const readPattern = (value, index, patterns) => {
   const slice = value.slice(index);
@@ -264,9 +277,11 @@ const buildNasalVariants = (sourceToken, output) => {
     .filter((variant) => variant && variant !== output);
 };
 
-const getDirectSuggestions = (token) => WORD_SUGGESTIONS.get(normalizeRomanToken(token)) || [];
+const getDirectSuggestions = (token, mode = "PUNJABI") =>
+  normalizeInputMode(mode) === "PUNJABI" ? WORD_SUGGESTIONS.get(normalizeRomanToken(token)) || [] : [];
 
-const buildHeuristicSuggestions = (token) => {
+const buildHeuristicSuggestions = (token, mode = "PUNJABI") => {
+  if (normalizeInputMode(mode) !== "PUNJABI") return [];
   const normalized = normalizeRomanToken(token);
   if (!normalized) return [];
 
@@ -276,14 +291,14 @@ const buildHeuristicSuggestions = (token) => {
   });
 };
 
-const buildSuggestionVariants = (token, remoteSuggestions = []) => {
+const buildSuggestionVariants = (token, mode = "PUNJABI", remoteSuggestions = []) => {
   const normalized = normalizeRomanToken(token);
   if (!normalized) return [];
 
-  const directSuggestions = getDirectSuggestions(normalized);
+  const directSuggestions = getDirectSuggestions(normalized, mode);
   const mergedSuggestions = directSuggestions.length
     ? [...directSuggestions, ...remoteSuggestions]
-    : [...remoteSuggestions, ...buildHeuristicSuggestions(normalized)];
+    : [...remoteSuggestions, ...buildHeuristicSuggestions(normalized, mode)];
 
   return uniqueValues([...mergedSuggestions, normalized]).slice(0, REMOTE_SUGGESTION_LIMIT);
 };
@@ -460,14 +475,19 @@ const getControlState = (control) => {
   return CONTROL_STATE.get(control);
 };
 
-const fetchRemoteSuggestions = async (token) => {
+const fetchRemoteSuggestions = async (token, mode = "PUNJABI") => {
   const normalized = normalizeRomanToken(token);
   if (!normalized) return [];
+
+  const resolvedMode = normalizeInputMode(mode);
+  const modeConfig = TRANSLITERATION_MODE_CONFIGS[resolvedMode];
+  if (!modeConfig) return [];
 
   const authToken = getStoredToken();
   if (!authToken) return [];
 
-  const cached = REMOTE_SUGGESTION_CACHE.get(normalized);
+  const cacheKey = `${resolvedMode}:${normalized}`;
+  const cached = REMOTE_SUGGESTION_CACHE.get(cacheKey);
   if (cached && Array.isArray(cached.result) && Date.now() - cached.createdAt < REMOTE_SUGGESTION_CACHE_TTL_MS) {
     return cached.result;
   }
@@ -477,7 +497,7 @@ const fetchRemoteSuggestions = async (token) => {
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REMOTE_REQUEST_TIMEOUT_MS);
-  const request = fetch(PUNJABI_TRANSLITERATION_ENDPOINT, {
+  const request = fetch(modeConfig.endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${authToken}`,
@@ -499,20 +519,20 @@ const fetchRemoteSuggestions = async (token) => {
       window.clearTimeout(timeoutId);
     });
 
-  REMOTE_SUGGESTION_CACHE.set(normalized, { promise: request });
+  REMOTE_SUGGESTION_CACHE.set(cacheKey, { promise: request });
   const result = await request;
-  REMOTE_SUGGESTION_CACHE.set(normalized, { result, createdAt: Date.now() });
+  REMOTE_SUGGESTION_CACHE.set(cacheKey, { result, createdAt: Date.now() });
   return result;
 };
 
-const resolveSuggestionVariants = async (token) => {
-  const directSuggestions = getDirectSuggestions(token);
+const resolveSuggestionVariants = async (token, mode = "PUNJABI") => {
+  const directSuggestions = getDirectSuggestions(token, mode);
   if (directSuggestions.length) {
-    return buildSuggestionVariants(token, []);
+    return buildSuggestionVariants(token, mode, []);
   }
 
-  const remoteSuggestions = await fetchRemoteSuggestions(token);
-  return buildSuggestionVariants(token, remoteSuggestions);
+  const remoteSuggestions = await fetchRemoteSuggestions(token, mode);
+  return buildSuggestionVariants(token, mode, remoteSuggestions);
 };
 
 const sortCommits = (commits) => commits.sort((left, right) => left.start - right.start);
@@ -603,7 +623,7 @@ const applySuggestionToSelection = (control, state, selection, suggestion) => {
   hideDropdown();
 };
 
-const commitCurrentToken = async (control, state) => {
+const commitCurrentToken = async (control, state, mode = "PUNJABI") => {
   if (state.internalUpdate) return null;
   const range = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
   if (!range) return null;
@@ -611,7 +631,7 @@ const commitCurrentToken = async (control, state) => {
   const currentToken = control.value.slice(range.start, range.end);
   if (normalizeRomanToken(currentToken) !== normalizeRomanToken(range.token)) return null;
 
-  const suggestions = await resolveSuggestionVariants(range.token);
+  const suggestions = await resolveSuggestionVariants(range.token, mode);
   const committedWord = suggestions[0] || range.token;
   if (!committedWord || committedWord === range.token) return null;
 
@@ -728,7 +748,7 @@ document.addEventListener("mousedown", (event) => {
   hideDropdown();
 });
 
-export const getPunjabiSuggestionsForWord = (word) => buildSuggestionVariants(word);
+export const getPunjabiSuggestionsForWord = (word, mode = "PUNJABI") => buildSuggestionVariants(word, mode);
 
 export const applyPunjabiInputMode = (control, getMode) => {
   if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) return () => {};
@@ -748,7 +768,8 @@ export const applyPunjabiInputMode = (control, getMode) => {
   const handleInput = (event) => {
     if (state.internalUpdate) return;
     syncCommitsAfterUserEdit(control, state);
-    if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+    const currentMode = normalizeInputMode(getMode?.() || "ENGLISH");
+    if (!isTransliterationMode(currentMode)) {
       state.liveRequestId += 1;
       state.activeSelection = null;
       hideDropdown();
@@ -757,7 +778,7 @@ export const applyPunjabiInputMode = (control, getMode) => {
     if (event?.isComposing) return;
 
     if (COMMIT_BOUNDARY_PATTERN.test(String(event?.data || ""))) {
-      void commitCurrentToken(control, state);
+      void commitCurrentToken(control, state, currentMode);
       return;
     }
 
@@ -765,7 +786,7 @@ export const applyPunjabiInputMode = (control, getMode) => {
     if (liveToken) {
       const requestId = state.liveRequestId + 1;
       state.liveRequestId = requestId;
-      const suggestions = buildSuggestionVariants(liveToken.token);
+      const suggestions = buildSuggestionVariants(liveToken.token, currentMode);
       showDropdown(
         control,
         {
@@ -791,15 +812,15 @@ export const applyPunjabiInputMode = (control, getMode) => {
           ),
         { mode: "live" }
       );
-      void fetchRemoteSuggestions(liveToken.token).then((remoteSuggestions) => {
+      void fetchRemoteSuggestions(liveToken.token, currentMode).then((remoteSuggestions) => {
         if (state.liveRequestId !== requestId) return;
-        if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") return;
+        if (normalizeInputMode(getMode?.() || "ENGLISH") !== currentMode) return;
 
         const currentToken = findRomanTokenRangeAtCaret(control.value, control.selectionStart ?? control.value.length);
         if (!currentToken) return;
         if (normalizeRomanToken(currentToken.token) !== normalizeRomanToken(liveToken.token)) return;
 
-        const mergedSuggestions = buildSuggestionVariants(currentToken.token, remoteSuggestions);
+        const mergedSuggestions = buildSuggestionVariants(currentToken.token, currentMode, remoteSuggestions);
         showDropdown(
           control,
           {
@@ -836,14 +857,16 @@ export const applyPunjabiInputMode = (control, getMode) => {
   };
 
   const handleBlur = () => {
-    if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") return;
-    void commitCurrentToken(control, state);
+    const currentMode = normalizeInputMode(getMode?.() || "ENGLISH");
+    if (!isTransliterationMode(currentMode)) return;
+    void commitCurrentToken(control, state, currentMode);
     state.liveRequestId += 1;
     hideDropdown();
   };
 
   const handleClick = () => {
-    if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+    const currentMode = normalizeInputMode(getMode?.() || "ENGLISH");
+    if (!isTransliterationMode(currentMode)) {
       state.liveRequestId += 1;
       state.activeSelection = null;
       hideDropdown();
@@ -865,7 +888,7 @@ export const applyPunjabiInputMode = (control, getMode) => {
   };
 
   const handleKeydown = (event) => {
-    if (String(getMode?.() || "ENGLISH").toUpperCase() !== "PUNJABI") {
+    if (!isTransliterationMode(getMode?.() || "ENGLISH")) {
       state.liveRequestId += 1;
       hideDropdown();
       return;
@@ -904,4 +927,4 @@ export const applyPunjabiInputMode = (control, getMode) => {
 };
 
 export const getPunjabiInputModeLabel = (mode) =>
-  String(mode || "").toUpperCase() === "PUNJABI" ? "Punjabi Transliteration" : "English Typing";
+  TRANSLITERATION_MODE_CONFIGS[normalizeInputMode(mode)]?.label || "English Typing";

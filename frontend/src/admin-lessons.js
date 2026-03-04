@@ -16,7 +16,7 @@ import {
   requireRoleGuardStrict,
   showConfirmDialog,
 } from "./mock-api.js?v=2";
-import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js?v=5";
+import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js?v=6";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
@@ -386,7 +386,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const setQuestionInputMode = (nextMode) => {
-    state.questionInputMode = String(nextMode || "ENGLISH").toUpperCase() === "PUNJABI" ? "PUNJABI" : "ENGLISH";
+    const normalizedMode = String(nextMode || "ENGLISH").toUpperCase();
+    state.questionInputMode =
+      normalizedMode === "PUNJABI" || normalizedMode === "HINDI" ? normalizedMode : "ENGLISH";
     syncQuestionInputModeControls();
   };
 
