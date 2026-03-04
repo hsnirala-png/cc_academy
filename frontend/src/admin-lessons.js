@@ -556,31 +556,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionFormulaTextInput,
     lessonQuestionEquationTextInput,
     lessonQuestionTextInput,
-    lessonQuestionTextAltInput,
     lessonOptionAInput,
-    lessonOptionAAltInput,
     lessonOptionBInput,
-    lessonOptionBAltInput,
     lessonOptionCInput,
-    lessonOptionCAltInput,
     lessonOptionDInput,
-    lessonOptionDAltInput,
     lessonQuestionExplanationInput,
-    lessonQuestionExplanationAltInput,
     lessonQuestionEditTextInput,
-    lessonQuestionEditTextAltInput,
     lessonQuestionEditOptionAInput,
-    lessonQuestionEditOptionAAltInput,
     lessonQuestionEditOptionBInput,
-    lessonQuestionEditOptionBAltInput,
     lessonQuestionEditOptionCInput,
-    lessonQuestionEditOptionCAltInput,
     lessonQuestionEditOptionDInput,
-    lessonQuestionEditOptionDAltInput,
     lessonQuestionEditExplanationInput,
-    lessonQuestionEditExplanationAltInput,
   ].forEach((control) => {
     applyPunjabiInputMode(control, getQuestionInputMode);
+  });
+
+  [
+    lessonQuestionTextAltInput,
+    lessonOptionAAltInput,
+    lessonOptionBAltInput,
+    lessonOptionCAltInput,
+    lessonOptionDAltInput,
+    lessonQuestionExplanationAltInput,
+    lessonQuestionEditTextAltInput,
+    lessonQuestionEditOptionAAltInput,
+    lessonQuestionEditOptionBAltInput,
+    lessonQuestionEditOptionCAltInput,
+    lessonQuestionEditOptionDAltInput,
+    lessonQuestionEditExplanationAltInput,
+  ].forEach((control) => {
+    applyPunjabiInputMode(control, () => "ENGLISH");
   });
 
   [
