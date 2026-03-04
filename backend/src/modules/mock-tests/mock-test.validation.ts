@@ -69,6 +69,7 @@ export const adminCreateQuestionSchema = z.object({
   explanation: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
   explanationAlt: z.preprocess(parseEmptyAsUndefined, z.string().trim().optional()),
   sectionLabel: optionalSectionLabelSchema,
+  displayOrder: z.coerce.number().int().min(1).max(100000).optional(),
   isActive: z.boolean().optional(),
 });
 

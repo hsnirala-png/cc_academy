@@ -29,6 +29,7 @@ type MockTestSectionType =
   | "MATH_FORMULA"
   | "SCIENCE_EQUATION"
   | "CUSTOM";
+type PrismaExecutor = typeof prisma | Prisma.TransactionClient;
 
 const shuffle = <T>(items: T[]): T[] => {
   const copy = [...items];
@@ -97,6 +98,130 @@ const normalizeSectionType = (value: unknown): MockTestSectionType => {
     return normalized as MockTestSectionType;
   }
   return "GENERAL_MCQ";
+};
+
+const normalizeDisplayOrder = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const numeric = Math.floor(Number(value) || 0);
+  if (!Number.isFinite(numeric) || numeric < 1) return undefined;
+  return numeric;
+};
+
+const isSectionLockedForShuffle = (sectionType: MockTestSectionType) => sectionType !== "GENERAL_MCQ";
+
+const loadOrderedQuestionRows = async (executor: PrismaExecutor, mockTestId: string) =>
+  (await executor.$queryRawUnsafe(
+    `
+      SELECT
+        id,
+        displayOrder,
+        createdAt
+      FROM Question
+      WHERE mockTestId = ?
+        AND COALESCE(isArchived, 0) = 0
+      ORDER BY displayOrder ASC, createdAt ASC, id ASC
+    `,
+    mockTestId
+  )) as Array<{
+    id: string;
+    displayOrder: number | string;
+    createdAt: Date | string;
+  }>;
+
+const resolveInsertDisplayOrder = (rows: Array<{ displayOrder: number | string }>, requestedOrder?: number) => {
+  const maxPosition = rows.length + 1;
+  const normalizedRequested = normalizeDisplayOrder(requestedOrder);
+  if (!normalizedRequested) return maxPosition;
+  return Math.min(Math.max(normalizedRequested, 1), maxPosition);
+};
+
+const shiftQuestionDisplayOrdersForInsert = async (
+  executor: PrismaExecutor,
+  mockTestId: string,
+  nextDisplayOrder: number
+) => {
+  await executor.$executeRawUnsafe(
+    `
+      UPDATE Question
+      SET displayOrder = displayOrder + 1
+      WHERE mockTestId = ?
+        AND COALESCE(isArchived, 0) = 0
+        AND displayOrder >= ?
+    `,
+    mockTestId,
+    nextDisplayOrder
+  );
+};
+
+const shiftQuestionDisplayOrdersForDelete = async (
+  executor: PrismaExecutor,
+  mockTestId: string,
+  deletedDisplayOrder: number
+) => {
+  await executor.$executeRawUnsafe(
+    `
+      UPDATE Question
+      SET displayOrder = displayOrder - 1
+      WHERE mockTestId = ?
+        AND COALESCE(isArchived, 0) = 0
+        AND displayOrder > ?
+    `,
+    mockTestId,
+    deletedDisplayOrder
+  );
+};
+
+const moveQuestionDisplayOrder = async (
+  executor: PrismaExecutor,
+  input: {
+    mockTestId: string;
+    questionId: string;
+    currentDisplayOrder: number;
+    requestedDisplayOrder?: number;
+  }
+) => {
+  const rows = await loadOrderedQuestionRows(executor, input.mockTestId);
+  const otherRows = rows.filter((row) => row.id !== input.questionId);
+  const nextDisplayOrder = resolveInsertDisplayOrder(otherRows, input.requestedDisplayOrder);
+  if (nextDisplayOrder === input.currentDisplayOrder) {
+    return nextDisplayOrder;
+  }
+
+  if (nextDisplayOrder < input.currentDisplayOrder) {
+    await executor.$executeRawUnsafe(
+      `
+        UPDATE Question
+        SET displayOrder = displayOrder + 1
+        WHERE mockTestId = ?
+          AND COALESCE(isArchived, 0) = 0
+          AND id <> ?
+          AND displayOrder >= ?
+          AND displayOrder < ?
+      `,
+      input.mockTestId,
+      input.questionId,
+      nextDisplayOrder,
+      input.currentDisplayOrder
+    );
+  } else {
+    await executor.$executeRawUnsafe(
+      `
+        UPDATE Question
+        SET displayOrder = displayOrder - 1
+        WHERE mockTestId = ?
+          AND COALESCE(isArchived, 0) = 0
+          AND id <> ?
+          AND displayOrder > ?
+          AND displayOrder <= ?
+      `,
+      input.mockTestId,
+      input.questionId,
+      input.currentDisplayOrder,
+      nextDisplayOrder
+    );
+  }
+
+  return nextDisplayOrder;
 };
 
 const isDirectAttemptSeriesText = (value: unknown) => {
@@ -517,6 +642,7 @@ const serializeQuestion = (item: {
   explanation: string | null;
   explanationAlt: string | null;
   sectionLabel: string | null;
+  displayOrder: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -1204,18 +1330,19 @@ export const mockTestService = {
           optionC,
           optionCAlt,
           optionD,
-          optionDAlt,
-          correctOption,
-          explanation,
-          explanationAlt,
-          sectionLabel,
-          isActive,
-          createdAt,
-          updatedAt
-        FROM Question
-        WHERE mockTestId = ?
-          AND COALESCE(isArchived, 0) = 0
-        ORDER BY createdAt ASC
+        optionDAlt,
+        correctOption,
+        explanation,
+        explanationAlt,
+        sectionLabel,
+        displayOrder,
+        isActive,
+        createdAt,
+        updatedAt
+      FROM Question
+      WHERE mockTestId = ?
+        AND COALESCE(isArchived, 0) = 0
+        ORDER BY displayOrder ASC, createdAt ASC, id ASC
       `,
       mockTestId
     )) as Array<{
@@ -1235,6 +1362,7 @@ export const mockTestService = {
       explanation: string | null;
       explanationAlt: string | null;
       sectionLabel: string | null;
+      displayOrder: number | string;
       isActive: boolean | number;
       createdAt: Date | string;
       updatedAt: Date | string;
@@ -1243,6 +1371,7 @@ export const mockTestService = {
     return questions.map((question) =>
       serializeQuestion({
         ...question,
+        displayOrder: Number(question.displayOrder || 0),
         isActive: Boolean(Number(question.isActive) === 1 || question.isActive === true),
         createdAt: question.createdAt instanceof Date ? question.createdAt : new Date(String(question.createdAt)),
         updatedAt: question.updatedAt instanceof Date ? question.updatedAt : new Date(String(question.updatedAt)),
@@ -1267,36 +1396,44 @@ export const mockTestService = {
       explanation?: string;
       explanationAlt?: string;
       sectionLabel?: string;
+      displayOrder?: number;
       isActive?: boolean;
     }
   ) {
     const mockTest = await ensureMockTestExists(mockTestId);
     assertBilingualQuestionContent(mockTest.languageMode as LanguageMode | null | undefined, input);
     const normalizedSectionLabel = normalizeSectionLabel(input.sectionLabel);
+    const requestedDisplayOrder = normalizeDisplayOrder(input.displayOrder);
     await ensureQuestionLimitForSection({
       mockTestId,
       sectionLabel: normalizedSectionLabel,
       incomingCount: 1,
     });
-    const question = await prisma.question.create({
-      data: {
-        mockTestId,
-        questionText: input.questionText,
-        questionTextAlt: normalizeOptionalText(input.questionTextAlt),
-        optionA: input.optionA,
-        optionAAlt: normalizeOptionalText(input.optionAAlt),
-        optionB: input.optionB,
-        optionBAlt: normalizeOptionalText(input.optionBAlt),
-        optionC: input.optionC,
-        optionCAlt: normalizeOptionalText(input.optionCAlt),
-        optionD: input.optionD,
-        optionDAlt: normalizeOptionalText(input.optionDAlt),
-        correctOption: input.correctOption,
-        explanation: input.explanation,
-        explanationAlt: normalizeOptionalText(input.explanationAlt),
-        sectionLabel: normalizedSectionLabel,
-        isActive: input.isActive ?? true,
-      },
+    const question = await prisma.$transaction(async (tx) => {
+      const orderedRows = await loadOrderedQuestionRows(tx, mockTestId);
+      const nextDisplayOrder = resolveInsertDisplayOrder(orderedRows, requestedDisplayOrder);
+      await shiftQuestionDisplayOrdersForInsert(tx, mockTestId, nextDisplayOrder);
+      return tx.question.create({
+        data: {
+          mockTestId,
+          questionText: input.questionText,
+          questionTextAlt: normalizeOptionalText(input.questionTextAlt),
+          optionA: input.optionA,
+          optionAAlt: normalizeOptionalText(input.optionAAlt),
+          optionB: input.optionB,
+          optionBAlt: normalizeOptionalText(input.optionBAlt),
+          optionC: input.optionC,
+          optionCAlt: normalizeOptionalText(input.optionCAlt),
+          optionD: input.optionD,
+          optionDAlt: normalizeOptionalText(input.optionDAlt),
+          correctOption: input.correctOption,
+          explanation: input.explanation,
+          explanationAlt: normalizeOptionalText(input.explanationAlt),
+          sectionLabel: normalizedSectionLabel,
+          displayOrder: nextDisplayOrder,
+          isActive: input.isActive ?? true,
+        },
+      });
     });
 
     return serializeQuestion(question);
@@ -1319,6 +1456,7 @@ export const mockTestService = {
       explanation?: string;
       explanationAlt?: string;
       sectionLabel?: string;
+      displayOrder?: number;
       isActive?: boolean;
     }>,
     options?: {
@@ -1415,8 +1553,15 @@ export const mockTestService = {
         }
       }
 
+      const nextDisplayOrderStart = replaceExisting
+        ? 1
+        : resolveInsertDisplayOrder(await loadOrderedQuestionRows(tx, mockTestId));
+
       const created = await tx.question.createMany({
-        data: payload,
+        data: payload.map((row, index) => ({
+          ...row,
+          displayOrder: nextDisplayOrderStart + index,
+        })),
       });
 
       return {
@@ -1448,6 +1593,7 @@ export const mockTestService = {
       explanation?: string;
       explanationAlt?: string;
       sectionLabel?: string;
+      displayOrder?: number;
       isActive: boolean;
     }>
   ) {
@@ -1477,6 +1623,15 @@ export const mockTestService = {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      const nextDisplayOrder =
+        updates.displayOrder === undefined
+          ? Number(existing.displayOrder || 0) || 1
+          : await moveQuestionDisplayOrder(tx, {
+              mockTestId: existing.mockTestId,
+              questionId,
+              currentDisplayOrder: Number(existing.displayOrder || 0) || 1,
+              requestedDisplayOrder: updates.displayOrder,
+            });
       await snapshotAttemptQuestionsForQuestion(tx, questionId);
       return tx.question.update({
         where: { id: questionId },
@@ -1497,6 +1652,7 @@ export const mockTestService = {
           explanationAlt:
             updates.explanationAlt === undefined ? undefined : normalizeOptionalText(updates.explanationAlt),
           sectionLabel: updates.sectionLabel === undefined ? undefined : nextSectionLabel,
+          displayOrder: updates.displayOrder === undefined ? undefined : nextDisplayOrder,
           isActive: updates.isActive,
         },
       });
@@ -1510,18 +1666,25 @@ export const mockTestService = {
     if (!existing) {
       throw new AppError("Question not found", 404);
     }
-    await prisma.$executeRawUnsafe(
-      `
-        UPDATE Question
-        SET
-          isArchived = 1,
-          isActive = 0,
-          updatedAt = ?
-        WHERE id = ?
-      `,
-      new Date(),
-      questionId
-    );
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `
+          UPDATE Question
+          SET
+            isArchived = 1,
+            isActive = 0,
+            updatedAt = ?
+          WHERE id = ?
+        `,
+        new Date(),
+        questionId
+      );
+      await shiftQuestionDisplayOrdersForDelete(
+        tx,
+        existing.mockTestId,
+        Number(existing.displayOrder || 0) || 1
+      );
+    });
   },
 
   async listAttempts(filters: AdminAttemptFilters) {
@@ -1685,14 +1848,28 @@ export const mockTestService = {
 
     const questionPool = (await prisma.$queryRawUnsafe(
       `
-        SELECT id
-        FROM Question
-        WHERE mockTestId = ?
-          AND isActive = 1
-          AND COALESCE(isArchived, 0) = 0
+        SELECT
+          q.id,
+          q.sectionLabel,
+          q.displayOrder,
+          COALESCE(ms.sectionType, 'GENERAL_MCQ') AS sectionType
+        FROM Question q
+        LEFT JOIN MockTestSection ms
+          ON ms.mockTestId = q.mockTestId
+          AND ms.sectionLabel <=> q.sectionLabel
+          AND ms.isActive = 1
+        WHERE q.mockTestId = ?
+          AND q.isActive = 1
+          AND COALESCE(q.isArchived, 0) = 0
+        ORDER BY q.displayOrder ASC, q.createdAt ASC, q.id ASC
       `,
       mockTest.id
-    )) as Array<{ id: string }>;
+    )) as Array<{
+      id: string;
+      sectionLabel: string | null;
+      displayOrder: number | string;
+      sectionType: string | null;
+    }>;
     const requiredQuestions = resolveRequiredQuestions(mockTest.subject, questionPool.length);
 
     if (requiredQuestions < 1) {
@@ -1702,14 +1879,53 @@ export const mockTestService = {
       );
     }
 
-    const selected = shuffle(questionPool).slice(0, requiredQuestions);
+    const questionUnits = (() => {
+      const lockedSectionMap = new Map<
+        string,
+        Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>
+      >();
+      const freeUnits: Array<Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>> = [];
+
+      questionPool.forEach((question) => {
+        const sectionType = normalizeSectionType(question.sectionType);
+        const normalizedSectionLabel = normalizeSectionLabel(question.sectionLabel);
+        const normalizedQuestion = {
+          id: question.id,
+          displayOrder: Number(question.displayOrder || 0),
+          sectionType,
+        };
+
+        if (normalizedSectionLabel && isSectionLockedForShuffle(sectionType)) {
+          const existingGroup = lockedSectionMap.get(normalizedSectionLabel) || [];
+          existingGroup.push(normalizedQuestion);
+          lockedSectionMap.set(normalizedSectionLabel, existingGroup);
+          return;
+        }
+
+        freeUnits.push([normalizedQuestion]);
+      });
+
+      const lockedUnits = Array.from(lockedSectionMap.values()).sort(
+        (left, right) => (left[0]?.displayOrder || 0) - (right[0]?.displayOrder || 0)
+      );
+      return freeUnits.concat(lockedUnits);
+    })();
+    const selected = shuffle(questionUnits).reduce<Array<{ id: string }>>((accumulator, unit) => {
+      if (accumulator.length >= requiredQuestions) {
+        return accumulator;
+      }
+      unit.forEach((question) => {
+        accumulator.push({ id: question.id });
+      });
+      return accumulator;
+    }, []);
 
     const attempt = await prisma.$transaction(async (tx) => {
       const createdAttempt = await tx.attempt.create({
         data: {
           userId,
           mockTestId: mockTest.id,
-          totalQuestions: requiredQuestions,
+          totalQuestions: selected.length,
           status: AttemptStatus.IN_PROGRESS,
         },
       });

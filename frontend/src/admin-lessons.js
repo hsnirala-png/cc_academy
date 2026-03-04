@@ -175,6 +175,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionExplanationInput = document.querySelector("#lessonQuestionExplanation");
   const lessonQuestionExplanationAltWrap = document.querySelector("#lessonQuestionExplanationAltWrap");
   const lessonQuestionExplanationAltInput = document.querySelector("#lessonQuestionExplanationAlt");
+  const lessonQuestionDisplayOrderInput = document.querySelector("#lessonQuestionDisplayOrder");
   const lessonQuestionIsActiveInput = document.querySelector("#lessonQuestionIsActive");
   const lessonQuestionSubmitBtn = document.querySelector("#lessonQuestionSubmitBtn");
   const lessonQuestionCancelBtn = document.querySelector("#lessonQuestionCancelBtn");
@@ -261,6 +262,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditExplanationInput = document.querySelector("#lessonQuestionEditExplanation");
   const lessonQuestionEditExplanationAltWrap = document.querySelector("#lessonQuestionEditExplanationAltWrap");
   const lessonQuestionEditExplanationAltInput = document.querySelector("#lessonQuestionEditExplanationAlt");
+  const lessonQuestionEditDisplayOrderInput = document.querySelector("#lessonQuestionEditDisplayOrder");
   const lessonQuestionEditIsActiveInput = document.querySelector("#lessonQuestionEditIsActive");
   const lessonQuestionEditCancelBtn = document.querySelector("#lessonQuestionEditCancelBtn");
 
@@ -2354,6 +2356,54 @@ document.addEventListener("DOMContentLoaded", async () => {
       (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === filter
     );
   };
+  const orderedMockQuestions = (options = {}) => {
+    const { excludeQuestionId = "" } = options;
+    return [...state.mockQuestions]
+      .filter((question) => question && String(question.id || "") !== String(excludeQuestionId || ""))
+      .sort((left, right) => {
+        const leftOrder = Number(left?.displayOrder || 0);
+        const rightOrder = Number(right?.displayOrder || 0);
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return String(left?.id || "").localeCompare(String(right?.id || ""));
+      });
+  };
+  const renderQuestionDisplayOrderSelect = (input, questions, selectedValue) => {
+    if (!(input instanceof HTMLSelectElement)) return;
+    const safeQuestions = Array.isArray(questions) ? questions : [];
+    const options = [];
+    if (!safeQuestions.length) {
+      options.push('<option value="1">1. First question</option>');
+    } else {
+      options.push('<option value="1">1. At beginning</option>');
+      safeQuestions.forEach((question, index) => {
+        const label = compactLabel(String(question?.questionText || "Untitled question"), 56);
+        options.push(
+          `<option value="${index + 2}">${escapeHtml(`After ${index + 1}. ${label}`)}</option>`
+        );
+      });
+    }
+    input.innerHTML = options.join("");
+    const maxPosition = safeQuestions.length + 1;
+    const nextValue = Math.min(Math.max(Number(selectedValue || maxPosition), 1), maxPosition);
+    input.value = String(nextValue);
+  };
+  const renderQuestionDisplayOrderControls = (options = {}) => {
+    const {
+      manualSelectedOrder = Number(lessonQuestionDisplayOrderInput?.value || 0),
+      editSelectedOrder = Number(lessonQuestionEditDisplayOrderInput?.value || 0),
+      editExcludeQuestionId = lessonQuestionEditIdInput?.value || "",
+    } = options;
+    renderQuestionDisplayOrderSelect(
+      lessonQuestionDisplayOrderInput,
+      orderedMockQuestions(),
+      manualSelectedOrder || orderedMockQuestions().length + 1
+    );
+    renderQuestionDisplayOrderSelect(
+      lessonQuestionEditDisplayOrderInput,
+      orderedMockQuestions({ excludeQuestionId: editExcludeQuestionId }),
+      editSelectedOrder || 1
+    );
+  };
   const renderQuestionSectionControls = () => {
     const sectionOptions = getQuestionSectionOptions();
     const renderSelectOptions = (selectedValue, includeAll = false) => {
@@ -2396,6 +2446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonQuestionSectionFilterInput.value =
         previous === "ALL" || sectionOptions.includes(previous) ? previous : "ALL";
     }
+    renderQuestionDisplayOrderControls();
   };
   const updateQuestionSectionSummary = () => {
     if (!(lessonQuestionSectionSummary instanceof HTMLElement)) return;
@@ -2991,6 +3042,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
     if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
     if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
+    if (lessonQuestionDisplayOrderInput instanceof HTMLSelectElement) {
+      renderQuestionDisplayOrderControls({ manualSelectedOrder: orderedMockQuestions().length + 1 });
+    }
     toggleBilingualQuestionInputs();
     toggleQuestionStructuredFields();
     updateQuestionLanguageGuide();
@@ -3191,6 +3245,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
       lessonQuestionEditExplanationAltInput.value = "";
     }
+    if (lessonQuestionEditDisplayOrderInput instanceof HTMLSelectElement) {
+      renderQuestionDisplayOrderControls({ editSelectedOrder: 1, editExcludeQuestionId: "" });
+    }
     toggleBilingualQuestionInputs();
   };
 
@@ -3256,6 +3313,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditIsActiveInput instanceof HTMLInputElement) {
       lessonQuestionEditIsActiveInput.checked = Boolean(question.isActive);
     }
+    if (lessonQuestionEditDisplayOrderInput instanceof HTMLSelectElement) {
+      renderQuestionDisplayOrderControls({
+        editSelectedOrder: Number(question.displayOrder || 1),
+        editExcludeQuestionId: question.id,
+      });
+    }
 
     toggleBilingualQuestionInputs();
     lessonQuestionEditModal.classList.add("open");
@@ -3281,6 +3344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       correctOption: lessonQuestionEditCorrectInput?.value || "A",
       explanation: lessonQuestionEditExplanationInput?.value?.trim() || undefined,
       explanationAlt: lessonQuestionEditExplanationAltInput?.value?.trim() || undefined,
+      displayOrder: Number(lessonQuestionEditDisplayOrderInput?.value || 1),
       isActive: Boolean(lessonQuestionEditIsActiveInput?.checked),
     };
 
@@ -3385,13 +3449,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLessonSections();
     const filteredQuestions = visibleMockQuestions();
     if (!state.mockQuestions.length) {
-      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='9'>No questions yet.</td></tr>";
+      lessonQuestionsTableBody.innerHTML = "<tr><td colspan='10'>No questions yet.</td></tr>";
       updateLessonQuestionCountWarning();
       return;
     }
     if (!filteredQuestions.length) {
       lessonQuestionsTableBody.innerHTML =
-        "<tr><td colspan='9'>No questions found for selected section filter.</td></tr>";
+        "<tr><td colspan='10'>No questions found for selected section filter.</td></tr>";
       updateLessonQuestionCountWarning();
       return;
     }
@@ -3399,6 +3463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .map(
         (question) => `
       <tr>
+        <td>${Number(question.displayOrder || 0) || "-"}</td>
         <td>${escapeHtml(question.questionText || "-")}</td>
         <td>${escapeHtml(question.questionTextAlt || "-")}</td>
         <td>${escapeHtml(question.optionA || "-")}</td>
@@ -4132,7 +4197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonMockTestIsActiveInput.checked = true;
     }
     if (lessonMockTestAccessCodeInput) {
-      lessonMockTestAccessCodeInput.value = "DEMO";
+      lessonMockTestAccessCodeInput.value = "";
     }
     if (lessonMockTestCategoryInput) {
       lessonMockTestCategoryInput.value = "PREMIUM";
@@ -4779,6 +4844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       optionD: lessonOptionDInput?.value?.trim() || "",
       optionDAlt: lessonOptionDAltInput?.value?.trim() || undefined,
       sectionLabel,
+      displayOrder: Number(lessonQuestionDisplayOrderInput?.value || orderedMockQuestions().length + 1),
       correctOption: lessonCorrectOptionInput?.value || "A",
       explanation: lessonQuestionExplanationInput?.value?.trim() || undefined,
       explanationAlt: lessonQuestionExplanationAltInput?.value?.trim() || undefined,
@@ -4962,13 +5028,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       subject: lessonMockTestSubjectInput?.value || "PUNJABI",
       streamChoice: lessonMockTestStreamChoiceInput?.value || null,
       languageMode: lessonMockTestLanguageModeInput?.value || null,
-      accessCode: lessonMockTestAccessCodeInput?.value || "DEMO",
+      accessCode: lessonMockTestAccessCodeInput?.value || "",
       mockCategory: lessonMockTestCategoryInput?.value || "PREMIUM",
       isActive: Boolean(lessonMockTestIsActiveInput?.checked),
     };
 
     if (!payload.title) {
       throw new Error("Test title is required.");
+    }
+    if (!payload.accessCode) {
+      throw new Error("Access code is required.");
     }
     if (NON_LANGUAGE_SUBJECTS.has(payload.subject) && !payload.languageMode) {
       throw new Error("Language mode is required for this subject.");
@@ -6157,6 +6226,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         syncMockTaxonomyFromScope({ force: !state.selectedMockTestId });
         const selectedMockSubject = lessonMockTestSubjectInput?.value || "PUNJABI";
         const selectedMockLanguage = lessonMockTestLanguageModeInput?.value || "";
+        const selectedMockAccessCode = lessonMockTestAccessCodeInput?.value || "";
 
         if (!selectedMockLessonId) {
           setMessage("Select course, subject, and chapter before creating a test.", "error");
@@ -6164,6 +6234,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (!selectedMockTitle) {
           setMessage("Test title is required.", "error");
+          return;
+        }
+        if (!selectedMockAccessCode) {
+          setMessage("Access code is required.", "error");
           return;
         }
         if (NON_LANGUAGE_SUBJECTS.has(selectedMockSubject) && !selectedMockLanguage) {
@@ -6571,7 +6645,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           lessonMockTestLanguageModeInput.value = test.languageMode || "";
         }
         if (lessonMockTestAccessCodeInput) {
-          lessonMockTestAccessCodeInput.value = test.accessCode || "DEMO";
+          lessonMockTestAccessCodeInput.value = test.accessCode || "";
         }
         if (lessonMockTestCategoryInput) {
           lessonMockTestCategoryInput.value = test.mockCategory || "PREMIUM";

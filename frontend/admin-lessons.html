@@ -459,7 +459,8 @@
                 </div>
                 <div class="admin-field">
                   <label for="lessonMockTestAccessCode">Access Code</label>
-                  <select id="lessonMockTestAccessCode">
+                  <select id="lessonMockTestAccessCode" required>
+                    <option value="">Select access</option>
                     <option value="DEMO">DEMO (Free for all)</option>
                     <option value="MOCK">MOCK (Needs product)</option>
                     <option value="LESSON">LESSON (Needs lesson/product access)</option>
@@ -782,6 +783,10 @@
                     <input id="lessonQuestionExplanationAlt" />
                   </div>
                 </div>
+                <div class="admin-field">
+                  <label for="lessonQuestionDisplayOrder">Insert Position</label>
+                  <select id="lessonQuestionDisplayOrder"></select>
+                </div>
                 <div class="admin-actions">
                   <label class="admin-field inline-check" style="margin: 0">
                     <input id="lessonQuestionIsActive" type="checkbox" checked />
@@ -890,6 +895,7 @@
                 <table class="admin-table">
                   <thead>
                     <tr>
+                      <th>#</th>
                       <th>Left Question</th>
                       <th>Right Question</th>
                       <th>A</th>
@@ -1205,6 +1211,10 @@
               <input id="lessonQuestionEditExplanationAlt" />
             </div>
           </div>
+          <div class="admin-field">
+            <label for="lessonQuestionEditDisplayOrder">Position</label>
+            <select id="lessonQuestionEditDisplayOrder"></select>
+          </div>
           <div class="admin-actions">
             <label class="admin-field inline-check" style="margin: 0">
               <input id="lessonQuestionEditIsActive" type="checkbox" checked />
@@ -1217,7 +1227,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=87"></script>
+    <script type="module" src="./src/admin-lessons.js?v=88"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

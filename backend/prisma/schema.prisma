@@ -339,6 +339,7 @@ model Question {
   explanation  String?     @db.Text
   explanationAlt String?   @db.Text
   sectionLabel String?     @db.VarChar(120)
+  displayOrder Int         @default(0)
   isActive     Boolean     @default(true)
   mockTest     MockTest    @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
   attemptQuestions AttemptQuestion[]
@@ -347,6 +348,7 @@ model Question {
   updatedAt    DateTime    @updatedAt
 
   @@index([mockTestId, isActive])
+  @@index([mockTestId, displayOrder])
   @@index([mockTestId, sectionLabel, isActive])
 }
 
