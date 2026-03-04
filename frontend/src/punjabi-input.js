@@ -357,6 +357,26 @@ const setControlValue = (control, nextValue, nextCaret) => {
   }
 };
 
+const replaceSentenceTerminatorShortcut = (control, state) => {
+  const value = String(control.value || "");
+  const caret = control.selectionStart ?? value.length;
+  if ((control.selectionEnd ?? caret) !== caret) return false;
+  if (caret < 2) return false;
+
+  const tokenRange = findRomanTokenRangeAtCaret(value, caret);
+  if (!tokenRange || normalizeRomanToken(tokenRange.token) !== "ll") return false;
+
+  const nextValue = replaceRange(value, tokenRange.start, tokenRange.end, "।");
+  const nextCaret = tokenRange.start + 1;
+  state.internalUpdate = true;
+  setControlValue(control, nextValue, nextCaret);
+  state.internalUpdate = false;
+  state.lastCommit = null;
+  state.activeSelection = null;
+  hideDropdown();
+  return true;
+};
+
 const ensureDropdown = () => {
   if (dropdownState.root instanceof HTMLElement) return dropdownState.root;
   const root = document.createElement("div");
@@ -776,6 +796,11 @@ export const applyPunjabiInputMode = (control, getMode) => {
       return;
     }
     if (event?.isComposing) return;
+
+    if (replaceSentenceTerminatorShortcut(control, state)) {
+      state.liveRequestId += 1;
+      return;
+    }
 
     if (COMMIT_BOUNDARY_PATTERN.test(String(event?.data || ""))) {
       void commitCurrentToken(control, state, currentMode);

@@ -16,7 +16,7 @@ import {
   requireRoleGuardStrict,
   showConfirmDialog,
 } from "./mock-api.js?v=2";
-import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js?v=6";
+import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js?v=7";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
@@ -365,7 +365,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderQuestionInputModeHints = () => {
     const modeLabel = getPunjabiInputModeLabel(getQuestionInputMode());
-    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.`;
+    const transliterationHint =
+      getQuestionInputMode() === "ENGLISH"
+        ? ""
+        : " Use `ll` for `।`; `.` stays available for maths and decimals.";
+    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.${transliterationHint}`;
     if (lessonQuestionInputModeHint instanceof HTMLElement) {
       lessonQuestionInputModeHint.textContent = hintText;
     }
