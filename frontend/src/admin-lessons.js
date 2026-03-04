@@ -2942,10 +2942,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (mentionsMaths) return "MATHS";
     return "CHILD_PEDAGOGY";
   };
+  const normalizeMockSubjectValue = (value) => {
+    const raw = String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/^\d+\s*[\.\-:)]\s*/, "")
+      .replace(/\s+/g, " ");
+
+    if (!raw) return "PUNJABI";
+    if (raw === "MATHEMATICS") return "MATHS";
+    if (raw === "CHILD PEDAGOGY" || raw === "CHILD DEVELOPMENT & PEDAGOGY") {
+      return "CHILD_PEDAGOGY";
+    }
+    if (raw === "SCIENCE/MATH" || raw === "SCIENCE & MATH") return "SCIENCE_MATH";
+    if (raw === "SOCIAL STUDIES" || raw === "SOCIAL STUDY") return "SOCIAL_STUDIES";
+    if (raw === "MATHS/EVS" || raw === "MATHS EVS" || raw === "MATHEMATICS/EVS") {
+      return "MATHS_EVS";
+    }
+    if (raw.includes("EVS") && !raw.includes("MATH")) return "EVS";
+    if ((raw.includes("MATH") || raw.includes("MATHEMAT")) && raw.includes("EVS")) {
+      return "MATHS_EVS";
+    }
+    if (raw.includes("MATH") || raw.includes("MATHEMAT")) return "MATHS";
+    return raw.replace(/\s+/g, "_");
+  };
   const syncMockTaxonomyFromScope = (options = {}) => {
     const { force = false } = options;
     const examType = inferMockExamTypeFromCourse();
-    const subject = inferMockSubjectFromChapter();
+    const subject = normalizeMockSubjectValue(inferMockSubjectFromChapter());
     if (lessonMockTestExamTypeInput) {
       const hasValue = Boolean(String(lessonMockTestExamTypeInput.value || "").trim());
       if (force || !hasValue || !state.selectedMockTestId) {
@@ -5102,7 +5126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const payload = {
       title: lessonMockTestTitleInput?.value?.trim() || "",
       examType: lessonMockTestExamTypeInput?.value || "PSTET_1",
-      subject: lessonMockTestSubjectInput?.value || "PUNJABI",
+      subject: normalizeMockSubjectValue(lessonMockTestSubjectInput?.value || "PUNJABI"),
       streamChoice: lessonMockTestStreamChoiceInput?.value || null,
       languageMode: lessonMockTestLanguageModeInput?.value || null,
       accessCode: lessonMockTestAccessCodeInput?.value || "",

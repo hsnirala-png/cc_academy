@@ -5,6 +5,45 @@ const parseEmptyAsUndefined = (value: unknown): unknown => {
   return value;
 };
 
+const normalizeMockSubjectValue = (value: unknown): unknown => {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/^\d+\s*[\.\-:)]\s*/, "")
+    .replace(/\s+/g, " ");
+
+  if (!raw) return value;
+  if (raw === "MATHEMATICS") return "MATHS";
+  if (raw === "CHILD PEDAGOGY" || raw === "CHILD DEVELOPMENT & PEDAGOGY") {
+    return "CHILD_PEDAGOGY";
+  }
+  if (raw === "SCIENCE/MATH" || raw === "SCIENCE & MATH") return "SCIENCE_MATH";
+  if (raw === "SOCIAL STUDIES" || raw === "SOCIAL STUDY") return "SOCIAL_STUDIES";
+  if (raw === "MATHS/EVS" || raw === "MATHS EVS" || raw === "MATHEMATICS/EVS") {
+    return "MATHS_EVS";
+  }
+  if (raw.includes("EVS") && !raw.includes("MATH")) return "EVS";
+  if ((raw.includes("MATH") || raw.includes("MATHEMAT")) && raw.includes("EVS")) {
+    return "MATHS_EVS";
+  }
+  if (raw.includes("MATH") || raw.includes("MATHEMAT")) return "MATHS";
+  return raw.replace(/\s+/g, "_");
+};
+
+const mockSubjectSchema = z.preprocess(
+  normalizeMockSubjectValue,
+  z.enum([
+    "PUNJABI",
+    "ENGLISH",
+    "CHILD_PEDAGOGY",
+    "MATHS",
+    "EVS",
+    "MATHS_EVS",
+    "SCIENCE_MATH",
+    "SOCIAL_STUDIES",
+  ])
+);
+
 const optionalStreamChoiceSchema = z.preprocess(
   (value) => {
     if (value === "") return undefined;
@@ -33,16 +72,7 @@ const optionalSectionLabelSchema = z.preprocess(
 export const adminCreateMockTestSchema = z.object({
   title: z.string().trim().min(2).max(180),
   examType: z.enum(["PSTET_1", "PSTET_2"]),
-  subject: z.enum([
-    "PUNJABI",
-    "ENGLISH",
-    "CHILD_PEDAGOGY",
-    "MATHS",
-    "EVS",
-    "MATHS_EVS",
-    "SCIENCE_MATH",
-    "SOCIAL_STUDIES",
-  ]),
+  subject: mockSubjectSchema,
   streamChoice: optionalStreamChoiceSchema,
   languageMode: optionalLanguageModeSchema,
   accessCode: z.enum(["DEMO", "MOCK", "LESSON"]).optional(),
@@ -126,19 +156,12 @@ export const adminUpdateMockTestSectionSchema = adminCreateMockTestSectionSchema
 export const adminAttemptsFilterSchema = z.object({
   examType: z.preprocess(parseEmptyAsUndefined, z.enum(["PSTET_1", "PSTET_2"]).optional()),
   subject: z.preprocess(
-    parseEmptyAsUndefined,
-    z
-      .enum([
-        "PUNJABI",
-        "ENGLISH",
-        "CHILD_PEDAGOGY",
-        "MATHS",
-        "EVS",
-        "MATHS_EVS",
-        "SCIENCE_MATH",
-        "SOCIAL_STUDIES",
-      ])
-      .optional()
+    (value) => {
+      const normalized = parseEmptyAsUndefined(value);
+      if (normalized === undefined) return undefined;
+      return normalizeMockSubjectValue(normalized);
+    },
+    mockSubjectSchema.optional()
   ),
   studentId: z.preprocess(parseEmptyAsUndefined, z.string().trim().min(2).max(64).optional()),
   dateFrom: z.preprocess(parseEmptyAsUndefined, z.coerce.date().optional()),
@@ -152,16 +175,7 @@ export const adminAttemptsFilterSchema = z.object({
 
 export const studentMockTestsQuerySchema = z.object({
   examType: z.enum(["PSTET_1", "PSTET_2"]),
-  subject: z.enum([
-    "PUNJABI",
-    "ENGLISH",
-    "CHILD_PEDAGOGY",
-    "MATHS",
-    "EVS",
-    "MATHS_EVS",
-    "SCIENCE_MATH",
-    "SOCIAL_STUDIES",
-  ]),
+  subject: mockSubjectSchema,
   streamChoice: optionalStreamChoiceSchema,
   languageMode: optionalLanguageModeSchema,
 });
