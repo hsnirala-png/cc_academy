@@ -16,7 +16,7 @@ import {
   requireRoleGuardStrict,
   showConfirmDialog,
 } from "./mock-api.js?v=2";
-import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js";
+import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js?v=2";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
