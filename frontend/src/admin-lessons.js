@@ -16,6 +16,7 @@ import {
   requireRoleGuardStrict,
   showConfirmDialog,
 } from "./mock-api.js?v=2";
+import { applyPunjabiInputMode, getPunjabiInputModeLabel } from "./punjabi-input.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("ADMIN");
@@ -152,6 +153,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionIdInput = document.querySelector("#lessonQuestionId");
   const lessonQuestionAltToggleWrap = document.querySelector("#lessonQuestionAltToggleWrap");
   const lessonQuestionAltToggleInput = document.querySelector("#lessonQuestionAltToggle");
+  const lessonQuestionInputModeInput = document.querySelector("#lessonQuestionInputMode");
+  const lessonQuestionInputModeHint = document.querySelector("#lessonQuestionInputModeHint");
   const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
   const lessonQuestionPassageTextInput = document.querySelector("#lessonQuestionPassageText");
   const lessonQuestionFormulaWrap = document.querySelector("#lessonQuestionFormulaWrap");
@@ -245,6 +248,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditClose = document.querySelector("#lessonQuestionEditClose");
   const lessonQuestionEditForm = document.querySelector("#lessonQuestionEditForm");
   const lessonQuestionEditIdInput = document.querySelector("#lessonQuestionEditId");
+  const lessonQuestionEditInputModeInput = document.querySelector("#lessonQuestionEditInputMode");
+  const lessonQuestionEditInputModeHint = document.querySelector("#lessonQuestionEditInputModeHint");
   const lessonQuestionEditBilingualWrap = document.querySelector("#lessonQuestionEditBilingualWrap");
   const lessonQuestionEditTextInput = document.querySelector("#lessonQuestionEditText");
   const lessonQuestionEditTextAltInput = document.querySelector("#lessonQuestionEditTextAlt");
@@ -304,6 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentTab: "courses",
     testsBuilderTab: "transcript",
     questionBankMode: "sections",
+    questionInputMode: "ENGLISH",
     previewAudioUrl: "",
     previewAudioPlayer: null,
   };
@@ -354,6 +360,69 @@ document.addEventListener("DOMContentLoaded", async () => {
   let voiceGenerationHideTimer = null;
   let voiceGenerationProgressValue = 0;
   let previewSyncRafId = 0;
+
+  const getQuestionInputMode = () => String(state.questionInputMode || "ENGLISH").toUpperCase();
+
+  const renderQuestionInputModeHints = () => {
+    const modeLabel = getPunjabiInputModeLabel(getQuestionInputMode());
+    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.`;
+    if (lessonQuestionInputModeHint instanceof HTMLElement) {
+      lessonQuestionInputModeHint.textContent = hintText;
+    }
+    if (lessonQuestionEditInputModeHint instanceof HTMLElement) {
+      lessonQuestionEditInputModeHint.textContent = hintText;
+    }
+  };
+
+  const syncQuestionInputModeControls = () => {
+    const currentMode = getQuestionInputMode();
+    if (lessonQuestionInputModeInput instanceof HTMLSelectElement) {
+      lessonQuestionInputModeInput.value = currentMode;
+    }
+    if (lessonQuestionEditInputModeInput instanceof HTMLSelectElement) {
+      lessonQuestionEditInputModeInput.value = currentMode;
+    }
+    renderQuestionInputModeHints();
+  };
+
+  const setQuestionInputMode = (nextMode) => {
+    state.questionInputMode = String(nextMode || "ENGLISH").toUpperCase() === "PUNJABI" ? "PUNJABI" : "ENGLISH";
+    syncQuestionInputModeControls();
+  };
+
+  [
+    lessonQuestionPassageTextInput,
+    lessonQuestionFormulaTextInput,
+    lessonQuestionEquationTextInput,
+    lessonQuestionTextInput,
+    lessonQuestionTextAltInput,
+    lessonOptionAInput,
+    lessonOptionAAltInput,
+    lessonOptionBInput,
+    lessonOptionBAltInput,
+    lessonOptionCInput,
+    lessonOptionCAltInput,
+    lessonOptionDInput,
+    lessonOptionDAltInput,
+    lessonQuestionExplanationInput,
+    lessonQuestionExplanationAltInput,
+    lessonQuestionEditTextInput,
+    lessonQuestionEditTextAltInput,
+    lessonQuestionEditOptionAInput,
+    lessonQuestionEditOptionAAltInput,
+    lessonQuestionEditOptionBInput,
+    lessonQuestionEditOptionBAltInput,
+    lessonQuestionEditOptionCInput,
+    lessonQuestionEditOptionCAltInput,
+    lessonQuestionEditOptionDInput,
+    lessonQuestionEditOptionDAltInput,
+    lessonQuestionEditExplanationInput,
+    lessonQuestionEditExplanationAltInput,
+  ].forEach((control) => {
+    applyPunjabiInputMode(control, getQuestionInputMode);
+  });
+
+  syncQuestionInputModeControls();
 
   const goAdminLogin = () => {
     window.location.href = "./admin-login.html";
@@ -3023,6 +3092,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const resetLessonQuestionForm = () => {
     if (!(lessonQuestionForm instanceof HTMLFormElement)) return;
     lessonQuestionForm.reset();
+    syncQuestionInputModeControls();
     if (lessonQuestionIdInput instanceof HTMLInputElement) lessonQuestionIdInput.value = "";
     if (lessonQuestionSectionInput instanceof HTMLSelectElement) {
       const defaultSection =
@@ -3227,6 +3297,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const resetLessonQuestionEditForm = () => {
     if (!(lessonQuestionEditForm instanceof HTMLFormElement)) return;
     lessonQuestionEditForm.reset();
+    syncQuestionInputModeControls();
     if (lessonQuestionEditIdInput instanceof HTMLInputElement) lessonQuestionEditIdInput.value = "";
     if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
       const defaultSection =
@@ -6014,6 +6085,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
     lessonMockTestLanguageModeInput.addEventListener("change", () => {
       toggleBilingualQuestionInputs();
+    });
+  }
+
+  if (lessonQuestionInputModeInput instanceof HTMLSelectElement) {
+    lessonQuestionInputModeInput.addEventListener("change", () => {
+      setQuestionInputMode(lessonQuestionInputModeInput.value);
+    });
+  }
+
+  if (lessonQuestionEditInputModeInput instanceof HTMLSelectElement) {
+    lessonQuestionEditInputModeInput.addEventListener("change", () => {
+      setQuestionInputMode(lessonQuestionEditInputModeInput.value);
     });
   }
 

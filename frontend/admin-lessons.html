@@ -697,7 +697,17 @@
                     <input id="lessonQuestionAltToggle" type="checkbox" />
                     <span>This question uses both left and right languages</span>
                   </label>
+                  <div class="admin-field" style="margin: 0; min-width: 220px">
+                    <label for="lessonQuestionInputMode" style="margin-bottom: 0.2rem">Input Mode</label>
+                    <select id="lessonQuestionInputMode">
+                      <option value="ENGLISH">English Typing</option>
+                      <option value="PUNJABI">Punjabi Transliteration</option>
+                    </select>
+                  </div>
                 </div>
+                <p id="lessonQuestionInputModeHint" class="admin-subtitle" style="margin: 0 0 0.5rem">
+                  Punjabi transliteration is applied on space, punctuation, and field blur for question entry fields only.
+                </p>
                 <div id="lessonQuestionPassageWrap" class="admin-field hidden">
                   <label for="lessonQuestionPassageText">Passage / Paragraph / Shared Context</label>
                   <textarea id="lessonQuestionPassageText" rows="4"></textarea>
@@ -1139,6 +1149,16 @@
         <form id="lessonQuestionEditForm" class="admin-form">
           <input id="lessonQuestionEditId" type="hidden" />
           <div class="admin-field">
+            <label for="lessonQuestionEditInputMode">Input Mode</label>
+            <select id="lessonQuestionEditInputMode">
+              <option value="ENGLISH">English Typing</option>
+              <option value="PUNJABI">Punjabi Transliteration</option>
+            </select>
+          </div>
+          <p id="lessonQuestionEditInputModeHint" class="admin-subtitle" style="margin: -0.1rem 0 0.5rem">
+            Punjabi transliteration is applied on space, punctuation, and field blur for question entry fields only.
+          </p>
+          <div class="admin-field">
             <label for="lessonQuestionEditText">Left Question Text</label>
             <textarea id="lessonQuestionEditText" required></textarea>
           </div>
@@ -1227,7 +1247,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=88"></script>
+    <script type="module" src="./src/admin-lessons.js?v=89"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>
