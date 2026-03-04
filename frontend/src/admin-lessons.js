@@ -2141,6 +2141,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     "SCIENCE_MATH",
     "SOCIAL_STUDIES",
   ]);
+  const SUBJECTS_BY_EXAM = {
+    PSTET_1: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "MATHS", "EVS"],
+    PSTET_2: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "SCIENCE_MATH", "SOCIAL_STUDIES"],
+  };
   const CHAPTER_SUB_SUBJECT_LABELS = {
     SOCIAL_STUDIES: "SST",
     SCIENCE_MATH: "SCI + MATHS",
@@ -2917,7 +2921,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     return "PSTET_1";
   };
-  const inferMockSubjectFromChapter = () => {
+  const inferMockSubjectFromChapter = (examType = inferMockExamTypeFromCourse()) => {
     const chapterTitle = normalizeLookupText(selectedMockChapter()?.title || "");
     const lessonTitle = normalizeLookupText(selectedMockLesson()?.title || "");
     const combinedTitle = `${chapterTitle} ${lessonTitle}`.trim();
@@ -2925,8 +2929,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (combinedTitle.includes("punjabi")) return "PUNJABI";
     if (combinedTitle.includes("english")) return "ENGLISH";
     if (combinedTitle.includes("child") || combinedTitle.includes("pedagogy")) return "CHILD_PEDAGOGY";
-    if (combinedTitle.includes("social")) return "SOCIAL_STUDIES";
-    if (combinedTitle.includes("science") && combinedTitle.includes("math")) return "SCIENCE_MATH";
 
     const mentionsEvs =
       combinedTitle.includes("evs") ||
@@ -2940,6 +2942,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (mentionsMaths && mentionsEvs) return "MATHS_EVS";
     if (mentionsEvs) return "EVS";
     if (mentionsMaths) return "MATHS";
+    if (examType === "PSTET_2") {
+      if (combinedTitle.includes("social")) return "SOCIAL_STUDIES";
+      if (combinedTitle.includes("science") && combinedTitle.includes("math")) return "SCIENCE_MATH";
+    }
     return "CHILD_PEDAGOGY";
   };
   const normalizeMockSubjectValue = (value) => {
@@ -2966,16 +2972,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (raw.includes("MATH") || raw.includes("MATHEMAT")) return "MATHS";
     return raw.replace(/\s+/g, "_");
   };
+  const syncMockSubjectOptionsByExam = () => {
+    if (!(lessonMockTestSubjectInput instanceof HTMLSelectElement)) return;
+    const examType = lessonMockTestExamTypeInput?.value || "PSTET_1";
+    const allowedSubjects = new Set(SUBJECTS_BY_EXAM[examType] || SUBJECTS_BY_EXAM.PSTET_1);
+    Array.from(lessonMockTestSubjectInput.options).forEach((option) => {
+      const allowed = allowedSubjects.has(option.value);
+      option.hidden = !allowed;
+      option.disabled = !allowed;
+    });
+    const normalizedCurrent = normalizeMockSubjectValue(lessonMockTestSubjectInput.value || "");
+    lessonMockTestSubjectInput.value = allowedSubjects.has(normalizedCurrent)
+      ? normalizedCurrent
+      : normalizeMockSubjectValue(inferMockSubjectFromChapter(examType));
+  };
   const syncMockTaxonomyFromScope = (options = {}) => {
     const { force = false } = options;
     const examType = inferMockExamTypeFromCourse();
-    const subject = normalizeMockSubjectValue(inferMockSubjectFromChapter());
+    const subject = normalizeMockSubjectValue(inferMockSubjectFromChapter(examType));
     if (lessonMockTestExamTypeInput) {
       const hasValue = Boolean(String(lessonMockTestExamTypeInput.value || "").trim());
       if (force || !hasValue || !state.selectedMockTestId) {
         lessonMockTestExamTypeInput.value = examType;
       }
     }
+    syncMockSubjectOptionsByExam();
     if (lessonMockTestSubjectInput) {
       const hasValue = Boolean(String(lessonMockTestSubjectInput.value || "").trim());
       if (force || !hasValue || !state.selectedMockTestId) {
@@ -4082,6 +4103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const toggleMockSubjectDependentFields = () => {
     const examType = lessonMockTestExamTypeInput?.value || "PSTET_1";
+    syncMockSubjectOptionsByExam();
     const subject = lessonMockTestSubjectInput?.value || "PUNJABI";
     const shouldShowStream =
       examType === "PSTET_2" && (subject === "SCIENCE_MATH" || subject === "SOCIAL_STUDIES");
