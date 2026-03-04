@@ -362,6 +362,157 @@ document.addEventListener("DOMContentLoaded", async () => {
   let previewSyncRafId = 0;
 
   const getQuestionInputMode = () => String(state.questionInputMode || "ENGLISH").toUpperCase();
+  const AUTO_TRANSLATION_INPUT_MODES = new Set(["PUNJABI", "HINDI"]);
+
+  const getQuestionTranslationProfile = () => {
+    if (!isBilingualQuestionMode()) return null;
+    const inputMode = getQuestionInputMode();
+    if (inputMode === "PUNJABI") {
+      return { sourceLanguage: "punjabi", targetLanguage: "english" };
+    }
+    if (inputMode === "HINDI") {
+      return { sourceLanguage: "hindi", targetLanguage: "english" };
+    }
+    return null;
+  };
+
+  const clearAutoTranslationMeta = (control) => {
+    if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) return;
+    delete control.dataset.autoTranslationSource;
+    delete control.dataset.autoTranslationGenerated;
+    delete control.dataset.autoTranslationEdited;
+    delete control.dataset.autoTranslationPending;
+    delete control.dataset.autoTranslationApplying;
+  };
+
+  const setAutoTranslationMeta = (control, sourceText, translatedText) => {
+    if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) return;
+    control.dataset.autoTranslationApplying = "true";
+    control.value = translatedText;
+    control.dataset.autoTranslationSource = sourceText;
+    control.dataset.autoTranslationGenerated = translatedText ? "true" : "false";
+    control.dataset.autoTranslationEdited = "false";
+    delete control.dataset.autoTranslationPending;
+    control.dataset.autoTranslationApplying = "false";
+  };
+
+  const markAutoTranslationEdited = (control) => {
+    if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) return;
+    if (control.dataset.autoTranslationApplying === "true") return;
+    if (String(control.value || "").trim()) {
+      control.dataset.autoTranslationEdited = "true";
+      control.dataset.autoTranslationGenerated = "false";
+    } else {
+      control.dataset.autoTranslationEdited = "false";
+      control.dataset.autoTranslationGenerated = "false";
+      delete control.dataset.autoTranslationSource;
+    }
+  };
+
+  const requestAdminFieldTranslation = async (text, sourceLanguage, targetLanguage) => {
+    const response = await apiRequest({
+      path: "/api/admin/translation/field",
+      method: "POST",
+      token,
+      body: {
+        text,
+        sourceLanguage,
+        targetLanguage,
+      },
+    });
+    return String(response?.translation || "").trim();
+  };
+
+  const maybeAutoTranslateField = async (leftControl, rightControl) => {
+    if (
+      !(leftControl instanceof HTMLInputElement || leftControl instanceof HTMLTextAreaElement) ||
+      !(rightControl instanceof HTMLInputElement || rightControl instanceof HTMLTextAreaElement)
+    ) {
+      return;
+    }
+
+    const profile = getQuestionTranslationProfile();
+    if (!profile || !AUTO_TRANSLATION_INPUT_MODES.has(getQuestionInputMode())) return;
+
+    const sourceText = String(leftControl.value || "").trim();
+    if (!sourceText) {
+      if (
+        rightControl.dataset.autoTranslationGenerated === "true" &&
+        rightControl.dataset.autoTranslationEdited !== "true"
+      ) {
+        rightControl.value = "";
+        clearAutoTranslationMeta(rightControl);
+      }
+      return;
+    }
+
+    const currentRightText = String(rightControl.value || "").trim();
+    const generated = rightControl.dataset.autoTranslationGenerated === "true";
+    const edited = rightControl.dataset.autoTranslationEdited === "true";
+    const lastSource = String(rightControl.dataset.autoTranslationSource || "");
+
+    if (edited && currentRightText) return;
+    if (currentRightText && !generated) return;
+    if (generated && currentRightText && lastSource === sourceText) return;
+
+    const requestKey = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    rightControl.dataset.autoTranslationPending = requestKey;
+
+    try {
+      const translatedText = await requestAdminFieldTranslation(
+        sourceText,
+        profile.sourceLanguage,
+        profile.targetLanguage
+      );
+      if (!translatedText) return;
+      if (rightControl.dataset.autoTranslationPending !== requestKey) return;
+      if (String(leftControl.value || "").trim() !== sourceText) return;
+      if (rightControl.dataset.autoTranslationEdited === "true" && String(rightControl.value || "").trim()) return;
+      setAutoTranslationMeta(rightControl, sourceText, translatedText);
+    } catch (error) {
+      console.error("Unable to auto-translate right-side field.", error);
+    } finally {
+      if (rightControl.dataset.autoTranslationPending === requestKey) {
+        delete rightControl.dataset.autoTranslationPending;
+      }
+    }
+  };
+
+  const bindAutoTranslationPair = (leftControl, rightControl) => {
+    if (
+      !(leftControl instanceof HTMLInputElement || leftControl instanceof HTMLTextAreaElement) ||
+      !(rightControl instanceof HTMLInputElement || rightControl instanceof HTMLTextAreaElement)
+    ) {
+      return;
+    }
+
+    rightControl.addEventListener("input", () => {
+      markAutoTranslationEdited(rightControl);
+    });
+    leftControl.addEventListener("blur", () => {
+      void maybeAutoTranslateField(leftControl, rightControl);
+    });
+  };
+
+  const autoTranslateVisibleQuestionFields = () => {
+    if (!getQuestionTranslationProfile()) return;
+    [
+      [lessonQuestionTextInput, lessonQuestionTextAltInput],
+      [lessonOptionAInput, lessonOptionAAltInput],
+      [lessonOptionBInput, lessonOptionBAltInput],
+      [lessonOptionCInput, lessonOptionCAltInput],
+      [lessonOptionDInput, lessonOptionDAltInput],
+      [lessonQuestionExplanationInput, lessonQuestionExplanationAltInput],
+      [lessonQuestionEditTextInput, lessonQuestionEditTextAltInput],
+      [lessonQuestionEditOptionAInput, lessonQuestionEditOptionAAltInput],
+      [lessonQuestionEditOptionBInput, lessonQuestionEditOptionBAltInput],
+      [lessonQuestionEditOptionCInput, lessonQuestionEditOptionCAltInput],
+      [lessonQuestionEditOptionDInput, lessonQuestionEditOptionDAltInput],
+      [lessonQuestionEditExplanationInput, lessonQuestionEditExplanationAltInput],
+    ].forEach(([leftControl, rightControl]) => {
+      void maybeAutoTranslateField(leftControl, rightControl);
+    });
+  };
 
   const renderQuestionInputModeHints = () => {
     const modeLabel = getPunjabiInputModeLabel(getQuestionInputMode());
@@ -369,7 +520,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       getQuestionInputMode() === "ENGLISH"
         ? ""
         : " Use `ll` for `।`; `.` stays available for maths and decimals.";
-    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.${transliterationHint}`;
+    const translationHint = getQuestionTranslationProfile()
+      ? " Right-side English fields auto-fill from the left on blur, and remain editable."
+      : "";
+    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.${transliterationHint}${translationHint}`;
     if (lessonQuestionInputModeHint instanceof HTMLElement) {
       lessonQuestionInputModeHint.textContent = hintText;
     }
@@ -426,6 +580,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionEditExplanationAltInput,
   ].forEach((control) => {
     applyPunjabiInputMode(control, getQuestionInputMode);
+  });
+
+  [
+    [lessonQuestionTextInput, lessonQuestionTextAltInput],
+    [lessonOptionAInput, lessonOptionAAltInput],
+    [lessonOptionBInput, lessonOptionBAltInput],
+    [lessonOptionCInput, lessonOptionCAltInput],
+    [lessonOptionDInput, lessonOptionDAltInput],
+    [lessonQuestionExplanationInput, lessonQuestionExplanationAltInput],
+    [lessonQuestionEditTextInput, lessonQuestionEditTextAltInput],
+    [lessonQuestionEditOptionAInput, lessonQuestionEditOptionAAltInput],
+    [lessonQuestionEditOptionBInput, lessonQuestionEditOptionBAltInput],
+    [lessonQuestionEditOptionCInput, lessonQuestionEditOptionCAltInput],
+    [lessonQuestionEditOptionDInput, lessonQuestionEditOptionDAltInput],
+    [lessonQuestionEditExplanationInput, lessonQuestionEditExplanationAltInput],
+  ].forEach(([leftControl, rightControl]) => {
+    bindAutoTranslationPair(leftControl, rightControl);
   });
 
   syncQuestionInputModeControls();
@@ -2284,9 +2455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         String(payload?.optionCAlt || "").trim() &&
         String(payload?.optionDAlt || "").trim()
     );
-  const isManualQuestionAltEnabled = () =>
-    isBilingualQuestionMode() &&
-    Boolean(lessonQuestionAltToggleInput instanceof HTMLInputElement && lessonQuestionAltToggleInput.checked);
   const isLineImportAltEnabled = () =>
     isBilingualQuestionMode() &&
     Boolean(lessonBulkImportUseAltInput instanceof HTMLInputElement && lessonBulkImportUseAltInput.checked);
@@ -2330,7 +2498,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "This test is single-language, so questions, line import, and CSV upload use only the left-side fields.";
       return;
     }
-    const manualMode = isManualQuestionAltEnabled() ? "both languages" : "one language";
+    const manualMode = "both languages";
     lessonQuestionTypeGuide.textContent =
       `This test is bilingual. Manual entry is currently set for ${manualMode}; line import and CSV can also stay single-language unless you enable their right-language pairs.`;
   };
@@ -2345,10 +2513,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const toggleBilingualQuestionInputs = () => {
     const isBilingual = isBilingualQuestionMode();
-    const manualAlt = isManualQuestionAltEnabled();
+    const manualAlt = isBilingual;
     const lineAlt = isLineImportAltEnabled();
     const csvAlt = isCsvImportAltEnabled();
-    lessonQuestionAltToggleWrap?.classList.toggle("hidden", !isBilingual);
+    lessonQuestionAltToggleWrap?.classList.add("hidden");
+    if (lessonQuestionAltToggleInput instanceof HTMLInputElement) {
+      lessonQuestionAltToggleInput.checked = isBilingual;
+    }
     lessonBulkImportUseAltWrap?.classList.toggle("hidden", !isBilingual);
     lessonBulkImportCsvUseAltWrap?.classList.toggle("hidden", !isBilingual);
     lessonQuestionBilingualWrap?.classList.toggle("hidden", !manualAlt);
@@ -2382,21 +2553,30 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
         lessonQuestionEditExplanationAltInput.value = "";
       }
+      [
+        lessonQuestionTextAltInput,
+        lessonOptionAAltInput,
+        lessonOptionBAltInput,
+        lessonOptionCAltInput,
+        lessonOptionDAltInput,
+        lessonQuestionExplanationAltInput,
+        lessonQuestionEditTextAltInput,
+        lessonQuestionEditOptionAAltInput,
+        lessonQuestionEditOptionBAltInput,
+        lessonQuestionEditOptionCAltInput,
+        lessonQuestionEditOptionDAltInput,
+        lessonQuestionEditExplanationAltInput,
+      ].forEach((control) => {
+        clearAutoTranslationMeta(control);
+      });
     } else {
-      if (!(lessonQuestionAltToggleInput instanceof HTMLInputElement && lessonQuestionAltToggleInput.checked)) {
-        if (lessonQuestionTextAltInput instanceof HTMLTextAreaElement) lessonQuestionTextAltInput.value = "";
-        if (lessonOptionAAltInput instanceof HTMLInputElement) lessonOptionAAltInput.value = "";
-        if (lessonOptionBAltInput instanceof HTMLInputElement) lessonOptionBAltInput.value = "";
-        if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
-        if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
-        if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
-      }
       if (!(lessonBulkImportUseAltInput instanceof HTMLInputElement && lessonBulkImportUseAltInput.checked)) {
         if (lessonBulkImportTextAltInput instanceof HTMLTextAreaElement) lessonBulkImportTextAltInput.value = "";
       }
       if (!(lessonBulkImportCsvUseAltInput instanceof HTMLInputElement && lessonBulkImportCsvUseAltInput.checked)) {
         if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) lessonBulkImportCsvFileAltInput.value = "";
       }
+      autoTranslateVisibleQuestionFields();
     }
     updateQuestionLanguageGuide();
   };
@@ -3163,6 +3343,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonOptionCAltInput instanceof HTMLInputElement) lessonOptionCAltInput.value = "";
     if (lessonOptionDAltInput instanceof HTMLInputElement) lessonOptionDAltInput.value = "";
     if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) lessonQuestionExplanationAltInput.value = "";
+    [
+      lessonQuestionTextAltInput,
+      lessonOptionAAltInput,
+      lessonOptionBAltInput,
+      lessonOptionCAltInput,
+      lessonOptionDAltInput,
+      lessonQuestionExplanationAltInput,
+    ].forEach((control) => {
+      clearAutoTranslationMeta(control);
+    });
     if (lessonQuestionDisplayOrderInput instanceof HTMLSelectElement) {
       renderQuestionDisplayOrderControls({ manualSelectedOrder: orderedMockQuestions().length + 1 });
     }
@@ -3367,6 +3557,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
       lessonQuestionEditExplanationAltInput.value = "";
     }
+    [
+      lessonQuestionEditTextAltInput,
+      lessonQuestionEditOptionAAltInput,
+      lessonQuestionEditOptionBAltInput,
+      lessonQuestionEditOptionCAltInput,
+      lessonQuestionEditOptionDAltInput,
+      lessonQuestionEditExplanationAltInput,
+    ].forEach((control) => {
+      clearAutoTranslationMeta(control);
+    });
     if (lessonQuestionEditDisplayOrderInput instanceof HTMLSelectElement) {
       renderQuestionDisplayOrderControls({ editSelectedOrder: 1, editExcludeQuestionId: "" });
     }
@@ -6143,12 +6343,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonQuestionInputModeInput instanceof HTMLSelectElement) {
     lessonQuestionInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionInputModeInput.value);
+      autoTranslateVisibleQuestionFields();
     });
   }
 
   if (lessonQuestionEditInputModeInput instanceof HTMLSelectElement) {
     lessonQuestionEditInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionEditInputModeInput.value);
+      autoTranslateVisibleQuestionFields();
     });
   }
 
