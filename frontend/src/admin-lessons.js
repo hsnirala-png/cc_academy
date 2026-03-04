@@ -365,7 +365,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const AUTO_TRANSLATION_INPUT_MODES = new Set(["PUNJABI", "HINDI"]);
 
   const getQuestionTranslationProfile = () => {
-    if (!isBilingualQuestionMode()) return null;
+    const currentLanguageMode = String(lessonMockTestLanguageModeInput?.value || "").trim().toUpperCase();
+    if (currentLanguageMode !== "BILINGUAL") return null;
     const inputMode = getQuestionInputMode();
     if (inputMode === "PUNJABI") {
       return { sourceLanguage: "punjabi", targetLanguage: "english" };
