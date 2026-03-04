@@ -1273,12 +1273,13 @@ h1 {
 
 .home-announcement {
   overflow: hidden;
-  margin: 0 5vw 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0f53bd, #1f6ce0);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(15, 83, 189, 0.14);
+  margin: 0 5vw 0.6rem;
+  padding: 0.15rem 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--brand);
+  box-shadow: none;
 }
 
 .home-announcement-track {
@@ -1286,13 +1287,13 @@ h1 {
   min-width: 200%;
   align-items: center;
   gap: 1rem;
-  padding: 0.7rem 1.2rem;
+  padding: 0;
   white-space: nowrap;
   animation: homeAnnouncementScroll 18s linear infinite;
 }
 
 .home-announcement a {
-  color: #fff;
+  color: var(--brand);
   font-weight: 700;
   text-decoration: none;
 }
@@ -1302,7 +1303,7 @@ h1 {
 }
 
 .home-announcement-sep {
-  opacity: 0.72;
+  opacity: 0.5;
 }
 
 .syllabus-main {
@@ -5436,12 +5437,14 @@ h1 {
 
 @media (max-width: 680px) {
   .home-announcement {
-    margin: 0 1rem 0.75rem;
-    border-radius: 18px;
+    margin: 4.85rem 1rem 0.75rem;
+    padding: 0;
+    font-size: 0.92rem;
   }
 
   .home-announcement-track {
     min-width: 260%;
+    padding: 0;
     font-size: 0.92rem;
   }
 
