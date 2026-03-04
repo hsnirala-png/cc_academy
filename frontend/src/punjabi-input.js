@@ -25,6 +25,15 @@ const WORD_SUGGESTIONS = new Map(
     nahin: ["ਨਹੀਂ"],
     punjab: ["ਪੰਜਾਬ", "ਪੁੰਜਾਬ"],
     panjab: ["ਪੰਜਾਬ"],
+    bacha: ["ਬੱਚਾ", "ਬਚਾ"],
+    bachi: ["ਬੱਚੀ", "ਬਚੀ"],
+    bache: ["ਬੱਚੇ", "ਬਚੇ"],
+    bacche: ["ਬੱਚੇ", "ਬਚੇ"],
+    bachian: ["ਬੱਚੀਆਂ", "ਬਚੀਆਂ"],
+    bacchian: ["ਬੱਚੀਆਂ", "ਬਚੀਆਂ"],
+    bachyan: ["ਬੱਚਿਆਂ", "ਬਚਿਆਂ", "ਬਚਯਾਂ"],
+    bacheyan: ["ਬੱਚਿਆਂ", "ਬੱਚੇਆਂ", "ਬਚਿਆਂ"],
+    baccheyan: ["ਬੱਚਿਆਂ", "ਬੱਚੇਆਂ", "ਬਚਿਆਂ"],
     pind: ["ਪਿੰਡ"],
     pinda: ["ਪਿੰਡਾਂ"],
     vich: ["ਵਿਚ"],
@@ -253,12 +262,16 @@ const buildSuggestionVariants = (token) => {
   if (!normalized) return [];
 
   const directSuggestions = WORD_SUGGESTIONS.get(normalized) || [];
+  if (directSuggestions.length) {
+    return uniqueValues([...directSuggestions, normalized]).slice(0, 8);
+  }
+
   const heuristicSuggestions = buildRomanVariants(normalized).flatMap((romanVariant) => {
     const output = transliterateRomanPunjabiWordBasic(romanVariant);
     return [output, ...buildNasalVariants(romanVariant, output)];
   });
 
-  return uniqueValues([...directSuggestions, ...heuristicSuggestions]).slice(0, 8);
+  return uniqueValues([...heuristicSuggestions, normalized]).slice(0, 8);
 };
 
 const findRomanTokenRangeAtCaret = (value, caretIndex) => {
