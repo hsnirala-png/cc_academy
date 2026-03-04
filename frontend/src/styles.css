@@ -5807,6 +5807,16 @@ h1 {
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
+.admin-tab-btn:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.admin-tab-btn:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(15, 83, 189, 0.14);
+}
+
 .admin-tab-btn:hover {
   border-color: var(--brand);
   color: var(--brand);
