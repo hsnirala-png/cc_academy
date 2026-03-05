@@ -4772,6 +4772,10 @@ h1 {
 .attempt-question-text {
   margin: 0.55rem 0 0.9rem;
   font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  tab-size: 4;
 }
 
 .attempt-language-hint {
@@ -4833,6 +4837,12 @@ h1 {
   cursor: pointer;
   box-sizing: border-box;
   width: 100%;
+}
+
+.attempt-option span {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
 }
 
 .attempt-option input {
