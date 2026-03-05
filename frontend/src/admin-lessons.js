@@ -2727,6 +2727,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       panel.classList.toggle("active", panel.getAttribute("data-question-bank-panel") === nextMode);
     });
+    if (nextMode === "review" && lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
+      lessonQuestionSectionFilterInput.value = "ALL";
+      renderLessonQuestions();
+    }
   };
   const updateSectionTypeGuide = () => {
     if (!(lessonSectionTypeGuide instanceof HTMLElement)) return;
@@ -2847,6 +2851,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionSectionFilterInput instanceof HTMLSelectElement
       ? String(lessonQuestionSectionFilterInput.value || "ALL")
       : "ALL";
+  const resetQuestionSectionFilter = () => {
+    if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
+      lessonQuestionSectionFilterInput.value = "ALL";
+    }
+  };
   const activeQuestionSectionFilter = () => {
     const filter = currentQuestionSectionFilter();
     return filter === "ALL" ? "" : filter;
@@ -3515,9 +3524,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchText = String(lessonAttachTestSearchInput?.value || "")
       .trim()
       .toLowerCase();
+    const selectedTitle = String(lessonMockTestTitleInput?.value || "")
+      .trim()
+      .toLowerCase();
+    const selectedSubject = String(lessonMockTestSubjectInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedAccess = String(lessonMockTestAccessCodeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedCategory = String(lessonMockTestCategoryInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedLanguageMode = String(lessonMockTestLanguageModeInput?.value || "")
+      .trim()
+      .toUpperCase();
     return state.mockTestsAdmin.filter((test) => {
       const accessCode = String(test.accessCode || "DEMO").toUpperCase();
       if (selectedFilter !== "all" && accessCode !== String(selectedFilter).toUpperCase()) return false;
+      if (selectedSubject && String(test.subject || "").toUpperCase() !== selectedSubject) return false;
+      if (selectedAccess && accessCode !== selectedAccess) return false;
+      if (selectedCategory && String(test.mockCategory || "").toUpperCase() !== selectedCategory) return false;
+      if (
+        selectedLanguageMode &&
+        String(test.languageMode || "")
+          .trim()
+          .toUpperCase() !== selectedLanguageMode
+      ) {
+        return false;
+      }
+      if (selectedTitle && !String(test.title || "").toLowerCase().includes(selectedTitle)) return false;
       if (!searchText) return true;
       const haystack = [
         String(test.title || ""),
@@ -3529,6 +3565,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         .toLowerCase();
       return haystack.includes(searchText);
     });
+  };
+  const refreshAttachFilteredViews = () => {
+    if (state.testsMode !== "attach") return;
+    renderAttachExistingTestOptions();
+    renderMockTestsAdmin();
   };
 
   const renderAttachExistingTestOptions = () => {
@@ -4023,8 +4064,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     if (!filteredQuestions.length) {
+      const activeFilter = activeQuestionSectionFilter() || "selected section";
       lessonQuestionsTableBody.innerHTML =
-        "<tr><td colspan='10'>No questions found for selected section filter.</td></tr>";
+        `<tr><td colspan='10'>No questions found in "${escapeHtml(
+          activeFilter
+        )}" for this test. Select "All Sections" to review all added questions.</td></tr>`;
       updateLessonQuestionCountWarning();
       return;
     }
@@ -5215,6 +5259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const setSelectedMockTestId = async (mockTestId, options = {}) => {
     const { silent = true, forceQuestionCount = false } = options;
     state.selectedMockTestId = mockTestId || "";
+    resetQuestionSectionFilter();
     if (lessonMockTestIdInput instanceof HTMLInputElement) {
       lessonMockTestIdInput.value = state.selectedMockTestId;
     }
@@ -7191,15 +7236,43 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (lessonAttachFilterTypeInput instanceof HTMLSelectElement) {
     lessonAttachFilterTypeInput.addEventListener("change", () => {
-      renderAttachExistingTestOptions();
-      renderMockTestsAdmin();
+      refreshAttachFilteredViews();
     });
   }
 
   if (lessonAttachTestSearchInput instanceof HTMLInputElement) {
     lessonAttachTestSearchInput.addEventListener("input", () => {
-      renderAttachExistingTestOptions();
-      renderMockTestsAdmin();
+      refreshAttachFilteredViews();
+    });
+  }
+
+  if (lessonMockTestTitleInput instanceof HTMLInputElement) {
+    lessonMockTestTitleInput.addEventListener("input", () => {
+      refreshAttachFilteredViews();
+    });
+  }
+
+  if (lessonMockTestSubjectInput instanceof HTMLSelectElement) {
+    lessonMockTestSubjectInput.addEventListener("change", () => {
+      refreshAttachFilteredViews();
+    });
+  }
+
+  if (lessonMockTestAccessCodeInput instanceof HTMLSelectElement) {
+    lessonMockTestAccessCodeInput.addEventListener("change", () => {
+      refreshAttachFilteredViews();
+    });
+  }
+
+  if (lessonMockTestCategoryInput instanceof HTMLSelectElement) {
+    lessonMockTestCategoryInput.addEventListener("change", () => {
+      refreshAttachFilteredViews();
+    });
+  }
+
+  if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
+    lessonMockTestLanguageModeInput.addEventListener("change", () => {
+      refreshAttachFilteredViews();
     });
   }
 
