@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Digital Lessons</title>
-    <link rel="stylesheet" href="./src/styles.css?v=44" />
+    <link rel="stylesheet" href="./src/styles.css?v=45" />
   </head>
   <body>
     <div class="admin-shell">
@@ -705,6 +705,14 @@
                       <option value="HINDI">Hindi Transliteration</option>
                     </select>
                   </div>
+                  <button
+                    id="lessonQuestionVoiceToggle"
+                    type="button"
+                    class="btn-secondary voice-type-btn"
+                    aria-pressed="false"
+                  >
+                    Voice Typing
+                  </button>
                 </div>
                 <p id="lessonQuestionInputModeHint" class="admin-subtitle" style="margin: 0 0 0.5rem">
                   Punjabi transliteration is applied on space, punctuation, and field blur for question entry fields only.
@@ -1157,6 +1165,16 @@
               <option value="HINDI">Hindi Transliteration</option>
             </select>
           </div>
+          <div class="admin-actions" style="margin: -0.25rem 0 0.2rem">
+            <button
+              id="lessonQuestionEditVoiceToggle"
+              type="button"
+              class="btn-secondary voice-type-btn"
+              aria-pressed="false"
+            >
+              Voice Typing
+            </button>
+          </div>
           <p id="lessonQuestionEditInputModeHint" class="admin-subtitle" style="margin: -0.1rem 0 0.5rem">
             Punjabi transliteration is applied on space, punctuation, and field blur for question entry fields only.
           </p>
@@ -1249,7 +1267,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=97"></script>
+    <script type="module" src="./src/admin-lessons.js?v=98"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

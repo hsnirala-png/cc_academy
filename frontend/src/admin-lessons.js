@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionAltToggleWrap = document.querySelector("#lessonQuestionAltToggleWrap");
   const lessonQuestionAltToggleInput = document.querySelector("#lessonQuestionAltToggle");
   const lessonQuestionInputModeInput = document.querySelector("#lessonQuestionInputMode");
+  const lessonQuestionVoiceToggleBtn = document.querySelector("#lessonQuestionVoiceToggle");
   const lessonQuestionInputModeHint = document.querySelector("#lessonQuestionInputModeHint");
   const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
   const lessonQuestionPassageTextInput = document.querySelector("#lessonQuestionPassageText");
@@ -249,6 +250,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionEditForm = document.querySelector("#lessonQuestionEditForm");
   const lessonQuestionEditIdInput = document.querySelector("#lessonQuestionEditId");
   const lessonQuestionEditInputModeInput = document.querySelector("#lessonQuestionEditInputMode");
+  const lessonQuestionEditVoiceToggleBtn = document.querySelector("#lessonQuestionEditVoiceToggle");
   const lessonQuestionEditInputModeHint = document.querySelector("#lessonQuestionEditInputModeHint");
   const lessonQuestionEditBilingualWrap = document.querySelector("#lessonQuestionEditBilingualWrap");
   const lessonQuestionEditTextInput = document.querySelector("#lessonQuestionEditText");
@@ -515,16 +517,96 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const BrowserSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const VOICE_INPUT_LANG_BY_MODE = {
+    PUNJABI: "pa-IN",
+    HINDI: "hi-IN",
+  };
+  const isTextEntryControl = (control) =>
+    control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement;
+  const questionEntryCreateControls = [
+    lessonQuestionPassageTextInput,
+    lessonQuestionFormulaTextInput,
+    lessonQuestionEquationTextInput,
+    lessonQuestionTextInput,
+    lessonOptionAInput,
+    lessonOptionBInput,
+    lessonOptionCInput,
+    lessonOptionDInput,
+    lessonQuestionExplanationInput,
+  ].filter(isTextEntryControl);
+  const questionEntryEditControls = [
+    lessonQuestionEditTextInput,
+    lessonQuestionEditOptionAInput,
+    lessonQuestionEditOptionBInput,
+    lessonQuestionEditOptionCInput,
+    lessonQuestionEditOptionDInput,
+    lessonQuestionEditExplanationInput,
+  ].filter(isTextEntryControl);
+  const questionEntryControls = [...questionEntryCreateControls, ...questionEntryEditControls];
+  const questionAltControls = [
+    lessonQuestionTextAltInput,
+    lessonOptionAAltInput,
+    lessonOptionBAltInput,
+    lessonOptionCAltInput,
+    lessonOptionDAltInput,
+    lessonQuestionExplanationAltInput,
+    lessonQuestionEditTextAltInput,
+    lessonQuestionEditOptionAAltInput,
+    lessonQuestionEditOptionBAltInput,
+    lessonQuestionEditOptionCAltInput,
+    lessonQuestionEditOptionDAltInput,
+    lessonQuestionEditExplanationAltInput,
+  ].filter(isTextEntryControl);
+  const supportsVoiceTyping = typeof BrowserSpeechRecognition === "function";
+  let activeVoiceSession = null;
+  let lastFocusedQuestionControl = null;
+
+  const updateVoiceTypingButtons = () => {
+    const mode = getQuestionInputMode();
+    const modeLabel = mode === "PUNJABI" ? "Punjabi" : mode === "HINDI" ? "Hindi" : "English";
+    const modeLang = VOICE_INPUT_LANG_BY_MODE[mode] || null;
+    const activeButton = activeVoiceSession?.button || null;
+
+    [
+      lessonQuestionVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionVoiceToggleBtn : null,
+      lessonQuestionEditVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionEditVoiceToggleBtn : null,
+    ]
+      .filter(Boolean)
+      .forEach((button) => {
+        const isActive = button === activeButton;
+        const disabled = !supportsVoiceTyping || (!isActive && !modeLang);
+        button.disabled = disabled;
+        button.textContent = isActive ? `Stop Voice Typing (${modeLabel})` : "Voice Typing";
+        button.classList.toggle("is-recording", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        if (!supportsVoiceTyping) {
+          button.title = "Voice typing is available in Chrome and Edge only.";
+        } else if (!modeLang && !isActive) {
+          button.title = "Switch Input Mode to Punjabi or Hindi to use voice typing.";
+        } else if (isActive) {
+          button.title = "Click to stop voice typing.";
+        } else {
+          button.title = "Click and start speaking to fill the active field.";
+        }
+      });
+  };
+
   const renderQuestionInputModeHints = () => {
     const modeLabel = getPunjabiInputModeLabel(getQuestionInputMode());
     const transliterationHint =
       getQuestionInputMode() === "ENGLISH"
         ? ""
         : " Use `ll` for `।`; `.` stays available for maths and decimals.";
+    const voiceHint = supportsVoiceTyping
+      ? getQuestionInputMode() === "ENGLISH"
+        ? ""
+        : " Voice Typing is available for Punjabi and Hindi question entry."
+      : " Voice Typing requires Chrome or Edge browser.";
     const translationHint = getQuestionTranslationProfile()
       ? " Right-side English fields auto-fill from the left on blur, and remain editable."
       : "";
-    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.${transliterationHint}${translationHint}`;
+    const hintText = `${modeLabel}. Applied only to admin question entry/edit fields.${transliterationHint}${voiceHint}${translationHint}`;
     if (lessonQuestionInputModeHint instanceof HTMLElement) {
       lessonQuestionInputModeHint.textContent = hintText;
     }
@@ -542,6 +624,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonQuestionEditInputModeInput.value = currentMode;
     }
     renderQuestionInputModeHints();
+    updateVoiceTypingButtons();
   };
 
   const setQuestionInputMode = (nextMode) => {
@@ -551,40 +634,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncQuestionInputModeControls();
   };
 
-  [
-    lessonQuestionPassageTextInput,
-    lessonQuestionFormulaTextInput,
-    lessonQuestionEquationTextInput,
-    lessonQuestionTextInput,
-    lessonOptionAInput,
-    lessonOptionBInput,
-    lessonOptionCInput,
-    lessonOptionDInput,
-    lessonQuestionExplanationInput,
-    lessonQuestionEditTextInput,
-    lessonQuestionEditOptionAInput,
-    lessonQuestionEditOptionBInput,
-    lessonQuestionEditOptionCInput,
-    lessonQuestionEditOptionDInput,
-    lessonQuestionEditExplanationInput,
-  ].forEach((control) => {
+  questionEntryControls.forEach((control) => {
     applyPunjabiInputMode(control, getQuestionInputMode);
+    control.addEventListener("focus", () => {
+      lastFocusedQuestionControl = control;
+      if (!activeVoiceSession) return;
+      const controlsForContext =
+        activeVoiceSession.context === "edit" ? questionEntryEditControls : questionEntryCreateControls;
+      if (controlsForContext.includes(control)) {
+        activeVoiceSession.control = control;
+      }
+    });
   });
 
-  [
-    lessonQuestionTextAltInput,
-    lessonOptionAAltInput,
-    lessonOptionBAltInput,
-    lessonOptionCAltInput,
-    lessonOptionDAltInput,
-    lessonQuestionExplanationAltInput,
-    lessonQuestionEditTextAltInput,
-    lessonQuestionEditOptionAAltInput,
-    lessonQuestionEditOptionBAltInput,
-    lessonQuestionEditOptionCAltInput,
-    lessonQuestionEditOptionDAltInput,
-    lessonQuestionEditExplanationAltInput,
-  ].forEach((control) => {
+  questionAltControls.forEach((control) => {
     applyPunjabiInputMode(control, () => "ENGLISH");
   });
 
@@ -661,6 +724,180 @@ document.addEventListener("DOMContentLoaded", async () => {
     cloneVoiceStatus.textContent = text || "";
     cloneVoiceStatus.classList.remove("error", "success");
     if (type) cloneVoiceStatus.classList.add(type);
+  };
+
+  const canUseVoiceTargetControl = (control) =>
+    isTextEntryControl(control) && !control.disabled && !control.readOnly;
+
+  const getControlsForVoiceContext = (context) =>
+    context === "edit" ? questionEntryEditControls : questionEntryCreateControls;
+
+  const resolveVoiceTargetControl = (context) => {
+    const controls = getControlsForVoiceContext(context);
+    if (!controls.length) return null;
+
+    if (controls.includes(lastFocusedQuestionControl) && canUseVoiceTargetControl(lastFocusedQuestionControl)) {
+      return lastFocusedQuestionControl;
+    }
+
+    const activeControl = document.activeElement;
+    if (controls.includes(activeControl) && canUseVoiceTargetControl(activeControl)) {
+      return activeControl;
+    }
+
+    return (
+      controls.find((control) => canUseVoiceTargetControl(control) && !control.closest(".hidden")) ||
+      controls.find((control) => canUseVoiceTargetControl(control)) ||
+      null
+    );
+  };
+
+  const emitInputEvent = (control, text) => {
+    try {
+      control.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          composed: true,
+          data: text,
+          inputType: "insertText",
+        })
+      );
+    } catch (_error) {
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+
+  const insertDictationTextAtCaret = (control, rawText) => {
+    if (!canUseVoiceTargetControl(control)) return;
+
+    const transcript = String(rawText || "").trim();
+    if (!transcript) return;
+
+    const currentValue = String(control.value || "");
+    const start = control.selectionStart ?? currentValue.length;
+    const end = control.selectionEnd ?? start;
+    const before = currentValue.slice(0, start);
+    const after = currentValue.slice(end);
+    const needsLeadingSpace = Boolean(before) && !/\s$/.test(before) && !/^[,.;:!?)]/.test(transcript);
+    const needsTrailingSpace = !after || (!/^\s/.test(after) && !/^[,.;:!?)]/.test(after));
+    const chunk = `${needsLeadingSpace ? " " : ""}${transcript}${needsTrailingSpace ? " " : ""}`;
+
+    control.focus();
+    control.value = `${before}${chunk}${after}`;
+    const nextCaret = before.length + chunk.length;
+    if (typeof control.setSelectionRange === "function") {
+      control.setSelectionRange(nextCaret, nextCaret);
+    }
+    emitInputEvent(control, chunk);
+  };
+
+  const stopActiveVoiceTyping = (options = {}) => {
+    const notify = options.notify !== false;
+    if (!activeVoiceSession) return;
+
+    const session = activeVoiceSession;
+    session.stoppedManually = true;
+    try {
+      session.recognition.stop();
+    } catch (_error) {
+      // Ignore unsupported stop edge-cases from browser recognition API.
+    }
+    if (notify) {
+      setMessage("Voice typing stopped.");
+    }
+  };
+
+  const startVoiceTypingForContext = (context, triggerButton) => {
+    if (!supportsVoiceTyping) {
+      setMessage("Voice typing is available in Chrome and Edge only.", "error");
+      return;
+    }
+
+    const mode = getQuestionInputMode();
+    const lang = VOICE_INPUT_LANG_BY_MODE[mode];
+    if (!lang) {
+      setMessage("Switch Input Mode to Punjabi or Hindi before starting voice typing.", "error");
+      return;
+    }
+
+    const targetControl = resolveVoiceTargetControl(context);
+    if (!targetControl) {
+      setMessage("Select a question field first, then start voice typing.", "error");
+      return;
+    }
+
+    if (activeVoiceSession) {
+      stopActiveVoiceTyping({ notify: false });
+    }
+
+    const recognition = new BrowserSpeechRecognition();
+    recognition.lang = lang;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    const session = {
+      recognition,
+      context,
+      button: triggerButton,
+      control: targetControl,
+      mode,
+      stoppedManually: false,
+    };
+    activeVoiceSession = session;
+    updateVoiceTypingButtons();
+    setMessage(`Voice typing started (${mode}). Speak now...`);
+
+    recognition.onresult = (event) => {
+      if (activeVoiceSession !== session) return;
+      let finalText = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        if (!result?.isFinal) continue;
+        finalText += ` ${String(result[0]?.transcript || "").trim()}`;
+      }
+      if (!finalText.trim()) return;
+
+      const controlsForContext = getControlsForVoiceContext(session.context);
+      const selectedControl =
+        controlsForContext.includes(lastFocusedQuestionControl) && canUseVoiceTargetControl(lastFocusedQuestionControl)
+          ? lastFocusedQuestionControl
+          : session.control;
+      session.control = selectedControl;
+      insertDictationTextAtCaret(selectedControl, finalText);
+    };
+
+    recognition.onerror = (event) => {
+      if (activeVoiceSession !== session) return;
+      const errorCode = String(event?.error || "").trim();
+      if (errorCode === "no-speech") {
+        setMessage("No speech detected. Try again and speak clearly.", "error");
+      } else if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
+        setMessage("Microphone access was blocked. Allow mic permission and retry.", "error");
+      } else if (errorCode !== "aborted") {
+        setMessage("Voice typing failed. Please retry.", "error");
+      }
+    };
+
+    recognition.onend = () => {
+      if (activeVoiceSession !== session) return;
+      const stoppedManually = session.stoppedManually;
+      activeVoiceSession = null;
+      updateVoiceTypingButtons();
+      if (!stoppedManually) {
+        setMessage("Voice typing ended. Click Voice Typing to continue.");
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (_error) {
+      if (activeVoiceSession === session) {
+        activeVoiceSession = null;
+      }
+      updateVoiceTypingButtons();
+      setMessage("Unable to start voice typing on this browser tab.", "error");
+    }
   };
 
   const setVoiceGenerationProgress = (percent) => {
@@ -3581,6 +3818,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const closeLessonQuestionEditModal = () => {
     if (!(lessonQuestionEditModal instanceof HTMLElement)) return;
+    if (activeVoiceSession?.context === "edit") {
+      stopActiveVoiceTyping({ notify: false });
+    }
     lessonQuestionEditModal.classList.remove("open");
     lessonQuestionEditModal.setAttribute("aria-hidden", "true");
     resetLessonQuestionEditForm();
@@ -6380,6 +6620,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionInputModeInput.value);
       autoTranslateVisibleQuestionFields();
+      if (activeVoiceSession && !VOICE_INPUT_LANG_BY_MODE[getQuestionInputMode()]) {
+        stopActiveVoiceTyping({ notify: false });
+      }
     });
   }
 
@@ -6387,6 +6630,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionEditInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionEditInputModeInput.value);
       autoTranslateVisibleQuestionFields();
+      if (activeVoiceSession && !VOICE_INPUT_LANG_BY_MODE[getQuestionInputMode()]) {
+        stopActiveVoiceTyping({ notify: false });
+      }
+    });
+  }
+
+  if (lessonQuestionVoiceToggleBtn instanceof HTMLButtonElement) {
+    lessonQuestionVoiceToggleBtn.addEventListener("click", () => {
+      if (activeVoiceSession?.button === lessonQuestionVoiceToggleBtn) {
+        stopActiveVoiceTyping({ notify: true });
+        return;
+      }
+      startVoiceTypingForContext("create", lessonQuestionVoiceToggleBtn);
+    });
+  }
+
+  if (lessonQuestionEditVoiceToggleBtn instanceof HTMLButtonElement) {
+    lessonQuestionEditVoiceToggleBtn.addEventListener("click", () => {
+      if (activeVoiceSession?.button === lessonQuestionEditVoiceToggleBtn) {
+        stopActiveVoiceTyping({ notify: true });
+        return;
+      }
+      startVoiceTypingForContext("edit", lessonQuestionEditVoiceToggleBtn);
     });
   }
 

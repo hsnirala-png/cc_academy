@@ -5983,6 +5983,22 @@ h1 {
   justify-content: flex-start;
 }
 
+.voice-type-btn {
+  min-height: 38px;
+  padding: 0.56rem 0.95rem;
+}
+
+.voice-type-btn.is-recording {
+  border-color: #cc2f45;
+  background: #ffebef;
+  color: #8b1730;
+}
+
+.voice-type-btn.is-recording:hover {
+  transform: none;
+  background: #ffe1e8;
+}
+
 .admin-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
