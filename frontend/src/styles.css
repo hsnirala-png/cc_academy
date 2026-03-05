@@ -4771,7 +4771,8 @@ h1 {
 
 .attempt-question-text {
   margin: 0.55rem 0 0.9rem;
-  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  font-size: 1rem;
+  font-weight: 700;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
@@ -4840,6 +4841,8 @@ h1 {
 }
 
 .attempt-option span {
+  font-size: 1rem;
+  font-weight: 400;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.45;
