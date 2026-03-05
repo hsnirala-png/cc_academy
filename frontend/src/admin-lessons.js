@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionAltToggleWrap = document.querySelector("#lessonQuestionAltToggleWrap");
   const lessonQuestionAltToggleInput = document.querySelector("#lessonQuestionAltToggle");
   const lessonQuestionInputModeInput = document.querySelector("#lessonQuestionInputMode");
+  const lessonGlobalVoiceToggleBtn = document.querySelector("#lessonGlobalVoiceToggle");
   const lessonQuestionVoiceToggleBtn = document.querySelector("#lessonQuestionVoiceToggle");
   const lessonQuestionInputModeHint = document.querySelector("#lessonQuestionInputModeHint");
   const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
@@ -399,6 +400,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     control.dataset.autoTranslationApplying = "false";
   };
 
+  const primeAutoTranslationMeta = (leftControl, rightControl) => {
+    if (
+      !(leftControl instanceof HTMLInputElement || leftControl instanceof HTMLTextAreaElement) ||
+      !(rightControl instanceof HTMLInputElement || rightControl instanceof HTMLTextAreaElement)
+    ) {
+      return;
+    }
+    const sourceText = String(leftControl.value || "").trim();
+    const translatedText = String(rightControl.value || "").trim();
+    if (!translatedText) {
+      clearAutoTranslationMeta(rightControl);
+      return;
+    }
+    rightControl.dataset.autoTranslationSource = sourceText;
+    rightControl.dataset.autoTranslationGenerated = "true";
+    rightControl.dataset.autoTranslationEdited = "false";
+    delete rightControl.dataset.autoTranslationPending;
+    delete rightControl.dataset.autoTranslationApplying;
+  };
+
   const markAutoTranslationEdited = (control) => {
     if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement)) return;
     if (control.dataset.autoTranslationApplying === "true") return;
@@ -519,6 +540,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const BrowserSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   const VOICE_INPUT_LANG_BY_MODE = {
+    ENGLISH: "en-IN",
     PUNJABI: "pa-IN",
     HINDI: "hi-IN",
   };
@@ -558,36 +580,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionEditOptionDAltInput,
     lessonQuestionEditExplanationAltInput,
   ].filter(isTextEntryControl);
+  const generalVoiceTypingControls = [
+    courseTitleInput,
+    courseDescriptionInput,
+    chapterTitleInput,
+    chapterDescriptionInput,
+    lessonTitleInput,
+    lessonVideoUrlInput,
+    lessonTranscriptTextInput,
+    cloneVoiceNameInput,
+    cloneConsentStatementInput,
+    lessonMockTestTitleInput,
+    lessonSectionLabelInput,
+    lessonSectionAudioUrlInput,
+    lessonSectionTranscriptInput,
+    lessonBulkImportTextInput,
+    lessonBulkImportTextAltInput,
+  ].filter(isTextEntryControl);
+  const allVoiceTypingControls = Array.from(
+    new Set([...questionEntryControls, ...questionAltControls, ...generalVoiceTypingControls])
+  );
   const supportsVoiceTyping = typeof BrowserSpeechRecognition === "function";
   let activeVoiceSession = null;
-  let lastFocusedQuestionControl = null;
+  let lastFocusedVoiceControl = null;
 
   const updateVoiceTypingButtons = () => {
-    const mode = getQuestionInputMode();
+    const mode = String(activeVoiceSession?.mode || getQuestionInputMode() || "ENGLISH").toUpperCase();
     const modeLabel = mode === "PUNJABI" ? "Punjabi" : mode === "HINDI" ? "Hindi" : "English";
-    const modeLang = VOICE_INPUT_LANG_BY_MODE[mode] || null;
     const activeButton = activeVoiceSession?.button || null;
 
     [
+      lessonGlobalVoiceToggleBtn instanceof HTMLButtonElement ? lessonGlobalVoiceToggleBtn : null,
       lessonQuestionVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionVoiceToggleBtn : null,
       lessonQuestionEditVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionEditVoiceToggleBtn : null,
     ]
       .filter(Boolean)
       .forEach((button) => {
         const isActive = button === activeButton;
-        const disabled = !supportsVoiceTyping || (!isActive && !modeLang);
+        const disabled = !supportsVoiceTyping;
         button.disabled = disabled;
         button.textContent = isActive ? `Stop Voice Typing (${modeLabel})` : "Voice Typing";
         button.classList.toggle("is-recording", isActive);
         button.setAttribute("aria-pressed", isActive ? "true" : "false");
         if (!supportsVoiceTyping) {
           button.title = "Voice typing is available in Chrome and Edge only.";
-        } else if (!modeLang && !isActive) {
-          button.title = "Switch Input Mode to Punjabi or Hindi to use voice typing.";
         } else if (isActive) {
           button.title = "Click to stop voice typing.";
         } else {
-          button.title = "Click and start speaking to fill the active field.";
+          button.title = "Click and start speaking into the focused text field.";
         }
       });
   };
@@ -599,9 +639,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? ""
         : " Use `ll` for `।`; `.` stays available for maths and decimals.";
     const voiceHint = supportsVoiceTyping
-      ? getQuestionInputMode() === "ENGLISH"
-        ? ""
-        : " Voice Typing is available for Punjabi and Hindi question entry."
+      ? " Voice Typing is available for English, Punjabi, and Hindi."
       : " Voice Typing requires Chrome or Edge browser.";
     const translationHint = getQuestionTranslationProfile()
       ? " Right-side English fields auto-fill from the left on blur, and remain editable."
@@ -636,19 +674,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   questionEntryControls.forEach((control) => {
     applyPunjabiInputMode(control, getQuestionInputMode);
-    control.addEventListener("focus", () => {
-      lastFocusedQuestionControl = control;
-      if (!activeVoiceSession) return;
-      const controlsForContext =
-        activeVoiceSession.context === "edit" ? questionEntryEditControls : questionEntryCreateControls;
-      if (controlsForContext.includes(control)) {
-        activeVoiceSession.control = control;
-      }
-    });
   });
 
   questionAltControls.forEach((control) => {
     applyPunjabiInputMode(control, () => "ENGLISH");
+  });
+
+  allVoiceTypingControls.forEach((control) => {
+    control.addEventListener("focus", () => {
+      lastFocusedVoiceControl = control;
+      if (!activeVoiceSession) return;
+      const controlsForContext = getControlsForVoiceContext(activeVoiceSession.context);
+      if (controlsForContext.includes(control)) {
+        activeVoiceSession.control = control;
+      }
+    });
   });
 
   [
@@ -729,15 +769,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   const canUseVoiceTargetControl = (control) =>
     isTextEntryControl(control) && !control.disabled && !control.readOnly;
 
-  const getControlsForVoiceContext = (context) =>
-    context === "edit" ? questionEntryEditControls : questionEntryCreateControls;
+  const getControlsForVoiceContext = (context) => {
+    if (context === "edit") return questionEntryEditControls;
+    if (context === "create") return questionEntryCreateControls;
+    return allVoiceTypingControls;
+  };
+
+  const resolveVoiceModeForControl = (control) => {
+    if (questionEntryControls.includes(control)) {
+      return getQuestionInputMode();
+    }
+    return "ENGLISH";
+  };
 
   const resolveVoiceTargetControl = (context) => {
     const controls = getControlsForVoiceContext(context);
     if (!controls.length) return null;
 
-    if (controls.includes(lastFocusedQuestionControl) && canUseVoiceTargetControl(lastFocusedQuestionControl)) {
-      return lastFocusedQuestionControl;
+    if (controls.includes(lastFocusedVoiceControl) && canUseVoiceTargetControl(lastFocusedVoiceControl)) {
+      return lastFocusedVoiceControl;
     }
 
     const activeControl = document.activeElement;
@@ -813,18 +863,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const mode = getQuestionInputMode();
-    const lang = VOICE_INPUT_LANG_BY_MODE[mode];
-    if (!lang) {
-      setMessage("Switch Input Mode to Punjabi or Hindi before starting voice typing.", "error");
+    const targetControl = resolveVoiceTargetControl(context);
+    if (!targetControl) {
+      setMessage("Select a text field first, then start voice typing.", "error");
       return;
     }
 
-    const targetControl = resolveVoiceTargetControl(context);
-    if (!targetControl) {
-      setMessage("Select a question field first, then start voice typing.", "error");
-      return;
-    }
+    const mode = resolveVoiceModeForControl(targetControl);
+    const lang = VOICE_INPUT_LANG_BY_MODE[mode] || VOICE_INPUT_LANG_BY_MODE.ENGLISH;
 
     if (activeVoiceSession) {
       stopActiveVoiceTyping({ notify: false });
@@ -860,8 +906,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const controlsForContext = getControlsForVoiceContext(session.context);
       const selectedControl =
-        controlsForContext.includes(lastFocusedQuestionControl) && canUseVoiceTargetControl(lastFocusedQuestionControl)
-          ? lastFocusedQuestionControl
+        controlsForContext.includes(lastFocusedVoiceControl) && canUseVoiceTargetControl(lastFocusedVoiceControl)
+          ? lastFocusedVoiceControl
           : session.control;
       session.control = selectedControl;
       insertDictationTextAtCaret(selectedControl, finalText);
@@ -3928,6 +3974,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         editExcludeQuestionId: question.id,
       });
     }
+    [
+      [lessonQuestionEditTextInput, lessonQuestionEditTextAltInput],
+      [lessonQuestionEditOptionAInput, lessonQuestionEditOptionAAltInput],
+      [lessonQuestionEditOptionBInput, lessonQuestionEditOptionBAltInput],
+      [lessonQuestionEditOptionCInput, lessonQuestionEditOptionCAltInput],
+      [lessonQuestionEditOptionDInput, lessonQuestionEditOptionDAltInput],
+      [lessonQuestionEditExplanationInput, lessonQuestionEditExplanationAltInput],
+    ].forEach(([leftControl, rightControl]) => {
+      primeAutoTranslationMeta(leftControl, rightControl);
+    });
 
     toggleBilingualQuestionInputs();
     lessonQuestionEditModal.classList.add("open");
@@ -6665,7 +6721,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionInputModeInput.value);
       autoTranslateVisibleQuestionFields();
-      if (activeVoiceSession && !VOICE_INPUT_LANG_BY_MODE[getQuestionInputMode()]) {
+      if (
+        activeVoiceSession &&
+        activeVoiceSession.context !== "global" &&
+        activeVoiceSession.mode !== getQuestionInputMode()
+      ) {
         stopActiveVoiceTyping({ notify: false });
       }
     });
@@ -6675,9 +6735,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionEditInputModeInput.addEventListener("change", () => {
       setQuestionInputMode(lessonQuestionEditInputModeInput.value);
       autoTranslateVisibleQuestionFields();
-      if (activeVoiceSession && !VOICE_INPUT_LANG_BY_MODE[getQuestionInputMode()]) {
+      if (
+        activeVoiceSession &&
+        activeVoiceSession.context !== "global" &&
+        activeVoiceSession.mode !== getQuestionInputMode()
+      ) {
         stopActiveVoiceTyping({ notify: false });
       }
+    });
+  }
+
+  if (lessonGlobalVoiceToggleBtn instanceof HTMLButtonElement) {
+    lessonGlobalVoiceToggleBtn.addEventListener("click", () => {
+      if (activeVoiceSession?.button === lessonGlobalVoiceToggleBtn) {
+        stopActiveVoiceTyping({ notify: true });
+        return;
+      }
+      startVoiceTypingForContext("global", lessonGlobalVoiceToggleBtn);
     });
   }
 

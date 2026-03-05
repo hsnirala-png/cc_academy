@@ -5986,6 +5986,7 @@ h1 {
 .voice-type-btn {
   min-height: 38px;
   padding: 0.56rem 0.95rem;
+  white-space: nowrap;
 }
 
 .voice-type-btn.is-recording {
