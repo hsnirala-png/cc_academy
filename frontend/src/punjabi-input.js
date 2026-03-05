@@ -192,6 +192,8 @@ const normalizeRomanToken = (value) =>
     .toLowerCase()
     .replace(/[^a-z']/g, "");
 
+const sanitizeRomanToken = (value) => String(value || "").trim().replace(/[^A-Za-z']/g, "");
+
 const uniqueValues = (values) => {
   const seen = new Set();
   return values.filter((value) => {
@@ -294,13 +296,14 @@ const buildHeuristicSuggestions = (token, mode = "PUNJABI") => {
 const buildSuggestionVariants = (token, mode = "PUNJABI", remoteSuggestions = []) => {
   const normalized = normalizeRomanToken(token);
   if (!normalized) return [];
+  const romanToken = sanitizeRomanToken(token) || normalized;
 
   const directSuggestions = getDirectSuggestions(normalized, mode);
   const mergedSuggestions = directSuggestions.length
     ? [...directSuggestions, ...remoteSuggestions]
     : [...remoteSuggestions, ...buildHeuristicSuggestions(normalized, mode)];
 
-  return uniqueValues([...mergedSuggestions, normalized]).slice(0, REMOTE_SUGGESTION_LIMIT);
+  return uniqueValues([...mergedSuggestions, romanToken]).slice(0, REMOTE_SUGGESTION_LIMIT);
 };
 
 const findRomanTokenRangeAtCaret = (value, caretIndex) => {
