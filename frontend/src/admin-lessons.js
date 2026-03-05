@@ -155,6 +155,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionAltToggleInput = document.querySelector("#lessonQuestionAltToggle");
   const lessonQuestionInputModeInput = document.querySelector("#lessonQuestionInputMode");
   const lessonGlobalVoiceToggleBtn = document.querySelector("#lessonGlobalVoiceToggle");
+  const lessonStickyVoiceToggleBtn = document.querySelector("#lessonStickyVoiceToggle");
+  const lessonStickyVoiceFocusBtn = document.querySelector("#lessonStickyVoiceFocus");
   const lessonQuestionVoiceToggleBtn = document.querySelector("#lessonQuestionVoiceToggle");
   const lessonQuestionInputModeHint = document.querySelector("#lessonQuestionInputModeHint");
   const lessonQuestionPassageWrap = document.querySelector("#lessonQuestionPassageWrap");
@@ -546,6 +548,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const isTextEntryControl = (control) =>
     control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement;
+  const unsupportedVoiceInputTypes = new Set([
+    "hidden",
+    "checkbox",
+    "radio",
+    "file",
+    "button",
+    "submit",
+    "reset",
+    "password",
+  ]);
+  const isSupportedVoiceInputControl = (control) => {
+    if (control instanceof HTMLTextAreaElement) return true;
+    if (!(control instanceof HTMLInputElement)) return false;
+    const type = String(control.type || "text").toLowerCase();
+    return !unsupportedVoiceInputTypes.has(type);
+  };
   const questionEntryCreateControls = [
     lessonQuestionPassageTextInput,
     lessonQuestionFormulaTextInput,
@@ -580,23 +598,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionEditOptionDAltInput,
     lessonQuestionEditExplanationAltInput,
   ].filter(isTextEntryControl);
-  const generalVoiceTypingControls = [
-    courseTitleInput,
-    courseDescriptionInput,
-    chapterTitleInput,
-    chapterDescriptionInput,
-    lessonTitleInput,
-    lessonVideoUrlInput,
-    lessonTranscriptTextInput,
-    cloneVoiceNameInput,
-    cloneConsentStatementInput,
-    lessonMockTestTitleInput,
-    lessonSectionLabelInput,
-    lessonSectionAudioUrlInput,
-    lessonSectionTranscriptInput,
-    lessonBulkImportTextInput,
-    lessonBulkImportTextAltInput,
-  ].filter(isTextEntryControl);
+  const generalVoiceTypingControls = Array.from(document.querySelectorAll("input, textarea")).filter(
+    (control) =>
+      isSupportedVoiceInputControl(control) && !questionEntryControls.includes(control) && !questionAltControls.includes(control)
+  );
   const allVoiceTypingControls = Array.from(
     new Set([...questionEntryControls, ...questionAltControls, ...generalVoiceTypingControls])
   );
@@ -607,16 +612,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   const updateVoiceTypingButtons = () => {
     const mode = String(activeVoiceSession?.mode || getQuestionInputMode() || "ENGLISH").toUpperCase();
     const modeLabel = mode === "PUNJABI" ? "Punjabi" : mode === "HINDI" ? "Hindi" : "English";
-    const activeButton = activeVoiceSession?.button || null;
 
     [
-      lessonGlobalVoiceToggleBtn instanceof HTMLButtonElement ? lessonGlobalVoiceToggleBtn : null,
-      lessonQuestionVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionVoiceToggleBtn : null,
-      lessonQuestionEditVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionEditVoiceToggleBtn : null,
+      {
+        button: lessonGlobalVoiceToggleBtn instanceof HTMLButtonElement ? lessonGlobalVoiceToggleBtn : null,
+        context: "global",
+      },
+      {
+        button: lessonStickyVoiceToggleBtn instanceof HTMLButtonElement ? lessonStickyVoiceToggleBtn : null,
+        context: "global",
+      },
+      {
+        button: lessonQuestionVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionVoiceToggleBtn : null,
+        context: "create",
+      },
+      {
+        button: lessonQuestionEditVoiceToggleBtn instanceof HTMLButtonElement ? lessonQuestionEditVoiceToggleBtn : null,
+        context: "edit",
+      },
     ]
-      .filter(Boolean)
-      .forEach((button) => {
-        const isActive = button === activeButton;
+      .filter((item) => item.button)
+      .forEach(({ button, context }) => {
+        const isActive = Boolean(activeVoiceSession) && activeVoiceSession.context === context;
         const disabled = !supportsVoiceTyping;
         button.disabled = disabled;
         button.textContent = isActive ? `Stop Voice Typing (${modeLabel})` : "Voice Typing";
@@ -800,6 +817,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       controls.find((control) => canUseVoiceTargetControl(control)) ||
       null
     );
+  };
+
+  const focusVoiceTargetControl = (context) => {
+    const control = resolveVoiceTargetControl(context);
+    if (!control) {
+      setMessage("No writable text field is currently available.", "error");
+      return;
+    }
+    control.focus();
+    control.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    lastFocusedVoiceControl = control;
+    setMessage("Ready. Start typing or use Voice Typing.");
   };
 
   const emitInputEvent = (control, text) => {
@@ -6747,11 +6776,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (lessonGlobalVoiceToggleBtn instanceof HTMLButtonElement) {
     lessonGlobalVoiceToggleBtn.addEventListener("click", () => {
-      if (activeVoiceSession?.button === lessonGlobalVoiceToggleBtn) {
+      if (activeVoiceSession?.context === "global") {
         stopActiveVoiceTyping({ notify: true });
         return;
       }
       startVoiceTypingForContext("global", lessonGlobalVoiceToggleBtn);
+    });
+  }
+
+  if (lessonStickyVoiceToggleBtn instanceof HTMLButtonElement) {
+    lessonStickyVoiceToggleBtn.addEventListener("click", () => {
+      if (activeVoiceSession?.context === "global") {
+        stopActiveVoiceTyping({ notify: true });
+        return;
+      }
+      startVoiceTypingForContext("global", lessonStickyVoiceToggleBtn);
+    });
+  }
+
+  if (lessonStickyVoiceFocusBtn instanceof HTMLButtonElement) {
+    lessonStickyVoiceFocusBtn.addEventListener("click", () => {
+      focusVoiceTargetControl("global");
     });
   }
 

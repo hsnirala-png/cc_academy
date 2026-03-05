@@ -6000,6 +6000,23 @@ h1 {
   background: #ffe1e8;
 }
 
+.lesson-sticky-voice-tools {
+  position: fixed;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  z-index: 1100;
+}
+
+.lesson-sticky-tool-btn {
+  min-width: 112px;
+  justify-content: center;
+  box-shadow: 0 10px 24px rgba(16, 38, 79, 0.16);
+}
+
 .admin-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6564,6 +6581,17 @@ h1 {
 
   .voice-progress-percent {
     text-align: left;
+  }
+
+  .lesson-sticky-voice-tools {
+    right: 0.75rem;
+    top: auto;
+    bottom: 0.9rem;
+    transform: none;
+  }
+
+  .lesson-sticky-tool-btn {
+    min-width: 92px;
   }
 
   .lesson-preview-modal .lesson-preview-card {

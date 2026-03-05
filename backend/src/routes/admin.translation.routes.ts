@@ -14,8 +14,9 @@ export const adminTranslationRouter = Router();
 const ensureAdmin = [requireAuth, requireRole(Role.ADMIN)] as const;
 
 const translationLanguageSchema = z.enum(TRANSLATION_LANGUAGES);
+const ADMIN_TRANSLATION_TEXT_MAX = 30000;
 const translationRequestSchema = z.object({
-  text: z.string().trim().min(1, "Text is required.").max(4000, "Text is too long."),
+  text: z.string().trim().min(1, "Text is required.").max(ADMIN_TRANSLATION_TEXT_MAX, "Text is too long."),
   sourceLanguage: translationLanguageSchema,
   targetLanguage: translationLanguageSchema,
 });

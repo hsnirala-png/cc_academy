@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Digital Lessons</title>
-    <link rel="stylesheet" href="./src/styles.css?v=46" />
+    <link rel="stylesheet" href="./src/styles.css?v=47" />
   </head>
   <body>
     <div class="admin-shell">
@@ -605,7 +605,7 @@
               <div class="admin-form-row">
                 <div class="admin-field">
                   <label for="lessonQuestionTargetCount">Number of Questions</label>
-                  <input id="lessonQuestionTargetCount" type="number" min="1" max="5000" step="1" value="30" />
+                  <input id="lessonQuestionTargetCount" type="number" min="1" step="1" value="30" />
                 </div>
                 <div class="admin-field">
                   <label for="lessonQuestionSectionFilter">Section Filter</label>
@@ -1277,7 +1277,27 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=100"></script>
+    <div class="lesson-sticky-voice-tools" aria-label="Quick writing tools">
+      <button
+        id="lessonStickyVoiceToggle"
+        type="button"
+        class="btn-secondary voice-type-btn lesson-sticky-tool-btn"
+        aria-pressed="false"
+        title="Start voice typing in the focused field"
+      >
+        Mic
+      </button>
+      <button
+        id="lessonStickyVoiceFocus"
+        type="button"
+        class="btn-secondary lesson-sticky-tool-btn lesson-sticky-write-btn"
+        title="Focus a writable field"
+      >
+        Write
+      </button>
+    </div>
+
+    <script type="module" src="./src/admin-lessons.js?v=101"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

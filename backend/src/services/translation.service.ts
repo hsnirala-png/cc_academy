@@ -5,9 +5,10 @@ import { AppError } from "../utils/appError";
 
 export const TRANSLATION_LANGUAGES = ["english", "punjabi", "hindi"] as const;
 export type TranslationLanguage = (typeof TRANSLATION_LANGUAGES)[number];
+const ADMIN_TRANSLATION_OUTPUT_MAX = 30000;
 
 const translationSchema = z.object({
-  translation: z.string().trim().min(1).max(8000),
+  translation: z.string().trim().min(1).max(ADMIN_TRANSLATION_OUTPUT_MAX),
 });
 
 let openaiClient: OpenAI | null = null;
