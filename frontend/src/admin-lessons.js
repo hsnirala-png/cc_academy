@@ -136,6 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonSelectedTestHint = document.querySelector("#lessonSelectedTestHint");
   const lessonQuestionCountWarning = document.querySelector("#lessonQuestionCountWarning");
   const lessonQuestionTargetCountInput = document.querySelector("#lessonQuestionTargetCount");
+  const lessonQuestionCategoryFilterInput = document.querySelector("#lessonQuestionCategoryFilter");
   const lessonQuestionSectionFilterInput = document.querySelector("#lessonQuestionSectionFilter");
   const lessonQuestionSectionSummary = document.querySelector("#lessonQuestionSectionSummary");
   const lessonSectionForm = document.querySelector("#lessonSectionForm");
@@ -204,6 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonCsvTemplateFormatInput = document.querySelector("#lessonCsvTemplateFormat");
   const lessonBulkImportCsvBtn = document.querySelector("#lessonBulkImportCsvBtn");
   const lessonSectionCsvSampleBtn = document.querySelector("#lessonSectionCsvSampleBtn");
+  const lessonReviewDownloadCsvBtn = document.querySelector("#lessonReviewDownloadCsvBtn");
   const lessonSectionTypeGuide = document.querySelector("#lessonSectionTypeGuide");
   const lessonQuestionTypeGuide = document.querySelector("#lessonQuestionTypeGuide");
   const lessonSaveTestBtn = document.querySelector("#lessonSaveTestBtn");
@@ -2662,6 +2664,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     SCIENCE_EQUATION: "Science Equations",
     CUSTOM: "Chart / Graph / Custom",
   };
+  const SECTION_TYPE_FILTER_ORDER = [
+    "COMPREHENSION",
+    "GENERAL_MCQ",
+    "GRAMMAR",
+    "MATH_FORMULA",
+    "SCIENCE_EQUATION",
+    "CUSTOM",
+  ];
   const SECTION_TYPE_FROM_LABEL = {
     Comprehension: "COMPREHENSION",
     "General MCQs": "GENERAL_MCQ",
@@ -2802,8 +2812,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       panel.classList.toggle("active", panel.getAttribute("data-question-bank-panel") === nextMode);
     });
-    if (nextMode === "review" && lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
-      lessonQuestionSectionFilterInput.value = "ALL";
+    if (nextMode === "review") {
+      if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
+        lessonQuestionCategoryFilterInput.value = "ALL";
+      }
+      if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
+        lessonQuestionSectionFilterInput.value = "ALL";
+      }
       renderLessonQuestions();
     }
   };
@@ -2902,25 +2917,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     updateQuestionLanguageGuide();
   };
-  const getQuestionSectionOptions = () => {
-    const fromSectionConfig = state.mockTestSections
-      .map((section) => normalizeQuestionSectionLabel(section?.sectionLabel))
-      .filter(Boolean);
-    const fromQuestions = state.mockQuestions
-      .map((question) => normalizeQuestionSectionLabel(question?.sectionLabel))
-      .filter(Boolean);
-    const options = [...DEFAULT_QUESTION_SECTIONS];
-    fromSectionConfig.forEach((label) => {
-      if (!options.includes(label)) {
-        options.push(label);
+  const resolveQuestionSectionType = (question) => {
+    const sectionLabel = normalizeQuestionSectionLabel(question?.sectionLabel);
+    const sectionMeta = sectionLabel ? getSectionMetaByLabel(sectionLabel) : null;
+    return normalizeSectionType(sectionMeta?.sectionType || SECTION_TYPE_FROM_LABEL[sectionLabel] || "GENERAL_MCQ");
+  };
+  const getQuestionCategoryOptions = () => {
+    const options = [];
+    const include = (value) => {
+      const normalized = normalizeSectionType(value);
+      if (!normalized || options.includes(normalized)) return;
+      options.push(normalized);
+    };
+    SECTION_TYPE_FILTER_ORDER.forEach((sectionType) => include(sectionType));
+    state.mockTestSections.forEach((section) => include(section?.sectionType));
+    state.mockQuestions.forEach((question) => include(resolveQuestionSectionType(question)));
+    return options;
+  };
+  const getQuestionSectionOptions = (categoryFilter = "") => {
+    const normalizedCategory = categoryFilter ? normalizeSectionType(categoryFilter) : "";
+    const options = [];
+    const include = (label, sectionType) => {
+      const normalizedLabel = normalizeQuestionSectionLabel(label);
+      if (!normalizedLabel) return;
+      const normalizedType = normalizeSectionType(sectionType || SECTION_TYPE_FROM_LABEL[normalizedLabel]);
+      if (normalizedCategory && normalizedType !== normalizedCategory) return;
+      if (!options.includes(normalizedLabel)) {
+        options.push(normalizedLabel);
       }
+    };
+    DEFAULT_QUESTION_SECTIONS.forEach((label) => {
+      include(label, SECTION_TYPE_FROM_LABEL[label]);
     });
-    fromQuestions.forEach((label) => {
-      if (!options.includes(label)) {
-        options.push(label);
-      }
+    state.mockTestSections.forEach((section) => {
+      include(section?.sectionLabel, section?.sectionType);
+    });
+    state.mockQuestions.forEach((question) => {
+      include(question?.sectionLabel, resolveQuestionSectionType(question));
     });
     return options;
+  };
+  const currentQuestionCategoryFilter = () =>
+    lessonQuestionCategoryFilterInput instanceof HTMLSelectElement
+      ? String(lessonQuestionCategoryFilterInput.value || "ALL")
+      : "ALL";
+  const activeQuestionCategoryFilter = () => {
+    const filter = currentQuestionCategoryFilter();
+    return filter === "ALL" ? "" : normalizeSectionType(filter);
   };
   const currentQuestionSectionFilter = () =>
     lessonQuestionSectionFilterInput instanceof HTMLSelectElement
@@ -2936,10 +2979,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return filter === "ALL" ? "" : filter;
   };
   const visibleMockQuestions = () => {
-    const filter = activeQuestionSectionFilter();
-    if (!filter) return state.mockQuestions;
+    const categoryFilter = activeQuestionCategoryFilter();
+    const sectionFilter = activeQuestionSectionFilter();
+    if (!categoryFilter && !sectionFilter) return state.mockQuestions;
     return state.mockQuestions.filter(
-      (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === filter
+      (question) =>
+        (!categoryFilter || resolveQuestionSectionType(question) === categoryFilter) &&
+        (!sectionFilter || normalizeQuestionSectionLabel(question?.sectionLabel) === sectionFilter)
     );
   };
   const orderedMockQuestions = (options = {}) => {
@@ -2992,14 +3038,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const renderQuestionSectionControls = () => {
     const sectionOptions = getQuestionSectionOptions();
-    const renderSelectOptions = (selectedValue, includeAll = false) => {
+    const categoryOptions = getQuestionCategoryOptions();
+    const renderSectionSelectOptions = (optionsList, selectedValue, includeAll = false) => {
       const options = [];
       if (includeAll) {
         options.push('<option value="ALL">All Sections</option>');
       }
-      sectionOptions.forEach((label) => {
+      optionsList.forEach((label) => {
         const selected = selectedValue === label ? " selected" : "";
         options.push(`<option value="${escapeHtml(label)}"${selected}>${escapeHtml(label)}</option>`);
+      });
+      return options.join("");
+    };
+    const renderCategorySelectOptions = (selectedValue, includeAll = false) => {
+      const options = [];
+      if (includeAll) {
+        options.push('<option value="ALL">All Categories</option>');
+      }
+      categoryOptions.forEach((category) => {
+        const normalizedCategory = normalizeSectionType(category);
+        const selected = selectedValue === normalizedCategory ? " selected" : "";
+        const label = SECTION_TYPE_LABELS[normalizedCategory] || normalizedCategory;
+        options.push(
+          `<option value="${escapeHtml(normalizedCategory)}"${selected}>${escapeHtml(label)}</option>`
+        );
       });
       return options.join("");
     };
@@ -3008,29 +3070,46 @@ document.addEventListener("DOMContentLoaded", async () => {
       const configuredDefault =
         normalizeQuestionSectionLabel(state.mockTestSections?.[0]?.sectionLabel) || sectionOptions[0] || "";
       const previous = normalizeQuestionSectionLabel(lessonQuestionSectionInput.value) || configuredDefault;
-      lessonQuestionSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonQuestionSectionInput.innerHTML = renderSectionSelectOptions(sectionOptions, previous, false);
       lessonQuestionSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
     }
     if (lessonBulkImportSectionInput instanceof HTMLSelectElement) {
       const previous = normalizeQuestionSectionLabel(lessonBulkImportSectionInput.value) || sectionOptions[0] || "";
-      lessonBulkImportSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonBulkImportSectionInput.innerHTML = renderSectionSelectOptions(sectionOptions, previous, false);
       lessonBulkImportSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
     }
     if (lessonBulkImportCsvSectionInput instanceof HTMLSelectElement) {
       const previous = normalizeQuestionSectionLabel(lessonBulkImportCsvSectionInput.value) || sectionOptions[0] || "";
-      lessonBulkImportCsvSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonBulkImportCsvSectionInput.innerHTML = renderSectionSelectOptions(sectionOptions, previous, false);
       lessonBulkImportCsvSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
     }
     if (lessonQuestionEditSectionInput instanceof HTMLSelectElement) {
       const previous = normalizeQuestionSectionLabel(lessonQuestionEditSectionInput.value) || sectionOptions[0] || "";
-      lessonQuestionEditSectionInput.innerHTML = renderSelectOptions(previous, false);
+      lessonQuestionEditSectionInput.innerHTML = renderSectionSelectOptions(sectionOptions, previous, false);
       lessonQuestionEditSectionInput.value = sectionOptions.includes(previous) ? previous : sectionOptions[0] || "";
     }
+    let selectedCategoryFilter = currentQuestionCategoryFilter();
+    if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
+      const normalizedPrevious =
+        selectedCategoryFilter === "ALL" ? "ALL" : normalizeSectionType(selectedCategoryFilter);
+      lessonQuestionCategoryFilterInput.innerHTML = renderCategorySelectOptions(normalizedPrevious, true);
+      lessonQuestionCategoryFilterInput.value =
+        normalizedPrevious === "ALL" || categoryOptions.includes(normalizedPrevious)
+          ? normalizedPrevious
+          : "ALL";
+      selectedCategoryFilter = lessonQuestionCategoryFilterInput.value || "ALL";
+    }
+    const selectedCategory = selectedCategoryFilter === "ALL" ? "" : normalizeSectionType(selectedCategoryFilter);
+    const filteredSectionOptions = getQuestionSectionOptions(selectedCategory);
     if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
       const previous = currentQuestionSectionFilter();
-      lessonQuestionSectionFilterInput.innerHTML = renderSelectOptions(previous, true);
+      lessonQuestionSectionFilterInput.innerHTML = renderSectionSelectOptions(
+        filteredSectionOptions,
+        previous,
+        true
+      );
       lessonQuestionSectionFilterInput.value =
-        previous === "ALL" || sectionOptions.includes(previous) ? previous : "ALL";
+        previous === "ALL" || filteredSectionOptions.includes(previous) ? previous : "ALL";
     }
     renderQuestionDisplayOrderControls();
   };
@@ -4218,11 +4297,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     if (!filteredQuestions.length) {
-      const activeFilter = activeQuestionSectionFilter() || "selected section";
+      const activeCategory = activeQuestionCategoryFilter();
+      const activeSection = activeQuestionSectionFilter();
+      const categoryLabel = activeCategory
+        ? SECTION_TYPE_LABELS[activeCategory] || activeCategory
+        : "All Categories";
+      const sectionLabel = activeSection || "All Sections";
       lessonQuestionsTableBody.innerHTML =
-        `<tr><td colspan='10'>No questions found in "${escapeHtml(
-          activeFilter
-        )}" for this test. Select "All Sections" to review all added questions.</td></tr>`;
+        `<tr><td colspan='10'>No questions found for Category "${escapeHtml(
+          categoryLabel
+        )}" and Sub-category "${escapeHtml(sectionLabel)}". Select "All Categories" and "All Sections" to review all questions.</td></tr>`;
       updateLessonQuestionCountWarning();
       return;
     }
@@ -4564,6 +4648,111 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     return text;
   };
+  const downloadCsvRowsAsFile = (rows, filename) => {
+    const csvContent = `${rows
+      .map((row) => row.map((cell) => toCsvCell(cell)).join(","))
+      .join("\n")}\n`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  const slugifyFilePart = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  const questionHasAnyRightLanguageContent = (question) =>
+    Boolean(
+      String(question?.questionTextAlt || "").trim() ||
+        String(question?.optionAAlt || "").trim() ||
+        String(question?.optionBAlt || "").trim() ||
+        String(question?.optionCAlt || "").trim() ||
+        String(question?.optionDAlt || "").trim() ||
+        String(question?.explanationAlt || "").trim()
+    );
+  const questionHasCompleteRightLanguageContent = (question) =>
+    Boolean(
+      String(question?.questionTextAlt || "").trim() &&
+        String(question?.optionAAlt || "").trim() &&
+        String(question?.optionBAlt || "").trim() &&
+        String(question?.optionCAlt || "").trim() &&
+        String(question?.optionDAlt || "").trim()
+    );
+  const buildCsvRowFromQuestion = (question, useAltLanguage = false) => {
+    const pick = (leftValue, rightValue) => {
+      if (!useAltLanguage) return String(leftValue || "").trim();
+      return String(rightValue || "").trim();
+    };
+    return [
+      pick(question?.questionText, question?.questionTextAlt),
+      pick(question?.optionA, question?.optionAAlt),
+      pick(question?.optionB, question?.optionBAlt),
+      pick(question?.optionC, question?.optionCAlt),
+      pick(question?.optionD, question?.optionDAlt),
+      String(question?.correctOption || "").trim().toUpperCase(),
+      pick(question?.explanation, question?.explanationAlt),
+      question?.isActive === false ? "FALSE" : "TRUE",
+      normalizeQuestionSectionLabel(question?.sectionLabel) || DEFAULT_QUESTION_SECTIONS[0],
+    ];
+  };
+  const downloadFilteredQuestionReviewCsv = () => {
+    const filteredQuestions = [...visibleMockQuestions()].sort((left, right) => {
+      const leftOrder = Number(left?.displayOrder || 0);
+      const rightOrder = Number(right?.displayOrder || 0);
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
+    });
+    if (!filteredQuestions.length) {
+      throw new Error("No questions available for the selected category/sub-category filters.");
+    }
+
+    const header = [
+      "questionText",
+      "optionA",
+      "optionB",
+      "optionC",
+      "optionD",
+      "correctOption",
+      "explanation",
+      "isActive",
+      "sectionLabel",
+    ];
+    const categoryFilter = activeQuestionCategoryFilter();
+    const sectionFilter = activeQuestionSectionFilter();
+    const categoryPart = categoryFilter ? SECTION_TYPE_LABELS[categoryFilter] || categoryFilter : "all-categories";
+    const sectionPart = sectionFilter || "all-sections";
+    const fileSuffix = [slugifyFilePart(categoryPart), slugifyFilePart(sectionPart)].filter(Boolean).join("-");
+    const leftRows = [header, ...filteredQuestions.map((question) => buildCsvRowFromQuestion(question, false))];
+    downloadCsvRowsAsFile(leftRows, `mock-test-questions-${fileSuffix || "all"}-left.csv`);
+
+    const hasAnyRightContent = filteredQuestions.some((question) => questionHasAnyRightLanguageContent(question));
+    const hasCompleteRightContent =
+      hasAnyRightContent &&
+      filteredQuestions.every((question) => questionHasCompleteRightLanguageContent(question));
+    if (hasCompleteRightContent) {
+      const rightRows = [header, ...filteredQuestions.map((question) => buildCsvRowFromQuestion(question, true))];
+      downloadCsvRowsAsFile(rightRows, `mock-test-questions-${fileSuffix || "all"}-right.csv`);
+      setMessage(
+        `Downloaded filtered CSV for ${filteredQuestions.length} questions (left and right language files).`,
+        "success"
+      );
+      return;
+    }
+    if (hasAnyRightContent) {
+      setMessage(
+        `Downloaded filtered CSV for ${filteredQuestions.length} questions (left file). Right-language data is partial, so right CSV was not generated.`,
+        "success"
+      );
+      return;
+    }
+    setMessage(`Downloaded filtered CSV for ${filteredQuestions.length} questions.`, "success");
+  };
 
   const downloadLessonSectionCsvSample = () => {
     const formatKey = getCsvTemplateFormat();
@@ -4692,19 +4881,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         ],
       ];
     }
-    const csvContent = `${rows
-      .map((row) => row.map((cell) => toCsvCell(cell)).join(","))
-      .join("\n")}\n`;
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
     const fileSuffix = String(formatKey || "general").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.href = url;
-    link.download = `mock-test-import-template-${fileSuffix || "general"}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsvRowsAsFile(rows, `mock-test-import-template-${fileSuffix || "general"}.csv`);
   };
 
   const setMockContextLabels = () => {
@@ -7770,6 +7948,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
       renderLessonQuestions();
+    });
+  }
+  if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
+    lessonQuestionCategoryFilterInput.addEventListener("change", () => {
+      resetQuestionSectionFilter();
+      renderLessonQuestions();
+    });
+  }
+  if (lessonReviewDownloadCsvBtn instanceof HTMLButtonElement) {
+    lessonReviewDownloadCsvBtn.addEventListener("click", () => {
+      try {
+        downloadFilteredQuestionReviewCsv();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to download filtered CSV.", "error");
+      }
     });
   }
 
