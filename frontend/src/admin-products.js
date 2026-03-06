@@ -1182,25 +1182,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const renderLegacyDemoSourceCard = () => {
-    const productId = String(productIdInput?.value || "").trim();
-    if (!productId) return "";
-    const currentProduct = getProductById(productId);
-    const legacyDemoTitle = String(currentProduct?.demoLessonTitle || "").trim();
-    const legacyDemoUrl = String(currentProduct?.demoLessonUrl || "").trim();
-    if (!legacyDemoUrl) return "";
     const selectedType = normalizeAttachmentType(attachmentFilters.type);
     if (!["ALL", "DEMO"].includes(selectedType)) return "";
-    const label = legacyDemoTitle || "Legacy Demo Source";
-    return `
-      <div class="filter-option row-selected" style="cursor:default;border-style:dashed;background:#fff9e6;">
-        <span>
-          <strong class="attachment-item-title">${escapeHtml(label)}</strong>
-          <small class="attachment-item-meta">
-            ${escapeHtml(`Legacy demo URL: ${legacyDemoUrl}`)} | This source is shown on student TOC when no saved demo test attachment exists.
-          </small>
-        </span>
-      </div>
-    `;
+    const activeProductId = String(productIdInput?.value || "").trim();
+    const currentCategory = String(categoryInput?.value || "").trim();
+    const currentExam = String(examInput?.value || "").trim();
+    const currentLanguage = String(languageInput?.value || "").trim();
+    const candidates = (Array.isArray(products) ? products : []).filter((product) => {
+      const demoUrl = String(product?.demoLessonUrl || "").trim();
+      if (!demoUrl) return false;
+      if (currentCategory && String(product?.examCategory || "").trim() !== currentCategory) return false;
+      if (currentExam && String(product?.examName || "").trim() !== currentExam) return false;
+      if (currentLanguage && String(product?.languageMode || "").trim() !== currentLanguage) return false;
+      return true;
+    });
+    if (activeProductId) {
+      const activeProduct = getProductById(activeProductId);
+      if (
+        activeProduct &&
+        String(activeProduct?.demoLessonUrl || "").trim() &&
+        !candidates.some((item) => String(item?.id || "").trim() === activeProductId)
+      ) {
+        candidates.unshift(activeProduct);
+      }
+    }
+    if (!candidates.length) return "";
+    return candidates
+      .map((product) => {
+        const productId = String(product?.id || "").trim();
+        const productTitle = String(product?.title || "Untitled Product").trim();
+        const legacyDemoTitle = String(product?.demoLessonTitle || "").trim();
+        const legacyDemoUrl = String(product?.demoLessonUrl || "").trim();
+        const label = legacyDemoTitle || "Legacy Demo Source";
+        const isCurrent = activeProductId && productId === activeProductId;
+        return `
+          <div class="filter-option${isCurrent ? " row-selected" : ""}" style="cursor:default;border-style:dashed;background:#fff9e6;">
+            <span>
+              <strong class="attachment-item-title">${escapeHtml(label)}</strong>
+              <small class="attachment-item-meta">
+                ${escapeHtml(`Product: ${productTitle}`)} | ${escapeHtml(`Legacy demo URL: ${legacyDemoUrl}`)} | This source is shown on student TOC when no saved demo test attachment exists.
+              </small>
+            </span>
+          </div>
+        `;
+      })
+      .join("");
   };
 
   const pickAttachmentFilterTypeForProduct = (product) => {
@@ -1640,6 +1666,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     setTabSaved("attachments", true);
     setMessage("Attachments updated.", "success");
     return true;
+  };
+
+  const maybeAutoPersistAttachmentSelection = async () => {
+    const hasExistingProduct = Boolean(String(productIdInput?.value || "").trim());
+    if (!hasExistingProduct) return;
+    try {
+      await persistAttachmentTabForExistingProduct();
+    } catch (error) {
+      setMessage(error?.message || "Unable to update attachments.", "error");
+    }
   };
 
   const saveCurrentTab = async () => {
@@ -2367,7 +2403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (attachmentListWrap instanceof HTMLElement) {
-    attachmentListWrap.addEventListener("change", (event) => {
+    attachmentListWrap.addEventListener("change", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       const testId = String(target.getAttribute("data-attachment-test-id") || "").trim();
@@ -2375,6 +2411,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!testId) return;
       setAttachmentSelection(type, testId, target.checked, attachmentFilters.upcoming);
       renderAttachmentList();
+      await maybeAutoPersistAttachmentSelection();
     });
   }
 
