@@ -1181,6 +1181,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const renderLegacyDemoSourceCard = () => {
+    const productId = String(productIdInput?.value || "").trim();
+    if (!productId) return "";
+    const currentProduct = getProductById(productId);
+    const legacyDemoTitle = String(currentProduct?.demoLessonTitle || "").trim();
+    const legacyDemoUrl = String(currentProduct?.demoLessonUrl || "").trim();
+    if (!legacyDemoUrl) return "";
+    const selectedType = normalizeAttachmentType(attachmentFilters.type);
+    if (!["ALL", "DEMO"].includes(selectedType)) return "";
+    const label = legacyDemoTitle || "Legacy Demo Source";
+    return `
+      <div class="filter-option row-selected" style="cursor:default;border-style:dashed;background:#fff9e6;">
+        <span>
+          <strong class="attachment-item-title">${escapeHtml(label)}</strong>
+          <small class="attachment-item-meta">
+            ${escapeHtml(`Legacy demo URL: ${legacyDemoUrl}`)} | This source is shown on student TOC when no saved demo test attachment exists.
+          </small>
+        </span>
+      </div>
+    `;
+  };
+
   const pickAttachmentFilterTypeForProduct = (product) => {
     if (hasPendingAttachmentPreset() && pendingAttachmentPreset.type) {
       return normalizeAttachmentType(pendingAttachmentPreset.type);
@@ -1293,11 +1315,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pageStart = (attachmentFilters.page - 1) * ATTACHMENT_PAGE_SIZE;
     const pageRows = filtered.slice(pageStart, pageStart + ATTACHMENT_PAGE_SIZE);
     const filterUpcoming = Boolean(attachmentFilters.upcoming);
+    const legacyDemoSourceCard = renderLegacyDemoSourceCard();
 
     if (attachmentListWrap instanceof HTMLElement) {
       if (!pageRows.length) {
         attachmentListWrap.innerHTML =
-          '<p style="margin:0;color:#666;">No entries found for selected filters.</p>';
+          `${legacyDemoSourceCard}<p style="margin:0;color:#666;">No entries found for selected filters.</p>`;
       } else {
         attachmentListWrap.innerHTML = pageRows
           .map((item) => {
@@ -1336,6 +1359,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
           })
           .join("");
+        if (legacyDemoSourceCard) {
+          attachmentListWrap.innerHTML = `${legacyDemoSourceCard}${attachmentListWrap.innerHTML}`;
+        }
       }
     }
 
@@ -2099,6 +2125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       setMessage("");
+      const returnTab = activeProductTab;
 
       const allSaved = PRODUCT_TAB_ORDER.every((key) => Boolean(tabSavedState[key]));
       if (!allSaved) {
@@ -2129,12 +2156,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         const id = productIdInput?.value || "";
         if (id) {
-          await apiRequest({
+          const response = await apiRequest({
             path: `/admin/products/${id}`,
             method: "PATCH",
             token,
             body: payload,
           });
+          const updated = response?.product || null;
+          await Promise.all([loadProducts(), loadMockTests(), loadAllProductsCatalog()]);
+          const updatedProduct = updated?.id ? getProductById(updated.id) || updated : getProductById(id);
+          if (updatedProduct) {
+            fillFormForEdit(updatedProduct);
+            switchProductTab(returnTab);
+            markAllTabsSaved(true);
+          }
           setMessage("Product updated.", "success");
         } else {
           await apiRequest({
@@ -2144,10 +2179,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             body: payload,
           });
           setMessage("Product created.", "success");
+          resetForm();
+          await Promise.all([loadProducts(), loadMockTests(), loadAllProductsCatalog()]);
         }
-
-        resetForm();
-        await Promise.all([loadProducts(), loadAllProductsCatalog()]);
       } catch (error) {
         setMessage(error.message || "Unable to save product.", "error");
       }
