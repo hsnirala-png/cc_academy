@@ -6146,6 +6146,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadMockLessons(state.selectedMockChapterId);
     }
 
+    if (
+      state.selectedMockCourseId &&
+      state.selectedMockCourseId === state.selectedCourseId &&
+      state.selectedMockChapterId &&
+      state.selectedMockChapterId === state.selectedChapterId
+    ) {
+      await loadMockLessons(state.selectedMockChapterId);
+    }
+
     renderMockCourseOptions();
     renderMockChapterOptions();
     renderMockLessonOptions();
@@ -7418,6 +7427,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         await loadChapters(selectedCourseId);
         await loadLessons(selectedChapterId);
+        if (
+          state.selectedMockCourseId &&
+          state.selectedMockCourseId === selectedCourseId &&
+          state.selectedMockChapterId &&
+          state.selectedMockChapterId === selectedChapterId
+        ) {
+          await loadMockLessons(selectedChapterId);
+        }
         await loadLessonTracking();
 
         if (shouldSaveTestWithLesson) {
