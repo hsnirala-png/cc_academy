@@ -3489,6 +3489,87 @@ document.addEventListener("DOMContentLoaded", async () => {
       chapterId: String(matched?.chapter?.id || "").trim(),
     };
   };
+  const addTestToToc = async (testId) => {
+    const normalizedTestId = String(testId || "").trim();
+    if (!normalizedTestId) {
+      throw new Error("Test id is required.");
+    }
+
+    const targetCourseId = String(
+      state.selectedMockCourseId || mockLinkCourseIdInput?.value?.trim() || state.selectedCourseId || ""
+    ).trim();
+    const targetChapterId = String(
+      state.selectedMockChapterId || mockLinkChapterIdInput?.value?.trim() || state.selectedChapterId || ""
+    ).trim();
+    if (!targetCourseId || !targetChapterId) {
+      throw new Error("Select course and subject first so the TOC entry can be created in the right place.");
+    }
+
+    const existingLinkedLesson = await findLinkedLessonForPlay(normalizedTestId);
+    if (existingLinkedLesson?.lessonId) {
+      if (existingLinkedLesson.chapterId) {
+        state.selectedMockChapterId = existingLinkedLesson.chapterId;
+        state.selectedChapterId = existingLinkedLesson.chapterId;
+      }
+      state.selectedMockLessonId = existingLinkedLesson.lessonId;
+      renderMockChapterOptions();
+      if (state.selectedMockChapterId) {
+        await loadMockLessons(state.selectedMockChapterId);
+      }
+      return {
+        lessonId: existingLinkedLesson.lessonId,
+        created: false,
+      };
+    }
+
+    state.selectedCourseId = targetCourseId;
+    state.selectedChapterId = targetChapterId;
+    if (lessonCourseIdInput instanceof HTMLSelectElement) {
+      lessonCourseIdInput.value = targetCourseId;
+    }
+    if (lessonChapterIdInput instanceof HTMLSelectElement) {
+      lessonChapterIdInput.value = targetChapterId;
+    }
+    await loadLessons(targetChapterId);
+
+    const test = state.mockTestsAdmin.find((item) => String(item?.id || "").trim() === normalizedTestId);
+    if (!test) {
+      throw new Error("Selected test was not found.");
+    }
+
+    const created = await apiRequest({
+      path: "/admin/lesson-items",
+      method: "POST",
+      token,
+      body: {
+        chapterId: targetChapterId,
+        title: String(test.title || "Untitled test").trim() || "Untitled test",
+        orderIndex: getNextLessonOrderIndex(),
+        assessmentTestId: normalizedTestId,
+      },
+    });
+
+    const savedLessonId = String(created?.lesson?.id || "").trim();
+    lessonTrackingCache = [];
+    await Promise.all([
+      loadLessons(targetChapterId),
+      loadMockLessons(targetChapterId),
+      loadLessonTracking(),
+      loadAssessments(),
+    ]);
+    if (savedLessonId) {
+      state.selectedMockLessonId = savedLessonId;
+      if (mockLinkLessonIdInput instanceof HTMLSelectElement) {
+        mockLinkLessonIdInput.value = savedLessonId;
+      }
+      renderMockLessonOptions();
+    }
+
+    return {
+      lessonId: savedLessonId,
+      created: true,
+    };
+  };
   const normalizeLookupText = (value) =>
     String(value || "")
       .toLowerCase()
@@ -3659,7 +3740,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       testsAttachFilterRow.classList.toggle("hidden", nextMode !== "attach");
     }
     if (testsTrackPanel instanceof HTMLElement) {
-      testsTrackPanel.classList.toggle("hidden", nextMode !== "attach");
+      testsTrackPanel.classList.remove("hidden");
     }
     if (testsBuilderWorkspace instanceof HTMLElement) {
       testsBuilderWorkspace.classList.toggle("hidden", nextMode !== "create");
@@ -4971,6 +5052,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       .map((test) => {
         const rowSelected = state.selectedMockTestId === test.id || lessonMockTestIdInput?.value === test.id;
         const publishLabel = test.isActive ? "Published" : "Publish";
+        const isLinkedToToc =
+          Boolean(linkedLessonForTest(test.id)) ||
+          Boolean(linkedLessonInLoadedLessons(test.id)) ||
+          state.trackingLessons.some(
+            (lesson) => String(lesson?.assessment?.id || "").trim() === String(test.id || "").trim()
+          );
         return `
           <tr class="${rowSelected ? "row-selected" : ""}">
             <td>${escapeHtml(test.title || "-")}</td>
@@ -4993,6 +5080,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                   data-play-test="${test.id}"
                   title="Start attempt for testing"
                 >Play</button>
+                <button
+                  type="button"
+                  class="table-btn"
+                  data-add-test-toc="${test.id}"
+                  ${isLinkedToToc ? 'disabled title="This test is already added in TOC."' : 'title="Add this test as a chapter entry in TOC"'}
+                >${isLinkedToToc ? "TOC Added" : "Add TOC"}</button>
                 <button
                   type="button"
                   class="table-btn"
@@ -7703,6 +7796,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
+      const addTocBtn = target.closest("[data-add-test-toc]");
+      if (addTocBtn instanceof HTMLButtonElement) {
+        const testId = addTocBtn.getAttribute("data-add-test-toc") || "";
+        if (!testId || addTocBtn.disabled) return;
+
+        addTocBtn.disabled = true;
+        try {
+          setMessage("Adding test to TOC...");
+          const result = await addTestToToc(testId);
+          renderMockTestsAdmin();
+          setMessage(
+            result.created
+              ? "Test added to TOC. You can now manage it from this table or from the Create Lesson review flow."
+              : "This test is already linked in TOC.",
+            "success"
+          );
+        } catch (error) {
+          setMessage(error?.message || "Unable to add test to TOC.", "error");
+        } finally {
+          addTocBtn.disabled = false;
+        }
+        return;
+      }
+
       const publishBtn = target.closest("[data-publish-test]");
       if (!(publishBtn instanceof HTMLButtonElement)) return;
       const testId = publishBtn.getAttribute("data-publish-test") || "";
@@ -8155,9 +8272,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         setMessage("Saving questions with test...");
         await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
+        let csvImportResult = null;
+        const hasPendingCsvImport =
+          lessonBulkImportCsvFileInput instanceof HTMLInputElement &&
+          Boolean(lessonBulkImportCsvFileInput.files?.length);
+        if (hasPendingCsvImport) {
+          setMessage("Test saved. Uploading CSV questions...");
+          csvImportResult = await handleLessonCsvBulkImport();
+          if (lessonBulkImportCsvFileInput instanceof HTMLInputElement) {
+            lessonBulkImportCsvFileInput.value = "";
+          }
+          if (lessonBulkImportCsvFileAltInput instanceof HTMLInputElement) {
+            lessonBulkImportCsvFileAltInput.value = "";
+          }
+          if (lessonBulkImportReplaceExistingInput instanceof HTMLInputElement) {
+            lessonBulkImportReplaceExistingInput.checked = false;
+          }
+        }
         await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestsAdmin(), loadAssessments()]);
         setPendingTestChanges(false);
-        setMessage("Questions are saved with selected test.", "success");
+        setMessage(
+          csvImportResult
+            ? `Questions are saved with selected test. CSV import added ${csvImportResult.createdCount}/${csvImportResult.totalRows} questions.`
+            : "Questions are saved with selected test.",
+          "success"
+        );
       } catch (error) {
         setMessage(error.message || "Unable to save questions with test.", "error");
       }
