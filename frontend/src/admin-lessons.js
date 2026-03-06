@@ -3877,18 +3877,68 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const refreshManualCorrectOptionChoices = () => {
     if (!(lessonCorrectOptionInput instanceof HTMLSelectElement)) return;
-    const optionLabelMap = {
+    Array.from(lessonCorrectOptionInput.options).forEach((entry) => {
+      const key = String(entry.value || "").trim().toUpperCase();
+      if (!["A", "B", "C", "D"].includes(key)) return;
+      entry.textContent = key;
+    });
+
+    const selectedKeyRaw = String(lessonCorrectOptionInput.value || "A").trim().toUpperCase();
+    const selectedKey = ["A", "B", "C", "D"].includes(selectedKeyRaw) ? selectedKeyRaw : "A";
+    lessonCorrectOptionInput.value = selectedKey;
+
+    const leftAnswerMap = {
       A: String(lessonOptionAInput?.value || "").trim(),
       B: String(lessonOptionBInput?.value || "").trim(),
       C: String(lessonOptionCInput?.value || "").trim(),
       D: String(lessonOptionDInput?.value || "").trim(),
     };
-    Array.from(lessonCorrectOptionInput.options).forEach((entry) => {
+    const rightAnswerMap = {
+      A: String(lessonOptionAAltInput?.value || "").trim(),
+      B: String(lessonOptionBAltInput?.value || "").trim(),
+      C: String(lessonOptionCAltInput?.value || "").trim(),
+      D: String(lessonOptionDAltInput?.value || "").trim(),
+    };
+
+    if (lessonQuestionExplanationInput instanceof HTMLInputElement) {
+      lessonQuestionExplanationInput.value = leftAnswerMap[selectedKey] || "";
+    }
+    if (lessonQuestionExplanationAltInput instanceof HTMLInputElement) {
+      lessonQuestionExplanationAltInput.value = rightAnswerMap[selectedKey] || "";
+    }
+  };
+
+  const refreshEditCorrectOptionChoices = () => {
+    if (!(lessonQuestionEditCorrectInput instanceof HTMLSelectElement)) return;
+    Array.from(lessonQuestionEditCorrectInput.options).forEach((entry) => {
       const key = String(entry.value || "").trim().toUpperCase();
       if (!["A", "B", "C", "D"].includes(key)) return;
-      const labelText = optionLabelMap[key];
-      entry.textContent = labelText ? `${key}. ${labelText}` : key;
+      entry.textContent = key;
     });
+
+    const selectedKeyRaw = String(lessonQuestionEditCorrectInput.value || "A").trim().toUpperCase();
+    const selectedKey = ["A", "B", "C", "D"].includes(selectedKeyRaw) ? selectedKeyRaw : "A";
+    lessonQuestionEditCorrectInput.value = selectedKey;
+
+    const leftAnswerMap = {
+      A: String(lessonQuestionEditOptionAInput?.value || "").trim(),
+      B: String(lessonQuestionEditOptionBInput?.value || "").trim(),
+      C: String(lessonQuestionEditOptionCInput?.value || "").trim(),
+      D: String(lessonQuestionEditOptionDInput?.value || "").trim(),
+    };
+    const rightAnswerMap = {
+      A: String(lessonQuestionEditOptionAAltInput?.value || "").trim(),
+      B: String(lessonQuestionEditOptionBAltInput?.value || "").trim(),
+      C: String(lessonQuestionEditOptionCAltInput?.value || "").trim(),
+      D: String(lessonQuestionEditOptionDAltInput?.value || "").trim(),
+    };
+
+    if (lessonQuestionEditExplanationInput instanceof HTMLInputElement) {
+      lessonQuestionEditExplanationInput.value = leftAnswerMap[selectedKey] || "";
+    }
+    if (lessonQuestionEditExplanationAltInput instanceof HTMLInputElement) {
+      lessonQuestionEditExplanationAltInput.value = rightAnswerMap[selectedKey] || "";
+    }
   };
 
   const toggleQuestionStructuredFields = () => {
@@ -3946,6 +3996,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionEditDisplayOrderInput instanceof HTMLSelectElement) {
       renderQuestionDisplayOrderControls({ editSelectedOrder: 1, editExcludeQuestionId: "" });
     }
+    refreshEditCorrectOptionChoices();
     toggleBilingualQuestionInputs();
   };
 
@@ -4031,6 +4082,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       primeAutoTranslationMeta(leftControl, rightControl);
     });
 
+    refreshEditCorrectOptionChoices();
     toggleBilingualQuestionInputs();
     lessonQuestionEditModal.classList.add("open");
     lessonQuestionEditModal.setAttribute("aria-hidden", "false");
@@ -7671,13 +7723,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  [lessonOptionAInput, lessonOptionBInput, lessonOptionCInput, lessonOptionDInput].forEach((control) => {
+  [
+    lessonOptionAInput,
+    lessonOptionBInput,
+    lessonOptionCInput,
+    lessonOptionDInput,
+    lessonOptionAAltInput,
+    lessonOptionBAltInput,
+    lessonOptionCAltInput,
+    lessonOptionDAltInput,
+  ].forEach((control) => {
     if (!(control instanceof HTMLInputElement)) return;
     control.addEventListener("input", () => {
       refreshManualCorrectOptionChoices();
     });
   });
+  if (lessonCorrectOptionInput instanceof HTMLSelectElement) {
+    lessonCorrectOptionInput.addEventListener("change", () => {
+      refreshManualCorrectOptionChoices();
+    });
+  }
   refreshManualCorrectOptionChoices();
+
+  [
+    lessonQuestionEditOptionAInput,
+    lessonQuestionEditOptionBInput,
+    lessonQuestionEditOptionCInput,
+    lessonQuestionEditOptionDInput,
+    lessonQuestionEditOptionAAltInput,
+    lessonQuestionEditOptionBAltInput,
+    lessonQuestionEditOptionCAltInput,
+    lessonQuestionEditOptionDAltInput,
+  ].forEach((control) => {
+    if (!(control instanceof HTMLInputElement)) return;
+    control.addEventListener("input", () => {
+      refreshEditCorrectOptionChoices();
+    });
+  });
+  if (lessonQuestionEditCorrectInput instanceof HTMLSelectElement) {
+    lessonQuestionEditCorrectInput.addEventListener("change", () => {
+      refreshEditCorrectOptionChoices();
+    });
+  }
+  refreshEditCorrectOptionChoices();
 
   if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
