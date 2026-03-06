@@ -3854,6 +3854,49 @@ document.addEventListener("DOMContentLoaded", async () => {
       return haystack.includes(searchText);
     });
   };
+  const getCreateScopedTests = () => {
+    const selectedSubject = normalizeMockSubjectValue(lessonMockTestSubjectInput?.value || "");
+    const selectedAccess = String(lessonMockTestAccessCodeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedCategory = String(lessonMockTestCategoryInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedLanguageMode = String(lessonMockTestLanguageModeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedTitle = String(lessonMockTestTitleInput?.value || "")
+      .trim()
+      .toLowerCase();
+    const scopedLinkedTestIds = new Set(
+      (Array.isArray(state.mockLessons) ? state.mockLessons : [])
+        .map((lesson) => String(lesson?.assessmentTestId || "").trim())
+        .filter(Boolean)
+    );
+    const hasChapterScope = Boolean(state.selectedMockChapterId);
+    return state.mockTestsAdmin.filter((test) => {
+      const testId = String(test?.id || "").trim();
+      if (!testId) return false;
+      if (hasChapterScope && scopedLinkedTestIds.size && !scopedLinkedTestIds.has(testId) && testId !== state.selectedMockTestId) {
+        return false;
+      }
+      if (selectedSubject && normalizeMockSubjectValue(test.subject || "") !== selectedSubject) return false;
+      if (selectedAccess && String(test.accessCode || "DEMO").trim().toUpperCase() !== selectedAccess) return false;
+      if (selectedCategory && String(test.mockCategory || "PREMIUM").trim().toUpperCase() !== selectedCategory) {
+        return false;
+      }
+      if (
+        selectedLanguageMode &&
+        String(test.languageMode || "")
+          .trim()
+          .toUpperCase() !== selectedLanguageMode
+      ) {
+        return false;
+      }
+      if (selectedTitle && !String(test.title || "").toLowerCase().includes(selectedTitle)) return false;
+      return true;
+    });
+  };
   const refreshAttachFilteredViews = () => {
     if (state.testsMode !== "attach") return;
     renderAttachExistingTestOptions();
@@ -5094,7 +5137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderMockTestsAdmin = () => {
     if (!lessonMockTestsTableBody) return;
-    const testsToRender = state.testsMode === "attach" ? getAttachFilteredTests() : state.mockTestsAdmin;
+    const testsToRender = state.testsMode === "attach" ? getAttachFilteredTests() : getCreateScopedTests();
     if (!testsToRender.length) {
       lessonMockTestsTableBody.innerHTML =
         '<tr><td colspan="11" style="text-align:center;color:#666;">No tests found.</td></tr>';

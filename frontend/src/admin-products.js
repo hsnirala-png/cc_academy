@@ -1234,7 +1234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       pendingAttachmentPreset.targetTestId &&
       !filterAttachmentRows(candidates, attachmentFilters).some((item) => item.id === pendingAttachmentPreset.targetTestId)
     ) {
-      const targetType = ["ALL", "DEMO", "LESSON", "MOCK"].find((type) =>
+      const targetType = ["DEMO", "LESSON", "MOCK", "ALL"].find((type) =>
         getAttachmentCandidates(type).some((item) => item.id === pendingAttachmentPreset.targetTestId)
       );
       if (targetType && targetType !== selectedType) {
@@ -1590,7 +1590,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     return "";
   };
 
-  const saveCurrentTab = () => {
+  const persistAttachmentTabForExistingProduct = async () => {
+    const id = String(productIdInput?.value || "").trim();
+    if (!id) return false;
+    const payload = payloadFromForm();
+    await apiRequest({
+      path: `/admin/products/${id}`,
+      method: "PATCH",
+      token,
+      body: {
+        mockTestLinks: payload.mockTestLinks,
+        demoMockTestLinks: payload.demoMockTestLinks,
+      },
+    });
+    await Promise.all([loadProducts(), loadMockTests(), loadAllProductsCatalog()]);
+    const updatedProduct = getProductById(id);
+    if (updatedProduct) {
+      fillFormForEdit(updatedProduct);
+    } else {
+      renderAttachmentList();
+    }
+    switchProductTab("attachments");
+    setTabSaved("attachments", true);
+    setMessage("Attachments updated.", "success");
+    return true;
+  };
+
+  const saveCurrentTab = async () => {
     if (activeProductTab === "addons" && activeAddonsEditorTarget) {
       applyInlineAddonEdits(activeAddonsEditorTarget);
       activeAddonsEditorTarget = "";
@@ -1601,6 +1627,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (errorMessage) {
       setMessage(errorMessage, "error");
       return false;
+    }
+    if (activeProductTab === "attachments") {
+      const hasExistingProduct = Boolean(String(productIdInput?.value || "").trim());
+      if (hasExistingProduct) {
+        await persistAttachmentTabForExistingProduct();
+        return true;
+      }
+      setTabSaved(activeProductTab, true);
+      setMessage("Saved attachments locally. Click Create Product to publish them.", "success");
+      return true;
     }
     setTabSaved(activeProductTab, true);
     setMessage(`Saved ${activeProductTab} tab.`, "success");
@@ -1999,8 +2035,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   if (productTabSaveBtn instanceof HTMLButtonElement) {
-    productTabSaveBtn.addEventListener("click", () => {
-      saveCurrentTab();
+    productTabSaveBtn.addEventListener("click", async () => {
+      try {
+        await saveCurrentTab();
+      } catch (error) {
+        setMessage(error?.message || "Unable to save current tab.", "error");
+      }
     });
   }
 
