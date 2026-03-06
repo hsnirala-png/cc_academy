@@ -869,7 +869,6 @@ adminProductsRouter.get("/products/mock-tests", ...ensureAdmin, async (_req, res
         LEFT JOIN Lesson l ON l.assessmentTestId = mt.id
         LEFT JOIN Chapter ch ON ch.id = l.chapterId
         LEFT JOIN Course c ON c.id = ch.courseId
-        WHERE mt.isActive = 1
         GROUP BY
           mt.id,
           mt.title,

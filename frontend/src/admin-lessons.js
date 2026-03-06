@@ -3639,6 +3639,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (raw.includes("MATH") || raw.includes("MATHEMAT")) return "MATHS";
     return raw.replace(/\s+/g, "_");
   };
+  const normalizeProductAttachmentType = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (normalized === "DEMO") return "DEMO";
+    if (normalized === "LESSON") return "LESSON";
+    return "MOCK";
+  };
+  const loadActiveProductsForLessonFlow = async () => {
+    const response = await apiRequest({
+      path: "/admin/products",
+      token,
+      query: { isActive: true },
+    });
+    return Array.isArray(response?.products) ? response.products : [];
+  };
+  const findProductsLinkedToMockTest = async (mockTestId) => {
+    const normalizedMockTestId = String(mockTestId || "").trim();
+    if (!normalizedMockTestId) return [];
+    const products = await loadActiveProductsForLessonFlow();
+    return products.filter((product) => {
+      const linkedMockTests = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
+      const linkedDemoMockTests = Array.isArray(product?.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
+      return [...linkedMockTests, ...linkedDemoMockTests].some(
+        (item) => String(item?.id || "").trim() === normalizedMockTestId
+      );
+    });
+  };
+  const buildProductAttachmentSetupUrl = (mockTestId) => {
+    const selected = selectedMockTest();
+    const params = new URLSearchParams();
+    params.set("tab", "attachments");
+    params.set(
+      "attachmentType",
+      normalizeProductAttachmentType(selected?.accessCode || lessonMockTestAccessCodeInput?.value || "DEMO")
+    );
+    const courseTitle = String(selectedMockCourse()?.title || "").trim();
+    const chapterTitle = String(selectedMockChapter()?.title || "").trim();
+    const subjectValue = normalizeMockSubjectValue(selected?.subject || lessonMockTestSubjectInput?.value || "");
+    const languageValue = String(selected?.languageMode || lessonMockTestLanguageModeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const titleValue = String(selected?.title || lessonMockTestTitleInput?.value || "").trim();
+    if (courseTitle) params.set("course", courseTitle);
+    if (chapterTitle) params.set("chapter", chapterTitle);
+    if (subjectValue) params.set("subject", subjectValue);
+    if (languageValue) params.set("language", languageValue);
+    if (titleValue) params.set("title", titleValue);
+    if (mockTestId) params.set("testId", String(mockTestId));
+    params.set(
+      "message",
+      "First-time product attachment is needed. Open the correct product, keep Attachments tab, check this test, and save once."
+    );
+    return `./admin-products.html?${params.toString()}`;
+  };
   const syncMockSubjectOptionsByExam = () => {
     if (!(lessonMockTestSubjectInput instanceof HTMLSelectElement)) return;
     const examType = lessonMockTestExamTypeInput?.value || "PSTET_1";
@@ -7565,7 +7618,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
-        const finalMessage = testSaveErrorMessage
+        let finalMessage = testSaveErrorMessage
           ? `${successMessage} But test was not saved: ${testSaveErrorMessage}`
           : csvImportErrorMessage
             ? `${successMessage} Test saved and attached. But CSV import failed: ${csvImportErrorMessage}`
@@ -7575,6 +7628,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? `${successMessage} Test saved and attached.`
             : successMessage;
         const finalType = testSaveErrorMessage || csvImportErrorMessage ? "error" : "success";
+        if (shouldSaveTestWithLesson && finalType === "success" && state.selectedMockTestId) {
+          const linkedProducts = await findProductsLinkedToMockTest(state.selectedMockTestId);
+          if (!linkedProducts.length) {
+            window.location.href = buildProductAttachmentSetupUrl(state.selectedMockTestId);
+            return;
+          }
+          finalMessage = `${finalMessage} Product attachment already exists, so TOC updates will reflect immediately.`;
+        }
         if (savedLessonId) {
           if (lessonSelectIdInput instanceof HTMLSelectElement) {
             lessonSelectIdInput.value = savedLessonId;

@@ -111,6 +111,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   let activeLinksModal = null;
   const PRODUCT_TAB_ORDER = ["create", "attachments", "addons"];
   let activeProductTab = "create";
+  const pageQuery = new URLSearchParams(window.location.search);
+  const pendingAttachmentPreset = {
+    tab: String(pageQuery.get("tab") || "").trim().toLowerCase(),
+    type: String(pageQuery.get("attachmentType") || "").trim().toUpperCase(),
+    course: String(pageQuery.get("course") || "").trim(),
+    subject: String(pageQuery.get("subject") || "").trim().toUpperCase(),
+    chapter: String(pageQuery.get("chapter") || "").trim(),
+    language: String(pageQuery.get("language") || "").trim().toUpperCase(),
+    title: String(pageQuery.get("title") || "").trim(),
+    targetTestId: String(pageQuery.get("testId") || "").trim(),
+    message: String(pageQuery.get("message") || "").trim(),
+  };
+  let attachmentPresetApplied = false;
+  const hasPendingAttachmentPreset = () =>
+    Boolean(
+      pendingAttachmentPreset.tab ||
+        pendingAttachmentPreset.type ||
+        pendingAttachmentPreset.course ||
+        pendingAttachmentPreset.subject ||
+        pendingAttachmentPreset.chapter ||
+        pendingAttachmentPreset.language ||
+        pendingAttachmentPreset.title ||
+        pendingAttachmentPreset.targetTestId ||
+        pendingAttachmentPreset.message
+    );
   let activeAddonsDetailsTab = "overview";
   let activeAddonsEditorTarget = "";
   const tabSavedState = {
@@ -1071,6 +1096,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     chapterTitle: String(item?.chapterTitle || "").trim(),
     lessonTitle: String(item?.lessonTitle || "").trim(),
   });
+  const applyAttachmentPreset = () => {
+    if (attachmentPresetApplied) return;
+    if (!hasPendingAttachmentPreset()) return;
+
+    if (pendingAttachmentPreset.tab === "attachments") {
+      switchProductTab("attachments");
+    }
+    if (pendingAttachmentPreset.type) {
+      attachmentFilters.type = normalizeAttachmentType(pendingAttachmentPreset.type);
+      if (attachmentTypeFilter instanceof HTMLSelectElement) {
+        attachmentTypeFilter.value = attachmentFilters.type;
+      }
+    }
+    attachmentFilters.course = pendingAttachmentPreset.course;
+    attachmentFilters.subject = pendingAttachmentPreset.subject;
+    attachmentFilters.chapter = pendingAttachmentPreset.chapter;
+    attachmentFilters.language = pendingAttachmentPreset.language;
+    attachmentFilters.title = pendingAttachmentPreset.title;
+    attachmentFilters.page = 1;
+    if (attachmentUpcomingFilter instanceof HTMLInputElement) {
+      attachmentUpcomingFilter.checked = false;
+    }
+    if (attachmentTitleFilter instanceof HTMLInputElement) {
+      attachmentTitleFilter.value = pendingAttachmentPreset.title;
+    }
+    renderAttachmentList();
+    if (pendingAttachmentPreset.message) {
+      setMessage(pendingAttachmentPreset.message, "success");
+    }
+    attachmentPresetApplied = true;
+  };
 
   const getAttachmentTypeMatch = (type, accessCode) => {
     if (type === "DEMO") return accessCode === "DEMO";
@@ -1202,7 +1258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               .join(" | ");
 
             return `
-              <label class="filter-option" for="${escapeHtml(inputId)}">
+              <label class="filter-option${pendingAttachmentPreset.targetTestId === item.id ? " row-selected" : ""}" for="${escapeHtml(inputId)}">
                 <input
                   id="${escapeHtml(inputId)}"
                   type="checkbox"
@@ -1229,6 +1285,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (attachmentNextPageBtn instanceof HTMLButtonElement) {
       attachmentNextPageBtn.disabled = attachmentFilters.page >= totalPages;
+    }
+    if (pendingAttachmentPreset.targetTestId && attachmentListWrap instanceof HTMLElement) {
+      const highlighted = attachmentListWrap.querySelector(`[data-attachment-test-id="${pendingAttachmentPreset.targetTestId}"]`);
+      if (highlighted instanceof HTMLElement) {
+        highlighted.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
   };
 
@@ -1801,13 +1863,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
     if (attachmentUpcomingFilter instanceof HTMLInputElement) attachmentUpcomingFilter.checked = false;
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
-    renderAttachmentList();
 
     if (submitBtn) submitBtn.textContent = "Update Product";
     if (cancelBtn) cancelBtn.classList.remove("hidden");
-    activeProductTab = "create";
     markAllTabsSaved(true);
-    switchProductTab("create");
+    if (hasPendingAttachmentPreset()) {
+      attachmentPresetApplied = false;
+      applyAttachmentPreset();
+      switchProductTab("attachments");
+    } else {
+      renderAttachmentList();
+      activeProductTab = "create";
+      switchProductTab("create");
+    }
     form?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -1815,6 +1883,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = await apiRequest({ path: "/admin/products/mock-tests", token });
     mockTests = Array.isArray(data?.mockTests) ? data.mockTests : [];
     renderAttachmentList();
+    applyAttachmentPreset();
   };
 
   const loadProducts = async () => {
