@@ -1185,15 +1185,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedType = normalizeAttachmentType(attachmentFilters.type);
     if (!["ALL", "DEMO"].includes(selectedType)) return "";
     const activeProductId = String(productIdInput?.value || "").trim();
-    const currentCategory = String(categoryInput?.value || "").trim();
-    const currentExam = String(examInput?.value || "").trim();
-    const currentLanguage = String(languageInput?.value || "").trim();
+    const courseLookup = normalizeAttachmentLookup(attachmentFilters.course || "");
+    const chapterLookup = normalizeAttachmentLookup(attachmentFilters.chapter || "");
+    const subjectLookup = normalizeAttachmentLookup(attachmentFilters.subject || "");
+    const languageLookup = normalizeAttachmentLookup(attachmentFilters.language || "");
+    const titleLookup = normalizeAttachmentLookup(attachmentFilters.title || "");
     const candidates = (Array.isArray(products) ? products : []).filter((product) => {
       const demoUrl = String(product?.demoLessonUrl || "").trim();
       if (!demoUrl) return false;
-      if (currentCategory && String(product?.examCategory || "").trim() !== currentCategory) return false;
-      if (currentExam && String(product?.examName || "").trim() !== currentExam) return false;
-      if (currentLanguage && String(product?.languageMode || "").trim() !== currentLanguage) return false;
+      const searchable = normalizeAttachmentLookup(
+        [
+          product?.title,
+          product?.examCategory,
+          product?.examName,
+          product?.languageMode,
+          product?.demoLessonTitle,
+          product?.demoLessonUrl,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+      if (courseLookup && !searchable.includes(courseLookup)) return false;
+      if (chapterLookup && !searchable.includes(chapterLookup)) return false;
+      if (subjectLookup && !searchable.includes(subjectLookup)) return false;
+      if (languageLookup && !searchable.includes(languageLookup)) return false;
+      if (titleLookup && !searchable.includes(titleLookup)) return false;
       return true;
     });
     if (activeProductId) {
