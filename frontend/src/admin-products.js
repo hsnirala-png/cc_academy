@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectedMockUpcomingMockTestIds = new Set();
   const selectedComboProductIds = new Set();
   const attachmentFilters = {
-    type: "DEMO",
+    type: "ALL",
     upcoming: false,
     course: "",
     subject: "",
@@ -1002,8 +1002,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const normalizeAttachmentType = (value) => {
     const code = String(value || "").trim().toUpperCase();
-    if (code === "DEMO" || code === "LESSON" || code === "MOCK") return code;
+    if (code === "ALL" || code === "DEMO" || code === "LESSON" || code === "MOCK") return code;
     return "MOCK";
+  };
+
+  const ensureAttachmentTypeFilterOptions = () => {
+    if (!(attachmentTypeFilter instanceof HTMLSelectElement)) return;
+    const hasAllOption = Array.from(attachmentTypeFilter.options).some(
+      (option) => String(option.value || "").trim().toUpperCase() === "ALL"
+    );
+    if (!hasAllOption) {
+      attachmentTypeFilter.insertAdjacentHTML("afterbegin", '<option value="ALL">All Attachments</option>');
+    }
   };
 
   const getSelectedSetByAttachmentType = (type) => {
@@ -1129,6 +1139,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const getAttachmentTypeMatch = (type, accessCode) => {
+    if (type === "ALL") return true;
     if (type === "DEMO") return accessCode === "DEMO";
     if (type === "LESSON") return accessCode === "LESSON";
     return accessCode === "MOCK";
@@ -1140,7 +1151,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       .map((item) => toAttachmentTestRecord(item))
       .filter((item) => item.id && getAttachmentTypeMatch(normalizedType, item.accessCode));
 
-    const linkedFallbackSource = normalizedType === "DEMO" ? editingLinkedDemoMockTests : editingLinkedMockTests;
+    const linkedFallbackSource =
+      normalizedType === "ALL"
+        ? [...editingLinkedDemoMockTests, ...editingLinkedMockTests]
+        : normalizedType === "DEMO"
+          ? editingLinkedDemoMockTests
+          : editingLinkedMockTests;
     const linkedFallback = (Array.isArray(linkedFallbackSource) ? linkedFallbackSource : [])
       .map((item) => toAttachmentTestRecord(item))
       .filter((item) => item.id && getAttachmentTypeMatch(normalizedType, item.accessCode));
@@ -1151,6 +1167,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!mergedMap.has(item.id)) mergedMap.set(item.id, item);
     });
     return Array.from(mergedMap.values());
+  };
+
+  const filterAttachmentRows = (rows, filters) => {
+    const titleSearch = String(filters?.title || "").trim().toLowerCase();
+    return (Array.isArray(rows) ? rows : []).filter((item) => {
+      if (filters?.course && item.courseTitle !== filters.course) return false;
+      if (filters?.subject && item.subjectFilterLabel !== filters.subject) return false;
+      if (filters?.chapter && item.chapterTitle !== filters.chapter) return false;
+      if (filters?.language && item.languageMode !== filters.language) return false;
+      if (titleSearch && !String(item.title || "").toLowerCase().includes(titleSearch)) return false;
+      return true;
+    });
+  };
+
+  const pickAttachmentFilterTypeForProduct = (product) => {
+    if (hasPendingAttachmentPreset() && pendingAttachmentPreset.type) {
+      return normalizeAttachmentType(pendingAttachmentPreset.type);
+    }
+    const linkedDemoRows = Array.isArray(product?.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
+    const linkedRows = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
+    const hasLessonRows = linkedRows.some((item) => normalizeAttachmentType(item?.accessCode) === "LESSON");
+    const hasMockRows = linkedRows.some((item) => normalizeAttachmentType(item?.accessCode) === "MOCK");
+    if (linkedDemoRows.length && !hasLessonRows && !hasMockRows) return "DEMO";
+    if (hasLessonRows && !linkedDemoRows.length && !hasMockRows) return "LESSON";
+    if (hasMockRows && !linkedDemoRows.length && !hasLessonRows) return "MOCK";
+    return "ALL";
   };
 
   const fillFilterSelect = (selectEl, values, currentValue, allLabel, preferredOrder = []) => {
@@ -1186,10 +1228,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const renderAttachmentList = () => {
-    const selectedType = normalizeAttachmentType(attachmentFilters.type);
-    const candidates = getAttachmentCandidates(selectedType);
+    let selectedType = normalizeAttachmentType(attachmentFilters.type);
+    let candidates = getAttachmentCandidates(selectedType);
+    if (
+      pendingAttachmentPreset.targetTestId &&
+      !filterAttachmentRows(candidates, attachmentFilters).some((item) => item.id === pendingAttachmentPreset.targetTestId)
+    ) {
+      const targetType = ["ALL", "DEMO", "LESSON", "MOCK"].find((type) =>
+        getAttachmentCandidates(type).some((item) => item.id === pendingAttachmentPreset.targetTestId)
+      );
+      if (targetType && targetType !== selectedType) {
+        selectedType = targetType;
+        attachmentFilters.type = targetType;
+        if (attachmentTypeFilter instanceof HTMLSelectElement) {
+          attachmentTypeFilter.value = targetType;
+        }
+        candidates = getAttachmentCandidates(selectedType);
+      }
+    }
     if (attachmentListLabel instanceof HTMLElement) {
-      attachmentListLabel.textContent = `Select ${selectedType} Attachments`;
+      attachmentListLabel.textContent =
+        selectedType === "ALL" ? "Select All Attachments" : `Select ${selectedType} Attachments`;
     }
 
     attachmentFilters.course = fillFilterSelect(
@@ -1198,42 +1257,41 @@ document.addEventListener("DOMContentLoaded", async () => {
       attachmentFilters.course,
       "All Courses"
     );
+    const subjectCandidates = candidates.filter(
+      (item) => !attachmentFilters.course || item.courseTitle === attachmentFilters.course
+    );
     attachmentFilters.subject = fillFilterSelect(
       attachmentSubjectFilter,
-      [...ATTACHMENT_SUBJECT_FILTER_ORDER, ...candidates.map((item) => item.subjectFilterLabel)],
+      [...ATTACHMENT_SUBJECT_FILTER_ORDER, ...subjectCandidates.map((item) => item.subjectFilterLabel)],
       attachmentFilters.subject,
       "All Subjects",
       ATTACHMENT_SUBJECT_FILTER_ORDER
     );
+    const chapterCandidates = subjectCandidates.filter(
+      (item) => !attachmentFilters.subject || item.subjectFilterLabel === attachmentFilters.subject
+    );
     attachmentFilters.chapter = fillFilterSelect(
       attachmentChapterFilter,
-      candidates.map((item) => item.chapterTitle),
+      chapterCandidates.map((item) => item.chapterTitle),
       attachmentFilters.chapter,
       "All Chapters"
     );
+    const languageCandidates = chapterCandidates.filter(
+      (item) => !attachmentFilters.chapter || item.chapterTitle === attachmentFilters.chapter
+    );
     attachmentFilters.language = fillFilterSelect(
       attachmentLanguageFilter,
-      candidates.map((item) => item.languageMode),
+      languageCandidates.map((item) => item.languageMode),
       attachmentFilters.language,
       "All Languages"
     );
 
-    const titleSearch = String(attachmentFilters.title || "").trim().toLowerCase();
-    const filtered = candidates.filter((item) => {
-      if (attachmentFilters.course && item.courseTitle !== attachmentFilters.course) return false;
-      if (attachmentFilters.subject && item.subjectFilterLabel !== attachmentFilters.subject) return false;
-      if (attachmentFilters.chapter && item.chapterTitle !== attachmentFilters.chapter) return false;
-      if (attachmentFilters.language && item.languageMode !== attachmentFilters.language) return false;
-      if (!titleSearch) return true;
-      return item.title.toLowerCase().includes(titleSearch);
-    });
+    const filtered = filterAttachmentRows(languageCandidates, attachmentFilters);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / ATTACHMENT_PAGE_SIZE));
     attachmentFilters.page = Math.min(Math.max(1, Number(attachmentFilters.page || 1)), totalPages);
     const pageStart = (attachmentFilters.page - 1) * ATTACHMENT_PAGE_SIZE;
     const pageRows = filtered.slice(pageStart, pageStart + ATTACHMENT_PAGE_SIZE);
-    const selectedSet = getSelectedSetByAttachmentType(selectedType);
-    const upcomingSet = getUpcomingSetByAttachmentType(selectedType);
     const filterUpcoming = Boolean(attachmentFilters.upcoming);
 
     if (attachmentListWrap instanceof HTMLElement) {
@@ -1243,7 +1301,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         attachmentListWrap.innerHTML = pageRows
           .map((item) => {
-            const inputId = `attachment-${selectedType.toLowerCase()}-${item.id}`;
+            const rowType = normalizeAttachmentType(item.accessCode);
+            const selectedSet = getSelectedSetByAttachmentType(rowType);
+            const upcomingSet = getUpcomingSetByAttachmentType(rowType);
+            const inputId = `attachment-${rowType.toLowerCase()}-${item.id}`;
             const savedAsUpcoming = upcomingSet.has(item.id);
             const isChecked = selectedSet.has(item.id) && savedAsUpcoming === filterUpcoming;
             const subtitle = [
@@ -1252,6 +1313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               item.lessonTitle ? `Lesson: ${item.lessonTitle}` : "",
               item.subjectFilterLabel ? `Subject: ${item.subjectFilterLabel}` : "",
               item.languageMode ? `Language: ${item.languageMode}` : "",
+              `Access: ${rowType}`,
               selectedSet.has(item.id) ? `Current: ${savedAsUpcoming ? "Upcoming" : "Live"}` : "",
             ]
               .filter(Boolean)
@@ -1263,7 +1325,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   id="${escapeHtml(inputId)}"
                   type="checkbox"
                   data-attachment-test-id="${escapeHtml(item.id)}"
-                  data-attachment-type="${escapeHtml(selectedType)}"
+                  data-attachment-type="${escapeHtml(rowType)}"
                   ${isChecked ? "checked" : ""}
                 />
                 <span>
@@ -1337,7 +1399,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedLessonUpcomingMockTestIds.clear();
     selectedMockUpcomingMockTestIds.clear();
     selectedComboProductIds.clear();
-    attachmentFilters.type = "DEMO";
+    attachmentFilters.type = "ALL";
     attachmentFilters.upcoming = false;
     attachmentFilters.course = "";
     attachmentFilters.subject = "";
@@ -1345,7 +1407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachmentFilters.title = "";
     attachmentFilters.language = "";
     attachmentFilters.page = 1;
-    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "ALL";
     if (attachmentUpcomingFilter instanceof HTMLInputElement) attachmentUpcomingFilter.checked = false;
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
     renderAttachmentList();
@@ -1852,7 +1914,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (comboSearchInput instanceof HTMLInputElement) comboSearchInput.value = "";
     renderComboProductList();
     syncAttachmentSelectionsFromProduct(product);
-    attachmentFilters.type = "DEMO";
+    attachmentFilters.type = pickAttachmentFilterTypeForProduct(product);
     attachmentFilters.upcoming = false;
     attachmentFilters.page = 1;
     attachmentFilters.course = "";
@@ -1860,7 +1922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachmentFilters.chapter = "";
     attachmentFilters.title = "";
     attachmentFilters.language = "";
-    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = "DEMO";
+    if (attachmentTypeFilter instanceof HTMLSelectElement) attachmentTypeFilter.value = attachmentFilters.type;
     if (attachmentUpcomingFilter instanceof HTMLInputElement) attachmentUpcomingFilter.checked = false;
     if (attachmentTitleFilter instanceof HTMLInputElement) attachmentTitleFilter.value = "";
 
@@ -2404,6 +2466,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   updateTabUi();
+  ensureAttachmentTypeFilterOptions();
 
   try {
     setMessage("Loading products...");
