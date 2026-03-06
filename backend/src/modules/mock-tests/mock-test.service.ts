@@ -1852,7 +1852,8 @@ export const mockTestService = {
           q.id,
           q.sectionLabel,
           q.displayOrder,
-          COALESCE(ms.sectionType, 'GENERAL_MCQ') AS sectionType
+          COALESCE(ms.sectionType, 'GENERAL_MCQ') AS sectionType,
+          COALESCE(ms.sortOrder, 999999) AS sectionSortOrder
         FROM Question q
         LEFT JOIN MockTestSection ms
           ON ms.mockTestId = q.mockTestId
@@ -1869,6 +1870,7 @@ export const mockTestService = {
       sectionLabel: string | null;
       displayOrder: number | string;
       sectionType: string | null;
+      sectionSortOrder: number | string;
     }>;
     const requiredQuestions = resolveRequiredQuestions(mockTest.subject, questionPool.length);
 
@@ -1880,37 +1882,62 @@ export const mockTestService = {
     }
 
     const questionUnits = (() => {
-      const lockedSectionMap = new Map<
+      const sections = new Map<
         string,
-        Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>
+        {
+          sectionSortOrder: number;
+          firstDisplayOrder: number;
+          rows: Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>;
+        }
       >();
-      const freeUnits: Array<Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>> = [];
 
       questionPool.forEach((question) => {
         const sectionType = normalizeSectionType(question.sectionType);
         const normalizedSectionLabel = normalizeSectionLabel(question.sectionLabel);
-        const normalizedQuestion = {
+        const sectionKey = normalizedSectionLabel || "__UNSECTIONED__";
+        const sectionSortOrder = Number(question.sectionSortOrder || 999999);
+        const displayOrder = Number(question.displayOrder || 0);
+        const existing = sections.get(sectionKey);
+        const row = {
           id: question.id,
-          displayOrder: Number(question.displayOrder || 0),
+          displayOrder,
           sectionType,
         };
 
-        if (normalizedSectionLabel && isSectionLockedForShuffle(sectionType)) {
-          const existingGroup = lockedSectionMap.get(normalizedSectionLabel) || [];
-          existingGroup.push(normalizedQuestion);
-          lockedSectionMap.set(normalizedSectionLabel, existingGroup);
+        if (!existing) {
+          sections.set(sectionKey, {
+            sectionSortOrder,
+            firstDisplayOrder: displayOrder,
+            rows: [row],
+          });
           return;
         }
 
-        freeUnits.push([normalizedQuestion]);
+        existing.firstDisplayOrder = Math.min(existing.firstDisplayOrder, displayOrder);
+        existing.rows.push(row);
       });
 
-      const lockedUnits = Array.from(lockedSectionMap.values()).sort(
-        (left, right) => (left[0]?.displayOrder || 0) - (right[0]?.displayOrder || 0)
+      const orderedSections = Array.from(sections.values()).sort(
+        (left, right) =>
+          left.sectionSortOrder - right.sectionSortOrder || left.firstDisplayOrder - right.firstDisplayOrder
       );
-      return freeUnits.concat(lockedUnits);
+
+      const units: Array<Array<{ id: string; displayOrder: number; sectionType: MockTestSectionType }>> = [];
+      orderedSections.forEach((section) => {
+        const sortedRows = [...section.rows].sort((left, right) => left.displayOrder - right.displayOrder);
+        const containsLockedType = sortedRows.some((row) => isSectionLockedForShuffle(row.sectionType));
+        if (containsLockedType) {
+          units.push(sortedRows);
+          return;
+        }
+        shuffle(sortedRows).forEach((row) => {
+          units.push([row]);
+        });
+      });
+
+      return units;
     })();
-    const selected = shuffle(questionUnits).reduce<Array<{ id: string }>>((accumulator, unit) => {
+    const selected = questionUnits.reduce<Array<{ id: string }>>((accumulator, unit) => {
       if (accumulator.length >= requiredQuestions) {
         return accumulator;
       }
