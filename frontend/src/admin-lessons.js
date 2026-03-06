@@ -3715,6 +3715,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonQuestionDisplayOrderInput instanceof HTMLSelectElement) {
       renderQuestionDisplayOrderControls({ manualSelectedOrder: orderedMockQuestions().length + 1 });
     }
+    refreshManualCorrectOptionChoices();
     toggleBilingualQuestionInputs();
     toggleQuestionStructuredFields();
     updateQuestionLanguageGuide();
@@ -3872,6 +3873,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonSectionCancelBtn.classList.remove("hidden");
     }
     updateSectionTypeGuide();
+  };
+
+  const refreshManualCorrectOptionChoices = () => {
+    if (!(lessonCorrectOptionInput instanceof HTMLSelectElement)) return;
+    const optionLabelMap = {
+      A: String(lessonOptionAInput?.value || "").trim(),
+      B: String(lessonOptionBInput?.value || "").trim(),
+      C: String(lessonOptionCInput?.value || "").trim(),
+      D: String(lessonOptionDInput?.value || "").trim(),
+    };
+    Array.from(lessonCorrectOptionInput.options).forEach((entry) => {
+      const key = String(entry.value || "").trim().toUpperCase();
+      if (!["A", "B", "C", "D"].includes(key)) return;
+      const labelText = optionLabelMap[key];
+      entry.textContent = labelText ? `${key}. ${labelText}` : key;
+    });
   };
 
   const toggleQuestionStructuredFields = () => {
@@ -7653,6 +7670,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       toggleQuestionStructuredFields();
     });
   }
+
+  [lessonOptionAInput, lessonOptionBInput, lessonOptionCInput, lessonOptionDInput].forEach((control) => {
+    if (!(control instanceof HTMLInputElement)) return;
+    control.addEventListener("input", () => {
+      refreshManualCorrectOptionChoices();
+    });
+  });
+  refreshManualCorrectOptionChoices();
 
   if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
