@@ -872,6 +872,27 @@ const snapshotAttemptQuestionsForAttempt = async (
   );
 };
 
+const loadMockTestContentUpdatedAt = async (mockTestId: string): Promise<Date | null> => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        GREATEST(
+          COALESCE((SELECT MAX(mt.updatedAt) FROM MockTest mt WHERE mt.id = ?), TIMESTAMP('1970-01-01 00:00:00')),
+          COALESCE((SELECT MAX(q.updatedAt) FROM Question q WHERE q.mockTestId = ?), TIMESTAMP('1970-01-01 00:00:00')),
+          COALESCE((SELECT MAX(ms.updatedAt) FROM MockTestSection ms WHERE ms.mockTestId = ?), TIMESTAMP('1970-01-01 00:00:00'))
+        ) AS latestContentUpdatedAt
+    `,
+    mockTestId,
+    mockTestId,
+    mockTestId
+  )) as Array<{ latestContentUpdatedAt?: Date | string | null }>;
+
+  const value = rows[0]?.latestContentUpdatedAt;
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const ensureAttemptOwner = async (attemptId: string, userId: string) => {
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
@@ -1835,11 +1856,19 @@ export const mockTestService = {
     });
 
     if (existingAttempt && !isAttemptTimedOut(existingAttempt)) {
-      return {
-        ...existingAttempt,
-        startedAt: existingAttempt.startedAt.toISOString(),
-        submittedAt: toIso(existingAttempt.submittedAt),
-      };
+      const latestContentUpdatedAt = await loadMockTestContentUpdatedAt(mockTest.id);
+      const hasNewerContent =
+        latestContentUpdatedAt instanceof Date &&
+        latestContentUpdatedAt.getTime() > existingAttempt.startedAt.getTime();
+      if (hasNewerContent) {
+        await mockTestService.submitAttempt(userId, existingAttempt.id);
+      } else {
+        return {
+          ...existingAttempt,
+          startedAt: existingAttempt.startedAt.toISOString(),
+          submittedAt: toIso(existingAttempt.submittedAt),
+        };
+      }
     }
 
     if (existingAttempt && isAttemptTimedOut(existingAttempt)) {

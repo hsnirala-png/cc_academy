@@ -133,6 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonMockSubmitBtn = document.querySelector("#lessonMockSubmitBtn");
   const lessonMockCancelBtn = document.querySelector("#lessonMockCancelBtn");
   const lessonSaveFilterDraftBtn = document.querySelector("#lessonSaveFilterDraftBtn");
+  const lessonSaveTitleBtn = document.querySelector("#lessonSaveTitleBtn");
   const lessonQuestionBankPanel = document.querySelector("#lessonQuestionBankPanel");
   const lessonSelectedTestHint = document.querySelector("#lessonSelectedTestHint");
   const lessonQuestionCountWarning = document.querySelector("#lessonQuestionCountWarning");
@@ -7664,6 +7665,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         silent: false,
         successMessage: "Test filter settings saved. This selection will be restored next time.",
       });
+    });
+  }
+
+  if (lessonSaveTitleBtn instanceof HTMLButtonElement) {
+    lessonSaveTitleBtn.addEventListener("click", async () => {
+      try {
+        const nextTitle = String(lessonMockTestTitleInput?.value || "").trim();
+        if (!nextTitle) {
+          setMessage("Test title is required.", "error");
+          return;
+        }
+        if (!state.selectedMockTestId) {
+          setMessage("Select or load a test first.", "error");
+          return;
+        }
+        persistTestBuilderDraft();
+        setMessage("Updating test title...");
+        await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
+        await Promise.all([loadMockTestsAdmin(), loadAssessments()]);
+        setPendingTestChanges(false);
+        setMessage("Test title updated.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to update test title.", "error");
+      }
     });
   }
 
