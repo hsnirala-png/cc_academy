@@ -927,8 +927,15 @@
 
               <div class="question-bank-mode-panel" data-question-bank-panel="review">
               <div class="admin-actions" style="margin-top: 0.2rem">
+                <div class="admin-field" style="margin: 0; min-width: 240px">
+                  <label for="lessonReviewSectionFilter" style="margin-bottom: 0.2rem">Review Section Filter</label>
+                  <select id="lessonReviewSectionFilter">
+                    <option value="ALL">All Sections</option>
+                  </select>
+                </div>
                 <button id="lessonReviewDownloadCsvBtn" class="btn-ghost" type="button">Download Filtered CSV</button>
               </div>
+              <p id="lessonReviewSectionStatus" class="admin-subtitle" style="margin: 0.5rem 0 0"></p>
               <div class="admin-table-wrap" style="margin-top: 1rem">
                 <table class="admin-table">
                   <thead>
@@ -1306,7 +1313,7 @@
       </button>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=105"></script>
+    <script type="module" src="./src/admin-lessons.js?v=107"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

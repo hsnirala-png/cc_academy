@@ -1239,10 +1239,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const renderLegacyDemoSourceCard = () => {
-    const selectedType = normalizeAttachmentType(attachmentFilters.type);
     const selectedAccessTier = normalizeAttachmentAccessTier(attachmentFilters.accessTier);
-    if (selectedAccessTier !== "DEMO") return "";
     const activeProductId = String(productIdInput?.value || "").trim();
+    const activeProduct = activeProductId ? getProductById(activeProductId) : null;
+    const activeLegacyDemoUrl = String(activeProduct?.demoLessonUrl || "").trim();
+    const activeLegacyDemoTitle = String(activeProduct?.demoLessonTitle || "").trim();
+    if (selectedAccessTier !== "DEMO") {
+      if (!activeLegacyDemoUrl) return "";
+      return `
+        <div class="filter-option row-selected" style="cursor:default;border-style:dashed;background:#fff9e6;">
+          <span>
+            <strong class="attachment-item-title">${escapeHtml(activeLegacyDemoTitle || "Current Student Demo Source")}</strong>
+            <small class="attachment-item-meta">
+              ${escapeHtml(
+                `Student TOC demo is coming from legacy demo source: ${activeLegacyDemoUrl}. Switch Access Type to Demo to review this source here.`
+              )}
+            </small>
+          </span>
+        </div>
+      `;
+    }
     const courseLookup = normalizeAttachmentLookup(attachmentFilters.course || "");
     const chapterLookup = normalizeAttachmentLookup(attachmentFilters.chapter || "");
     const subjectLookup = normalizeAttachmentLookup(attachmentFilters.subject || "");
@@ -1271,7 +1287,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       return true;
     });
     if (activeProductId) {
-      const activeProduct = getProductById(activeProductId);
       if (
         activeProduct &&
         String(activeProduct?.demoLessonUrl || "").trim() &&
@@ -1287,14 +1302,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const productTitle = String(product?.title || "Untitled Product").trim();
         const legacyDemoTitle = String(product?.demoLessonTitle || "").trim();
         const legacyDemoUrl = String(product?.demoLessonUrl || "").trim();
-        const label = legacyDemoTitle || "Legacy Demo Source";
+        const label = legacyDemoTitle || "Current Student Demo Source";
         const isCurrent = activeProductId && productId === activeProductId;
         return `
           <div class="filter-option${isCurrent ? " row-selected" : ""}" style="cursor:default;border-style:dashed;background:#fff9e6;">
             <span>
               <strong class="attachment-item-title">${escapeHtml(label)}</strong>
               <small class="attachment-item-meta">
-                ${escapeHtml(`Product: ${productTitle}`)} | ${escapeHtml(`Legacy demo URL: ${legacyDemoUrl}`)} | This source is shown on student TOC when no saved demo test attachment exists.
+                ${escapeHtml(`Product: ${productTitle}`)} | ${escapeHtml(`Legacy demo URL: ${legacyDemoUrl}`)} | This is the demo source currently shown on student TOC when no saved demo mock attachment exists.
               </small>
             </span>
           </div>
@@ -1323,8 +1338,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pickAttachmentAccessTierForProduct = (product) => {
     const linkedDemoRows = Array.isArray(product?.linkedDemoMockTests) ? product.linkedDemoMockTests : [];
     const linkedRows = Array.isArray(product?.linkedMockTests) ? product.linkedMockTests : [];
-    if (linkedRows.length && !linkedDemoRows.length) return "PREMIUM";
-    if (linkedDemoRows.length && !linkedRows.length) return "DEMO";
+    if (linkedDemoRows.length || String(product?.demoLessonUrl || "").trim()) return "DEMO";
+    if (linkedRows.length) return "PREMIUM";
     return "PREMIUM";
   };
 

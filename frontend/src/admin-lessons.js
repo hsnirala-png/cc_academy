@@ -139,6 +139,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonQuestionCategoryFilterInput = document.querySelector("#lessonQuestionCategoryFilter");
   const lessonQuestionSectionFilterInput = document.querySelector("#lessonQuestionSectionFilter");
   const lessonQuestionSectionSummary = document.querySelector("#lessonQuestionSectionSummary");
+  const lessonReviewSectionFilterInput = document.querySelector("#lessonReviewSectionFilter");
+  const lessonReviewSectionStatus = document.querySelector("#lessonReviewSectionStatus");
   const lessonSectionForm = document.querySelector("#lessonSectionForm");
   const lessonSectionIdInput = document.querySelector("#lessonSectionId");
   const lessonSectionTypeInput = document.querySelector("#lessonSectionType");
@@ -2969,10 +2971,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionSectionFilterInput instanceof HTMLSelectElement
       ? String(lessonQuestionSectionFilterInput.value || "ALL")
       : "ALL";
-  const resetQuestionSectionFilter = () => {
+  const syncQuestionSectionFilterControls = (value = "ALL") => {
+    const normalizedValue = String(value || "ALL");
     if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
-      lessonQuestionSectionFilterInput.value = "ALL";
+      lessonQuestionSectionFilterInput.value = normalizedValue;
     }
+    if (lessonReviewSectionFilterInput instanceof HTMLSelectElement) {
+      lessonReviewSectionFilterInput.value = normalizedValue;
+    }
+  };
+  const resetQuestionSectionFilter = () => {
+    syncQuestionSectionFilterControls("ALL");
   };
   const activeQuestionSectionFilter = () => {
     const filter = currentQuestionSectionFilter();
@@ -3111,12 +3120,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonQuestionSectionFilterInput.value =
         previous === "ALL" || filteredSectionOptions.includes(previous) ? previous : "ALL";
     }
+    if (lessonReviewSectionFilterInput instanceof HTMLSelectElement) {
+      const previous = currentQuestionSectionFilter();
+      lessonReviewSectionFilterInput.innerHTML = renderSectionSelectOptions(
+        filteredSectionOptions,
+        previous,
+        true
+      );
+      lessonReviewSectionFilterInput.value =
+        previous === "ALL" || filteredSectionOptions.includes(previous) ? previous : "ALL";
+    }
     renderQuestionDisplayOrderControls();
   };
   const updateQuestionSectionSummary = () => {
     if (!(lessonQuestionSectionSummary instanceof HTMLElement)) return;
     if (!state.mockQuestions.length) {
       lessonQuestionSectionSummary.textContent = "No questions added yet.";
+      if (lessonReviewSectionStatus instanceof HTMLElement) {
+        lessonReviewSectionStatus.textContent = "No questions added yet.";
+      }
       return;
     }
     const sectionOptions = getQuestionSectionOptions();
@@ -3125,12 +3147,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         const total = state.mockQuestions.filter(
           (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === label
         ).length;
+        const sectionMeta = getSectionMetaByLabel(label);
+        const limit = Number(sectionMeta?.questionLimit || 0);
+        if (limit > 0) {
+          const delta = total - limit;
+          const status = delta === 0 ? "OK" : delta > 0 ? `+${delta}` : `${delta}`;
+          return `${label}: ${total}/${limit} (${status})`;
+        }
         return `${label}: ${total}`;
       })
       .join(" | ");
     const totalActive = state.mockQuestions.filter((question) => Boolean(question?.isActive)).length;
     const target = requiredQuestionsForLesson();
     lessonQuestionSectionSummary.textContent = `Section-wise count: ${sectionSummary} | Total: ${totalActive}/${target}`;
+    if (lessonReviewSectionStatus instanceof HTMLElement) {
+      const activeSection = activeQuestionSectionFilter();
+      if (activeSection) {
+        const sectionMeta = getSectionMetaByLabel(activeSection);
+        const total = state.mockQuestions.filter(
+          (question) => normalizeQuestionSectionLabel(question?.sectionLabel) === activeSection
+        ).length;
+        const limit = Number(sectionMeta?.questionLimit || 0);
+        lessonReviewSectionStatus.textContent =
+          limit > 0
+            ? `Reviewing section "${activeSection}": ${total}/${limit} questions.`
+            : `Reviewing section "${activeSection}": ${total} questions.`;
+      } else {
+        lessonReviewSectionStatus.textContent = `Section status: ${sectionSummary}`;
+      }
+    }
   };
   const isMockScopeReady = () =>
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
@@ -8193,6 +8238,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
+      syncQuestionSectionFilterControls(lessonQuestionSectionFilterInput.value || "ALL");
+      renderLessonQuestions();
+    });
+  }
+  if (lessonReviewSectionFilterInput instanceof HTMLSelectElement) {
+    lessonReviewSectionFilterInput.addEventListener("change", () => {
+      syncQuestionSectionFilterControls(lessonReviewSectionFilterInput.value || "ALL");
       renderLessonQuestions();
     });
   }
