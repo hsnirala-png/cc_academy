@@ -497,7 +497,8 @@
 
               <div id="testsCreatePanel">
                 <p class="admin-subtitle" style="margin: 0.1rem 0 0.35rem">
-                  Create test for selected course, subject, and chapter.
+                  Create test for selected course, subject, and chapter. Set the subject and total questions here,
+                  then use Question Bank to split that total section-wise.
                 </p>
                 <div class="admin-actions" style="margin: 0 0 0.55rem">
                   <button id="btnPlaySelectedLessonAudio" type="button" class="btn-ghost">
@@ -533,6 +534,10 @@
                       <option value="SCIENCE_MATH">Science/Math</option>
                       <option value="SOCIAL_STUDIES">Social Studies</option>
                     </select>
+                  </div>
+                  <div class="admin-field">
+                    <label for="lessonQuestionTargetCount">Number of Questions</label>
+                    <input id="lessonQuestionTargetCount" type="number" min="1" step="1" value="30" />
                   </div>
                 </div>
 
@@ -609,10 +614,6 @@
               </div>
 
               <div class="admin-form-row">
-                <div class="admin-field">
-                  <label for="lessonQuestionTargetCount">Number of Questions</label>
-                  <input id="lessonQuestionTargetCount" type="number" min="1" step="1" value="30" />
-                </div>
                 <div class="admin-field">
                   <label for="lessonQuestionCategoryFilter">Category Filter</label>
                   <select id="lessonQuestionCategoryFilter">
@@ -982,7 +983,7 @@
               <div class="admin-actions" style="margin-top: 0.75rem">
                 <button id="lessonSaveTestBtn" class="btn-primary" type="button">Create Lesson</button>
                 <button id="lessonSaveQuestionsWithTestBtn" class="btn-secondary" type="button">
-                  Save Questions With Test
+                  Upgrade Test
                 </button>
               </div>
               </div>

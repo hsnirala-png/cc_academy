@@ -2769,6 +2769,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       ) || null
     );
   };
+  const getConfiguredSectionTargetCount = (options = {}) => {
+    const { excludeSectionId = "" } = options;
+    return state.mockTestSections.reduce((total, section) => {
+      if (!section || section.isActive === false) return total;
+      if (excludeSectionId && String(section.id || "") === String(excludeSectionId)) return total;
+      return total + Math.max(0, Math.floor(Number(section.questionLimit || 0)));
+    }, 0);
+  };
   const distributeQuestionTargetAcrossSections = (sectionCount) => {
     const safeSectionCount = Math.max(1, Math.floor(Number(sectionCount) || 1));
     const target = Math.max(1, requiredQuestionsForLesson());
@@ -2851,13 +2859,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       panel.classList.toggle("active", panel.getAttribute("data-question-bank-panel") === nextMode);
     });
+    if (nextMode === "sections") {
+      syncLessonSectionEditorFromActiveFilters();
+    }
     if (nextMode === "review") {
-      if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
-        lessonQuestionCategoryFilterInput.value = "ALL";
-      }
-      if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement) {
-        lessonQuestionSectionFilterInput.value = "ALL";
-      }
       renderLessonQuestions();
     }
     persistTestBuilderDraft();
@@ -3172,7 +3177,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const updateQuestionSectionSummary = () => {
     if (!(lessonQuestionSectionSummary instanceof HTMLElement)) return;
-    if (!state.mockQuestions.length) {
+    if (!state.mockQuestions.length && !state.mockTestSections.length) {
       lessonQuestionSectionSummary.textContent = "No questions added yet.";
       if (lessonReviewSectionStatus instanceof HTMLElement) {
         lessonReviewSectionStatus.textContent = "No questions added yet.";
@@ -3197,7 +3202,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join(" | ");
     const totalActive = state.mockQuestions.filter((question) => Boolean(question?.isActive)).length;
     const target = requiredQuestionsForLesson();
-    lessonQuestionSectionSummary.textContent = `Section-wise count: ${sectionSummary} | Total: ${totalActive}/${target}`;
+    const sectionTargetTotal = getConfiguredSectionTargetCount();
+    lessonQuestionSectionSummary.textContent =
+      `Section-wise count: ${sectionSummary} | Section target: ${sectionTargetTotal}/${target} | Total: ${totalActive}/${target}`;
     if (lessonReviewSectionStatus instanceof HTMLElement) {
       const activeSection = activeQuestionSectionFilter();
       if (activeSection) {
@@ -3211,7 +3218,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? `Reviewing section "${activeSection}": ${total}/${limit} questions.`
             : `Reviewing section "${activeSection}": ${total} questions.`;
       } else {
-        lessonReviewSectionStatus.textContent = `Section status: ${sectionSummary}`;
+        lessonReviewSectionStatus.textContent =
+          `Section target: ${sectionTargetTotal}/${target}. Section status: ${sectionSummary}`;
       }
     }
   };
@@ -4461,6 +4469,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     toggleLessonSectionTranscriptState();
     updateSectionTypeGuide();
+    syncLessonSectionEditorFromActiveFilters();
   };
 
   const renderLessonSections = () => {
@@ -4540,6 +4549,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const payload = buildLessonSectionPayload();
     const sectionId = String(lessonSectionIdInput?.value || "").trim();
+    const globalTarget = Math.max(1, requiredQuestionsForLesson());
+    const otherSectionTarget = getConfiguredSectionTargetCount({ excludeSectionId: sectionId });
+    const nextSectionTarget = otherSectionTarget + Math.max(0, Math.floor(Number(payload.questionLimit || 0)));
+    if (nextSectionTarget > globalTarget) {
+      throw new Error(
+        `Section target exceeds global question limit. Global limit is ${globalTarget}, other sections already use ${otherSectionTarget}, and this section would make total ${nextSectionTarget}.`
+      );
+    }
     if (sectionId) {
       await apiRequest({
         path: `/admin/mock-test-sections/${encodeURIComponent(sectionId)}`,
@@ -4614,6 +4631,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!section) return;
     setTestsBuilderTab("question-bank");
     setQuestionBankMode("sections");
+    if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
+      lessonQuestionCategoryFilterInput.value = normalizeSectionType(section.sectionType);
+    }
+    syncQuestionSectionFilterControls(normalizeQuestionSectionLabel(section.sectionLabel) || "ALL");
+    renderLessonQuestions();
     if (lessonSectionIdInput instanceof HTMLInputElement) {
       lessonSectionIdInput.value = String(section.id || "");
     }
@@ -4642,6 +4664,79 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
       lessonSectionCancelBtn.classList.remove("hidden");
+    }
+    updateSectionTypeGuide();
+  };
+  const syncLessonSectionEditorFromActiveFilters = () => {
+    if (!(lessonSectionForm instanceof HTMLFormElement)) return;
+    const selectedSectionLabel = activeQuestionSectionFilter();
+    if (!selectedSectionLabel) return;
+
+    const selectedSection = getSectionMetaByLabel(selectedSectionLabel);
+    if (selectedSection) {
+      if (lessonSectionIdInput instanceof HTMLInputElement) {
+        lessonSectionIdInput.value = String(selectedSection.id || "");
+      }
+      if (lessonSectionTypeInput instanceof HTMLSelectElement) {
+        lessonSectionTypeInput.value = normalizeSectionType(selectedSection.sectionType);
+      }
+      if (lessonSectionLabelInput instanceof HTMLInputElement) {
+        lessonSectionLabelInput.value = String(selectedSection.sectionLabel || "");
+      }
+      if (lessonSectionQuestionLimitInput instanceof HTMLInputElement) {
+        lessonSectionQuestionLimitInput.value = String(Math.max(1, Number(selectedSection.questionLimit || 1)));
+      }
+      if (lessonSectionAudioUrlInput instanceof HTMLInputElement) {
+        lessonSectionAudioUrlInput.value = String(selectedSection.audioUrl || "");
+      }
+      if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
+        lessonSectionTranscriptInput.value = String(selectedSection.transcriptText || "");
+      }
+      if (lessonSectionSkipTranscriptInput instanceof HTMLInputElement) {
+        lessonSectionSkipTranscriptInput.checked = !String(selectedSection.transcriptText || "").trim();
+      }
+      toggleLessonSectionTranscriptState();
+      if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
+        lessonSectionSaveBtn.textContent = "Update Section";
+      }
+      if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
+        lessonSectionCancelBtn.classList.remove("hidden");
+      }
+      updateSectionTypeGuide();
+      return;
+    }
+
+    if (lessonSectionIdInput instanceof HTMLInputElement) {
+      lessonSectionIdInput.value = "";
+    }
+    if (lessonSectionTypeInput instanceof HTMLSelectElement) {
+      const activeCategory = activeQuestionCategoryFilter();
+      if (activeCategory) {
+        lessonSectionTypeInput.value = activeCategory;
+      }
+    }
+    if (lessonSectionLabelInput instanceof HTMLInputElement) {
+      lessonSectionLabelInput.value = selectedSectionLabel;
+    }
+    if (lessonSectionQuestionLimitInput instanceof HTMLInputElement) {
+      const remainingTarget = Math.max(1, requiredQuestionsForLesson() - getConfiguredSectionTargetCount());
+      lessonSectionQuestionLimitInput.value = String(remainingTarget);
+    }
+    if (lessonSectionAudioUrlInput instanceof HTMLInputElement) {
+      lessonSectionAudioUrlInput.value = "";
+    }
+    if (lessonSectionTranscriptInput instanceof HTMLTextAreaElement) {
+      lessonSectionTranscriptInput.value = "";
+    }
+    if (lessonSectionSkipTranscriptInput instanceof HTMLInputElement) {
+      lessonSectionSkipTranscriptInput.checked = false;
+    }
+    toggleLessonSectionTranscriptState();
+    if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
+      lessonSectionSaveBtn.textContent = "Save Section";
+    }
+    if (lessonSectionCancelBtn instanceof HTMLButtonElement) {
+      lessonSectionCancelBtn.classList.add("hidden");
     }
     updateSectionTypeGuide();
   };
@@ -5139,8 +5234,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonSaveQuestionsWithTestBtn instanceof HTMLButtonElement) {
       const canSave = shouldShow && Boolean(state.selectedMockTestId);
       lessonSaveQuestionsWithTestBtn.disabled = !canSave;
+      lessonSaveQuestionsWithTestBtn.textContent = state.hasPendingTestChanges ? "Upgrade Test *" : "Upgrade Test";
       lessonSaveQuestionsWithTestBtn.title = canSave
-        ? "Persist current question set with selected test and chapter."
+        ? "Save questions and upgrade the selected test for this chapter."
         : "Select chapter and test first.";
     }
     if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
@@ -8752,6 +8848,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         lessonQuestionTargetCountInput.value = String(parsed);
       }
       updateLessonQuestionCountWarning();
+      updateQuestionSectionSummary();
+      if (state.questionBankMode === "sections" && activeQuestionSectionFilter()) {
+        syncLessonSectionEditorFromActiveFilters();
+      }
     });
   }
 
@@ -8917,18 +9017,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonQuestionSectionFilterInput.addEventListener("change", () => {
       syncQuestionSectionFilterControls(lessonQuestionSectionFilterInput.value || "ALL");
       renderLessonQuestions();
+      if (state.questionBankMode === "sections") {
+        syncLessonSectionEditorFromActiveFilters();
+      }
     });
   }
   if (lessonReviewSectionFilterInput instanceof HTMLSelectElement) {
     lessonReviewSectionFilterInput.addEventListener("change", () => {
       syncQuestionSectionFilterControls(lessonReviewSectionFilterInput.value || "ALL");
       renderLessonQuestions();
+      if (state.questionBankMode === "sections") {
+        syncLessonSectionEditorFromActiveFilters();
+      }
     });
   }
   if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
     lessonQuestionCategoryFilterInput.addEventListener("change", () => {
-      resetQuestionSectionFilter();
       renderLessonQuestions();
+      if (state.questionBankMode === "sections") {
+        syncLessonSectionEditorFromActiveFilters();
+      }
     });
   }
   if (lessonReviewDownloadCsvBtn instanceof HTMLButtonElement) {
@@ -9140,8 +9248,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         setMessage(
           csvImportResult
-            ? `Questions are saved with selected test. CSV import added ${csvImportResult.createdCount}/${csvImportResult.totalRows} questions.`
-            : "Questions are saved with selected test.",
+            ? `Test upgraded with saved questions. CSV import added ${csvImportResult.createdCount}/${csvImportResult.totalRows} questions.`
+            : "Test upgraded with saved questions.",
           "success"
         );
       } catch (error) {
