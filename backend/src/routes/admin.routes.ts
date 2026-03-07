@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Role } from "@prisma/client";
+import bcrypt from "bcrypt";
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -78,6 +79,10 @@ const assignCourseSchema = z.object({
 
 const assignProductSchema = z.object({
   productId: z.string().trim().min(1),
+});
+
+const adminStudentPasswordSchema = z.object({
+  password: z.string().trim().min(8, "Password must be at least 8 characters").max(191),
 });
 
 const safeEnsureReferralCode = async (userId: string): Promise<string | null> => {
@@ -464,6 +469,41 @@ adminRouter.post("/users/:userId/product-access", ...ensureAdmin, async (req, re
           ? { id: item.assignedBy, name: String(item.assignedByName || "") }
           : null,
       })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/users/:userId/password", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const input = adminStudentPasswordSchema.parse(req.body);
+    const userId = String(req.params.userId || "").trim();
+    if (!userId) {
+      throw new AppError("Invalid student.", 400);
+    }
+
+    const student = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, name: true, mobile: true },
+    });
+    if (!student || student.role !== Role.STUDENT) {
+      throw new AppError("Student not found.", 404);
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 10);
+    await prisma.user.update({
+      where: { id: student.id },
+      data: { passwordHash },
+    });
+
+    res.json({
+      message: "Student password updated.",
+      student: {
+        id: student.id,
+        name: student.name,
+        mobile: student.mobile,
+      },
     });
   } catch (error) {
     next(error);

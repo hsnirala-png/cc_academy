@@ -60,6 +60,7 @@
                     <th>Email</th>
                     <th>State</th>
                     <th>City</th>
+                    <th>Password</th>
                     <th>Referral</th>
                     <th>Assigned Courses</th>
                     <th>Assign Course</th>
@@ -107,7 +108,36 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-students.js?v=4"></script>
+    <div id="studentPasswordModal" class="admin-modal hidden" aria-hidden="true">
+      <div class="admin-modal-backdrop" data-password-close></div>
+      <div class="admin-modal-card student-assignment-modal-card">
+        <div class="admin-modal-head">
+          <div>
+            <h3 id="studentPasswordTitle">Change Student Password</h3>
+            <p id="studentPasswordSubtitle" class="admin-subtitle" style="margin: 0.2rem 0 0"></p>
+          </div>
+          <button id="studentPasswordCloseBtn" class="table-btn" type="button">Close</button>
+        </div>
+
+        <form id="studentPasswordForm" class="admin-form" style="margin-top: 0.9rem">
+          <div class="admin-field">
+            <label for="studentPasswordValue">New Password</label>
+            <input id="studentPasswordValue" type="password" minlength="8" required />
+          </div>
+          <div class="admin-field">
+            <label for="studentPasswordConfirm">Confirm Password</label>
+            <input id="studentPasswordConfirm" type="password" minlength="8" required />
+          </div>
+          <p id="studentPasswordMessage" class="form-message"></p>
+          <div class="admin-actions" style="justify-content: flex-end">
+            <button id="studentPasswordCancelBtn" class="btn-ghost" type="button">Cancel</button>
+            <button id="studentPasswordSaveBtn" class="btn-primary" type="submit">Update Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-students.js?v=5"></script>
       <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

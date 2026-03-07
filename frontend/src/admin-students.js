@@ -28,6 +28,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const assignmentCloseBtn = document.querySelector("#studentAssignmentCloseBtn");
   const assignmentCancelBtn = document.querySelector("#studentAssignmentCancelBtn");
   const assignmentConfirmBtn = document.querySelector("#studentAssignmentConfirmBtn");
+  const passwordModal = document.querySelector("#studentPasswordModal");
+  const passwordTitleEl = document.querySelector("#studentPasswordTitle");
+  const passwordSubtitleEl = document.querySelector("#studentPasswordSubtitle");
+  const passwordForm = document.querySelector("#studentPasswordForm");
+  const passwordValueInput = document.querySelector("#studentPasswordValue");
+  const passwordConfirmInput = document.querySelector("#studentPasswordConfirm");
+  const passwordMessageEl = document.querySelector("#studentPasswordMessage");
+  const passwordCloseBtn = document.querySelector("#studentPasswordCloseBtn");
+  const passwordCancelBtn = document.querySelector("#studentPasswordCancelBtn");
+  const passwordSaveBtn = document.querySelector("#studentPasswordSaveBtn");
 
   const state = {
     courses: [],
@@ -41,6 +51,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       category: "",
       selectedItemId: "",
     },
+    passwordReset: {
+      studentId: "",
+      studentName: "",
+    },
   };
 
   const setMessage = (text, type) => {
@@ -52,6 +66,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const goAdminLogin = () => {
     window.location.href = "./admin-login.html";
+  };
+
+  const setPasswordMessage = (text, type) => {
+    if (!(passwordMessageEl instanceof HTMLElement)) return;
+    passwordMessageEl.textContent = text || "";
+    passwordMessageEl.classList.remove("error", "success");
+    if (type) passwordMessageEl.classList.add(type);
   };
 
   if (logoutBtn) {
@@ -94,6 +115,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.assignment.selectedItemId = "";
     if (assignmentSearchInput instanceof HTMLInputElement) assignmentSearchInput.value = "";
     if (assignmentCategorySelect instanceof HTMLSelectElement) assignmentCategorySelect.innerHTML = "";
+  };
+
+  const closePasswordModal = () => {
+    if (!(passwordModal instanceof HTMLElement)) return;
+    passwordModal.classList.add("hidden");
+    passwordModal.setAttribute("aria-hidden", "true");
+    state.passwordReset.studentId = "";
+    state.passwordReset.studentName = "";
+    if (passwordForm instanceof HTMLFormElement) {
+      passwordForm.reset();
+    }
+    setPasswordMessage("");
   };
 
   const getAssignmentItems = () => {
@@ -235,6 +268,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(isProductMode ? "Product assigned to student." : "Course assigned to student.", "success");
   };
 
+  const openPasswordModal = (studentId) => {
+    const student = state.students.find((item) => item.id === studentId);
+    if (!student || !(passwordModal instanceof HTMLElement)) return;
+    state.passwordReset.studentId = studentId;
+    state.passwordReset.studentName = String(student.name || student.studentCode || "").trim();
+    if (passwordTitleEl instanceof HTMLElement) {
+      passwordTitleEl.textContent = "Change Student Password";
+    }
+    if (passwordSubtitleEl instanceof HTMLElement) {
+      passwordSubtitleEl.textContent = state.passwordReset.studentName
+        ? `Student: ${state.passwordReset.studentName} (${student.mobile || "-"})`
+        : "";
+    }
+    if (passwordForm instanceof HTMLFormElement) {
+      passwordForm.reset();
+    }
+    setPasswordMessage("Current password cannot be viewed. Set a new password here.");
+    passwordModal.classList.remove("hidden");
+    passwordModal.setAttribute("aria-hidden", "false");
+    passwordValueInput?.focus();
+  };
+
+  const updateStudentPassword = async () => {
+    const studentId = String(state.passwordReset.studentId || "").trim();
+    const password = String(passwordValueInput?.value || "");
+    const confirmPassword = String(passwordConfirmInput?.value || "");
+    if (!studentId) {
+      setPasswordMessage("Select a student first.", "error");
+      return;
+    }
+    if (password.length < 8) {
+      setPasswordMessage("Password must be at least 8 characters.", "error");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setPasswordMessage("Password and confirm password do not match.", "error");
+      return;
+    }
+    setPasswordMessage("Updating password...");
+    await apiRequest({
+      path: `/admin/users/${encodeURIComponent(studentId)}/password`,
+      method: "PATCH",
+      token,
+      body: { password },
+    });
+    closePasswordModal();
+    setMessage("Student password updated.", "success");
+  };
+
   const renderStudents = () => {
     if (studentsCountText) {
       studentsCountText.textContent = `Total Students: ${state.students.length}`;
@@ -243,7 +325,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!studentsTableBody) return;
     if (!state.students.length) {
       studentsTableBody.innerHTML =
-        '<tr><td colspan="12" style="text-align:center;color:#666;">No students found.</td></tr>';
+        '<tr><td colspan="13" style="text-align:center;color:#666;">No students found.</td></tr>';
       return;
     }
 
@@ -280,6 +362,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${escapeHtml(user.email || "-")}</td>
             <td>${escapeHtml(user.state || "-")}</td>
             <td>${escapeHtml(user.city || "-")}</td>
+            <td>
+              <div class="table-actions">
+                <span class="chip active">Hidden</span>
+                <button class="table-btn edit" type="button" data-open-password="${user.id}">
+                  Change Password
+                </button>
+              </div>
+            </td>
             <td>
               ${
                 referralCode
@@ -347,6 +437,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const mode = String(assignmentTrigger.getAttribute("data-assignment-mode") || "course").trim();
         if (!studentId) return;
         openAssignmentModal(studentId, mode);
+        return;
+      }
+
+      const passwordTrigger = target.closest("[data-open-password]");
+      if (passwordTrigger instanceof HTMLElement) {
+        const studentId = String(passwordTrigger.getAttribute("data-open-password") || "").trim();
+        if (!studentId) return;
+        openPasswordModal(studentId);
       }
     });
   }
@@ -356,6 +454,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(target instanceof HTMLElement)) return;
     if (target.closest("[data-assignment-close]")) {
       closeAssignmentModal();
+    }
+  });
+
+  passwordModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest("[data-password-close]")) {
+      closePasswordModal();
     }
   });
 
@@ -403,9 +509,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     assignmentCancelBtn.addEventListener("click", closeAssignmentModal);
   }
 
+  if (passwordForm instanceof HTMLFormElement) {
+    passwordForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await updateStudentPassword();
+      } catch (error) {
+        setPasswordMessage(error.message || "Unable to update password.", "error");
+      }
+    });
+  }
+
+  if (passwordCloseBtn instanceof HTMLButtonElement) {
+    passwordCloseBtn.addEventListener("click", closePasswordModal);
+  }
+
+  if (passwordCancelBtn instanceof HTMLButtonElement) {
+    passwordCancelBtn.addEventListener("click", closePasswordModal);
+  }
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && assignmentModal instanceof HTMLElement && !assignmentModal.classList.contains("hidden")) {
       closeAssignmentModal();
+      return;
+    }
+    if (event.key === "Escape" && passwordModal instanceof HTMLElement && !passwordModal.classList.contains("hidden")) {
+      closePasswordModal();
     }
   });
 });
