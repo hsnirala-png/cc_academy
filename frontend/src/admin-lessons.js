@@ -3179,6 +3179,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const isMockScopeReady = () =>
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
+  const normalizeMockTestMatchText = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+  const getScopedLinkedMockTestIds = () =>
+    Array.from(
+      new Set(
+        (Array.isArray(state.mockLessons) ? state.mockLessons : [])
+          .map((lesson) => String(lesson?.assessmentTestId || "").trim())
+          .filter(Boolean)
+      )
+    );
+  const getScopedLinkedMockTests = () => {
+    const scopedLinkedIds = new Set(getScopedLinkedMockTestIds());
+    return state.mockTestsAdmin.filter((test) => scopedLinkedIds.has(String(test?.id || "").trim()));
+  };
   const resolvePreferredMockTestId = () => {
     const selectedLessonTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
     const hiddenInputTestId = String(lessonMockTestIdInput?.value || "").trim();
@@ -3210,6 +3226,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {
       return null;
     }
+  };
+  const findScopedMockTestFallback = () => {
+    const scopedLinkedTests = getScopedLinkedMockTests();
+    if (!scopedLinkedTests.length) return null;
+    const selectedLessonTitle = normalizeMockTestMatchText(selectedMockLesson()?.title || "");
+    if (selectedLessonTitle) {
+      const exactTitleMatches = scopedLinkedTests.filter(
+        (test) => normalizeMockTestMatchText(test?.title || "") === selectedLessonTitle
+      );
+      if (exactTitleMatches.length === 1) {
+        return exactTitleMatches[0];
+      }
+    }
+    return scopedLinkedTests.length === 1 ? scopedLinkedTests[0] : null;
   };
   const selectedMockTest = () =>
     state.mockTestsAdmin.find((item) => item.id === resolvePreferredMockTestId()) || null;
@@ -3953,16 +3983,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedTitle = String(lessonMockTestTitleInput?.value || "")
       .trim()
       .toLowerCase();
-    const scopedLinkedTestIds = new Set(
-      (Array.isArray(state.mockLessons) ? state.mockLessons : [])
-        .map((lesson) => String(lesson?.assessmentTestId || "").trim())
-        .filter(Boolean)
-    );
+    const scopedLinkedTestIds = new Set(getScopedLinkedMockTestIds());
     const hasChapterScope = Boolean(state.selectedMockChapterId);
     return state.mockTestsAdmin.filter((test) => {
       const testId = String(test?.id || "").trim();
       if (!testId) return false;
       if (testId === resolvePreferredMockTestId()) return true;
+      if (scopedLinkedTestIds.has(testId)) return true;
       if (hasChapterScope && scopedLinkedTestIds.size && !scopedLinkedTestIds.has(testId) && testId !== state.selectedMockTestId) {
         return false;
       }
@@ -5923,6 +5950,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
     }
+    if (!restoredMockTestId && state.selectedMockLessonId) {
+      const fallbackMockTest = findScopedMockTestFallback();
+      if (fallbackMockTest?.id) {
+        restoredMockTestId = String(fallbackMockTest.id).trim();
+        state.selectedMockTestId = restoredMockTestId;
+        if (lessonMockTestIdInput instanceof HTMLInputElement) {
+          lessonMockTestIdInput.value = restoredMockTestId;
+        }
+        try {
+          await Promise.all([loadMockQuestions(restoredMockTestId), loadMockTestSections(restoredMockTestId)]);
+        } catch (error) {
+          restoredMockTestId = "";
+        }
+      }
+    }
     if (!restoredMockTestId && state.selectedMockTestId && !state.mockTestsAdmin.some((item) => item.id === state.selectedMockTestId)) {
       state.selectedMockTestId = "";
       state.mockQuestions = [];
@@ -5937,6 +5979,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     renderAttachExistingTestOptions();
     renderMockTestsAdmin();
+    updateLessonSelectedTestHint();
     setLessonQuestionBankVisibility();
   };
 
@@ -6026,8 +6069,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const linkedTestId = selectedLesson?.assessmentTestId || "";
     if (linkedTestId) {
       await setSelectedMockTestId(linkedTestId, { silent: true, forceQuestionCount: true });
-    } else if (!linkedTestId) {
-      await setSelectedMockTestId("", { silent: true, forceQuestionCount: true });
+    } else {
+      const fallbackMockTest = findScopedMockTestFallback();
+      if (fallbackMockTest?.id) {
+        await setSelectedMockTestId(fallbackMockTest.id, { silent: true, forceQuestionCount: true });
+      } else {
+        await setSelectedMockTestId("", { silent: true, forceQuestionCount: true });
+      }
     }
     setMockContextLabels();
     renderMockTestsAdmin();
