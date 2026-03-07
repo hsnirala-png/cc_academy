@@ -55,10 +55,16 @@ const normalizeLessonAssetUrl = (value: string | null | undefined): string | nul
   return `/${raw}`;
 };
 
-const resolveRequiredQuestions = (subject: MockSubject, activeQuestionCount: number): number => {
+const resolveRequiredQuestions = (
+  subject: MockSubject,
+  activeQuestionCount: number,
+  configuredQuestionCount?: number | null
+): number => {
   const safeActiveCount = Math.max(0, Math.floor(Number(activeQuestionCount) || 0));
   if (safeActiveCount <= 0) return 0;
-  return Math.min(getRequiredQuestionCount(subject), safeActiveCount);
+  const configuredCount = Math.max(0, Math.floor(Number(configuredQuestionCount || 0)));
+  const targetCount = configuredCount > 0 ? configuredCount : getRequiredQuestionCount(subject);
+  return Math.min(targetCount, safeActiveCount);
 };
 
 const normalizeAccessCode = (value: unknown): AccessCode => {
@@ -598,13 +604,14 @@ const serializeMockTestWithCounts = (
     linkedProductCount?: number;
     _count?: { questions: number };
   },
-  activeQuestionCount: number
+  activeQuestionCount: number,
+  configuredQuestionCount?: number
 ) => {
   const activeQuestions = Math.max(0, Math.floor(Number(activeQuestionCount) || 0));
   return {
     ...serializeMockTest(item),
     activeQuestions,
-    requiredQuestions: resolveRequiredQuestions(item.subject, activeQuestions),
+    requiredQuestions: resolveRequiredQuestions(item.subject, activeQuestions, configuredQuestionCount),
   };
 };
 
@@ -623,6 +630,22 @@ const buildActiveQuestionCountMap = async (mockTestIds: string[]) => {
     ...mockTestIds
   )) as Array<{ mockTestId: string; activeCount: number | string }>;
   return new Map(grouped.map((item) => [item.mockTestId, Number(item.activeCount || 0)]));
+};
+
+const buildSectionQuestionTargetMap = async (mockTestIds: string[]) => {
+  if (!mockTestIds.length) return new Map<string, number>();
+  const placeholders = mockTestIds.map(() => "?").join(", ");
+  const grouped = (await prisma.$queryRawUnsafe(
+    `
+      SELECT mockTestId, COALESCE(SUM(questionLimit), 0) AS targetCount
+      FROM MockTestSection
+      WHERE mockTestId IN (${placeholders})
+        AND isActive = 1
+      GROUP BY mockTestId
+    `,
+    ...mockTestIds
+  )) as Array<{ mockTestId: string; targetCount: number | string }>;
+  return new Map(grouped.map((item) => [item.mockTestId, Number(item.targetCount || 0)]));
 };
 
 const serializeQuestion = (item: {
@@ -1062,8 +1085,9 @@ export const mockTestService = {
     });
 
     const testIds = tests.map((item) => item.id);
-    const [activeCountMap, accessSettingsMap, linkedProductCountMap] = await Promise.all([
+    const [activeCountMap, sectionTargetMap, accessSettingsMap, linkedProductCountMap] = await Promise.all([
       buildActiveQuestionCountMap(testIds),
+      buildSectionQuestionTargetMap(testIds),
       loadMockTestAccessSettingsMap(testIds),
       loadLinkedProductCountMap(testIds),
     ]);
@@ -1076,7 +1100,8 @@ export const mockTestService = {
           mockCategory: accessSettingsMap.get(item.id)?.mockCategory || "PREMIUM",
           linkedProductCount: linkedProductCountMap.get(item.id) || 0,
         },
-        activeCountMap.get(item.id) || 0
+        activeCountMap.get(item.id) || 0,
+        sectionTargetMap.get(item.id) || 0
       )
     );
   },
@@ -1141,7 +1166,8 @@ export const mockTestService = {
     )) as Array<{ activeCount: number | string }>;
     const activeCount = Number(activeCountRows[0]?.activeCount || 0);
 
-    const [accessSettingsMap, linkedProductCountMap] = await Promise.all([
+    const [sectionTargetMap, accessSettingsMap, linkedProductCountMap] = await Promise.all([
+      buildSectionQuestionTargetMap([mockTestId]),
       loadMockTestAccessSettingsMap([mockTestId]),
       loadLinkedProductCountMap([mockTestId]),
     ]);
@@ -1153,7 +1179,8 @@ export const mockTestService = {
         mockCategory: accessSettingsMap.get(mockTestId)?.mockCategory || "PREMIUM",
         linkedProductCount: linkedProductCountMap.get(mockTestId) || 0,
       },
-      activeCount
+      activeCount,
+      sectionTargetMap.get(mockTestId) || 0
     );
   },
 
@@ -1795,9 +1822,10 @@ export const mockTestService = {
     });
 
     const mockTestIds = mockTests.map((item) => item.id);
-    const [activeCountMap, accessSettingsMap, linkedProductCountMap, demoEntitledSet, productEntitledSet, lessonEntitledSet] =
+    const [activeCountMap, sectionTargetMap, accessSettingsMap, linkedProductCountMap, demoEntitledSet, productEntitledSet, lessonEntitledSet] =
       await Promise.all([
         buildActiveQuestionCountMap(mockTestIds),
+        buildSectionQuestionTargetMap(mockTestIds),
         loadMockTestAccessSettingsMap(mockTestIds),
         loadLinkedProductCountMap(mockTestIds),
         loadDemoLinkedMockTests(mockTestIds),
@@ -1827,7 +1855,8 @@ export const mockTestService = {
             mockCategory: accessSettingsMap.get(item.id)?.mockCategory || "PREMIUM",
             linkedProductCount: linkedProductCountMap.get(item.id) || 0,
           },
-          activeCountMap.get(item.id) || 0
+          activeCountMap.get(item.id) || 0,
+          sectionTargetMap.get(item.id) || 0
         )
       );
   },
@@ -1901,7 +1930,21 @@ export const mockTestService = {
       sectionType: string | null;
       sectionSortOrder: number | string;
     }>;
-    const requiredQuestions = resolveRequiredQuestions(mockTest.subject, questionPool.length);
+    const sectionTargetRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT COALESCE(SUM(questionLimit), 0) AS targetCount
+        FROM MockTestSection
+        WHERE mockTestId = ?
+          AND isActive = 1
+      `,
+      mockTest.id
+    )) as Array<{ targetCount: number | string }>;
+    const configuredQuestionCount = Number(sectionTargetRows[0]?.targetCount || 0);
+    const requiredQuestions = resolveRequiredQuestions(
+      mockTest.subject,
+      questionPool.length,
+      configuredQuestionCount
+    );
 
     if (requiredQuestions < 1) {
       throw new AppError(

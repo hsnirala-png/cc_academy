@@ -650,6 +650,23 @@
               <form id="lessonSectionForm" class="admin-form" style="margin-bottom: 0.9rem">
                 <input id="lessonSectionId" type="hidden" />
                 <h4 style="margin: 0 0 0.4rem">Section Setup</h4>
+                <div class="admin-actions" style="margin: 0 0 0.75rem">
+                  <div class="admin-field" style="margin: 0; min-width: 260px">
+                    <label for="lessonSectionPreset" style="margin-bottom: 0.2rem">Subject-wise Section Preset</label>
+                    <select id="lessonSectionPreset">
+                      <option value="">Select preset</option>
+                      <option value="PSTET_1_FULL">PSTET-1 Full Mock</option>
+                      <option value="PSTET_2_SST">PSTET-2 CDP/PBI/ENG/SST</option>
+                      <option value="PSTET_2_SCI_MATH">PSTET-2 CDP/PBI/ENG/SCI/MATHS</option>
+                    </select>
+                  </div>
+                  <button id="lessonApplySectionPresetBtn" class="btn-secondary" type="button">
+                    Apply Section Preset
+                  </button>
+                </div>
+                <p class="admin-subtitle" style="margin: -0.2rem 0 0.7rem">
+                  Use the Number of Questions field above as your bank target. For example, set it to 150 and apply a preset to split limits across subject sections.
+                </p>
                 <div class="admin-form-row">
                   <div class="admin-field">
                     <label for="lessonSectionType">Section Type</label>
@@ -1319,7 +1336,7 @@
       </button>
     </div>
 
-    <script type="module" src="./src/admin-lessons.js?v=117"></script>
+    <script type="module" src="./src/admin-lessons.js?v=118"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

@@ -145,6 +145,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonReviewSectionStatus = document.querySelector("#lessonReviewSectionStatus");
   const lessonSectionForm = document.querySelector("#lessonSectionForm");
   const lessonSectionIdInput = document.querySelector("#lessonSectionId");
+  const lessonSectionPresetInput = document.querySelector("#lessonSectionPreset");
+  const lessonApplySectionPresetBtn = document.querySelector("#lessonApplySectionPresetBtn");
   const lessonSectionTypeInput = document.querySelector("#lessonSectionType");
   const lessonSectionLabelInput = document.querySelector("#lessonSectionLabel");
   const lessonSectionQuestionLimitInput = document.querySelector("#lessonSectionQuestionLimit");
@@ -2690,6 +2692,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     math: "Math Formulas",
     science: "Science Equations",
   };
+  const SUBJECT_SECTION_PRESETS = {
+    PSTET_1_FULL: [
+      { sectionLabel: "CDP", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "PBI", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "ENG", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "EVS", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "MATHS", sectionType: "GENERAL_MCQ" },
+    ],
+    PSTET_2_SST: [
+      { sectionLabel: "CDP", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "PBI", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "ENG", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "SST", sectionType: "GENERAL_MCQ" },
+    ],
+    PSTET_2_SCI_MATH: [
+      { sectionLabel: "CDP", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "PBI", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "ENG", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "SCI", sectionType: "GENERAL_MCQ" },
+      { sectionLabel: "MATHS", sectionType: "GENERAL_MCQ" },
+    ],
+  };
   const SECTION_TYPE_GUIDE_TEXT = {
     COMPREHENSION:
       "Comprehension keeps one paragraph or passage at section level, then lets you add its questions manually, by line import, or by CSV.",
@@ -2743,6 +2767,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.mockTestSections.find(
         (item) => normalizeQuestionSectionLabel(item?.sectionLabel) === normalizedLabel
       ) || null
+    );
+  };
+  const distributeQuestionTargetAcrossSections = (sectionCount) => {
+    const safeSectionCount = Math.max(1, Math.floor(Number(sectionCount) || 1));
+    const target = Math.max(1, requiredQuestionsForLesson());
+    const base = Math.floor(target / safeSectionCount);
+    const remainder = target % safeSectionCount;
+    return Array.from({ length: safeSectionCount }, (_, index) =>
+      Math.max(1, base + (index < remainder ? 1 : 0))
     );
   };
   const structuredQuestionTextFromParts = ({
@@ -4518,6 +4551,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
+  const applySubjectSectionPreset = async () => {
+    if (!state.selectedMockTestId) {
+      throw new Error("Create or attach a test before applying subject-wise sections.");
+    }
+    const presetKey = String(lessonSectionPresetInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const preset = SUBJECT_SECTION_PRESETS[presetKey];
+    if (!preset?.length) {
+      throw new Error("Select a subject-wise section preset first.");
+    }
+    const limits = distributeQuestionTargetAcrossSections(preset.length);
+
+    for (const [index, sectionConfig] of preset.entries()) {
+      const normalizedLabel = normalizeQuestionSectionLabel(sectionConfig.sectionLabel);
+      const existingSection =
+        state.mockTestSections.find(
+          (item) => normalizeQuestionSectionLabel(item?.sectionLabel) === normalizedLabel
+        ) || null;
+      const payload = {
+        sectionType: normalizeSectionType(existingSection?.sectionType || sectionConfig.sectionType),
+        sectionLabel: normalizedLabel,
+        transcriptText: String(existingSection?.transcriptText || "").trim() || undefined,
+        audioUrl: String(existingSection?.audioUrl || "").trim() || undefined,
+        questionLimit: Math.max(1, limits[index] || 1),
+        isActive: true,
+      };
+
+      if (existingSection?.id) {
+        await apiRequest({
+          path: `/admin/mock-test-sections/${encodeURIComponent(existingSection.id)}`,
+          method: "PATCH",
+          token,
+          body: payload,
+        });
+        continue;
+      }
+
+      await apiRequest({
+        path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/sections`,
+        method: "POST",
+        token,
+        body: payload,
+      });
+    }
+
+    await loadMockTestSections(state.selectedMockTestId);
+    renderLessonSections();
+    renderQuestionSectionControls();
+    updateQuestionSectionSummary();
+    resetLessonSectionForm();
+  };
+
   const openLessonSectionForEdit = (section) => {
     if (!section) return;
     setTestsBuilderTab("question-bank");
@@ -4828,7 +4914,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? Number(selected.requiredQuestions || 0) || REQUIRED_QUESTIONS_BY_SUBJECT[selected.subject] || 30
       : 30;
     const current = Number(lessonQuestionTargetCountInput.value || 0);
-    if (!force && Number.isFinite(current) && current > 0) return;
+    if (Number.isFinite(current) && current > 0) {
+      if (!force) return;
+      if (current > suggested) return;
+    }
     lessonQuestionTargetCountInput.value = String(suggested);
   };
 
@@ -8631,6 +8720,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonSectionCancelBtn.addEventListener("click", () => {
       resetLessonSectionForm();
       setMessage("");
+    });
+  }
+
+  if (lessonApplySectionPresetBtn instanceof HTMLButtonElement) {
+    lessonApplySectionPresetBtn.addEventListener("click", async () => {
+      try {
+        setMessage("Applying subject-wise section preset...");
+        await applySubjectSectionPreset();
+        persistTestBuilderDraft();
+        setMessage("Subject-wise sections saved for this test.", "success");
+      } catch (error) {
+        setMessage(error.message || "Unable to apply subject-wise section preset.", "error");
+      }
     });
   }
 
