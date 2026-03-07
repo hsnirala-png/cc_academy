@@ -132,6 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonMockTestIsActiveInput = document.querySelector("#lessonMockTestIsActive");
   const lessonMockSubmitBtn = document.querySelector("#lessonMockSubmitBtn");
   const lessonMockCancelBtn = document.querySelector("#lessonMockCancelBtn");
+  const lessonSaveFilterDraftBtn = document.querySelector("#lessonSaveFilterDraftBtn");
   const lessonQuestionBankPanel = document.querySelector("#lessonQuestionBankPanel");
   const lessonSelectedTestHint = document.querySelector("#lessonSelectedTestHint");
   const lessonQuestionCountWarning = document.querySelector("#lessonQuestionCountWarning");
@@ -2647,6 +2648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     MOCK: "MOCK",
     LESSON: "LESSON",
   };
+  const TEST_BUILDER_DRAFT_STORAGE_KEY = "cc_admin_lessons_test_builder_draft_v1";
   const MOCK_CATEGORY_LABELS = {
     FREE: "Free",
     PREMIUM: "Premium",
@@ -2802,6 +2804,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(panel instanceof HTMLElement)) return;
       panel.classList.toggle("active", panel.getAttribute("data-tests-builder-panel") === nextTab);
     });
+    persistTestBuilderDraft();
   };
   const setQuestionBankMode = (mode) => {
     const nextMode = ["manual", "lines", "csv", "review"].includes(mode) ? mode : "sections";
@@ -2823,6 +2826,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       renderLessonQuestions();
     }
+    persistTestBuilderDraft();
   };
   const updateSectionTypeGuide = () => {
     if (!(lessonSectionTypeGuide instanceof HTMLElement)) return;
@@ -3202,6 +3206,180 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const getMockTestQuestionCount = (mockTest) =>
     Number(mockTest?.activeQuestions ?? mockTest?._count?.questions ?? 0);
+  const readPersistedTestBuilderDraft = () => {
+    try {
+      const raw = window.localStorage.getItem(TEST_BUILDER_DRAFT_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+  const buildPersistedTestBuilderDraft = () => ({
+    selectedMockCourseId: String(state.selectedMockCourseId || "").trim(),
+    selectedMockChapterId: String(state.selectedMockChapterId || "").trim(),
+    selectedMockLessonId: String(state.selectedMockLessonId || "").trim(),
+    selectedMockTestId: String(state.selectedMockTestId || "").trim(),
+    testsBuilderTab: String(state.testsBuilderTab || "transcript"),
+    questionBankMode: String(state.questionBankMode || "sections"),
+    lessonTitle: lessonTitleInput?.value?.trim() || "",
+    transcriptText: lessonTranscriptTextInput?.value || "",
+    videoUrl: lessonVideoUrlInput?.value?.trim() || "",
+    durationSec: lessonDurationSecInput?.value || "",
+    audioLanguageHint: lessonAudioLanguageInput?.value || "auto",
+    testTitle: lessonMockTestTitleInput?.value?.trim() || "",
+    examType: lessonMockTestExamTypeInput?.value || "PSTET_1",
+    subject: normalizeMockSubjectValue(lessonMockTestSubjectInput?.value || "PUNJABI"),
+    streamChoice: lessonMockTestStreamChoiceInput?.value || "",
+    accessCode: lessonMockTestAccessCodeInput?.value || "",
+    mockCategory: lessonMockTestCategoryInput?.value || "PREMIUM",
+    languageMode: lessonMockTestLanguageModeInput?.value || "",
+    testSubject: lessonMockTestSubjectInput?.value || "PUNJABI",
+    questionTargetCount: lessonQuestionTargetCountInput?.value || "30",
+    questionCategoryFilter: lessonQuestionCategoryFilterInput?.value || "ALL",
+    questionSectionFilter: lessonQuestionSectionFilterInput?.value || "ALL",
+    reviewSectionFilter: lessonReviewSectionFilterInput?.value || "ALL",
+    questionInputMode: lessonQuestionInputModeInput?.value || "ENGLISH",
+    bulkImportSection: lessonBulkImportSectionInput?.value || "",
+    csvImportSection: lessonBulkImportCsvSectionInput?.value || "",
+    csvTemplateFormat: lessonCsvTemplateFormatInput?.value || "general",
+    updatedAt: new Date().toISOString(),
+  });
+  const persistTestBuilderDraft = (options = {}) => {
+    const { silent = true, successMessage = "Test builder settings saved." } = options;
+    try {
+      window.localStorage.setItem(
+        TEST_BUILDER_DRAFT_STORAGE_KEY,
+        JSON.stringify(buildPersistedTestBuilderDraft())
+      );
+      if (!silent) {
+        setMessage(successMessage, "success");
+      }
+    } catch {
+      if (!silent) {
+        setMessage("Unable to save builder settings in browser storage.", "error");
+      }
+    }
+  };
+  const applyPersistedTestBuilderValues = (draft) => {
+    if (!draft || typeof draft !== "object") return;
+    if (lessonTitleInput instanceof HTMLInputElement && draft.lessonTitle) {
+      lessonTitleInput.value = draft.lessonTitle;
+    }
+    if (lessonTranscriptTextInput instanceof HTMLTextAreaElement && typeof draft.transcriptText === "string") {
+      lessonTranscriptTextInput.value = draft.transcriptText;
+    }
+    if (lessonVideoUrlInput instanceof HTMLInputElement && typeof draft.videoUrl === "string") {
+      lessonVideoUrlInput.value = draft.videoUrl;
+    }
+    if (lessonDurationSecInput instanceof HTMLInputElement && draft.durationSec) {
+      lessonDurationSecInput.value = draft.durationSec;
+    }
+    if (lessonAudioLanguageInput instanceof HTMLSelectElement && draft.audioLanguageHint) {
+      lessonAudioLanguageInput.value = draft.audioLanguageHint;
+    }
+    if (lessonMockTestTitleInput instanceof HTMLInputElement && typeof draft.testTitle === "string") {
+      lessonMockTestTitleInput.value = draft.testTitle;
+    }
+    if (lessonMockTestExamTypeInput instanceof HTMLInputElement && draft.examType) {
+      lessonMockTestExamTypeInput.value = draft.examType;
+    }
+    if (lessonMockTestSubjectInput instanceof HTMLSelectElement && draft.testSubject) {
+      lessonMockTestSubjectInput.value = normalizeMockSubjectValue(draft.testSubject);
+    }
+    toggleMockSubjectDependentFields();
+    if (lessonMockTestStreamChoiceInput instanceof HTMLSelectElement) {
+      lessonMockTestStreamChoiceInput.value = draft.streamChoice || "";
+    }
+    if (lessonMockTestAccessCodeInput instanceof HTMLSelectElement) {
+      lessonMockTestAccessCodeInput.value = draft.accessCode || "";
+    }
+    if (lessonMockTestCategoryInput instanceof HTMLSelectElement) {
+      lessonMockTestCategoryInput.value = draft.mockCategory || "PREMIUM";
+    }
+    if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
+      lessonMockTestLanguageModeInput.value = draft.languageMode || "";
+    }
+    if (lessonQuestionTargetCountInput instanceof HTMLInputElement && draft.questionTargetCount) {
+      lessonQuestionTargetCountInput.value = draft.questionTargetCount;
+    }
+    if (lessonQuestionInputModeInput instanceof HTMLSelectElement && draft.questionInputMode) {
+      lessonQuestionInputModeInput.value = draft.questionInputMode;
+      state.questionInputMode = draft.questionInputMode;
+    }
+    if (lessonBulkImportSectionInput instanceof HTMLSelectElement && draft.bulkImportSection) {
+      lessonBulkImportSectionInput.value = draft.bulkImportSection;
+    }
+    if (lessonBulkImportCsvSectionInput instanceof HTMLSelectElement && draft.csvImportSection) {
+      lessonBulkImportCsvSectionInput.value = draft.csvImportSection;
+    }
+    if (lessonCsvTemplateFormatInput instanceof HTMLSelectElement && draft.csvTemplateFormat) {
+      lessonCsvTemplateFormatInput.value = draft.csvTemplateFormat;
+    }
+    syncCsvSectionByTemplate();
+    setTestsBuilderTab(draft.testsBuilderTab || "transcript");
+    setQuestionBankMode(draft.questionBankMode || "sections");
+  };
+  const restorePersistedTestBuilderDraft = async () => {
+    const draft = readPersistedTestBuilderDraft();
+    if (!draft) return;
+    const draftCourseId = String(draft.selectedMockCourseId || "").trim();
+    const draftChapterId = String(draft.selectedMockChapterId || "").trim();
+    const draftLessonId = String(draft.selectedMockLessonId || "").trim();
+    const draftTestId = String(draft.selectedMockTestId || "").trim();
+    if (draftCourseId && state.courses.some((course) => course.id === draftCourseId)) {
+      state.selectedMockCourseId = draftCourseId;
+      renderMockCourseOptions();
+      await loadMockChapters(draftCourseId);
+    }
+    if (draftChapterId && state.mockChapters.some((chapter) => chapter.id === draftChapterId)) {
+      state.selectedMockChapterId = draftChapterId;
+      renderMockChapterOptions();
+      await loadMockLessons(draftChapterId);
+    }
+    if (draftLessonId && state.mockLessons.some((lesson) => lesson.id === draftLessonId)) {
+      state.selectedMockLessonId = draftLessonId;
+      renderMockLessonOptions();
+      if (mockLinkLessonIdInput instanceof HTMLSelectElement) {
+        mockLinkLessonIdInput.value = draftLessonId;
+      }
+      const linkedTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
+      const restoredTestId = draftTestId || linkedTestId;
+      if (restoredTestId) {
+        await setSelectedMockTestId(restoredTestId, { silent: true, forceQuestionCount: true });
+      }
+    }
+    applyPersistedTestBuilderValues(draft);
+    renderQuestionSectionControls();
+    if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement && draft.questionCategoryFilter) {
+      lessonQuestionCategoryFilterInput.value = draft.questionCategoryFilter;
+    }
+    if (lessonQuestionSectionFilterInput instanceof HTMLSelectElement && draft.questionSectionFilter) {
+      lessonQuestionSectionFilterInput.value = draft.questionSectionFilter;
+    }
+    if (lessonReviewSectionFilterInput instanceof HTMLSelectElement && draft.reviewSectionFilter) {
+      lessonReviewSectionFilterInput.value = draft.reviewSectionFilter;
+    }
+    renderLessonQuestions();
+    renderLessonSections();
+    setMockContextLabels();
+    setLessonQuestionBankVisibility();
+  };
+  const registerDraftPersistence = (control, eventName = "change") => {
+    if (
+      !(
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement ||
+        control instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+    control.addEventListener(eventName, () => {
+      persistTestBuilderDraft();
+    });
+  };
   const getAdminMockTestById = (mockTestId) => {
     const normalizedMockTestId = String(mockTestId || "").trim();
     if (!normalizedMockTestId) return null;
@@ -6056,6 +6234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!silent && state.selectedMockTestId) {
       setMessage("Question section ready for selected test.", "success");
     }
+    persistTestBuilderDraft();
   };
 
   const loadMockTestsAdmin = async () => {
@@ -7414,6 +7593,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderMockLessonOptions();
       try {
         await loadMockChapters(nextCourseId);
+        persistTestBuilderDraft();
         setMessage("");
       } catch (error) {
         setMessage(error.message || "Unable to load subjects for selected course.", "error");
@@ -7439,6 +7619,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderMockChapterOptions();
       try {
         await loadMockLessons(nextChapterId);
+        persistTestBuilderDraft();
         setMessage("");
       } catch (error) {
         setMessage(error.message || "Unable to load chapters for selected subject.", "error");
@@ -7469,10 +7650,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         setMockContextLabels();
         syncMockTaxonomyFromScope();
         renderMockTestsAdmin();
+        persistTestBuilderDraft();
         setMessage("");
       } catch (error) {
         setMessage(error.message || "Unable to load linked test for selected chapter.", "error");
       }
+    });
+  }
+
+  if (lessonSaveFilterDraftBtn instanceof HTMLButtonElement) {
+    lessonSaveFilterDraftBtn.addEventListener("click", () => {
+      persistTestBuilderDraft({
+        silent: false,
+        successMessage: "Test filter settings saved. This selection will be restored next time.",
+      });
     });
   }
 
@@ -7759,6 +7950,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonForm) {
     lessonForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      persistTestBuilderDraft();
       let selectedCourseId = lessonCourseIdInput?.value?.trim() || state.selectedCourseId;
       let selectedChapterId = lessonChapterIdInput?.value?.trim() || state.selectedChapterId;
       const shouldSaveTestWithLesson = state.currentTab === "mocktests" && state.testsMode === "create";
@@ -7994,6 +8186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           const savedLesson = state.lessons.find((item) => item.id === savedLessonId);
           if (savedLesson) {
             populateLessonFormForEdit(savedLesson);
+            persistTestBuilderDraft();
             setMessage(finalMessage, finalType);
           } else {
             resetLessonForm();
@@ -8137,30 +8330,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonMockTestTitleInput instanceof HTMLInputElement) {
     lessonMockTestTitleInput.addEventListener("input", () => {
       refreshAttachFilteredViews();
+      persistTestBuilderDraft();
     });
   }
 
   if (lessonMockTestSubjectInput instanceof HTMLSelectElement) {
     lessonMockTestSubjectInput.addEventListener("change", () => {
       refreshAttachFilteredViews();
+      persistTestBuilderDraft();
     });
   }
 
   if (lessonMockTestAccessCodeInput instanceof HTMLSelectElement) {
     lessonMockTestAccessCodeInput.addEventListener("change", () => {
       refreshAttachFilteredViews();
+      persistTestBuilderDraft();
     });
   }
 
   if (lessonMockTestCategoryInput instanceof HTMLSelectElement) {
     lessonMockTestCategoryInput.addEventListener("change", () => {
       refreshAttachFilteredViews();
+      persistTestBuilderDraft();
     });
   }
 
   if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
     lessonMockTestLanguageModeInput.addEventListener("change", () => {
       refreshAttachFilteredViews();
+      persistTestBuilderDraft();
     });
   }
 
@@ -8681,6 +8879,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonSaveTestBtn instanceof HTMLButtonElement) {
     lessonSaveTestBtn.addEventListener("click", () => {
       if (!(lessonForm instanceof HTMLFormElement)) return;
+      persistTestBuilderDraft();
       setMessage("Creating lesson with test, transcript, and selected mode...");
       lessonForm.requestSubmit();
     });
@@ -8689,6 +8888,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (lessonSaveQuestionsWithTestBtn instanceof HTMLButtonElement) {
     lessonSaveQuestionsWithTestBtn.addEventListener("click", async () => {
       try {
+        persistTestBuilderDraft();
         setMessage("Saving questions with test...");
         await saveAndAttachLessonMockTestFromTopFields({ resetAfterSave: false });
         let csvImportResult = null;
@@ -8710,6 +8910,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         await Promise.all([loadMockQuestions(state.selectedMockTestId), loadMockTestsAdmin(), loadAssessments()]);
         setPendingTestChanges(false);
+        persistTestBuilderDraft({
+          silent: false,
+          successMessage: "Questions, sections, and test filter settings saved.",
+        });
         setMessage(
           csvImportResult
             ? `Questions are saved with selected test. CSV import added ${csvImportResult.createdCount}/${csvImportResult.totalRows} questions.`
@@ -9040,6 +9244,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  [
+    lessonTitleInput,
+    lessonTranscriptTextInput,
+    lessonVideoUrlInput,
+    lessonDurationSecInput,
+    lessonAudioLanguageInput,
+    lessonMockTestTitleInput,
+    lessonMockTestAccessCodeInput,
+    lessonMockTestCategoryInput,
+    lessonMockTestLanguageModeInput,
+    lessonMockTestSubjectInput,
+    lessonMockTestStreamChoiceInput,
+    lessonQuestionTargetCountInput,
+    lessonQuestionCategoryFilterInput,
+    lessonQuestionSectionFilterInput,
+    lessonReviewSectionFilterInput,
+    lessonQuestionInputModeInput,
+    lessonBulkImportSectionInput,
+    lessonBulkImportCsvSectionInput,
+    lessonCsvTemplateFormatInput,
+  ].forEach((control) => {
+    const eventName =
+      control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement ? "input" : "change";
+    registerDraftPersistence(control, eventName);
+  });
+
   try {
     setMessage("Loading lessons admin...");
     setActiveTab("courses");
@@ -9091,6 +9321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setContextLabels();
     ensureSampleTranscriptText();
     syncVoiceProviderUi();
+    await restorePersistedTestBuilderDraft();
 
     try {
       await loadLessonTracking();
