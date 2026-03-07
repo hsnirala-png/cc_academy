@@ -72,6 +72,7 @@ type ProductMockTestRow = {
   mockTestExamType: string;
   mockTestSubject: string;
   mockTestChapterSubSubject?: string | null;
+  linkFlowType?: string | null;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
@@ -186,6 +187,14 @@ const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   return "DEMO";
 };
 
+const normalizeProductFlowType = (value: unknown, fallback: "MOCK" | "LESSON" = "LESSON"): "MOCK" | "LESSON" => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
+  return fallback;
+};
+
 const normalizeTextList = (value: unknown, fallback: string[]): string[] => {
   const source = Array.isArray(value) ? value : [];
   const cleaned = source
@@ -275,6 +284,7 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   subject: row.mockTestSubject,
   chapterSubSubject: String(row.mockTestChapterSubSubject || "").trim() || null,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
+  flowType: normalizeProductFlowType(row.linkFlowType, normalizeAccessCode(row.mockTestAccessCode) === "MOCK" ? "MOCK" : "LESSON"),
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
   hasTranscriptFlow: toBoolean(row.mockTestHasTranscriptFlow),
@@ -339,6 +349,7 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pmt.productId,
         pmt.mockTestId,
+        pmt.flowType AS linkFlowType,
         pmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
@@ -402,9 +413,10 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
   const rows = (await prisma.$queryRawUnsafe(
     `
       SELECT
-        linked.productId,
-        linked.mockTestId,
-        linked.isUpcoming AS isUpcoming,
+        pdmt.productId,
+        pdmt.mockTestId,
+        pdmt.flowType AS linkFlowType,
+        pdmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -444,49 +456,11 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
             )
           LIMIT 1
         ) AS mockTestHasTranscriptFlow
-      FROM (
-        SELECT
-          rawLinks.productId,
-          rawLinks.mockTestId,
-          MAX(rawLinks.isUpcoming) AS isUpcoming,
-          MIN(rawLinks.linkCreatedAt) AS linkCreatedAt
-        FROM (
-          SELECT
-            pdmt.productId,
-            pdmt.mockTestId,
-            pdmt.isUpcoming AS isUpcoming,
-            pdmt.createdAt AS linkCreatedAt
-          FROM ProductDemoMockTest pdmt
-          WHERE pdmt.productId IN (${placeholders})
-
-          UNION ALL
-
-          SELECT
-            pmt.productId,
-            pmt.mockTestId,
-            pmt.isUpcoming AS isUpcoming,
-            pmt.createdAt AS linkCreatedAt
-          FROM ProductMockTest pmt
-          WHERE pmt.productId IN (${placeholders})
-            AND UPPER(
-              COALESCE(
-                (
-                  SELECT mar2.accessCode
-                  FROM MockTestAccessRule mar2
-                  WHERE mar2.mockTestId = pmt.mockTestId
-                  ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
-                  LIMIT 1
-                ),
-                'DEMO'
-              )
-            ) LIKE 'DEMO%'
-        ) rawLinks
-        GROUP BY rawLinks.productId, rawLinks.mockTestId
-      ) linked
-      INNER JOIN MockTest mt ON mt.id = linked.mockTestId
-      ORDER BY linked.productId ASC, linked.linkCreatedAt ASC, mt.createdAt ASC
+      FROM ProductDemoMockTest pdmt
+      INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
+      WHERE pdmt.productId IN (${placeholders})
+      ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,
-    ...productIds,
     ...productIds
   )) as ProductMockTestRow[];
 

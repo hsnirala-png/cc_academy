@@ -1330,6 +1330,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     return dynamicTabs.length ? dynamicTabs : ["CDP"];
   };
 
+  const normalizeLearningFlowType = (value, fallback = "LESSON") => {
+    const normalized = String(value || "")
+      .trim()
+      .toUpperCase();
+    if (normalized === "MOCK" || normalized === "LESSON") return normalized;
+    return fallback;
+  };
+
   const isDirectAttemptSeriesProduct = (product) => {
     const titleText = `${product?.title || ""} ${product?.examName || ""} ${product?.examCategory || ""}`
       .toLowerCase()
@@ -1420,6 +1428,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       String(rawValue || "")
         .trim()
         .toUpperCase();
+    const resolveLinkedFlowType = (item) =>
+      normalizeLearningFlowType(
+        item?.flowType,
+        normalizeLinkedAccessCode(item?.accessCode) === "MOCK" ? "MOCK" : "LESSON"
+      );
     const resolveLinkedAccessPriority = (rawValue) => {
       const normalized = normalizeLinkedAccessCode(rawValue);
       if (
@@ -1452,8 +1465,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const items = [];
     const hasTranscriptFlow = (item) => Boolean(item?.hasTranscriptFlow);
     const shouldDirectAttemptFromProduct = (item) => {
-      const accessCode = normalizeLinkedAccessCode(item?.accessCode);
-      if (accessCode !== "MOCK") {
+      const flowType = resolveLinkedFlowType(item);
+      if (flowType !== "MOCK") {
         return Boolean(item?.directAttemptOnly);
       }
       return Boolean(item?.hasLessonContext) && (Boolean(item?.directAttemptOnly) || isDirectAttemptSeriesProduct(product));
@@ -1467,6 +1480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const directAttemptOnly =
         shouldDirectAttemptFromProduct(demoTest) ||
         (Boolean(demoTest?.hasLessonContext) && !hasTranscriptFlow(demoTest));
+      const flowType = resolveLinkedFlowType(demoTest);
       items.push({
         productId,
         id: demoId,
@@ -1478,6 +1492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ctaLabel: "Play",
         subjectTabKey: resolveSubjectTabKey(demoTest.chapterSubSubject || demoTest.subject, demoTitle),
         directAttemptOnly,
+        flowType,
       });
     });
 
@@ -1492,6 +1507,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         action: "OPEN_DEMO_URL",
         ctaLabel: "Play",
         subjectTabKey: resolveSubjectTabKey("", demoTitle),
+        flowType: "LESSON",
       });
     }
 
@@ -1500,23 +1516,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         .trim()
         .toUpperCase();
       const isUpcomingAccess = Boolean(item?.isUpcoming);
-      const isDemoAccess =
-        accessCode === "DEMO" ||
-        accessCode.startsWith("DEMO ") ||
-        accessCode.includes("FREE FOR ALL");
-      const isLessonLinked = accessCode === "LESSON";
+      const flowType = resolveLinkedFlowType(item);
+      const isLessonLinked = flowType === "LESSON";
       const hasLessonContext = Boolean(item?.hasLessonContext);
       const shouldOpenLessonFirst = isLessonLinked || hasLessonContext;
       const directAttemptOnly =
         shouldDirectAttemptFromProduct(item) ||
-        ((accessCode === "MOCK" || isDemoAccess) && shouldOpenLessonFirst && !hasTranscriptFlow(item));
+        (flowType === "MOCK" && shouldOpenLessonFirst && !hasTranscriptFlow(item));
       const itemTitle = String(item?.title || "Premium Lesson");
       items.push({
         productId,
         id: String(item?.id || "").trim(),
         title: normalizeLearningDisplayTitle(itemTitle),
-        accessType: isUpcomingAccess ? "UPCOMING" : accessCode || (isDemoAccess ? "DEMO" : "MOCK"),
-        unlocked: isUpcomingAccess ? false : isDemoAccess ? true : premiumUnlocked,
+        accessType: isUpcomingAccess ? "UPCOMING" : flowType,
+        unlocked: !isUpcomingAccess && premiumUnlocked,
         disabled: isUpcomingAccess,
         action: isUpcomingAccess
           ? "UPCOMING"
@@ -1528,6 +1541,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ctaLabel: shouldOpenLessonFirst ? "Play" : "Attempt Test",
         subjectTabKey: resolveSubjectTabKey(item?.chapterSubSubject || item?.subject, itemTitle),
         directAttemptOnly,
+        flowType,
       });
     });
 
@@ -1540,7 +1554,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const isPlayAction = (action) =>
       action === "OPEN_DEMO_URL" || action === "OPEN_LESSON_OR_ATTEMPT" || action === "DIRECT_ATTEMPT";
-    const hideSubjectTabs = isDirectAttemptSeriesProduct(product) && items.every((item) => Boolean(item?.directAttemptOnly));
+    const useSingleMockTab =
+      items.length > 0 &&
+      items.every((item) => normalizeLearningFlowType(item?.flowType, "LESSON") === "MOCK");
+    const hideSubjectTabs =
+      !useSingleMockTab &&
+      isDirectAttemptSeriesProduct(product) &&
+      items.every((item) => Boolean(item?.directAttemptOnly));
     if (hideSubjectTabs) {
       const sortedItems = [...items].sort((left, right) => {
         const leftUpcoming = String(left?.accessType || "").trim().toUpperCase() === "UPCOMING";
@@ -1563,11 +1583,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
       `;
     }
-    const tabs = resolveTocTabsForProduct(product, items);
+    const tabs = useSingleMockTab ? ["Mock Test"] : resolveTocTabsForProduct(product, items);
     const grouped = new Map(tabs.map((tabCode) => [tabCode, []]));
     const fallbackTab = tabs[0];
     items.forEach((item) => {
-      const tabCode = tabs.includes(item.subjectTabKey) ? item.subjectTabKey : fallbackTab;
+      const tabCode = useSingleMockTab
+        ? "Mock Test"
+        : tabs.includes(item.subjectTabKey)
+          ? item.subjectTabKey
+          : fallbackTab;
       grouped.get(tabCode).push(item);
     });
     grouped.forEach((tabItems, tabCode) => {

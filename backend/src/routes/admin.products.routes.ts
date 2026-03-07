@@ -108,6 +108,7 @@ const addonsSchema = z.preprocess((value) => {
 
 const productMockTestLinkSchema = z.object({
   mockTestId: z.string().trim().min(1),
+  flowType: z.enum(["MOCK", "LESSON"]).optional(),
   isUpcoming: optionalBoolean.default(false),
 });
 
@@ -272,6 +273,7 @@ type ProductMockTestRow = {
   mockTestTitle: string;
   mockTestExamType: string;
   mockTestSubject: string;
+  linkFlowType?: string | null;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   isUpcoming: number | boolean;
@@ -283,6 +285,7 @@ type ProductDemoMockTestRow = {
   mockTestTitle: string;
   mockTestExamType: string;
   mockTestSubject: string;
+  linkFlowType?: string | null;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   isUpcoming: number | boolean;
@@ -406,12 +409,21 @@ const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   return "DEMO";
 };
 
+const normalizeProductFlowType = (value: unknown, fallback: "MOCK" | "LESSON" = "LESSON"): "MOCK" | "LESSON" => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
+  return fallback;
+};
+
 const toLinkedMockTest = (row: ProductMockTestRow) => ({
   id: row.mockTestId,
   title: row.mockTestTitle,
   examType: row.mockTestExamType,
   subject: row.mockTestSubject,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
+  flowType: normalizeProductFlowType(row.linkFlowType, normalizeAccessCode(row.mockTestAccessCode) === "MOCK" ? "MOCK" : "LESSON"),
   isActive: toBoolean(row.mockTestIsActive),
   isUpcoming: toBoolean(row.isUpcoming),
 });
@@ -436,6 +448,7 @@ const loadMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pmt.productId,
         pmt.mockTestId,
+        pmt.flowType AS linkFlowType,
         pmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
@@ -469,6 +482,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pdmt.productId,
         pdmt.mockTestId,
+        pdmt.flowType AS linkFlowType,
         pdmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
@@ -722,11 +736,13 @@ const validateComboProductIds = async (
 
 type ProductMockTestLinkInput = {
   mockTestId?: string | null;
+  flowType?: "MOCK" | "LESSON" | null;
   isUpcoming?: boolean | null;
 };
 
 type NormalizedProductMockTestLink = {
   mockTestId: string;
+  flowType: "MOCK" | "LESSON";
   isUpcoming: boolean;
 };
 
@@ -737,7 +753,7 @@ const normalizeMockTestLinks = (
   const source = Array.isArray(links)
     ? links
     : Array.isArray(fallbackIds)
-      ? fallbackIds.map((mockTestId) => ({ mockTestId, isUpcoming: false }))
+      ? fallbackIds.map((mockTestId) => ({ mockTestId, flowType: undefined, isUpcoming: false }))
       : [];
   const deduped = new Map<string, NormalizedProductMockTestLink>();
   source.forEach((item) => {
@@ -745,19 +761,54 @@ const normalizeMockTestLinks = (
     if (!mockTestId) return;
     deduped.set(mockTestId, {
       mockTestId,
+      flowType: normalizeProductFlowType(item?.flowType),
       isUpcoming: Boolean(item?.isUpcoming),
     });
   });
   return Array.from(deduped.values());
 };
 
+const loadDefaultFlowTypesForMockTests = async (
+  mockTestIds: string[]
+): Promise<Map<string, "MOCK" | "LESSON">> => {
+  if (!mockTestIds.length) return new Map();
+  const unique = Array.from(new Set(mockTestIds.map((item) => String(item || "").trim()).filter(Boolean)));
+  if (!unique.length) return new Map();
+  const placeholders = unique.map(() => "?").join(", ");
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        mt.id AS mockTestId,
+        (
+          SELECT mar.accessCode
+          FROM MockTestAccessRule mar
+          WHERE mar.mockTestId = mt.id
+          ORDER BY mar.updatedAt DESC, mar.createdAt DESC
+          LIMIT 1
+        ) AS accessCode
+      FROM MockTest mt
+      WHERE mt.id IN (${placeholders})
+    `,
+    ...unique
+  )) as Array<{ mockTestId: string; accessCode: string | null }>;
+
+  return new Map(
+    rows.map((row) => [
+      row.mockTestId,
+      normalizeAccessCode(row.accessCode) === "MOCK" ? "MOCK" : "LESSON",
+    ])
+  );
+};
+
 const syncProductMockTests = async (productId: string, mockTestLinks: NormalizedProductMockTestLink[]) => {
   const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
-  const upcomingMap = new Map(
-    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)])
+  const upcomingMap = new Map(mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)]));
+  const flowTypeMap = new Map(
+    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), normalizeProductFlowType(item.flowType)])
   );
+  const fallbackFlowTypeMap = await loadDefaultFlowTypesForMockTests(validIds);
 
   const baseMs = Date.now();
   for (let index = 0; index < validIds.length; index += 1) {
@@ -765,11 +816,12 @@ const syncProductMockTests = async (productId: string, mockTestLinks: Normalized
     const createdAt = new Date(baseMs + index);
     await prisma.$executeRawUnsafe(
       `
-        INSERT INTO ProductMockTest (productId, mockTestId, isUpcoming, createdAt)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO ProductMockTest (productId, mockTestId, flowType, isUpcoming, createdAt)
+        VALUES (?, ?, ?, ?, ?)
       `,
       productId,
       mockTestId,
+      flowTypeMap.get(mockTestId) || fallbackFlowTypeMap.get(mockTestId) || "LESSON",
       upcomingMap.get(mockTestId) ? 1 : 0,
       createdAt
     );
@@ -780,9 +832,11 @@ const syncProductDemoMockTests = async (productId: string, mockTestLinks: Normal
   const validIds = await validateMockTestIds(mockTestLinks.map((item) => item.mockTestId));
   await prisma.$executeRawUnsafe("DELETE FROM ProductDemoMockTest WHERE productId = ?", productId);
   if (!validIds.length) return;
-  const upcomingMap = new Map(
-    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)])
+  const upcomingMap = new Map(mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), Boolean(item.isUpcoming)]));
+  const flowTypeMap = new Map(
+    mockTestLinks.map((item) => [String(item.mockTestId || "").trim(), normalizeProductFlowType(item.flowType)])
   );
+  const fallbackFlowTypeMap = await loadDefaultFlowTypesForMockTests(validIds);
 
   const baseMs = Date.now();
   for (let index = 0; index < validIds.length; index += 1) {
@@ -790,11 +844,12 @@ const syncProductDemoMockTests = async (productId: string, mockTestLinks: Normal
     const createdAt = new Date(baseMs + index);
     await prisma.$executeRawUnsafe(
       `
-        INSERT INTO ProductDemoMockTest (productId, mockTestId, isUpcoming, createdAt)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO ProductDemoMockTest (productId, mockTestId, flowType, isUpcoming, createdAt)
+        VALUES (?, ?, ?, ?, ?)
       `,
       productId,
       mockTestId,
+      flowTypeMap.get(mockTestId) || fallbackFlowTypeMap.get(mockTestId) || "LESSON",
       upcomingMap.get(mockTestId) ? 1 : 0,
       createdAt
     );

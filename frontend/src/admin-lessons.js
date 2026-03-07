@@ -3645,6 +3645,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (normalized === "LESSON") return "LESSON";
     return "MOCK";
   };
+  const normalizeProductAttachmentAccessTier = (value) => {
+    const normalized = String(value || "").trim().toUpperCase();
+    return normalized === "DEMO" ? "DEMO" : "PREMIUM";
+  };
   const loadActiveProductsForLessonFlow = async () => {
     const response = await apiRequest({
       path: "/admin/products",
@@ -3672,6 +3676,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     params.set(
       "attachmentType",
       normalizeProductAttachmentType(selected?.accessCode || lessonMockTestAccessCodeInput?.value || "DEMO")
+    );
+    params.set(
+      "attachmentAccessTier",
+      normalizeProductAttachmentAccessTier(selected?.accessCode || lessonMockTestAccessCodeInput?.value || "DEMO")
     );
     const courseTitle = String(selectedMockCourse()?.title || "").trim();
     const chapterTitle = String(selectedMockChapter()?.title || "").trim();
