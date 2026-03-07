@@ -3179,8 +3179,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const isMockScopeReady = () =>
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
+  const resolvePreferredMockTestId = () => {
+    const selectedLessonTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
+    const hiddenInputTestId = String(lessonMockTestIdInput?.value || "").trim();
+    const activeSelectionTestId = String(state.selectedMockTestId || "").trim();
+    return activeSelectionTestId || selectedLessonTestId || hiddenInputTestId || "";
+  };
+  const upsertAdminMockTest = (mockTest) => {
+    if (!mockTest || !mockTest.id) return null;
+    const nextMockTest = { ...mockTest };
+    const existingIndex = state.mockTestsAdmin.findIndex((item) => item.id === nextMockTest.id);
+    if (existingIndex >= 0) {
+      state.mockTestsAdmin.splice(existingIndex, 1, nextMockTest);
+    } else {
+      state.mockTestsAdmin.unshift(nextMockTest);
+    }
+    return nextMockTest;
+  };
+  const ensureAdminMockTestLoaded = async (mockTestId) => {
+    const normalizedMockTestId = String(mockTestId || "").trim();
+    if (!normalizedMockTestId) return null;
+    const existing = state.mockTestsAdmin.find((item) => item.id === normalizedMockTestId) || null;
+    if (existing) return existing;
+    try {
+      const response = await apiRequest({
+        path: `/admin/mock-tests/${encodeURIComponent(normalizedMockTestId)}`,
+        token,
+      });
+      return upsertAdminMockTest(response?.mockTest || null);
+    } catch (error) {
+      return null;
+    }
+  };
   const selectedMockTest = () =>
-    state.mockTestsAdmin.find((item) => item.id === state.selectedMockTestId) || null;
+    state.mockTestsAdmin.find((item) => item.id === resolvePreferredMockTestId()) || null;
   const getSuggestedMockTestTitle = () => {
     if (mockLinkLessonIdInput instanceof HTMLSelectElement) {
       const optionText = mockLinkLessonIdInput.selectedOptions?.[0]?.textContent?.trim() || "";
@@ -3930,6 +3962,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return state.mockTestsAdmin.filter((test) => {
       const testId = String(test?.id || "").trim();
       if (!testId) return false;
+      if (testId === resolvePreferredMockTestId()) return true;
       if (hasChapterScope && scopedLinkedTestIds.size && !scopedLinkedTestIds.has(testId) && testId !== state.selectedMockTestId) {
         return false;
       }
@@ -5867,12 +5900,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadMockTestsAdmin = async () => {
+    const preservedMockTestId = resolvePreferredMockTestId();
     const response = await apiRequest({ path: "/admin/mock-tests", token });
     state.mockTestsAdmin = response.mockTests || [];
-    if (state.selectedMockTestId && !state.mockTestsAdmin.some((item) => item.id === state.selectedMockTestId)) {
+    let restoredMockTestId = preservedMockTestId;
+    if (restoredMockTestId && !state.mockTestsAdmin.some((item) => item.id === restoredMockTestId)) {
+      const restoredMockTest = await ensureAdminMockTestLoaded(restoredMockTestId);
+      if (!restoredMockTest?.id) {
+        restoredMockTestId = "";
+      }
+    }
+    if (restoredMockTestId) {
+      state.selectedMockTestId = restoredMockTestId;
+      if (lessonMockTestIdInput instanceof HTMLInputElement) {
+        lessonMockTestIdInput.value = restoredMockTestId;
+      }
+      if (!state.mockQuestions.length || !state.mockTestSections.length) {
+        try {
+          await Promise.all([loadMockQuestions(restoredMockTestId), loadMockTestSections(restoredMockTestId)]);
+        } catch (error) {
+          restoredMockTestId = "";
+        }
+      }
+    }
+    if (!restoredMockTestId && state.selectedMockTestId && !state.mockTestsAdmin.some((item) => item.id === state.selectedMockTestId)) {
       state.selectedMockTestId = "";
       state.mockQuestions = [];
       state.mockTestSections = [];
+      if (lessonMockTestIdInput instanceof HTMLInputElement) {
+        lessonMockTestIdInput.value = "";
+      }
       resetLessonQuestionForm();
       resetLessonSectionForm();
       renderLessonQuestions();
