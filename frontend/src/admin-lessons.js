@@ -3905,6 +3905,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.mockChapters.find((item) => item.id === state.selectedMockChapterId) || null;
   const selectedMockLesson = () =>
     state.mockLessons.find((item) => item.id === state.selectedMockLessonId) || null;
+  const hasSelectedMockLesson = () =>
+    Boolean(
+      selectedMockLesson()?.id ||
+        String(state.selectedMockLessonId || "").trim() ||
+        String(mockLinkLessonIdInput?.value || "").trim()
+    );
   const linkedLessonForTest = (testId) =>
     state.mockLessons.find((lesson) => String(lesson?.assessmentTestId || "") === String(testId || "")) || null;
   const linkedLessonInLoadedLessons = (testId) =>
@@ -4898,6 +4904,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const updateLessonQuestionFromModal = async () => {
     await ensureSelectedMockTestTopFieldsSaved();
     const { questionId, payload } = buildLessonQuestionEditPayload();
+    ensureQuestionCapacityForRows(
+      [
+        {
+          sectionLabel: payload.sectionLabel,
+          isActive: payload.isActive,
+        },
+      ],
+      { excludeQuestionId: questionId }
+    );
     await apiRequest({
       path: `/admin/questions/${encodeURIComponent(questionId)}`,
       method: "PATCH",
@@ -4933,16 +4948,57 @@ document.addEventListener("DOMContentLoaded", async () => {
     return fallback;
   };
 
-  const ensureQuestionTargetCapacity = (incomingCount = 1) => {
-    const incoming = Math.max(0, Math.floor(Number(incomingCount) || 0));
+  const getActiveQuestionCountForSection = (sectionLabel, options = {}) => {
+    const { excludeQuestionId = "", replaceExisting = false } = options;
+    if (replaceExisting) return 0;
+    const normalizedSectionLabel = normalizeQuestionSectionLabel(sectionLabel);
+    return state.mockQuestions.filter((item) => {
+      if (!item || !item.isActive) return false;
+      if (excludeQuestionId && String(item.id || "") === String(excludeQuestionId)) return false;
+      return normalizeQuestionSectionLabel(item.sectionLabel) === normalizedSectionLabel;
+    }).length;
+  };
+
+  const ensureQuestionCapacityForRows = (rows, options = {}) => {
+    const { excludeQuestionId = "", replaceExisting = false } = options;
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const activeRows = safeRows.filter((item) => Boolean(item?.isActive));
+    const incoming = activeRows.length;
     if (!incoming) return;
     const target = requiredQuestionsForLesson();
-    const activeCount = state.mockQuestions.filter((item) => Boolean(item?.isActive)).length;
+    const activeCount = replaceExisting
+      ? 0
+      : state.mockQuestions.filter(
+          (item) =>
+            Boolean(item?.isActive) && (!excludeQuestionId || String(item.id || "") !== String(excludeQuestionId))
+        ).length;
     if (activeCount + incoming > target) {
       throw new Error(
         `Question limit exceeded. Target is ${target}, existing active questions are ${activeCount}, incoming ${incoming}.`
       );
     }
+
+    const incomingBySection = activeRows.reduce((accumulator, item) => {
+      const label = normalizeQuestionSectionLabel(item?.sectionLabel);
+      if (!label) return accumulator;
+      accumulator.set(label, (accumulator.get(label) || 0) + 1);
+      return accumulator;
+    }, new Map());
+
+    incomingBySection.forEach((sectionIncomingCount, sectionLabel) => {
+      const sectionMeta = getSectionMetaByLabel(sectionLabel);
+      const sectionLimit = Math.max(0, Math.floor(Number(sectionMeta?.questionLimit || 0)));
+      if (sectionLimit <= 0) return;
+      const existingCount = getActiveQuestionCountForSection(sectionLabel, {
+        excludeQuestionId,
+        replaceExisting,
+      });
+      if (existingCount + sectionIncomingCount > sectionLimit) {
+        throw new Error(
+          `Section "${sectionLabel}" limit exceeded. Limit is ${sectionLimit}, existing active questions are ${existingCount}, incoming ${sectionIncomingCount}.`
+        );
+      }
+    });
   };
 
   const updateLessonQuestionCountWarning = () => {
@@ -5070,9 +5126,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "Select course, subject, and chapter first.";
     }
     if (lessonSaveTestBtn instanceof HTMLButtonElement) {
-      const canSave = shouldShow && Boolean(state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim());
+      const canSave = shouldShow && hasSelectedMockLesson();
+      const lessonActionLabel = hasSelectedMockLesson() ? "Update Lesson" : "Create Lesson";
       lessonSaveTestBtn.disabled = !canSave;
-      lessonSaveTestBtn.textContent = state.hasPendingTestChanges ? "Create Lesson *" : "Create Lesson";
+      lessonSaveTestBtn.textContent = state.hasPendingTestChanges
+        ? `${lessonActionLabel} *`
+        : lessonActionLabel;
       lessonSaveTestBtn.title = canSave
         ? "Create or update the lesson with transcript, test, and selected mode."
         : "Select course, subject, and chapter first.";
@@ -6577,7 +6636,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isBilingualQuestionMode() && hasAnyAltQuestionPayload(payload) && !hasCompleteAltQuestionPayload(payload)) {
       throw new Error("If you add right language content, fill all right-side question and option fields.");
     }
-    ensureQuestionTargetCapacity(1);
+    ensureQuestionCapacityForRows([
+      {
+        sectionLabel: payload.sectionLabel,
+        isActive: payload.isActive,
+      },
+    ]);
 
     await apiRequest({
       path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
@@ -6608,7 +6672,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isBilingual && rightLines.length && lines.length !== rightLines.length) {
       throw new Error("Left and right bulk import line counts must match.");
     }
-    ensureQuestionTargetCapacity(lines.length);
+    const incomingRows = [];
     for (const [index, line] of lines.entries()) {
       const parts = line.split("|").map((item) => item.trim());
       if (parts.length < 6) {
@@ -6623,6 +6687,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         normalizeQuestionSectionLabel(sectionLabelRaw) ||
         normalizeQuestionSectionLabel(defaultSection) ||
         DEFAULT_QUESTION_SECTIONS[0];
+      incomingRows.push({
+        sectionLabel,
+        isActive: true,
+      });
       const rightLine = isBilingual ? String(rightLines[index] || "").trim() : "";
       const rightParts = rightLine ? rightLine.split("|").map((item) => item.trim()) : [];
       if (isBilingual && rightLine && rightParts.length < 6) {
@@ -6653,6 +6721,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       ) {
         throw new Error(`Line ${index + 1} has partial right-language content.`);
       }
+    }
+    ensureQuestionCapacityForRows(incomingRows);
+    for (const [index, line] of lines.entries()) {
+      const parts = line.split("|").map((item) => item.trim());
+      const [questionText, optionA, optionB, optionC, optionD, correctOption, explanation, sectionLabelRaw] = parts;
+      const normalized = correctOption.toUpperCase();
+      const sectionLabel =
+        normalizeQuestionSectionLabel(sectionLabelRaw) ||
+        normalizeQuestionSectionLabel(defaultSection) ||
+        DEFAULT_QUESTION_SECTIONS[0];
+      const rightLine = isBilingual ? String(rightLines[index] || "").trim() : "";
+      const rightParts = rightLine ? rightLine.split("|").map((item) => item.trim()) : [];
+      const [
+        questionTextAlt,
+        optionAAlt,
+        optionBAlt,
+        optionCAlt,
+        optionDAlt,
+        rightCorrectOption,
+        explanationAlt,
+      ] = rightParts;
       await apiRequest({
         path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions`,
         method: "POST",
@@ -6711,12 +6800,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const replaceExisting = Boolean(lessonBulkImportReplaceExistingInput?.checked);
     if (replaceExisting) {
-      const target = requiredQuestionsForLesson();
-      if (rows.length > target) {
-        throw new Error(`CSV rows exceed target limit. Target ${target}, CSV rows ${rows.length}.`);
-      }
+      ensureQuestionCapacityForRows(
+        rows.map((row) => ({
+          sectionLabel: row.sectionLabel,
+          isActive: row.isActive !== false,
+        })),
+        { replaceExisting: true }
+      );
     } else {
-      ensureQuestionTargetCapacity(rows.length);
+      ensureQuestionCapacityForRows(
+        rows.map((row) => ({
+          sectionLabel: row.sectionLabel,
+          isActive: row.isActive !== false,
+        }))
+      );
     }
     const response = await apiRequest({
       path: `/admin/mock-tests/${encodeURIComponent(state.selectedMockTestId)}/questions/import-csv`,
