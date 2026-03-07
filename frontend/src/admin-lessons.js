@@ -3181,6 +3181,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     Boolean(state.selectedMockCourseId && state.selectedMockChapterId && state.selectedMockLessonId);
   const normalizeMockTestMatchText = (value) =>
     String(value || "")
+      .replace(/^\s*\d+\s*[\.\)\-:]\s*/i, "")
+      .replace(/\b(demo|premium|mock\s*test|mock|lesson)\b/gi, " ")
+      .replace(/[_-]+/g, " ")
+      .replace(/[^a-z0-9\s]+/gi, " ")
+      .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
   const getScopedLinkedMockTestIds = () =>
@@ -3194,6 +3199,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   const getScopedLinkedMockTests = () => {
     const scopedLinkedIds = new Set(getScopedLinkedMockTestIds());
     return state.mockTestsAdmin.filter((test) => scopedLinkedIds.has(String(test?.id || "").trim()));
+  };
+  const getMockTestQuestionCount = (mockTest) =>
+    Number(mockTest?.activeQuestions ?? mockTest?._count?.questions ?? 0);
+  const getAdminMockTestById = (mockTestId) => {
+    const normalizedMockTestId = String(mockTestId || "").trim();
+    if (!normalizedMockTestId) return null;
+    return state.mockTestsAdmin.find((item) => String(item?.id || "").trim() === normalizedMockTestId) || null;
+  };
+  const syncMockTestTopFieldsFromSelectedTest = (mockTest) => {
+    if (!mockTest) return;
+    if (lessonMockTestIdInput instanceof HTMLInputElement) {
+      lessonMockTestIdInput.value = String(mockTest.id || "").trim();
+    }
+    if (lessonMockTestTitleInput instanceof HTMLInputElement) {
+      lessonMockTestTitleInput.value = mockTest.title || "";
+    }
+    if (lessonMockTestExamTypeInput instanceof HTMLSelectElement) {
+      lessonMockTestExamTypeInput.value = mockTest.examType || "PSTET_1";
+    }
+    if (lessonMockTestSubjectInput instanceof HTMLSelectElement) {
+      lessonMockTestSubjectInput.value = normalizeMockSubjectValue(mockTest.subject || "PUNJABI");
+    }
+    toggleMockSubjectDependentFields();
+    if (lessonMockTestStreamChoiceInput instanceof HTMLSelectElement) {
+      lessonMockTestStreamChoiceInput.value = mockTest.streamChoice || "";
+    }
+    if (lessonMockTestLanguageModeInput instanceof HTMLSelectElement) {
+      lessonMockTestLanguageModeInput.value = mockTest.languageMode || "";
+    }
+    if (lessonMockTestAccessCodeInput instanceof HTMLSelectElement) {
+      lessonMockTestAccessCodeInput.value = mockTest.accessCode || "";
+    }
+    if (lessonMockTestCategoryInput instanceof HTMLSelectElement) {
+      lessonMockTestCategoryInput.value = mockTest.mockCategory || "PREMIUM";
+    }
+    if (lessonMockTestIsActiveInput instanceof HTMLInputElement) {
+      lessonMockTestIsActiveInput.checked = Boolean(mockTest.isActive);
+    }
   };
   const resolvePreferredMockTestId = () => {
     const selectedLessonTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
@@ -3240,6 +3283,84 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     return scopedLinkedTests.length === 1 ? scopedLinkedTests[0] : null;
+  };
+  const findBestMockTestForSelectedLesson = (currentMockTestId = "") => {
+    const selectedLessonTitle = normalizeMockTestMatchText(selectedMockLesson()?.title || "");
+    if (!selectedLessonTitle) return null;
+    const matchingTitleCandidates = state.mockTestsAdmin.filter((test) => {
+      const candidateTitle = normalizeMockTestMatchText(test?.title || "");
+      if (!candidateTitle) return false;
+      return (
+        candidateTitle === selectedLessonTitle ||
+        candidateTitle.includes(selectedLessonTitle) ||
+        selectedLessonTitle.includes(candidateTitle)
+      );
+    });
+    if (!matchingTitleCandidates.length) {
+      return null;
+    }
+    const currentMatch =
+      matchingTitleCandidates.find((test) => String(test?.id || "").trim() === String(currentMockTestId || "").trim()) ||
+      null;
+    const currentQuestionCount = getMockTestQuestionCount(currentMatch);
+    const shouldForceQuestionBearingCandidate =
+      currentQuestionCount < 1 && matchingTitleCandidates.some((test) => getMockTestQuestionCount(test) > 0);
+    const selectedAccessCode = String(lessonMockTestAccessCodeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedExamType = String(lessonMockTestExamTypeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedSubject = String(lessonMockTestSubjectInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedLanguageMode = String(lessonMockTestLanguageModeInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const selectedCategory = String(lessonMockTestCategoryInput?.value || "")
+      .trim()
+      .toUpperCase();
+    const sortedMatches = [...matchingTitleCandidates].sort((left, right) => {
+      const leftHasQuestions = getMockTestQuestionCount(left) > 0 ? 1 : 0;
+      const rightHasQuestions = getMockTestQuestionCount(right) > 0 ? 1 : 0;
+      if (shouldForceQuestionBearingCandidate && rightHasQuestions !== leftHasQuestions) {
+        return rightHasQuestions - leftHasQuestions;
+      }
+      const leftExamScore = selectedExamType && String(left?.examType || "").trim().toUpperCase() === selectedExamType ? 1 : 0;
+      const rightExamScore = selectedExamType && String(right?.examType || "").trim().toUpperCase() === selectedExamType ? 1 : 0;
+      if (!shouldForceQuestionBearingCandidate && rightExamScore !== leftExamScore) return rightExamScore - leftExamScore;
+      const leftSubjectScore = selectedSubject && String(left?.subject || "").trim().toUpperCase() === selectedSubject ? 1 : 0;
+      const rightSubjectScore = selectedSubject && String(right?.subject || "").trim().toUpperCase() === selectedSubject ? 1 : 0;
+      if (!shouldForceQuestionBearingCandidate && rightSubjectScore !== leftSubjectScore) return rightSubjectScore - leftSubjectScore;
+      const questionDelta = getMockTestQuestionCount(right) - getMockTestQuestionCount(left);
+      if (questionDelta !== 0) return questionDelta;
+      const leftAccessScore = selectedAccessCode && String(left?.accessCode || "").trim().toUpperCase() === selectedAccessCode ? 1 : 0;
+      const rightAccessScore = selectedAccessCode && String(right?.accessCode || "").trim().toUpperCase() === selectedAccessCode ? 1 : 0;
+      if (rightAccessScore !== leftAccessScore) return rightAccessScore - leftAccessScore;
+      const leftLanguageScore =
+        selectedLanguageMode && String(left?.languageMode || "").trim().toUpperCase() === selectedLanguageMode ? 1 : 0;
+      const rightLanguageScore =
+        selectedLanguageMode && String(right?.languageMode || "").trim().toUpperCase() === selectedLanguageMode ? 1 : 0;
+      if (rightLanguageScore !== leftLanguageScore) return rightLanguageScore - leftLanguageScore;
+      const leftCategoryScore =
+        selectedCategory && String(left?.mockCategory || "").trim().toUpperCase() === selectedCategory ? 1 : 0;
+      const rightCategoryScore =
+        selectedCategory && String(right?.mockCategory || "").trim().toUpperCase() === selectedCategory ? 1 : 0;
+      if (rightCategoryScore !== leftCategoryScore) return rightCategoryScore - leftCategoryScore;
+      const activeDelta = Number(Boolean(right?.isActive)) - Number(Boolean(left?.isActive));
+      if (activeDelta !== 0) return activeDelta;
+      return String(right?.updatedAt || right?.createdAt || "").localeCompare(
+        String(left?.updatedAt || left?.createdAt || "")
+      );
+    });
+    const bestMatch = sortedMatches[0] || null;
+    if (!bestMatch?.id) return null;
+    if (!currentMatch) return bestMatch;
+    const bestQuestionCount = getMockTestQuestionCount(bestMatch);
+    if (bestQuestionCount > currentQuestionCount) {
+      return bestMatch;
+    }
+    return currentMatch;
   };
   const selectedMockTest = () =>
     state.mockTestsAdmin.find((item) => item.id === resolvePreferredMockTestId()) || null;
@@ -5897,6 +6018,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (lessonMockTestIdInput instanceof HTMLInputElement) {
       lessonMockTestIdInput.value = state.selectedMockTestId;
     }
+    syncMockTestTopFieldsFromSelectedTest(getAdminMockTestById(state.selectedMockTestId));
     state.hasPendingTestChanges = false;
     resetLessonQuestionForm();
     syncQuestionTargetCountForSelectedTest({ force: forceQuestionCount });
@@ -5938,6 +6060,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     if (restoredMockTestId) {
+      const selectedLessonTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
+      const restoredMockTest = getAdminMockTestById(restoredMockTestId);
+      const shouldKeepRestoredSelection =
+        Boolean(restoredMockTest?.id) &&
+        getMockTestQuestionCount(restoredMockTest) > 0 &&
+        (!selectedLessonTestId || restoredMockTestId === selectedLessonTestId);
+      if (!shouldKeepRestoredSelection) {
+        const preferredMockTest = findBestMockTestForSelectedLesson(restoredMockTestId);
+        if (preferredMockTest?.id) {
+          restoredMockTestId = String(preferredMockTest.id).trim();
+        }
+      }
       state.selectedMockTestId = restoredMockTestId;
       if (lessonMockTestIdInput instanceof HTMLInputElement) {
         lessonMockTestIdInput.value = restoredMockTestId;
@@ -5951,7 +6085,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     if (!restoredMockTestId && state.selectedMockLessonId) {
-      const fallbackMockTest = findScopedMockTestFallback();
+      const fallbackMockTest = findBestMockTestForSelectedLesson() || findScopedMockTestFallback();
       if (fallbackMockTest?.id) {
         restoredMockTestId = String(fallbackMockTest.id).trim();
         state.selectedMockTestId = restoredMockTestId;
@@ -6068,9 +6202,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedLesson = selectedMockLesson();
     const linkedTestId = selectedLesson?.assessmentTestId || "";
     if (linkedTestId) {
-      await setSelectedMockTestId(linkedTestId, { silent: true, forceQuestionCount: true });
+      const linkedMockTest = getAdminMockTestById(linkedTestId) || (await ensureAdminMockTestLoaded(linkedTestId));
+      const linkedMockQuestionCount = getMockTestQuestionCount(linkedMockTest);
+      const resolvedLinkedTestId =
+        linkedMockQuestionCount > 0
+          ? String(linkedMockTest?.id || linkedTestId).trim()
+          : String(findBestMockTestForSelectedLesson(linkedTestId)?.id || linkedTestId).trim();
+      await setSelectedMockTestId(resolvedLinkedTestId, { silent: true, forceQuestionCount: true });
     } else {
-      const fallbackMockTest = findScopedMockTestFallback();
+      const fallbackMockTest = findBestMockTestForSelectedLesson() || findScopedMockTestFallback();
       if (fallbackMockTest?.id) {
         await setSelectedMockTestId(fallbackMockTest.id, { silent: true, forceQuestionCount: true });
       } else {

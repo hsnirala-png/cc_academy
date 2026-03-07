@@ -77,6 +77,7 @@ type ProductMockTestRow = {
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
   mockTestHasTranscriptFlow?: number | boolean | null;
+  mockTestActiveQuestionCount?: number | string | null;
   isUpcoming: number | boolean;
 };
 
@@ -288,8 +289,157 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
   hasTranscriptFlow: toBoolean(row.mockTestHasTranscriptFlow),
+  activeQuestionCount: toNumber(row.mockTestActiveQuestionCount),
   isUpcoming: toBoolean(row.isUpcoming),
 });
+
+const normalizeMockTitleMatch = (value: unknown) =>
+  String(value || "")
+    .replace(/^\s*\d+\s*[\.\)\-:]\s*/i, "")
+    .replace(/\b(demo|premium|mock\s*test|mock|lesson)\b/gi, " ")
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9\s]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const scoreLinkedMockTestRow = (row: ProductMockTestRow) => {
+  let score = 0;
+  if (toBoolean(row.mockTestIsActive)) score += 100;
+  if (toBoolean(row.mockTestHasLessonContext)) score += 400;
+  if (toBoolean(row.mockTestHasTranscriptFlow)) score += 200;
+  score += Math.max(0, toNumber(row.mockTestActiveQuestionCount));
+  return score;
+};
+
+const resolveEffectiveLinkedMockTestRows = async (rows: ProductMockTestRow[]) => {
+  if (!rows.length) return rows;
+  const fallbackTitles = Array.from(
+    new Set(
+      rows
+        .filter(
+          (row) =>
+            (!toBoolean(row.mockTestHasLessonContext) || toNumber(row.mockTestActiveQuestionCount) < 1) &&
+            String(row.mockTestTitle || "").trim()
+        )
+        .map((row) => String(row.mockTestTitle || "").trim())
+        .filter(Boolean)
+    )
+  );
+  if (!fallbackTitles.length) return rows;
+
+  const placeholders = fallbackTitles.map(() => "?").join(", ");
+  const candidateRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        '' AS productId,
+        mt.id AS mockTestId,
+        mt.title AS mockTestTitle,
+        mt.examType AS mockTestExamType,
+        mt.subject AS mockTestSubject,
+        (
+          SELECT ch.subSubject
+          FROM Lesson lesson
+          INNER JOIN Chapter ch ON ch.id = lesson.chapterId
+          WHERE lesson.assessmentTestId = mt.id
+            AND ch.subSubject IS NOT NULL
+          ORDER BY ch.orderIndex ASC, lesson.orderIndex ASC
+          LIMIT 1
+        ) AS mockTestChapterSubSubject,
+        NULL AS linkFlowType,
+        (
+          SELECT mar2.accessCode
+          FROM MockTestAccessRule mar2
+          WHERE mar2.mockTestId = mt.id
+          ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
+          LIMIT 1
+        ) AS mockTestAccessCode,
+        mt.isActive AS mockTestIsActive,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+          LIMIT 1
+        ) AS mockTestHasLessonContext,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+            AND (
+              NULLIF(TRIM(COALESCE(lesson.transcriptText, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.transcriptUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.audioUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.videoUrl, '')), '') IS NOT NULL
+              OR lesson.transcriptSegments IS NOT NULL
+            )
+          LIMIT 1
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount,
+        0 AS isUpcoming
+      FROM MockTest mt
+      WHERE mt.title IN (${placeholders})
+    `,
+    ...fallbackTitles
+  )) as ProductMockTestRow[];
+
+  if (!candidateRows.length) return rows;
+
+  const candidatesByTitle = new Map<string, ProductMockTestRow[]>();
+  candidateRows.forEach((row) => {
+    const key = normalizeMockTitleMatch(row.mockTestTitle);
+    if (!key) return;
+    const current = candidatesByTitle.get(key) || [];
+    current.push(row);
+    candidatesByTitle.set(key, current);
+  });
+
+  return rows.map((row) => {
+    const currentKey = normalizeMockTitleMatch(row.mockTestTitle);
+    if (!currentKey) return row;
+    const candidates = (candidatesByTitle.get(currentKey) || []).filter((candidate) => {
+      if (String(candidate.mockTestExamType || "").trim() !== String(row.mockTestExamType || "").trim()) return false;
+      const currentSubject = String(row.mockTestSubject || "").trim().toUpperCase();
+      const candidateSubject = String(candidate.mockTestSubject || "").trim().toUpperCase();
+      if (currentSubject && candidateSubject && currentSubject !== candidateSubject) return false;
+      return true;
+    });
+    if (!candidates.length) return row;
+    const currentQuestionCount = toNumber(row.mockTestActiveQuestionCount);
+    const questionBearingCandidates = candidates.filter((candidate) => toNumber(candidate.mockTestActiveQuestionCount) > 0);
+    const preferredCandidates = currentQuestionCount < 1 && questionBearingCandidates.length ? questionBearingCandidates : candidates;
+    const bestCandidate = [...preferredCandidates].sort((left, right) => {
+      const questionDelta = toNumber(right.mockTestActiveQuestionCount) - toNumber(left.mockTestActiveQuestionCount);
+      if (questionDelta !== 0) return questionDelta;
+      return scoreLinkedMockTestRow(right) - scoreLinkedMockTestRow(left);
+    })[0];
+    if (!bestCandidate) return row;
+    if (
+      toNumber(bestCandidate.mockTestActiveQuestionCount) <= currentQuestionCount &&
+      scoreLinkedMockTestRow(bestCandidate) <= scoreLinkedMockTestRow(row)
+    ) {
+      return row;
+    }
+    return {
+      ...row,
+      mockTestId: bestCandidate.mockTestId,
+      mockTestTitle: bestCandidate.mockTestTitle,
+      mockTestExamType: bestCandidate.mockTestExamType,
+      mockTestSubject: bestCandidate.mockTestSubject,
+      mockTestChapterSubSubject: bestCandidate.mockTestChapterSubSubject,
+      mockTestAccessCode: bestCandidate.mockTestAccessCode,
+      mockTestIsActive: bestCandidate.mockTestIsActive,
+      mockTestHasLessonContext: bestCandidate.mockTestHasLessonContext,
+      mockTestHasTranscriptFlow: bestCandidate.mockTestHasTranscriptFlow,
+      mockTestActiveQuestionCount: bestCandidate.mockTestActiveQuestionCount,
+    };
+  });
+};
 
 const normalizeLookupText = (value: unknown) =>
   String(value || "")
@@ -389,7 +539,14 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
               OR lesson.transcriptSegments IS NOT NULL
             )
           LIMIT 1
-        ) AS mockTestHasTranscriptFlow
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       WHERE pmt.productId IN (${placeholders})
@@ -398,8 +555,10 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
     ...productIds
   )) as ProductMockTestRow[];
 
+  const resolvedRows = await resolveEffectiveLinkedMockTestRows(rows);
+
   const grouped = new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
-  rows.forEach((row) => {
+  resolvedRows.forEach((row) => {
     const list = grouped.get(row.productId) || [];
     list.push(toLinkedMockTest(row));
     grouped.set(row.productId, list);
@@ -455,7 +614,14 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
               OR lesson.transcriptSegments IS NOT NULL
             )
           LIMIT 1
-        ) AS mockTestHasTranscriptFlow
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount
       FROM ProductDemoMockTest pdmt
       INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
       WHERE pdmt.productId IN (${placeholders})
@@ -464,8 +630,10 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
     ...productIds
   )) as ProductMockTestRow[];
 
+  const resolvedRows = await resolveEffectiveLinkedMockTestRows(rows);
+
   const grouped = new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
-  rows.forEach((row) => {
+  resolvedRows.forEach((row) => {
     const list = grouped.get(row.productId) || [];
     list.push(toLinkedMockTest(row));
     grouped.set(row.productId, list);
