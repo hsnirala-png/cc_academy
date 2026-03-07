@@ -3244,6 +3244,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const activeSelectionTestId = String(state.selectedMockTestId || "").trim();
     return activeSelectionTestId || selectedLessonTestId || hiddenInputTestId || "";
   };
+  const resolveLessonAssessmentTestIdForSave = (options = {}) => {
+    const { preferSelectedMockTest = false } = options;
+    const directLessonAssessmentTestId = String(lessonAssessmentTestIdInput?.value || "").trim();
+    const selectedMockTestId = String(state.selectedMockTestId || "").trim();
+    const selectedMockLessonTestId = String(selectedMockLesson()?.assessmentTestId || "").trim();
+    if (preferSelectedMockTest) {
+      return selectedMockTestId || selectedMockLessonTestId || directLessonAssessmentTestId || null;
+    }
+    return directLessonAssessmentTestId || selectedMockTestId || selectedMockLessonTestId || null;
+  };
   const upsertAdminMockTest = (mockTest) => {
     if (!mockTest || !mockTest.id) return null;
     const nextMockTest = { ...mockTest };
@@ -7852,7 +7862,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         uploadedAudioBase64,
         uploadedAudioMimeType,
         durationSec: lessonDurationSecInput?.value ? Number(lessonDurationSecInput.value) : 0,
-        assessmentTestId: lessonAssessmentTestIdInput?.value || null,
+        assessmentTestId: resolveLessonAssessmentTestIdForSave({ preferSelectedMockTest: shouldSaveTestWithLesson }),
       };
 
       if (!lessonTitleInput?.value?.trim() && payload.title && lessonTitleInput instanceof HTMLInputElement) {
@@ -8937,7 +8947,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             videoUrl: lessonVideoUrlInput?.value?.trim() || undefined,
             transcriptText: transcriptText || undefined,
             durationSec: lessonDurationSecInput?.value ? Number(lessonDurationSecInput.value) : 0,
-            assessmentTestId: lessonAssessmentTestIdInput?.value || null,
+            assessmentTestId: resolveLessonAssessmentTestIdForSave({ preferSelectedMockTest: true }),
           };
           setMessage("Creating lesson before voice generation...");
           const created = await apiRequest({
