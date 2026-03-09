@@ -3024,6 +3024,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
   const resetQuestionSectionFilter = () => {
+    if (lessonQuestionCategoryFilterInput instanceof HTMLSelectElement) {
+      lessonQuestionCategoryFilterInput.value = "ALL";
+    }
     syncQuestionSectionFilterControls("ALL");
   };
   const activeQuestionSectionFilter = () => {
