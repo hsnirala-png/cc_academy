@@ -6938,7 +6938,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const saveAndAttachLessonMockTestFromTopFields = async (options = {}) => {
     const { resetAfterSave = false } = options;
-    const selectedLessonId = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
+    const selectedLessonIdFromState = state.selectedMockLessonId || mockLinkLessonIdInput?.value?.trim() || "";
+    const selectedLesson =
+      selectedMockLesson() ||
+      state.mockLessons.find((lesson) => String(lesson?.id || "").trim() === String(selectedLessonIdFromState || "").trim()) ||
+      state.lessons.find((lesson) => String(lesson?.id || "").trim() === String(selectedLessonIdFromState || "").trim()) ||
+      null;
+    const fallbackLinkedLesson =
+      linkedLessonForTest(state.selectedMockTestId || lessonMockTestIdInput?.value?.trim() || "") ||
+      linkedLessonInLoadedLessons(state.selectedMockTestId || lessonMockTestIdInput?.value?.trim() || "") ||
+      null;
+    const selectedLessonId = String(
+      selectedLesson?.id || selectedLessonIdFromState || fallbackLinkedLesson?.id || ""
+    ).trim();
     if (!selectedLessonId) {
       throw new Error("Select course, subject, and chapter before creating a test.");
     }
@@ -6955,9 +6967,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("Language mode is required for this subject.");
     }
 
+    const linkedLessonTestId = String(selectedLesson?.assessmentTestId || fallbackLinkedLesson?.assessmentTestId || "").trim();
     const existingTestId =
       String(state.selectedMockTestId || "").trim() ||
       lessonMockTestIdInput?.value?.trim() ||
+      linkedLessonTestId ||
       "";
     let savedTestId = existingTestId;
     if (existingTestId) {
