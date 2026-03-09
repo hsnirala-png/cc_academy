@@ -2638,10 +2638,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     "SCIENCE_MATH",
     "SOCIAL_STUDIES",
   ]);
-  const SUBJECTS_BY_EXAM = {
-    PSTET_1: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "MATHS", "EVS"],
-    PSTET_2: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "SCIENCE_MATH", "SOCIAL_STUDIES"],
-  };
   const CHAPTER_SUB_SUBJECT_LABELS = {
     SOCIAL_STUDIES: "SST",
     SCIENCE_MATH: "SCI + MATHS",
@@ -4169,17 +4165,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const syncMockSubjectOptionsByExam = () => {
     if (!(lessonMockTestSubjectInput instanceof HTMLSelectElement)) return;
-    const examType = lessonMockTestExamTypeInput?.value || "PSTET_1";
-    const allowedSubjects = new Set(SUBJECTS_BY_EXAM[examType] || SUBJECTS_BY_EXAM.PSTET_1);
     Array.from(lessonMockTestSubjectInput.options).forEach((option) => {
-      const allowed = allowedSubjects.has(option.value);
-      option.hidden = !allowed;
-      option.disabled = !allowed;
+      option.hidden = false;
+      option.disabled = false;
     });
     const normalizedCurrent = normalizeMockSubjectValue(lessonMockTestSubjectInput.value || "");
-    lessonMockTestSubjectInput.value = allowedSubjects.has(normalizedCurrent)
+    const hasCurrentOption = Array.from(lessonMockTestSubjectInput.options).some(
+      (option) => String(option.value || "").trim() === normalizedCurrent
+    );
+    lessonMockTestSubjectInput.value = hasCurrentOption
       ? normalizedCurrent
-      : normalizeMockSubjectValue(inferMockSubjectFromChapter(examType));
+      : normalizeMockSubjectValue(inferMockSubjectFromChapter(lessonMockTestExamTypeInput?.value || "PSTET_1"));
   };
   const syncMockTaxonomyFromScope = (options = {}) => {
     const { force = false } = options;
@@ -4458,7 +4454,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonSectionTypeInput.value = "COMPREHENSION";
     }
     if (lessonSectionQuestionLimitInput instanceof HTMLInputElement) {
-      const suggested = Math.max(1, Math.floor(requiredQuestionsForLesson() / 3));
+      const suggested = Math.max(1, requiredQuestionsForLesson() - getConfiguredSectionTargetCount());
       lessonSectionQuestionLimitInput.value = String(suggested || 10);
     }
     if (lessonSectionSaveBtn instanceof HTMLButtonElement) {
@@ -5075,28 +5071,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         `Question limit exceeded. Target is ${target}, existing active questions are ${activeCount}, incoming ${incoming}.`
       );
     }
-
-    const incomingBySection = activeRows.reduce((accumulator, item) => {
-      const label = normalizeQuestionSectionLabel(item?.sectionLabel);
-      if (!label) return accumulator;
-      accumulator.set(label, (accumulator.get(label) || 0) + 1);
-      return accumulator;
-    }, new Map());
-
-    incomingBySection.forEach((sectionIncomingCount, sectionLabel) => {
-      const sectionMeta = getSectionMetaByLabel(sectionLabel);
-      const sectionLimit = Math.max(0, Math.floor(Number(sectionMeta?.questionLimit || 0)));
-      if (sectionLimit <= 0) return;
-      const existingCount = getActiveQuestionCountForSection(sectionLabel, {
-        excludeQuestionId,
-        replaceExisting,
-      });
-      if (existingCount + sectionIncomingCount > sectionLimit) {
-        throw new Error(
-          `Section "${sectionLabel}" limit exceeded. Limit is ${sectionLimit}, existing active questions are ${existingCount}, incoming ${sectionIncomingCount}.`
-        );
-      }
-    });
   };
 
   const updateLessonQuestionCountWarning = () => {

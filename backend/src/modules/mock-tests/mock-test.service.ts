@@ -760,38 +760,7 @@ const ensureQuestionLimitForSection = async (input: {
   incomingCount: number;
   excludeQuestionId?: string;
 }) => {
-  const normalizedLabel = normalizeSectionLabel(input.sectionLabel);
-  if (!normalizedLabel) return;
-  const incomingCount = Math.max(1, Math.floor(Number(input.incomingCount) || 1));
-  const section = await prisma.mockTestSection.findFirst({
-    where: {
-      mockTestId: input.mockTestId,
-      sectionLabel: normalizedLabel,
-      isActive: true,
-    },
-  });
-  if (!section || Number(section.questionLimit || 0) <= 0) return;
-  const existingRows = (await prisma.$queryRawUnsafe(
-    `
-      SELECT COUNT(*) AS existingCount
-      FROM Question
-      WHERE mockTestId = ?
-        AND sectionLabel = ?
-        AND isActive = 1
-        AND COALESCE(isArchived, 0) = 0
-        ${input.excludeQuestionId ? "AND id <> ?" : ""}
-    `,
-    ...(input.excludeQuestionId
-      ? [input.mockTestId, normalizedLabel, input.excludeQuestionId]
-      : [input.mockTestId, normalizedLabel])
-  )) as Array<{ existingCount: number | string }>;
-  const existingCount = Number(existingRows[0]?.existingCount || 0);
-  if (existingCount + incomingCount > section.questionLimit) {
-    throw new AppError(
-      `Section "${normalizedLabel}" question limit exceeded (${existingCount}/${section.questionLimit}).`,
-      409
-    );
-  }
+  void input;
 };
 
 const loadAttemptQuestionRows = async (attemptId: string) =>
@@ -1551,54 +1520,6 @@ export const mockTestService = {
           new Date(),
           mockTestId
         );
-      }
-
-      const incomingSectionCounts = new Map<string, number>();
-      payload.forEach((row) => {
-        const label = normalizeSectionLabel(row.sectionLabel);
-        if (!label) return;
-        incomingSectionCounts.set(label, Number(incomingSectionCounts.get(label) || 0) + 1);
-      });
-
-      const limitedSections = await tx.mockTestSection.findMany({
-        where: {
-          mockTestId,
-          isActive: true,
-          questionLimit: { gt: 0 },
-          sectionLabel: { in: Array.from(incomingSectionCounts.keys()) },
-        },
-      });
-      if (limitedSections.length) {
-        const existingBySection = replaceExisting
-          ? new Map<string, number>()
-          : new Map(
-              (
-                (await tx.$queryRawUnsafe(
-                  `
-                    SELECT sectionLabel, COUNT(*) AS totalCount
-                    FROM Question
-                    WHERE mockTestId = ?
-                      AND isActive = 1
-                      AND COALESCE(isArchived, 0) = 0
-                      AND sectionLabel IN (${limitedSections.map(() => "?").join(", ")})
-                    GROUP BY sectionLabel
-                  `,
-                  mockTestId,
-                  ...limitedSections.map((item) => item.sectionLabel)
-                )) as Array<{ sectionLabel: string | null; totalCount: number | string }>
-              ).map((row) => [String(row.sectionLabel || ""), Number(row.totalCount || 0)])
-            );
-        for (const section of limitedSections) {
-          const incoming = Number(incomingSectionCounts.get(section.sectionLabel) || 0);
-          if (!incoming) continue;
-          const existing = Number(existingBySection.get(section.sectionLabel) || 0);
-          if (existing + incoming > section.questionLimit) {
-            throw new AppError(
-              `Section "${section.sectionLabel}" question limit exceeded (${existing}/${section.questionLimit}).`,
-              409
-            );
-          }
-        }
       }
 
       const nextDisplayOrderStart = replaceExisting
