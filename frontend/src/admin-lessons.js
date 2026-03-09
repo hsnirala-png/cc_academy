@@ -2638,6 +2638,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     "SCIENCE_MATH",
     "SOCIAL_STUDIES",
   ]);
+  const SUBJECTS_BY_EXAM = {
+    PSTET_1: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "MATHS", "EVS", "MATHS_EVS"],
+    PSTET_2: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "SCIENCE_MATH", "SOCIAL_STUDIES"],
+  };
   const CHAPTER_SUB_SUBJECT_LABELS = {
     SOCIAL_STUDIES: "SST",
     SCIENCE_MATH: "SCI + MATHS",
@@ -4039,19 +4043,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
   const inferMockExamTypeFromCourse = () => {
-    const title = normalizeLookupText(selectedMockCourse()?.title || "");
-    if (!title) return "PSTET_1";
+    const chapterText = normalizeLookupText(selectedMockChapter()?.title || "");
+    const lessonText = normalizeLookupText(selectedMockLesson()?.title || "");
+    const courseText = normalizeLookupText(selectedMockCourse()?.title || "");
+    const combinedText = `${courseText} ${chapterText} ${lessonText}`.trim();
+    if (!combinedText) return "PSTET_1";
     if (
-      title.includes("pstet 2") ||
-      title.includes("tet 2") ||
-      title.includes("paper 2") ||
-      /\b2\b/.test(title)
+      combinedText.includes("pstet 2") ||
+      combinedText.includes("tet 2") ||
+      combinedText.includes("paper 2") ||
+      /\b2\b/.test(combinedText)
     ) {
       return "PSTET_2";
     }
     return "PSTET_1";
   };
   const inferMockSubjectFromChapter = (examType = inferMockExamTypeFromCourse()) => {
+    const selectedSubjectFromTest = normalizeMockSubjectValue(
+      selectedMockTest()?.subject || selectedMockLesson()?.assessmentTest?.subject || ""
+    );
+    if (selectedSubjectFromTest && selectedSubjectFromTest !== "PUNJABI") {
+      return selectedSubjectFromTest;
+    }
+    const chapterSubSubject = String(selectedMockChapter()?.subSubject || "")
+      .trim()
+      .toUpperCase();
+    if (chapterSubSubject === "SOCIAL_STUDIES" || chapterSubSubject === "SCIENCE_MATH") {
+      return chapterSubSubject;
+    }
     const chapterTitle = normalizeLookupText(selectedMockChapter()?.title || "");
     const lessonTitle = normalizeLookupText(selectedMockLesson()?.title || "");
     const combinedTitle = `${chapterTitle} ${lessonTitle}`.trim();
@@ -4073,8 +4092,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (mentionsEvs) return "EVS";
     if (mentionsMaths) return "MATHS";
     if (examType === "PSTET_2") {
-      if (combinedTitle.includes("social")) return "SOCIAL_STUDIES";
-      if (combinedTitle.includes("science") && combinedTitle.includes("math")) return "SCIENCE_MATH";
+      if (combinedTitle.includes("sst") || combinedTitle.includes("social")) return "SOCIAL_STUDIES";
+      if (
+        combinedTitle.includes("science") ||
+        combinedTitle.includes("sci") ||
+        (combinedTitle.includes("math") && !mentionsEvs)
+      ) {
+        return "SCIENCE_MATH";
+      }
     }
     return "CHILD_PEDAGOGY";
   };
@@ -4165,17 +4190,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const syncMockSubjectOptionsByExam = () => {
     if (!(lessonMockTestSubjectInput instanceof HTMLSelectElement)) return;
+    const examType = lessonMockTestExamTypeInput?.value || inferMockExamTypeFromCourse();
+    const allowedSubjects = new Set(SUBJECTS_BY_EXAM[examType] || SUBJECTS_BY_EXAM.PSTET_1);
     Array.from(lessonMockTestSubjectInput.options).forEach((option) => {
-      option.hidden = false;
-      option.disabled = false;
+      const allowed = allowedSubjects.has(String(option.value || "").trim());
+      option.hidden = !allowed;
+      option.disabled = !allowed;
     });
     const normalizedCurrent = normalizeMockSubjectValue(lessonMockTestSubjectInput.value || "");
     const hasCurrentOption = Array.from(lessonMockTestSubjectInput.options).some(
-      (option) => String(option.value || "").trim() === normalizedCurrent
+      (option) => !option.disabled && String(option.value || "").trim() === normalizedCurrent
     );
     lessonMockTestSubjectInput.value = hasCurrentOption
       ? normalizedCurrent
-      : normalizeMockSubjectValue(inferMockSubjectFromChapter(lessonMockTestExamTypeInput?.value || "PSTET_1"));
+      : normalizeMockSubjectValue(inferMockSubjectFromChapter(examType));
   };
   const syncMockTaxonomyFromScope = (options = {}) => {
     const { force = false } = options;
