@@ -550,6 +550,7 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       WHERE pmt.productId IN (${placeholders})
+        AND mt.isActive = 1
       ORDER BY pmt.productId ASC, pmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
@@ -625,6 +626,7 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
       FROM ProductDemoMockTest pdmt
       INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
       WHERE pdmt.productId IN (${placeholders})
+        AND mt.isActive = 1
       ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds

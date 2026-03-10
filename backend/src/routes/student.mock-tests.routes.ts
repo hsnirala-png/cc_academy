@@ -135,6 +135,7 @@ const loadActiveRegistrationGates = async (mockTestIds: string[]) => {
       FROM MockTestRegistrationGate g
       INNER JOIN MockTest mt ON mt.id = g.mockTestId
       WHERE g.isActive = 1
+        AND mt.isActive = 1
         AND COALESCE(
           (
             SELECT mar.accessCode
