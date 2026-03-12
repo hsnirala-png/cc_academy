@@ -70,16 +70,59 @@
           <div id="transcriptList" class="transcript-list"></div>
         </article>
 
-        <article class="lesson-video-card" data-no-collapse="true">
-          <div class="lesson-playback-shell">
-            <video id="lessonVideo" class="lesson-video" controls preload="metadata"></video>
-            <audio id="audioPlayer" controls style="width: 100%; display: none"></audio>
-            <div class="lesson-player-actions">
-              <p id="progressInfo" class="lesson-progress-info">Progress: 0%</p>
-              <button id="startAssessmentBtn" class="btn-primary hidden" type="button">Attempt MCQ</button>
+        <section class="lesson-side-stack">
+          <article class="lesson-video-card" data-no-collapse="true">
+            <div class="lesson-playback-shell">
+              <video id="lessonVideo" class="lesson-video" controls preload="metadata"></video>
+              <audio id="audioPlayer" controls style="width: 100%; display: none"></audio>
+              <div class="lesson-player-actions">
+                <p id="progressInfo" class="lesson-progress-info">Progress: 0%</p>
+                <button id="startAssessmentBtn" class="btn-primary hidden" type="button">Attempt MCQ</button>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+
+          <article class="lesson-ai-card">
+            <div class="lesson-ai-head">
+              <div>
+                <h2>AI Teacher</h2>
+                <p class="mock-subtitle">Exam-style help grounded only in this lesson transcript.</p>
+              </div>
+            </div>
+
+            <p id="lessonAiStatus" class="form-message"></p>
+
+            <div class="lesson-ai-quick-actions">
+              <button id="lessonAiSummarizeBtn" class="btn-secondary" type="button">Study Notes</button>
+              <button id="lessonAiExplainSelectionBtn" class="btn-secondary" type="button" disabled>
+                Explain Selected
+              </button>
+              <button id="lessonAiExplainPunjabiBtn" class="btn-secondary" type="button">Explain in Punjabi</button>
+              <button id="lessonAiExplainHindiBtn" class="btn-secondary" type="button">Explain in Hindi</button>
+              <button id="lessonAiExplainEnglishBtn" class="btn-secondary" type="button">Explain in English</button>
+            </div>
+
+            <div id="lessonAiSelectionHint" class="lesson-ai-selection-hint">
+              Select transcript text to enable paragraph explanation.
+            </div>
+
+            <div id="lessonAiMessages" class="lesson-ai-messages"></div>
+
+            <form id="lessonAiForm" class="lesson-ai-form">
+              <label class="sr-only" for="lessonAiInput">Ask AI Teacher</label>
+              <textarea
+                id="lessonAiInput"
+                rows="4"
+                maxlength="4000"
+                placeholder="Ask a doubt, revise a concept, or explain part of this lesson..."
+              ></textarea>
+              <div class="lesson-ai-form-actions">
+                <span class="lesson-ai-grounding-note">Answers stay inside the current lesson context and aim to help revision.</span>
+                <button id="lessonAiSendBtn" class="btn-primary" type="submit">Send</button>
+              </div>
+            </form>
+          </article>
+        </section>
       </section>
     </main>
 

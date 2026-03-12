@@ -351,6 +351,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const transcriptScrollSpeedInput = document.querySelector("#transcriptScrollSpeed");
   const progressInfoEl = document.querySelector("#progressInfo");
   const startAssessmentBtn = document.querySelector("#startAssessmentBtn");
+  const lessonAiCardEl = document.querySelector(".lesson-ai-card");
+  const lessonAiStatusEl = document.querySelector("#lessonAiStatus");
+  const lessonAiMessagesEl = document.querySelector("#lessonAiMessages");
+  const lessonAiForm = document.querySelector("#lessonAiForm");
+  const lessonAiInput = document.querySelector("#lessonAiInput");
+  const lessonAiSendBtn = document.querySelector("#lessonAiSendBtn");
+  const lessonAiSelectionHintEl = document.querySelector("#lessonAiSelectionHint");
+  const lessonAiSummarizeBtn = document.querySelector("#lessonAiSummarizeBtn");
+  const lessonAiExplainSelectionBtn = document.querySelector("#lessonAiExplainSelectionBtn");
+  const lessonAiExplainPunjabiBtn = document.querySelector("#lessonAiExplainPunjabiBtn");
+  const lessonAiExplainHindiBtn = document.querySelector("#lessonAiExplainHindiBtn");
+  const lessonAiExplainEnglishBtn = document.querySelector("#lessonAiExplainEnglishBtn");
 
   const state = {
     lessonId: getQueryParam("lessonId"),
@@ -380,7 +392,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     autoPlayRequested: /^(1|true|yes)$/i.test(getQueryParam("autoplay")),
     autoPlayAttempted: false,
     assessmentLaunchInFlight: false,
+    aiConversationId: "",
+    aiMessages: [],
+    aiSelectedText: "",
+    aiBusy: false,
+    aiHasTranscript: false,
+    aiUnavailable: false,
+    aiEnabled: String(user?.role || "").trim().toUpperCase() === "STUDENT",
   };
+
+  if (!state.aiEnabled && lessonAiCardEl instanceof HTMLElement) {
+    lessonAiCardEl.classList.add("hidden");
+  }
 
   const setStatus = (text, type) => {
     if (!playerStatusEl) return;
@@ -388,6 +411,222 @@ document.addEventListener("DOMContentLoaded", async () => {
     playerStatusEl.classList.remove("error", "success");
     if (type) playerStatusEl.classList.add(type);
   };
+
+  const setAiStatus = (text, type) => {
+    if (!(lessonAiStatusEl instanceof HTMLElement)) return;
+    lessonAiStatusEl.textContent = text || "";
+    lessonAiStatusEl.classList.remove("error", "success");
+    if (type) lessonAiStatusEl.classList.add(type);
+  };
+
+  const scrollAiMessagesToEnd = () => {
+    if (!(lessonAiMessagesEl instanceof HTMLElement)) return;
+    lessonAiMessagesEl.scrollTop = lessonAiMessagesEl.scrollHeight;
+  };
+
+  const renderAiMessages = () => {
+    if (!(lessonAiMessagesEl instanceof HTMLElement)) return;
+    const messages = Array.isArray(state.aiMessages) ? state.aiMessages : [];
+    if (!messages.length) {
+      lessonAiMessagesEl.innerHTML =
+        '<p class="lesson-ai-empty">Ask a lesson doubt, build quick study notes, or explain a selected transcript part.</p>';
+      return;
+    }
+
+    lessonAiMessagesEl.innerHTML = messages
+      .map((message) => {
+        const role = String(message?.role || "").trim().toUpperCase() === "ASSISTANT" ? "assistant" : "user";
+        return `
+          <div class="lesson-ai-message is-${role}">
+            <span class="lesson-ai-message-role">${role === "assistant" ? "AI Teacher" : "You"}</span>
+            <div class="lesson-ai-message-bubble">${escapeHtml(String(message?.content || "").trim())}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    scrollAiMessagesToEnd();
+  };
+
+  const renderAiSelection = () => {
+    const canUseAi =
+      state.aiEnabled &&
+      !state.aiUnavailable &&
+      state.aiHasTranscript &&
+      Boolean(String(state.aiConversationId || "").trim());
+    if (lessonAiExplainSelectionBtn instanceof HTMLButtonElement) {
+      lessonAiExplainSelectionBtn.disabled =
+        state.aiBusy || !canUseAi || !String(state.aiSelectedText || "").trim();
+    }
+    if (!(lessonAiSelectionHintEl instanceof HTMLElement)) return;
+    const selectedText = String(state.aiSelectedText || "").trim();
+    if (!state.aiEnabled) {
+      lessonAiSelectionHintEl.classList.remove("is-active");
+      lessonAiSelectionHintEl.textContent = "";
+      return;
+    }
+    if (state.aiUnavailable) {
+      lessonAiSelectionHintEl.classList.remove("is-active");
+      lessonAiSelectionHintEl.textContent = "AI Teacher is unavailable for this lesson right now.";
+      return;
+    }
+    if (!state.aiHasTranscript) {
+      lessonAiSelectionHintEl.classList.remove("is-active");
+      lessonAiSelectionHintEl.textContent = "Transcript is required before AI Teacher can explain this lesson.";
+      return;
+    }
+    if (!selectedText) {
+      lessonAiSelectionHintEl.classList.remove("is-active");
+      lessonAiSelectionHintEl.textContent = "Select transcript text to enable paragraph explanation.";
+      return;
+    }
+    const selectedWords = selectedText.split(/\s+/).filter(Boolean).length;
+    lessonAiSelectionHintEl.classList.add("is-active");
+    if (selectedText.length < 20 || selectedWords < 4) {
+      lessonAiSelectionHintEl.textContent =
+        "Selected text looks short. AI Teacher may ask you to select a clearer sentence or ask for a general explanation.";
+      return;
+    }
+    lessonAiSelectionHintEl.textContent = `Selected: ${selectedText.slice(0, 220)}${selectedText.length > 220 ? "..." : ""}`;
+  };
+
+  const setAiBusy = (busy) => {
+    state.aiBusy = Boolean(busy);
+    const canUseAi =
+      state.aiEnabled &&
+      !state.aiUnavailable &&
+      state.aiHasTranscript &&
+      Boolean(String(state.aiConversationId || "").trim());
+    if (lessonAiInput instanceof HTMLTextAreaElement) {
+      lessonAiInput.disabled = state.aiBusy || !canUseAi;
+    }
+    if (lessonAiSendBtn instanceof HTMLButtonElement) {
+      lessonAiSendBtn.disabled = state.aiBusy || !canUseAi;
+    }
+    [
+      lessonAiSummarizeBtn,
+      lessonAiExplainPunjabiBtn,
+      lessonAiExplainHindiBtn,
+      lessonAiExplainEnglishBtn,
+    ].forEach((button) => {
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = state.aiBusy || !canUseAi;
+      }
+    });
+    renderAiSelection();
+  };
+
+  const getTranscriptSelectionText = () => {
+    if (!(transcriptListEl instanceof HTMLElement)) return "";
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount < 1) return "";
+    const selectedText = String(selection.toString() || "").trim();
+    if (!selectedText) return "";
+    const range = selection.getRangeAt(0);
+    const anchorNode =
+      range.commonAncestorContainer instanceof Node && range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement
+        : range.commonAncestorContainer;
+    if (!(anchorNode instanceof Node) || !transcriptListEl.contains(anchorNode)) return "";
+    return selectedText;
+  };
+
+  const updateAiSelectionState = () => {
+    state.aiSelectedText = getTranscriptSelectionText().slice(0, 3000);
+    renderAiSelection();
+  };
+
+  const ensureAiConversation = async () => {
+    if (!state.lessonId) return null;
+    const payload = await apiRequest({
+      path: `/student/ai/lesson/${encodeURIComponent(state.lessonId)}/conversations`,
+      method: "POST",
+      token,
+    });
+    state.aiConversationId = String(payload?.conversation?.id || "").trim();
+    state.aiMessages = Array.isArray(payload?.conversation?.messages) ? payload.conversation.messages : [];
+    state.aiHasTranscript = Boolean(payload?.context?.hasTranscript);
+    state.aiUnavailable = !state.aiConversationId;
+    renderAiMessages();
+    if (!state.aiHasTranscript) {
+      setAiStatus("AI Teacher needs transcript text for this lesson before it can answer safely.", "error");
+    } else {
+      setAiStatus("");
+    }
+    setAiBusy(false);
+    return payload;
+  };
+
+  const sendAiMessage = async ({ content, selectedText = "", requestType = "CHAT" }) => {
+    const message = String(content || "").trim();
+    if (!message) {
+      setAiStatus("Enter a message for AI Teacher.", "error");
+      return;
+    }
+
+    if (!state.aiConversationId) {
+      await ensureAiConversation();
+    }
+    if (!state.aiConversationId) {
+      throw new Error("AI conversation is unavailable for this lesson.");
+    }
+
+    setAiBusy(true);
+    setAiStatus("AI Teacher is preparing a grounded reply...");
+    try {
+      const payload = await apiRequest({
+        path: `/student/ai/lesson/${encodeURIComponent(state.lessonId)}/conversations/${encodeURIComponent(
+          state.aiConversationId
+        )}/messages`,
+        method: "POST",
+        token,
+        body: {
+          content: message,
+          selectedText: String(selectedText || "").trim() || undefined,
+          requestType,
+        },
+      });
+      state.aiMessages = Array.isArray(payload?.conversation?.messages) ? payload.conversation.messages : [];
+      state.aiUnavailable = false;
+      renderAiMessages();
+      if (!payload?.context?.hasTranscript) {
+        setAiStatus("This lesson does not have enough transcript context for AI explanation.", "error");
+      } else {
+        setAiStatus("");
+      }
+    } catch (error) {
+      if (error?.status === 401) {
+        clearAuth();
+        window.location.href = "./index.html";
+        return;
+      }
+      if (Number(error?.status || 0) >= 500) {
+        state.aiUnavailable = true;
+      }
+      const messageText = error instanceof Error ? error.message : "Unable to contact AI Teacher.";
+      setAiStatus(messageText, "error");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const buildLanguageExplainPrompt = (languageLabel) => {
+    const selectedText = String(state.aiSelectedText || "").trim();
+    if (selectedText) {
+      return {
+        content: `Explain the selected lesson text like an exam teacher in ${languageLabel}. Keep it clear, short, and grounded only in this lesson.`,
+        selectedText,
+        requestType: `EXPLAIN_SELECTION_${String(languageLabel || "").trim().toUpperCase()}`,
+      };
+    }
+    return {
+      content: `Explain the current lesson like an exam teacher in ${languageLabel}. Keep it clear, short, and grounded only in this lesson.`,
+      selectedText: "",
+      requestType: `EXPLAIN_LESSON_${String(languageLabel || "").trim().toUpperCase()}`,
+    };
+  };
+
+  setAiBusy(false);
 
   const getActivePlayer = () => {
     if (state.currentMode === "audio" && state.hasAudio && audioEl instanceof HTMLAudioElement) {
@@ -922,7 +1161,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         highlightByTimeMs(segment.startMs + 1);
         setProgressText();
       });
+      transcriptListEl.addEventListener("mouseup", () => {
+        window.setTimeout(updateAiSelectionState, 0);
+      });
+      transcriptListEl.addEventListener("keyup", () => {
+        window.setTimeout(updateAiSelectionState, 0);
+      });
     }
+
+    document.addEventListener("selectionchange", () => {
+      if (!(transcriptListEl instanceof HTMLElement)) return;
+      if (!document.hasFocus()) return;
+      window.setTimeout(updateAiSelectionState, 0);
+    });
 
     window.addEventListener("beforeunload", () => {
       stopSyncLoop();
@@ -1048,7 +1299,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     state.activeTranscriptIndex = -1;
     renderTranscript();
+    renderAiSelection();
+    renderAiMessages();
     toggleAssessmentButton();
+
+    if (state.aiEnabled) {
+      try {
+        await ensureAiConversation();
+      } catch (aiInitError) {
+        state.aiUnavailable = true;
+        setAiBusy(false);
+        const aiMessage = aiInitError instanceof Error ? aiInitError.message : "Unable to load AI Teacher.";
+        setAiStatus(aiMessage, "error");
+      }
+    }
 
     const initialMode = state.hasAudio ? "audio" : "video";
     state.currentMode = initialMode;
@@ -1079,6 +1343,66 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.lastTranscriptScrollAt = 0;
       state.transcriptScrollVirtual = Number(transcriptListEl?.scrollTop || 0);
       syncTranscriptReadingScroll(getPlayerCurrentMs());
+    });
+  }
+
+  if (state.aiEnabled && lessonAiForm instanceof HTMLFormElement) {
+    lessonAiForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const content = String(lessonAiInput instanceof HTMLTextAreaElement ? lessonAiInput.value : "").trim();
+      if (!content) {
+        setAiStatus("Enter a message for AI Teacher.", "error");
+        return;
+      }
+      if (lessonAiInput instanceof HTMLTextAreaElement) {
+        lessonAiInput.value = "";
+      }
+      await sendAiMessage({
+        content,
+        requestType: "CHAT",
+      });
+    });
+  }
+
+  if (state.aiEnabled && lessonAiSummarizeBtn instanceof HTMLButtonElement) {
+    lessonAiSummarizeBtn.addEventListener("click", async () => {
+      await sendAiMessage({
+        content: "Create short, exam-focused study notes for this lesson using only the lesson context.",
+        requestType: "SUMMARIZE",
+      });
+    });
+  }
+
+  if (state.aiEnabled && lessonAiExplainSelectionBtn instanceof HTMLButtonElement) {
+    lessonAiExplainSelectionBtn.addEventListener("click", async () => {
+      const selectedText = String(state.aiSelectedText || "").trim();
+      if (!selectedText) {
+        setAiStatus("Select transcript text first.", "error");
+        return;
+      }
+      await sendAiMessage({
+        content: "Explain the selected lesson text like a teacher. Start from the selected lines, keep it simple, and stay inside the lesson context.",
+        selectedText,
+        requestType: "EXPLAIN_SELECTION",
+      });
+    });
+  }
+
+  if (state.aiEnabled && lessonAiExplainPunjabiBtn instanceof HTMLButtonElement) {
+    lessonAiExplainPunjabiBtn.addEventListener("click", async () => {
+      await sendAiMessage(buildLanguageExplainPrompt("Punjabi"));
+    });
+  }
+
+  if (state.aiEnabled && lessonAiExplainHindiBtn instanceof HTMLButtonElement) {
+    lessonAiExplainHindiBtn.addEventListener("click", async () => {
+      await sendAiMessage(buildLanguageExplainPrompt("Hindi"));
+    });
+  }
+
+  if (state.aiEnabled && lessonAiExplainEnglishBtn instanceof HTMLButtonElement) {
+    lessonAiExplainEnglishBtn.addEventListener("click", async () => {
+      await sendAiMessage(buildLanguageExplainPrompt("English"));
     });
   }
 });

@@ -94,6 +94,15 @@ enum ContactSenderType {
   ADMIN
 }
 
+enum AiConversationMode {
+  LESSON_CHAT
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -118,6 +127,7 @@ model User {
   referralWithdrawals ReferralWithdrawal[]
   productPurchases ProductPurchase[]
   contactConversations ContactConversation[]
+  aiConversations AiConversation[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -174,6 +184,7 @@ model Lesson {
   chapter          Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   assessmentTest   MockTest?       @relation(fields: [assessmentTestId], references: [id], onDelete: SetNull)
   progress         LessonProgress[]
+  aiConversations  AiConversation[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -208,6 +219,36 @@ model LessonProgress {
 
   @@unique([userId, lessonId])
   @@index([lessonId, completed])
+}
+
+model AiConversation {
+  id        String             @id @default(cuid())
+  userId    String
+  lessonId  String
+  title     String
+  mode      AiConversationMode @default(LESSON_CHAT)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson    Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([userId, lessonId, updatedAt])
+  @@index([lessonId, updatedAt])
+  @@unique([userId, lessonId, mode])
+}
+
+model AiMessage {
+  id                  String        @id @default(cuid())
+  conversationId      String
+  role                AiMessageRole
+  content             String        @db.LongText
+  contextSnapshotJson Json?
+  tokenUsage          Int?
+  conversation        AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt           DateTime      @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model Product {

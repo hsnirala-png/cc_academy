@@ -21,6 +21,217 @@ export const adminLessonsRouter = Router();
 
 const ensureAdmin = [requireAuth, requireRole(Role.ADMIN)] as const;
 
+const isAiLessonTrackingUnavailableError = (error: unknown): boolean => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2021" || error.code === "P2022" || error.code === "P2024";
+  }
+
+  const message = String((error as { message?: string })?.message || "").toLowerCase();
+  return (
+    message.includes("aiconversation") ||
+    message.includes("aiconversations") ||
+    message.includes("database schema mismatch")
+  );
+};
+
+type LessonTrackingRow = {
+  id: string;
+  title: string;
+  orderIndex: number;
+  durationSec: number;
+  transcriptUrl: string | null;
+  audioUrl: string | null;
+  updatedAt: Date;
+  chapter: {
+    id: string;
+    title: string;
+    orderIndex: number;
+    course: {
+      id: string;
+      title: string;
+    };
+  };
+  assessmentTest: {
+    id: string;
+    title: string;
+  } | null;
+  progress: Array<{
+    lastPositionSec: number;
+    completed: boolean;
+    updatedAt: Date;
+  }>;
+  _count?: {
+    aiConversations: number;
+  };
+};
+
+type LessonTrackingPayload = {
+  lessons: Array<{
+    id: string;
+    title: string;
+    orderIndex: number;
+    durationSec: number;
+    updatedAt: string;
+    course: { id: string; title: string };
+    chapter: { id: string; title: string; orderIndex: number };
+    assessment: { id: string; title: string } | null;
+    transcriptReady: boolean;
+    audioReady: boolean;
+    aiConversationCount: number;
+    learnersStarted: number;
+    learnersCompleted: number;
+    completionRate: number;
+    averagePositionSec: number;
+    averageWatchPercent: number;
+    lastActivityAt: string | null;
+  }>;
+  summary: {
+    totalLessons: number;
+    withAssessment: number;
+    transcriptReady: number;
+    audioReady: number;
+    aiConversationCount: number;
+  };
+};
+
+const mapTrackedLessons = (lessons: LessonTrackingRow[], aiCountsAvailable: boolean) =>
+  lessons.map((lesson) => {
+    const learnersStarted = lesson.progress.length;
+    const learnersCompleted = lesson.progress.reduce(
+      (count, item) => (item.completed ? count + 1 : count),
+      0
+    );
+    const completionRate =
+      learnersStarted > 0 ? Math.round((learnersCompleted / learnersStarted) * 100) : 0;
+    const totalPositionSec = lesson.progress.reduce(
+      (sum, item) => sum + Math.max(0, Number(item.lastPositionSec || 0)),
+      0
+    );
+    const averagePositionSec =
+      learnersStarted > 0 ? Math.round(totalPositionSec / learnersStarted) : 0;
+    const averageWatchPercent =
+      lesson.durationSec > 0
+        ? Math.min(100, Math.round((averagePositionSec / lesson.durationSec) * 100))
+        : 0;
+    const lastActivityAt = lesson.progress.reduce<Date | null>(
+      (latest, item) => (!latest || item.updatedAt > latest ? item.updatedAt : latest),
+      null
+    );
+
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      orderIndex: lesson.orderIndex,
+      durationSec: lesson.durationSec,
+      updatedAt: lesson.updatedAt.toISOString(),
+      course: {
+        id: lesson.chapter.course.id,
+        title: lesson.chapter.course.title,
+      },
+      chapter: {
+        id: lesson.chapter.id,
+        title: lesson.chapter.title,
+        orderIndex: lesson.chapter.orderIndex,
+      },
+      assessment: lesson.assessmentTest
+        ? {
+            id: lesson.assessmentTest.id,
+            title: lesson.assessmentTest.title,
+          }
+        : null,
+      transcriptReady: Boolean(lesson.transcriptUrl),
+      audioReady: Boolean(lesson.audioUrl),
+      aiConversationCount: aiCountsAvailable ? Number(lesson._count?.aiConversations || 0) : 0,
+      learnersStarted,
+      learnersCompleted,
+      completionRate,
+      averagePositionSec,
+      averageWatchPercent,
+      lastActivityAt: lastActivityAt ? lastActivityAt.toISOString() : null,
+    };
+  });
+
+export const loadLessonTrackingPayload = async (
+  lessonDelegate: {
+    findMany(args: unknown): Promise<unknown[]>;
+  },
+  where: Prisma.LessonWhereInput
+): Promise<LessonTrackingPayload> => {
+  const baseQuery = {
+    where,
+    orderBy: [
+      { chapter: { course: { title: "asc" } } },
+      { chapter: { orderIndex: "asc" } },
+      { orderIndex: "asc" },
+    ],
+    include: {
+      chapter: {
+        select: {
+          id: true,
+          title: true,
+          orderIndex: true,
+          course: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      },
+      assessmentTest: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      progress: {
+        select: {
+          lastPositionSec: true,
+          completed: true,
+          updatedAt: true,
+        },
+      },
+    },
+  };
+
+  let trackedLessons;
+  try {
+    const lessons = (await lessonDelegate.findMany({
+      ...baseQuery,
+      include: {
+        ...baseQuery.include,
+        _count: {
+          select: {
+            aiConversations: true,
+          },
+        },
+      },
+    })) as LessonTrackingRow[];
+    trackedLessons = mapTrackedLessons(lessons, true);
+  } catch (error) {
+    if (!isAiLessonTrackingUnavailableError(error)) {
+      throw error;
+    }
+
+    const lessons = (await lessonDelegate.findMany(baseQuery)) as LessonTrackingRow[];
+    trackedLessons = mapTrackedLessons(lessons, false);
+  }
+
+  return {
+    lessons: trackedLessons,
+    summary: {
+      totalLessons: trackedLessons.length,
+      withAssessment: trackedLessons.filter((lesson) => Boolean(lesson.assessment)).length,
+      transcriptReady: trackedLessons.filter((lesson) => lesson.transcriptReady).length,
+      audioReady: trackedLessons.filter((lesson) => lesson.audioReady).length,
+      aiConversationCount: trackedLessons.reduce(
+        (sum, lesson) => sum + Math.max(0, Number(lesson.aiConversationCount || 0)),
+        0
+      ),
+    },
+  };
+};
+
 adminLessonsRouter.post("/lessons/:lessonId/generate-audio", ...ensureAdmin, generateLessonAudio);
 adminLessonsRouter.post("/lessons/preview-audio", ...ensureAdmin, previewLessonAudio);
 adminLessonsRouter.get("/lessons/custom-voices", ...ensureAdmin, listLessonCustomVoices);
@@ -696,109 +907,8 @@ adminLessonsRouter.get("/lesson-items/tracking", ...ensureAdmin, async (req, res
       };
     }
 
-    const lessons = await prisma.lesson.findMany({
-      where,
-      orderBy: [
-        { chapter: { course: { title: "asc" } } },
-        { chapter: { orderIndex: "asc" } },
-        { orderIndex: "asc" },
-      ],
-      include: {
-        chapter: {
-          select: {
-            id: true,
-            title: true,
-            orderIndex: true,
-            course: {
-              select: {
-                id: true,
-                title: true,
-              },
-            },
-          },
-        },
-        assessmentTest: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        progress: {
-          select: {
-            lastPositionSec: true,
-            completed: true,
-            updatedAt: true,
-          },
-        },
-      },
-    });
-
-    const trackedLessons = lessons.map((lesson) => {
-      const learnersStarted = lesson.progress.length;
-      const learnersCompleted = lesson.progress.reduce(
-        (count, item) => (item.completed ? count + 1 : count),
-        0
-      );
-      const completionRate =
-        learnersStarted > 0 ? Math.round((learnersCompleted / learnersStarted) * 100) : 0;
-      const totalPositionSec = lesson.progress.reduce(
-        (sum, item) => sum + Math.max(0, Number(item.lastPositionSec || 0)),
-        0
-      );
-      const averagePositionSec =
-        learnersStarted > 0 ? Math.round(totalPositionSec / learnersStarted) : 0;
-      const averageWatchPercent =
-        lesson.durationSec > 0
-          ? Math.min(100, Math.round((averagePositionSec / lesson.durationSec) * 100))
-          : 0;
-      const lastActivityAt = lesson.progress.reduce<Date | null>(
-        (latest, item) => (!latest || item.updatedAt > latest ? item.updatedAt : latest),
-        null
-      );
-
-      return {
-        id: lesson.id,
-        title: lesson.title,
-        orderIndex: lesson.orderIndex,
-        durationSec: lesson.durationSec,
-        updatedAt: lesson.updatedAt.toISOString(),
-        course: {
-          id: lesson.chapter.course.id,
-          title: lesson.chapter.course.title,
-        },
-        chapter: {
-          id: lesson.chapter.id,
-          title: lesson.chapter.title,
-          orderIndex: lesson.chapter.orderIndex,
-        },
-        assessment: lesson.assessmentTest
-          ? {
-              id: lesson.assessmentTest.id,
-              title: lesson.assessmentTest.title,
-            }
-          : null,
-        transcriptReady: Boolean(lesson.transcriptUrl),
-        audioReady: Boolean(lesson.audioUrl),
-        learnersStarted,
-        learnersCompleted,
-        completionRate,
-        averagePositionSec,
-        averageWatchPercent,
-        lastActivityAt: lastActivityAt ? lastActivityAt.toISOString() : null,
-      };
-    });
-
-    const summary = {
-      totalLessons: trackedLessons.length,
-      withAssessment: trackedLessons.filter((lesson) => Boolean(lesson.assessment)).length,
-      transcriptReady: trackedLessons.filter((lesson) => lesson.transcriptReady).length,
-      audioReady: trackedLessons.filter((lesson) => lesson.audioReady).length,
-    };
-
-    res.json({
-      lessons: trackedLessons,
-      summary,
-    });
+    const payload = await loadLessonTrackingPayload(prisma.lesson, where);
+    res.json(payload);
   } catch (error) {
     next(error);
   }

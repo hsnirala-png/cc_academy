@@ -6291,7 +6291,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     lessonTrackingSummary.textContent = `Lessons: ${summary.totalLessons || 0} | With assessment: ${
       summary.withAssessment || 0
-    } | Transcript ready: ${summary.transcriptReady || 0} | Audio ready: ${summary.audioReady || 0}`;
+    } | Transcript ready: ${summary.transcriptReady || 0} | Audio ready: ${summary.audioReady || 0} | AI chats: ${
+      summary.aiConversationCount || 0
+    }`;
   };
 
   const renderLessonTracking = () => {
@@ -6299,7 +6301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!state.trackingLessons.length) {
       lessonTrackingTableBody.innerHTML =
-        '<tr><td colspan="10" style="text-align:center;color:#666;">No lessons found for current scope.</td></tr>';
+        '<tr><td colspan="11" style="text-align:center;color:#666;">No lessons found for current scope.</td></tr>';
       return;
     }
 
@@ -6320,6 +6322,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td><span class="chip ${lesson.audioReady ? "active" : "inactive"}">${
               lesson.audioReady ? "Ready" : "Missing"
             }</span></td>
+            <td>${Number(lesson.aiConversationCount || 0)}</td>
             <td>${escapeHtml(formatDateTime(lesson.lastActivityAt || lesson.updatedAt))}</td>
           </tr>
         `
