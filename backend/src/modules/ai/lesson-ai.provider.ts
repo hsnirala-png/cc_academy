@@ -86,6 +86,26 @@ const normalizeResponseLanguage = (value?: string | null) => {
   return "";
 };
 
+const buildRequestTypeGuidance = (requestType: string) => {
+  if (requestType === "SUMMARIZE") {
+    return "Return concise study notes for revision. Focus on the main lesson idea, a simple explanation, and an exam point.";
+  }
+
+  if (requestType === "EXPLAIN_SELECTION") {
+    return "Explain the selected lesson text first. Then connect it to the lesson only if that connection is clearly supported by the supplied context.";
+  }
+
+  if (requestType.startsWith("EXPLAIN_SELECTION_")) {
+    return "Explain the selected lesson text first. Then connect it to the lesson only if that connection is clearly supported by the supplied context. Keep the answer in the requested language.";
+  }
+
+  if (requestType === "EXPLAIN_LESSON" || requestType.startsWith("EXPLAIN_LESSON_")) {
+    return "Treat this as a lesson-grounded concept explanation. If the student's wording is different from the transcript, you may paraphrase only when the concept is clearly supported by the supplied lesson context. If not clearly supported, use the fallback message.";
+  }
+
+  return "Treat this as a grounded lesson explanation, not open-ended chat. Answer only when the concept is clearly supported by the supplied lesson context.";
+};
+
 const extractPrimaryStudyText = (input: GenerateLessonAiReplyInput) => {
   const selectedText = normalizeWhitespace(String(input.selectedText || ""));
   if (selectedText) return selectedText;
@@ -211,6 +231,8 @@ export const buildSystemPrompt = () =>
     "For lesson summaries, return concise study notes with short bullets or short labeled sections.",
     "If selected lesson text is provided, explain that exact excerpt first before expanding to the surrounding lesson context.",
     "If the student asks for Punjabi, Hindi, or English explanation, answer in that language using only the provided lesson context.",
+    "If no explicit answer language is requested, answer in the same language as the student's question whenever possible.",
+    "For lesson explanation requests, a grounded paraphrase is allowed only when the concept is clearly supported by the supplied lesson transcript/context.",
     "Do not fabricate formulas, definitions, facts, or examples not present in the context.",
   ].join(" ");
 
@@ -223,6 +245,7 @@ export const buildUserPrompt = (input: GenerateLessonAiReplyInput) => {
     historyText ? `Conversation History:\n${historyText}` : "",
     `Requested Response Mode: ${requestType}`,
     responseLanguage ? `Requested Answer Language: ${responseLanguage}` : "",
+    `Request Guidance: ${buildRequestTypeGuidance(requestType)}`,
     `Current Student Request:\n${String(input.userMessage || "").trim()}`,
     `Grounded Lesson Context:\n${contextText}`,
   ]

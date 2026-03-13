@@ -30,3 +30,27 @@ test("lesson AI prompt stays tutoring-oriented and grounded for selected-text la
   assert.match(userPrompt, /Selected Text:\s*observation and guided practice/i);
   assert.match(userPrompt, /Lesson Transcript:\s*Learning starts from observation and guided practice/i);
 });
+
+test("lesson AI prompt treats manual doubts as grounded lesson explanation", () => {
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildUserPrompt({
+    context: {
+      lessonId: "lesson_2",
+      lessonTitle: "Development and Learning",
+      chapterTitle: "Chapter 2",
+      courseTitle: "PSTET-2",
+      transcriptText: "Development prepares the base for learning, and learning strengthens development.",
+      transcriptSegments: [],
+    },
+    userMessage: "How does the lesson connect development with learning?",
+    history: [],
+    requestType: "EXPLAIN_LESSON",
+    responseLanguage: null,
+  });
+
+  assert.match(systemPrompt, /grounded paraphrase is allowed only when the concept is clearly supported/i);
+  assert.match(systemPrompt, /same language as the student's question/i);
+  assert.match(userPrompt, /Requested Response Mode: EXPLAIN_LESSON/);
+  assert.match(userPrompt, /Request Guidance: Treat this as a lesson-grounded concept explanation/i);
+  assert.match(userPrompt, /Current Student Request:\s*How does the lesson connect development with learning\?/i);
+});

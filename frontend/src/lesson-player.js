@@ -1359,7 +1359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       await sendAiMessage({
         content,
-        requestType: "CHAT",
+        requestType: "EXPLAIN_LESSON",
       });
     });
   }

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { AiConversationMode, AiMessageRole } from "@prisma/client";
 import { createLessonAiService } from "../modules/ai/lesson-ai.service";
-import { lessonAiSelectionNeedsMoreContextMessage } from "../modules/ai/lesson-ai.provider";
+import {
+  lessonAiFallbackMessage,
+  lessonAiSelectionNeedsMoreContextMessage,
+} from "../modules/ai/lesson-ai.provider";
 import { AppError } from "../utils/appError";
 
 const createInMemoryRepository = () => {
@@ -385,4 +388,140 @@ test("lesson AI summary requests stay grounded in the current lesson context", a
     "This lesson explains observation, classroom examples, and guided practice for revision."
   );
   assert.match(reply.assistantMessage.content, /Study Notes:/);
+});
+
+test("manual lesson doubt uses EXPLAIN_LESSON for grounded paraphrased concept explanation", async () => {
+  const memory = createInMemoryRepository();
+  const observedCalls: Array<{
+    requestType?: string;
+    userMessage: string;
+    transcriptText: string;
+  }> = [];
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_manual",
+      lessonTitle: "Manual Doubt Lesson",
+      chapterTitle: "Chapter 8",
+      courseTitle: "PSTET-2",
+      transcriptText: "Children learn through observation, guided explanation, and repeated practice in this lesson.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply(input) {
+        observedCalls.push({
+          requestType: input.requestType,
+          userMessage: input.userMessage,
+          transcriptText: input.context.transcriptText,
+        });
+        return {
+          content: "Concept: observation and practice\nSimple explanation: the lesson says learning improves through guided explanation and repeated practice.\nExam point: connect learning with guided practice.",
+          tokenUsage: 24,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_manual", "lesson_manual");
+  const reply = await service.sendMessage("user_manual", "lesson_manual", created.conversation.id, {
+    content: "How does this lesson explain that children improve learning by practice?",
+    requestType: "EXPLAIN_LESSON",
+  });
+
+  assert.equal(observedCalls.length, 1);
+  assert.equal(observedCalls[0]?.requestType, "EXPLAIN_LESSON");
+  assert.match(observedCalls[0]?.transcriptText || "", /guided explanation, and repeated practice/i);
+  assert.match(reply.assistantMessage.content, /Simple explanation:/);
+});
+
+test("manual English doubt can stay grounded against Punjabi transcript content", async () => {
+  const memory = createInMemoryRepository();
+  const observedCalls: Array<{
+    requestType?: string;
+    responseLanguage?: string | null;
+    transcriptText: string;
+  }> = [];
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_cross_language",
+      lessonTitle: "Punjabi Transcript Lesson",
+      chapterTitle: "Chapter 9",
+      courseTitle: "PSTET-2",
+      transcriptText:
+        "ਵਿਕਾਸ ਅਤੇ ਸਿੱਖਣ ਦਾ ਆਪਸੀ ਸੰਬੰਧ ਗਹਿਰਾ ਅਤੇ ਅਟੁੱਟ ਹੈ। ਵਿਕਾਸ ਸਿੱਖਣ ਲਈ ਆਧਾਰ ਤਿਆਰ ਕਰਦਾ ਹੈ, ਜਦਕਿ ਸਿੱਖਣ ਵਿਕਾਸ ਨੂੰ ਹੋਰ ਮਜ਼ਬੂਤ ਕਰਦਾ ਹੈ।",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply(input) {
+        observedCalls.push({
+          requestType: input.requestType,
+          responseLanguage: input.responseLanguage,
+          transcriptText: input.context.transcriptText,
+        });
+        return {
+          content:
+            "Concept: development and learning are deeply connected.\nSimple explanation: the lesson says development prepares the base for learning, and learning strengthens development.\nExam point: revise the two-way relationship between development and learning.",
+          tokenUsage: 19,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_cross_language", "lesson_cross_language");
+  const reply = await service.sendMessage(
+    "user_cross_language",
+    "lesson_cross_language",
+    created.conversation.id,
+    {
+      content: "How does this lesson connect development with learning?",
+      requestType: "EXPLAIN_LESSON",
+    }
+  );
+
+  assert.equal(observedCalls.length, 1);
+  assert.equal(observedCalls[0]?.requestType, "EXPLAIN_LESSON");
+  assert.equal(observedCalls[0]?.responseLanguage, null);
+  assert.match(observedCalls[0]?.transcriptText || "", /ਵਿਕਾਸ ਅਤੇ ਸਿੱਖਣ/);
+  assert.match(reply.assistantMessage.content, /development and learning are deeply connected/i);
+});
+
+test("manual doubt still falls back when the concept is not supported by the lesson", async () => {
+  const memory = createInMemoryRepository();
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_unsupported",
+      lessonTitle: "Unsupported Concept Lesson",
+      chapterTitle: "Chapter 10",
+      courseTitle: "PSTET-1",
+      transcriptText: "This lesson explains observation and guided classroom practice.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply() {
+        return {
+          content: lessonAiFallbackMessage,
+          tokenUsage: 11,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_unsupported", "lesson_unsupported");
+  const reply = await service.sendMessage("user_unsupported", "lesson_unsupported", created.conversation.id, {
+    content: "What does this lesson say about photosynthesis?",
+    requestType: "EXPLAIN_LESSON",
+  });
+
+  assert.equal(reply.assistantMessage.content, lessonAiFallbackMessage);
 });

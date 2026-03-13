@@ -107,11 +107,11 @@ a {
   border: 0;
 }
 
-.brand {
+body:not(.admin-login-page) .brand {
   display: block;
   position: relative;
-  width: 304px;
-  height: 92px;
+  width: 243.2px;
+  height: 73.6px;
   text-decoration: none;
   font-weight: 700;
 }
@@ -123,7 +123,7 @@ a {
   box-shadow: none !important;
 }
 
-.brand-logo {
+body:not(.admin-login-page) .brand-logo {
   position: absolute;
   top: 50%;
   left: 0;
@@ -137,26 +137,26 @@ a {
   transition: opacity 0.2s ease;
 }
 
-.logo-a {
-  width: 76px;
+body:not(.admin-login-page) .logo-a {
+  width: 60.8px;
   opacity: 0;
 }
 
-.logo-b {
-  width: 304px;
+body:not(.admin-login-page) .logo-b {
+  width: 243.2px;
   opacity: 1;
 }
 
-.logo-b1 {
-  width: 304px;
+body:not(.admin-login-page) .logo-b1 {
+  width: 243.2px;
   opacity: 0;
 }
 
-.site-header.scrolled .logo-a {
+body:not(.admin-login-page) .site-header.scrolled .logo-a {
   opacity: 1;
 }
 
-.site-header.scrolled .logo-b {
+body:not(.admin-login-page) .site-header.scrolled .logo-b {
   opacity: 0;
 }
 
@@ -306,8 +306,8 @@ a {
   justify-content: flex-end;
 }
 
-.hero-media img {
-  width: min(620px, 100%);
+.home-page .hero-media img {
+  width: min(396.8px, 100%);
   height: auto;
   object-fit: contain;
 }
@@ -556,8 +556,8 @@ h1 {
   position: relative;
 }
 
-.auth-modal-logo {
-  width: 170px;
+body:not(.admin-login-page) .auth-modal-logo {
+  width: 136px;
   height: auto;
   object-fit: contain;
   margin: 0.15rem auto 0.7rem;
@@ -1516,9 +1516,9 @@ h1 {
     padding-left: 6.8vw;
   }
 
-  .logo-a {
+  body:not(.admin-login-page) .logo-a {
     left: calc(16px - 6.8vw);
-    width: 62px;
+    width: 49.6px;
   }
 
   .home-page .nav-links {
@@ -1730,49 +1730,49 @@ h1 {
     margin-top: calc(64px + 0.65rem) !important;
   }
 
-  .logo-a {
-    width: 38px;
+  body:not(.admin-login-page) .logo-a {
+    width: 30.4px;
     opacity: 0;
   }
 
-  .logo-b {
-    width: 152px;
+  body:not(.admin-login-page) .logo-b {
+    width: 121.6px;
     opacity: 1;
     pointer-events: auto;
   }
 
-  .logo-b1 {
-    width: 152px;
+  body:not(.admin-login-page) .logo-b1 {
+    width: 121.6px;
     opacity: 0;
     pointer-events: none;
   }
 
-  .home-page .logo-b {
+  body:not(.admin-login-page).home-page .logo-b {
     opacity: 0;
     pointer-events: none;
   }
 
-  .home-page .logo-b1 {
+  body:not(.admin-login-page).home-page .logo-b1 {
     opacity: 1;
     pointer-events: auto;
   }
 
-  .home-page .site-header.scrolled .logo-b1 {
+  body:not(.admin-login-page).home-page .site-header.scrolled .logo-b1 {
     opacity: 0;
     pointer-events: none;
   }
 
-  .home-page .site-header.scrolled .logo-a {
+  body:not(.admin-login-page).home-page .site-header.scrolled .logo-a {
     opacity: 1;
   }
 
-  .home-page .site-header .logo-a {
+  body:not(.admin-login-page).home-page .site-header .logo-a {
     opacity: 0;
   }
 
-  .brand {
-    width: 152px;
-    height: 46px;
+  body:not(.admin-login-page) .brand {
+    width: 121.6px;
+    height: 36.8px;
   }
 
   .header-right {
@@ -1965,8 +1965,8 @@ h1 {
     justify-content: center;
   }
 
-  .hero-media img {
-    width: min(320px, 92%);
+  .home-page .hero-media img {
+    width: min(204.8px, 92%);
   }
 
   .hero-scroll {
