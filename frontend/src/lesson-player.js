@@ -1,4 +1,4 @@
-import {
+﻿import {
   API_BASE,
   apiRequest,
   clearAuth,
@@ -185,6 +185,14 @@ const getQueryNonNegativeInt = (key) => {
   return Math.floor(value);
 };
 
+const detectPreferredLessonLanguage = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "English";
+  if (/[\u0A00-\u0A7F]/.test(text)) return "Punjabi";
+  if (/[\u0900-\u097F]/.test(text)) return "Hindi";
+  return "English";
+};
+
 const isExtensionlessRoute = () => {
   const pathname = (window.location.pathname || "").toLowerCase();
   return Boolean(pathname) && !pathname.endsWith(".html") && pathname !== "/";
@@ -353,6 +361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const startAssessmentBtn = document.querySelector("#startAssessmentBtn");
   const lessonAiCardEl = document.querySelector(".lesson-ai-card");
   const lessonAiStatusEl = document.querySelector("#lessonAiStatus");
+  const lessonAiLanguageSelect = document.querySelector("#lessonAiLanguageSelect");
   const lessonAiMessagesEl = document.querySelector("#lessonAiMessages");
   const lessonAiForm = document.querySelector("#lessonAiForm");
   const lessonAiInput = document.querySelector("#lessonAiInput");
@@ -361,9 +370,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonAiKeyExamPointsBtn = document.querySelector("#lessonAiKeyExamPointsBtn");
   const lessonAiAskMcqsBtn = document.querySelector("#lessonAiAskMcqsBtn");
   const lessonAiExplainSelectionBtn = document.querySelector("#lessonAiExplainSelectionBtn");
-  const lessonAiExplainPunjabiBtn = document.querySelector("#lessonAiExplainPunjabiBtn");
-  const lessonAiExplainHindiBtn = document.querySelector("#lessonAiExplainHindiBtn");
-  const lessonAiExplainEnglishBtn = document.querySelector("#lessonAiExplainEnglishBtn");
+  const lessonAiVoiceStartBtn = document.querySelector("#lessonAiVoiceStartBtn");
+  const lessonAiVoiceStopBtn = document.querySelector("#lessonAiVoiceStopBtn");
+  const lessonAiVoiceStateEl = document.querySelector("#lessonAiVoiceState");
+  const lessonAiVoiceOutputEl = document.querySelector("#lessonAiVoiceOutput");
   const lessonAiMcqModalEl = document.querySelector("#lessonAiMcqModal");
   const lessonAiMcqTitleEl = document.querySelector("#lessonAiMcqTitle");
   const lessonAiMcqProgressEl = document.querySelector("#lessonAiMcqProgress");
@@ -410,10 +420,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     aiHasTranscript: false,
     aiUnavailable: false,
     aiEnabled: String(user?.role || "").trim().toUpperCase() === "STUDENT",
+    aiLessonLanguage: "English",
+    aiOpenQuestionId: "",
+    aiHistoryInitialized: false,
     aiMcqSet: null,
     aiMcqCurrentIndex: 0,
     aiMcqAnswers: {},
     aiMcqCompleted: false,
+    aiVoiceState: "idle",
+    aiVoiceStatusText: "Voice: idle",
+    aiVoiceSessionBusy: false,
+    aiVoiceSessionActive: false,
+    aiVoicePeerConnection: null,
+    aiVoiceDataChannel: null,
+    aiVoiceLocalStream: null,
+    aiVoiceRemoteStream: null,
+    aiVoiceStopRequested: false,
   };
 
   if (!state.aiEnabled && lessonAiCardEl instanceof HTMLElement) {
@@ -434,13 +456,115 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (type) lessonAiStatusEl.classList.add(type);
   };
 
+  const browserSupportsVoiceTutor = () =>
+    typeof window.RTCPeerConnection === "function" &&
+    Boolean(navigator.mediaDevices?.getUserMedia) &&
+    typeof window.fetch === "function";
+
+  const canUseTextAi = () =>
+    state.aiEnabled &&
+    !state.aiUnavailable &&
+    state.aiHasTranscript &&
+    Boolean(String(state.aiConversationId || "").trim());
+
+  const canUseVoiceTutor = () =>
+    state.aiEnabled &&
+    state.aiHasTranscript &&
+    browserSupportsVoiceTutor();
+
+  const renderAiVoiceState = () => {
+    if (lessonAiVoiceStateEl instanceof HTMLElement) {
+      lessonAiVoiceStateEl.textContent = state.aiVoiceStatusText || "Voice: idle";
+      lessonAiVoiceStateEl.className = `lesson-ai-voice-state is-${state.aiVoiceState}`;
+    }
+
+    if (lessonAiVoiceStartBtn instanceof HTMLButtonElement) {
+      lessonAiVoiceStartBtn.disabled =
+        state.aiBusy ||
+        state.aiVoiceSessionBusy ||
+        state.aiVoiceSessionActive ||
+        !canUseVoiceTutor();
+    }
+
+    if (lessonAiVoiceStopBtn instanceof HTMLButtonElement) {
+      const canStopVoiceTutor = state.aiVoiceSessionBusy || state.aiVoiceSessionActive;
+      lessonAiVoiceStopBtn.disabled = !canStopVoiceTutor;
+    }
+  };
+
+  const setAiVoiceState = (nextState, text) => {
+    state.aiVoiceState = String(nextState || "idle").trim() || "idle";
+    state.aiVoiceStatusText = String(text || "").trim() || `Voice: ${state.aiVoiceState}`;
+    renderAiVoiceState();
+  };
+
+  const getAiResponseLanguage = () => {
+    const selectedLanguage =
+      lessonAiLanguageSelect instanceof HTMLSelectElement
+        ? String(lessonAiLanguageSelect.value || "").trim()
+        : "";
+    if (selectedLanguage === "Punjabi" || selectedLanguage === "Hindi" || selectedLanguage === "English") {
+      return selectedLanguage;
+    }
+    return state.aiLessonLanguage || "English";
+  };
+
   const scrollAiMessagesToEnd = () => {
     if (!(lessonAiMessagesEl instanceof HTMLElement)) return;
     lessonAiMessagesEl.scrollTop = lessonAiMessagesEl.scrollHeight;
   };
 
-  const renderAiMessages = () => {
+  const formatAiMessageTimestamp = (value) => {
+    const date = new Date(value || "");
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  const buildAiConversationThreads = (messages) => {
+    const threads = [];
+    let currentThread = null;
+
+    messages.forEach((message) => {
+      const role = String(message?.role || "").trim().toUpperCase();
+      if (role === "USER") {
+        currentThread = {
+          id: String(message?.id || "").trim() || `question_${threads.length + 1}`,
+          question: String(message?.content || "").trim(),
+          createdAt: String(message?.createdAt || "").trim(),
+          answers: [],
+        };
+        threads.push(currentThread);
+        return;
+      }
+
+      if (role === "ASSISTANT" && currentThread) {
+        currentThread.answers.push({
+          id: String(message?.id || "").trim(),
+          content: String(message?.content || "").trim(),
+          createdAt: String(message?.createdAt || "").trim(),
+        });
+      }
+    });
+
+    return threads.filter((thread) => thread.question);
+  };
+
+  const getLatestAiQuestionId = (messages) => {
+    const threads = buildAiConversationThreads(Array.isArray(messages) ? messages : []);
+    return threads[threads.length - 1]?.id || "";
+  };
+
+  const renderAiMessages = ({
+    autoScroll = false,
+    focusThreadId = "",
+  } = {}) => {
     if (!(lessonAiMessagesEl instanceof HTMLElement)) return;
+    const previousScrollTop = lessonAiMessagesEl.scrollTop;
     const messages = Array.isArray(state.aiMessages) ? state.aiMessages : [];
     if (!messages.length) {
       lessonAiMessagesEl.innerHTML =
@@ -448,21 +572,102 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    lessonAiMessagesEl.innerHTML = messages
-      .map((message) => {
-        const role = String(message?.role || "").trim().toUpperCase() === "ASSISTANT" ? "assistant" : "user";
+    const threads = buildAiConversationThreads(messages);
+    if (!threads.length) {
+      lessonAiMessagesEl.innerHTML =
+        '<p class="lesson-ai-empty">Your lesson questions will appear here with their AI answers.</p>';
+      return;
+    }
+
+    if (!state.aiHistoryInitialized) {
+      state.aiOpenQuestionId = threads[threads.length - 1]?.id || "";
+      state.aiHistoryInitialized = true;
+    } else if (
+      state.aiOpenQuestionId &&
+      !threads.some((thread) => thread.id === state.aiOpenQuestionId)
+    ) {
+      state.aiOpenQuestionId = "";
+    }
+
+    lessonAiMessagesEl.innerHTML = threads
+      .map((thread, index) => {
+        const isOpen = thread.id === state.aiOpenQuestionId;
+        const answerBlocks = thread.answers.length
+          ? thread.answers
+              .map((answer) => {
+                const answerTime = formatAiMessageTimestamp(answer.createdAt);
+                const answerHeader = answerTime ? `AI Teacher | ${answerTime}` : "AI Teacher";
+                return `
+                  <div class="lesson-ai-thread-answer-block">
+                    <span class="lesson-ai-thread-answer-role">${escapeHtml(answerHeader)}</span>
+                    <div class="lesson-ai-thread-answer">${escapeHtml(answer.content)}</div>
+                  </div>
+                `;
+              })
+              .join("")
+          : '<p class="lesson-ai-thread-pending">AI Teacher answer is being prepared.</p>';
+
         return `
-          <div class="lesson-ai-message is-${role}">
-            <span class="lesson-ai-message-role">${role === "assistant" ? "AI Teacher" : "You"}</span>
-            <div class="lesson-ai-message-bubble">${escapeHtml(String(message?.content || "").trim())}</div>
+          <div class="lesson-ai-thread ${isOpen ? "is-open" : ""}">
+            <div
+              class="lesson-ai-thread-toggle"
+              role="button"
+              tabindex="0"
+              data-thread-id="${escapeHtml(thread.id)}"
+              aria-expanded="${isOpen ? "true" : "false"}"
+            >
+              <span class="lesson-ai-thread-order">Q${index + 1}</span>
+              <span class="lesson-ai-thread-main">
+                <span class="lesson-ai-thread-question">${escapeHtml(thread.question)}</span>
+                <span class="lesson-ai-thread-time">${escapeHtml(formatAiMessageTimestamp(thread.createdAt) || "Just now")}</span>
+              </span>
+              <span class="lesson-ai-thread-chevron" aria-hidden="true">${isOpen ? "-" : "+"}</span>
+            </div>
+            <div class="lesson-ai-thread-answer-wrap ${isOpen ? "" : "hidden"}">
+              ${answerBlocks}
+            </div>
           </div>
         `;
       })
       .join("");
 
-    scrollAiMessagesToEnd();
-  };
+    lessonAiMessagesEl.querySelectorAll('.lesson-ai-thread-toggle').forEach((toggle) => {
+      const handleToggle = () => {
+        const threadId = String(toggle.getAttribute('data-thread-id') || '').trim();
+        const nextThreadId = state.aiOpenQuestionId === threadId ? '' : threadId;
+        state.aiOpenQuestionId = nextThreadId;
+        renderAiMessages({
+          autoScroll: false,
+          focusThreadId: nextThreadId,
+        });
+      };
+      toggle.addEventListener('click', handleToggle);
+      toggle.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleToggle();
+        }
+      });
+    });
 
+    if (autoScroll) {
+      scrollAiMessagesToEnd();
+      return;
+    }
+
+    lessonAiMessagesEl.scrollTop = previousScrollTop;
+    if (focusThreadId) {
+      const focusedThread = lessonAiMessagesEl.querySelector(
+        `.lesson-ai-thread-toggle[data-thread-id="${CSS.escape(focusThreadId)}"]`
+      );
+      if (focusedThread instanceof HTMLElement) {
+        focusedThread.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+        });
+      }
+    }
+  };
   const renderAiSelection = () => {
     const canUseAi =
       state.aiEnabled &&
@@ -482,7 +687,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (state.aiUnavailable) {
       lessonAiSelectionHintEl.classList.remove("is-active");
-      lessonAiSelectionHintEl.textContent = "AI Teacher is unavailable for this lesson right now.";
+      lessonAiSelectionHintEl.textContent = "Text AI Teacher is unavailable for this lesson right now.";
       return;
     }
     if (!state.aiHasTranscript) {
@@ -507,29 +712,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const setAiBusy = (busy) => {
     state.aiBusy = Boolean(busy);
-    const canUseAi =
-      state.aiEnabled &&
-      !state.aiUnavailable &&
-      state.aiHasTranscript &&
-      Boolean(String(state.aiConversationId || "").trim());
+    const canUseAi = canUseTextAi();
+    const canUseAnyAi = state.aiEnabled && state.aiHasTranscript;
     if (lessonAiInput instanceof HTMLTextAreaElement) {
       lessonAiInput.disabled = state.aiBusy || !canUseAi;
     }
     if (lessonAiSendBtn instanceof HTMLButtonElement) {
       lessonAiSendBtn.disabled = state.aiBusy || !canUseAi;
     }
-    [
-      lessonAiKeyExamPointsBtn,
-      lessonAiAskMcqsBtn,
-      lessonAiExplainPunjabiBtn,
-      lessonAiExplainHindiBtn,
-      lessonAiExplainEnglishBtn,
-    ].forEach((button) => {
+    if (lessonAiLanguageSelect instanceof HTMLSelectElement) {
+      lessonAiLanguageSelect.disabled =
+        state.aiBusy || !canUseAnyAi || state.aiVoiceSessionBusy || state.aiVoiceSessionActive;
+    }
+    [lessonAiKeyExamPointsBtn, lessonAiAskMcqsBtn].forEach((button) => {
       if (button instanceof HTMLButtonElement) {
         button.disabled = state.aiBusy || !canUseAi;
       }
     });
     renderAiSelection();
+    renderAiVoiceState();
   };
 
   const isValidLessonAiMcqSet = (value) => {
@@ -550,6 +751,55 @@ document.addEventListener("DOMContentLoaded", async () => {
   const canAdvanceLessonAiMcq = (selectedOption) =>
     ["A", "B", "C", "D"].includes(String(selectedOption || "").trim().toUpperCase());
 
+  const getLessonAiMcqOptionText = (question, optionKey) => {
+    if (!question || !optionKey) return null;
+    const option = Array.isArray(question.options)
+      ? question.options.find((item) => String(item?.key || "").trim().toUpperCase() === String(optionKey || "").trim().toUpperCase())
+      : null;
+    return String(option?.text || "").trim() || null;
+  };
+
+  const buildLessonAiMcqWrongFeedback = (question, selectedOption) => {
+    const selectedText = getLessonAiMcqOptionText(question, selectedOption);
+    const correctAnswer = String(question?.correctAnswer || "").trim().toUpperCase();
+    const correctText = getLessonAiMcqOptionText(question, correctAnswer) || "the lesson-supported answer";
+    const groundedExplanation = String(question?.explanation || "").trim();
+
+    if (!selectedText) {
+      if (groundedExplanation) {
+        return `You did not choose the lesson-supported option. ${correctAnswer} is correct because ${groundedExplanation}`;
+      }
+      return `You did not choose the lesson-supported option. ${correctAnswer} is correct because it matches the current lesson context better.`;
+    }
+
+    if (groundedExplanation) {
+      return `${selectedOption} is not correct because "${selectedText}" is not the lesson-supported point here. ${correctAnswer} is right because "${correctText}" matches the lesson, and ${groundedExplanation}`;
+    }
+
+    return `${selectedOption} is not correct because "${selectedText}" is not clearly supported by this lesson for this question. ${correctAnswer} is right because "${correctText}" matches the current lesson context better.`;
+  };
+
+  const buildLessonAiWeakAreaSummary = (items) => {
+    const wrongItems = Array.isArray(items) ? items.filter((item) => !item?.isCorrect) : [];
+    if (!wrongItems.length) {
+      return "Weak Area: none identified in these 3 lesson MCQs. Keep revising the same lesson ideas to retain them.";
+    }
+
+    const revisionTargets = Array.from(
+      new Set(
+        wrongItems
+          .map((item) => String(item?.correctOptionText || item?.explanation || "").trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 2);
+
+    if (!revisionTargets.length) {
+      return "Weak Area: revise the exact lesson point behind the wrong MCQs, because that concept was not secure yet.";
+    }
+
+    return `Weak Area: revise ${revisionTargets.join(" and ")}. These are the lesson points that need one more quick revision.`;
+  };
+
   const evaluateLessonAiMcqSet = () => {
     const mcqSet = state.aiMcqSet;
     if (!isValidLessonAiMcqSet(mcqSet)) {
@@ -557,19 +807,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         score: 0,
         total: 0,
         items: [],
+        weakAreaSummary: "",
       };
     }
 
     const items = mcqSet.questions.map((question) => {
       const selectedOption = String(state.aiMcqAnswers?.[question.id] || "").trim().toUpperCase() || null;
       const correctAnswer = String(question.correctAnswer || "").trim().toUpperCase();
+      const correctOptionText = getLessonAiMcqOptionText(question, correctAnswer) || "the lesson-supported answer";
       return {
         questionId: question.id,
         question: question.question,
         selectedOption,
+        selectedOptionText: getLessonAiMcqOptionText(question, selectedOption),
         correctAnswer,
+        correctOptionText,
         isCorrect: selectedOption === correctAnswer,
         explanation: String(question.explanation || "").trim(),
+        feedback:
+          selectedOption === correctAnswer
+            ? `Correct. ${correctAnswer} matches the lesson because "${correctOptionText}" is directly supported by the current lesson context.`
+            : buildLessonAiMcqWrongFeedback(question, selectedOption),
       };
     });
 
@@ -577,6 +835,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       score: items.reduce((sum, item) => sum + (item.isCorrect ? 1 : 0), 0),
       total: items.length,
       items,
+      weakAreaSummary: buildLessonAiWeakAreaSummary(items),
     };
   };
 
@@ -605,14 +864,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     lessonAiMcqResultEl.classList.remove("hidden");
     lessonAiMcqResultEl.innerHTML = [
       `<p class="lesson-ai-mcq-score">Score: ${result.score} / ${result.total}</p>`,
+      result.weakAreaSummary
+        ? `<div class="lesson-ai-mcq-weak-area"><strong>Weak Area</strong><p>${escapeHtml(result.weakAreaSummary)}</p></div>`
+        : "",
       ...result.items.map((item, index) => {
-        const wrongExplanation = !item.isCorrect && item.explanation ? `<p>${escapeHtml(item.explanation)}</p>` : "";
+        const feedback = !item.isCorrect && item.feedback ? `<p class="lesson-ai-mcq-feedback">${escapeHtml(item.feedback)}</p>` : "";
         return `
           <div class="lesson-ai-mcq-review-item ${item.isCorrect ? "is-correct" : "is-wrong"}">
             <strong>Q${index + 1}: ${item.isCorrect ? "Correct" : "Wrong"}</strong>
-            <p>Your answer: ${escapeHtml(item.selectedOption || "-")}</p>
-            <p>Correct answer: ${escapeHtml(item.correctAnswer)}</p>
-            ${wrongExplanation}
+            <p>Your answer: ${escapeHtml(item.selectedOption || "-")}${item.selectedOptionText ? ` - ${escapeHtml(item.selectedOptionText)}` : ""}</p>
+            <p>Correct answer: ${escapeHtml(item.correctAnswer)}${item.correctOptionText ? ` - ${escapeHtml(item.correctOptionText)}` : ""}</p>
+            ${feedback}
           </div>
         `;
       }),
@@ -725,9 +987,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     state.aiConversationId = String(payload?.conversation?.id || "").trim();
     state.aiMessages = Array.isArray(payload?.conversation?.messages) ? payload.conversation.messages : [];
+    if (!state.aiHistoryInitialized) {
+      state.aiOpenQuestionId = getLatestAiQuestionId(state.aiMessages);
+    } else if (
+      state.aiOpenQuestionId &&
+      !buildAiConversationThreads(state.aiMessages).some((thread) => thread.id === state.aiOpenQuestionId)
+    ) {
+      state.aiOpenQuestionId = "";
+    }
     state.aiHasTranscript = Boolean(payload?.context?.hasTranscript);
     state.aiUnavailable = !state.aiConversationId;
-    renderAiMessages();
+    renderAiMessages({ autoScroll: true });
     if (!state.aiHasTranscript) {
       setAiStatus("AI Teacher needs transcript text for this lesson before it can answer safely.", "error");
     } else {
@@ -737,7 +1007,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     return payload;
   };
 
-  const sendAiMessage = async ({ content, selectedText = "", requestType = "CHAT" }) => {
+  const sendAiMessage = async ({
+    content,
+    selectedText = "",
+    requestType = "CHAT",
+    responseLanguage = getAiResponseLanguage(),
+  }) => {
     const message = String(content || "").trim();
     if (!message) {
       setAiStatus("Enter a message for AI Teacher.", "error");
@@ -764,11 +1039,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           content: message,
           selectedText: String(selectedText || "").trim() || undefined,
           requestType,
+          responseLanguage,
         },
       });
       state.aiMessages = Array.isArray(payload?.conversation?.messages) ? payload.conversation.messages : [];
+      state.aiOpenQuestionId = getLatestAiQuestionId(state.aiMessages);
       state.aiUnavailable = false;
-      renderAiMessages();
+      renderAiMessages({ autoScroll: true });
       if (requestType === "ASK_3_MCQS") {
         if (isValidLessonAiMcqSet(payload?.mcqSet)) {
           openLessonAiMcqModal(payload.mcqSet);
@@ -797,23 +1074,268 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  const buildLanguageExplainPrompt = (languageLabel) => {
-    const selectedText = String(state.aiSelectedText || "").trim();
-    if (selectedText) {
-      return {
-        content: `Explain the selected lesson text like an exam teacher in ${languageLabel}. Keep it clear, short, and grounded only in this lesson.`,
-        selectedText,
-        requestType: `EXPLAIN_SELECTION_${String(languageLabel || "").trim().toUpperCase()}`,
-      };
+  const cleanupAiVoiceSession = () => {
+    const dataChannel = state.aiVoiceDataChannel;
+    if (dataChannel && typeof dataChannel.close === "function") {
+      try {
+        dataChannel.close();
+      } catch {
+        // Ignore close failures during cleanup.
+      }
     }
-    return {
-      content: `Explain the current lesson like an exam teacher in ${languageLabel}. Keep it clear, short, and grounded only in this lesson.`,
-      selectedText: "",
-      requestType: `EXPLAIN_LESSON_${String(languageLabel || "").trim().toUpperCase()}`,
-    };
+
+    const peerConnection = state.aiVoicePeerConnection;
+    if (peerConnection && typeof peerConnection.close === "function") {
+      try {
+        peerConnection.ontrack = null;
+        peerConnection.onconnectionstatechange = null;
+        peerConnection.close();
+      } catch {
+        // Ignore close failures during cleanup.
+      }
+    }
+
+    const localStream = state.aiVoiceLocalStream;
+    if (localStream instanceof MediaStream) {
+      localStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore stop failures during cleanup.
+        }
+      });
+    }
+
+    const remoteStream = state.aiVoiceRemoteStream;
+    if (remoteStream instanceof MediaStream) {
+      remoteStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore stop failures during cleanup.
+        }
+      });
+    }
+
+    if (lessonAiVoiceOutputEl instanceof HTMLAudioElement) {
+      lessonAiVoiceOutputEl.pause();
+      lessonAiVoiceOutputEl.srcObject = null;
+    }
+
+    state.aiVoiceDataChannel = null;
+    state.aiVoicePeerConnection = null;
+    state.aiVoiceLocalStream = null;
+    state.aiVoiceRemoteStream = null;
+    state.aiVoiceSessionActive = false;
+    state.aiVoiceSessionBusy = false;
+  };
+
+  const stopAiVoiceTutor = ({ message = "Voice tutor session ended.", nextState = "ended" } = {}) => {
+    state.aiVoiceStopRequested = true;
+    cleanupAiVoiceSession();
+    setAiVoiceState(nextState, message);
+  };
+
+  const handleAiVoiceRealtimeEvent = (payload) => {
+    const eventType = String(payload?.type || "").trim();
+    if (!eventType) return;
+
+    if (eventType === "input_audio_buffer.speech_started") {
+      setAiVoiceState("listening", "Voice: listening...");
+      return;
+    }
+
+    if (eventType === "output_audio_buffer.started" || eventType === "response.output_audio.delta") {
+      setAiVoiceState("speaking", "Voice: AI Teacher is speaking...");
+      return;
+    }
+
+    if (eventType === "output_audio_buffer.stopped" || eventType === "response.done") {
+      if (state.aiVoiceSessionActive) {
+        setAiVoiceState("listening", "Voice: listening for your next question...");
+      }
+      return;
+    }
+
+    if (eventType === "error") {
+      const message =
+        String(payload?.error?.message || "").trim() ||
+        "Voice tutor encountered an error. Please try again later.";
+      setAiStatus(message, "error");
+      stopAiVoiceTutor({
+        message: "Voice: error",
+        nextState: "error",
+      });
+    }
+  };
+
+  const startAiVoiceTutor = async () => {
+    if (!state.lessonId) return;
+    if (!browserSupportsVoiceTutor()) {
+      setAiVoiceState("error", "Voice: unsupported in this browser");
+      setAiStatus("This browser does not support live voice tutor.", "error");
+      return;
+    }
+    if (!state.aiHasTranscript) {
+      setAiVoiceState("error", "Voice: transcript required");
+      setAiStatus("Voice tutor needs transcript text for this lesson before it can start.", "error");
+      return;
+    }
+    if (state.aiVoiceSessionBusy || state.aiVoiceSessionActive) {
+      return;
+    }
+
+    state.aiVoiceSessionBusy = true;
+    state.aiVoiceStopRequested = false;
+    setAiVoiceState("connecting", "Voice: connecting...");
+    setAiStatus("Starting voice tutor...");
+    renderAiVoiceState();
+
+    try {
+      const sessionPayload = await apiRequest({
+        path: `/student/ai/lesson/${encodeURIComponent(state.lessonId)}/voice-session`,
+        method: "POST",
+        token,
+        body: {
+          responseLanguage: getAiResponseLanguage(),
+        },
+      });
+
+      const clientSecret = String(sessionPayload?.clientSecret || "").trim();
+      if (!clientSecret) {
+        throw new Error("Voice tutor session could not be started.");
+      }
+
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+
+      const peerConnection = new RTCPeerConnection();
+      const remoteStream = new MediaStream();
+      const dataChannel = peerConnection.createDataChannel("oai-events");
+
+      state.aiVoiceLocalStream = localStream;
+      state.aiVoicePeerConnection = peerConnection;
+      state.aiVoiceRemoteStream = remoteStream;
+      state.aiVoiceDataChannel = dataChannel;
+
+      if (lessonAiVoiceOutputEl instanceof HTMLAudioElement) {
+        lessonAiVoiceOutputEl.srcObject = remoteStream;
+      }
+
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      peerConnection.ontrack = (event) => {
+        const inboundStream =
+          event.streams?.[0] instanceof MediaStream ? event.streams[0] : null;
+        if (inboundStream) {
+          inboundStream.getTracks().forEach((track) => {
+            remoteStream.addTrack(track);
+          });
+        } else if (event.track) {
+          remoteStream.addTrack(event.track);
+        }
+
+        if (lessonAiVoiceOutputEl instanceof HTMLAudioElement) {
+          lessonAiVoiceOutputEl.srcObject = remoteStream;
+          lessonAiVoiceOutputEl.play().catch(() => {});
+        }
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        const connectionState = String(peerConnection.connectionState || "").trim().toLowerCase();
+        if (connectionState === "failed" || connectionState === "disconnected" || connectionState === "closed") {
+          if (!state.aiVoiceStopRequested) {
+            setAiStatus("Voice tutor connection ended.", "error");
+            stopAiVoiceTutor({
+              message: connectionState === "closed" ? "Voice: ended" : "Voice: connection ended",
+              nextState: connectionState === "closed" ? "ended" : "error",
+            });
+          }
+        }
+      };
+
+      dataChannel.addEventListener("open", () => {
+        state.aiVoiceSessionActive = true;
+        state.aiVoiceSessionBusy = false;
+        setAiVoiceState("listening", "Voice: listening...");
+        setAiStatus("Voice tutor is live. Ask about the current lesson.", "success");
+      });
+
+      dataChannel.addEventListener("close", () => {
+        if (!state.aiVoiceStopRequested) {
+          stopAiVoiceTutor({
+            message: "Voice: ended",
+            nextState: "ended",
+          });
+        }
+      });
+
+      dataChannel.addEventListener("error", () => {
+        setAiStatus("Voice tutor connection failed.", "error");
+        stopAiVoiceTutor({
+          message: "Voice: error",
+          nextState: "error",
+        });
+      });
+
+      dataChannel.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(String(event.data || "{}"));
+          handleAiVoiceRealtimeEvent(payload);
+        } catch {
+          // Ignore non-JSON realtime events.
+        }
+      });
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      const response = await fetch("https://api.openai.com/v1/realtime/calls", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${clientSecret}`,
+          "Content-Type": "application/sdp",
+        },
+        body: String(offer.sdp || ""),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to connect to voice tutor right now.");
+      }
+
+      const answerSdp = await response.text();
+      await peerConnection.setRemoteDescription({
+        type: "answer",
+        sdp: answerSdp,
+      });
+    } catch (error) {
+      if (error?.status === 401) {
+        clearAuth();
+        window.location.href = "./index.html";
+        return;
+      }
+      state.aiVoiceStopRequested = true;
+      cleanupAiVoiceSession();
+      const name = String(error?.name || "").trim();
+      const message =
+        name === "NotAllowedError"
+          ? "Microphone access was denied. Allow microphone permission to use voice tutor."
+          : error instanceof Error
+            ? error.message
+            : "Unable to start voice tutor right now.";
+      setAiVoiceState("error", "Voice: error");
+      setAiStatus(message, "error");
+    } finally {
+      state.aiVoiceSessionBusy = false;
+      renderAiVoiceState();
+    }
   };
 
   setAiBusy(false);
+  setAiVoiceState("idle", "Voice: idle");
 
   const getActivePlayer = () => {
     if (state.currentMode === "audio" && state.hasAudio && audioEl instanceof HTMLAudioElement) {
@@ -1364,6 +1886,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.addEventListener("beforeunload", () => {
       stopSyncLoop();
+      state.aiVoiceStopRequested = true;
+      cleanupAiVoiceSession();
       if (state.saveTimer) {
         window.clearTimeout(state.saveTimer);
         state.saveTimer = null;
@@ -1380,6 +1904,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
+      state.aiVoiceStopRequested = true;
+      cleanupAiVoiceSession();
       clearAuth();
       window.location.href = "./index.html";
     });
@@ -1483,11 +2009,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!state.transcriptSegments.length && state.transcriptRawText) {
       state.transcriptSegments = buildTextTranscriptSegments(state.transcriptRawText);
     }
+    const transcriptPreview =
+      state.transcriptRawText ||
+      state.transcriptSegments
+        .map((segment) => String(segment?.text || "").trim())
+        .filter(Boolean)
+        .join("\n");
+    state.aiHasTranscript = Boolean(String(transcriptPreview || "").trim());
+    state.aiLessonLanguage = detectPreferredLessonLanguage(transcriptPreview);
+    if (lessonAiLanguageSelect instanceof HTMLSelectElement) {
+      lessonAiLanguageSelect.value = "AUTO";
+      lessonAiLanguageSelect.title = `Default lesson language: ${state.aiLessonLanguage}`;
+    }
 
     state.activeTranscriptIndex = -1;
     renderTranscript();
     renderAiSelection();
     renderAiMessages();
+    renderAiVoiceState();
     toggleAssessmentButton();
 
     if (state.aiEnabled) {
@@ -1577,28 +2116,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       await sendAiMessage({
-        content: "Explain the selected lesson text like a teacher. Start from the selected lines, keep it simple, and stay inside the lesson context.",
+        content: `Explain the selected lesson text like a teacher in ${getAiResponseLanguage()}. Start from the selected lines, keep it simple, and stay inside the lesson context.`,
         selectedText,
         requestType: "EXPLAIN_SELECTION",
       });
     });
   }
 
-  if (state.aiEnabled && lessonAiExplainPunjabiBtn instanceof HTMLButtonElement) {
-    lessonAiExplainPunjabiBtn.addEventListener("click", async () => {
-      await sendAiMessage(buildLanguageExplainPrompt("Punjabi"));
+  if (state.aiEnabled && lessonAiVoiceStartBtn instanceof HTMLButtonElement) {
+    lessonAiVoiceStartBtn.addEventListener("click", async () => {
+      await startAiVoiceTutor();
     });
   }
 
-  if (state.aiEnabled && lessonAiExplainHindiBtn instanceof HTMLButtonElement) {
-    lessonAiExplainHindiBtn.addEventListener("click", async () => {
-      await sendAiMessage(buildLanguageExplainPrompt("Hindi"));
-    });
-  }
-
-  if (state.aiEnabled && lessonAiExplainEnglishBtn instanceof HTMLButtonElement) {
-    lessonAiExplainEnglishBtn.addEventListener("click", async () => {
-      await sendAiMessage(buildLanguageExplainPrompt("English"));
+  if (state.aiEnabled && lessonAiVoiceStopBtn instanceof HTMLButtonElement) {
+    lessonAiVoiceStopBtn.addEventListener("click", () => {
+      stopAiVoiceTutor({
+        message: "Voice: ended",
+        nextState: "ended",
+      });
+      setAiStatus("Voice tutor session ended.", "success");
     });
   }
 
@@ -1654,3 +2191,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 });
+
+

@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lesson Player | Student</title>
-    <link rel="stylesheet" href="./src/styles.css?v=47" />
+    <link rel="stylesheet" href="./src/styles.css?v=56" />
   </head>
   <body>
     <header class="site-header">
@@ -92,16 +92,40 @@
 
             <p id="lessonAiStatus" class="form-message"></p>
 
-            <div class="lesson-ai-quick-actions">
-              <button id="lessonAiKeyExamPointsBtn" class="btn-secondary" type="button">Key Exam Points</button>
-              <button id="lessonAiAskMcqsBtn" class="btn-secondary" type="button">Ask 3 MCQs</button>
-              <button id="lessonAiExplainSelectionBtn" class="btn-secondary" type="button" disabled>
-                Explain Selected
-              </button>
-              <button id="lessonAiExplainPunjabiBtn" class="btn-secondary" type="button">Explain in Punjabi</button>
-              <button id="lessonAiExplainHindiBtn" class="btn-secondary" type="button">Explain in Hindi</button>
-              <button id="lessonAiExplainEnglishBtn" class="btn-secondary" type="button">Explain in English</button>
+            <div class="lesson-ai-toolbar">
+              <div class="lesson-ai-language-row">
+                <label for="lessonAiLanguageSelect">Language</label>
+                <select id="lessonAiLanguageSelect" class="lesson-ai-language-select">
+                  <option value="AUTO">Lesson Default</option>
+                  <option value="Punjabi">Punjabi</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="English">English</option>
+                </select>
+              </div>
+
+              <div class="lesson-ai-quick-actions">
+                <button id="lessonAiKeyExamPointsBtn" class="btn-secondary" type="button">Key Exam Points</button>
+                <button id="lessonAiAskMcqsBtn" class="btn-secondary" type="button">Ask 3 MCQs</button>
+                <button id="lessonAiExplainSelectionBtn" class="btn-secondary" type="button" disabled>
+                  Explain Selected
+                </button>
+              </div>
             </div>
+
+            <div class="lesson-ai-voice-row">
+              <button id="lessonAiVoiceStartBtn" class="btn-secondary" type="button">Ask AI Teacher</button>
+              <button
+                id="lessonAiVoiceStopBtn"
+                class="lesson-ai-voice-stop-btn"
+                type="button"
+                aria-label="Stop voice tutor"
+                title="Stop voice tutor"
+              >
+                <span class="lesson-ai-voice-stop-icon" aria-hidden="true"></span>
+              </button>
+              <span id="lessonAiVoiceState" class="lesson-ai-voice-state is-idle">Voice: idle</span>
+            </div>
+            <audio id="lessonAiVoiceOutput" class="lesson-ai-voice-output hidden" autoplay playsinline></audio>
 
             <div id="lessonAiSelectionHint" class="lesson-ai-selection-hint">
               Select transcript text to enable paragraph explanation.
@@ -115,10 +139,10 @@
                 id="lessonAiInput"
                 rows="4"
                 maxlength="4000"
-                placeholder="Ask a doubt, revise a concept, or explain part of this lesson..."
+                placeholder="Ask a doubt in your preferred language, revise a concept, or explain part of this lesson..."
               ></textarea>
               <div class="lesson-ai-form-actions">
-                <span class="lesson-ai-grounding-note">Answers stay inside the current lesson context and aim to help revision.</span>
+                <span class="lesson-ai-grounding-note">Answers stay inside this lesson and use the selected language or lesson default.</span>
                 <button id="lessonAiSendBtn" class="btn-primary" type="submit">Send</button>
               </div>
             </form>
@@ -147,8 +171,9 @@
       </div>
     </div>
 
-    <script type="module" src="./src/lesson-player.js?v=30"></script>
+    <script type="module" src="./src/lesson-player.js?v=35"></script>
       <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>
+
 

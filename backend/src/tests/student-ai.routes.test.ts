@@ -10,7 +10,9 @@ import { AppError } from "../utils/appError";
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
 
-const createServer = async (service: Parameters<typeof createStudentAiRouter>[0]) => {
+type RouterService = NonNullable<Parameters<typeof createStudentAiRouter>[0]>;
+
+const createServer = async (service: RouterService) => {
   const app = express();
   app.use(express.json());
   app.use("/student", createStudentAiRouter(service));
@@ -57,18 +59,26 @@ const requestJson = async ({
   return { response, payload };
 };
 
+const createServiceStub = (
+  overrides: Partial<RouterService> = {}
+): RouterService => ({
+  async getOrCreateConversation() {
+    throw new Error("should not be called");
+  },
+  async getConversation() {
+    throw new Error("should not be called");
+  },
+  async sendMessage() {
+    throw new Error("should not be called");
+  },
+  async createVoiceSession() {
+    throw new Error("should not be called");
+  },
+  ...overrides,
+});
+
 test("student AI routes block unauthorized requests", async () => {
-  const { server, baseUrl } = await createServer({
-    async getOrCreateConversation() {
-      throw new Error("should not be called");
-    },
-    async getConversation() {
-      throw new Error("should not be called");
-    },
-    async sendMessage() {
-      throw new Error("should not be called");
-    },
-  });
+  const { server, baseUrl } = await createServer(createServiceStub());
 
   try {
     const { response, payload } = await requestJson({
@@ -85,7 +95,7 @@ test("student AI routes block unauthorized requests", async () => {
 
 test("student AI conversation creation succeeds for valid student request", async () => {
   const token = signToken("user_1", Role.STUDENT);
-  const { server, baseUrl } = await createServer({
+  const { server, baseUrl } = await createServer(createServiceStub({
     async getOrCreateConversation(userId, lessonId) {
       assert.equal(userId, "user_1");
       assert.equal(lessonId, "lesson_1");
@@ -109,13 +119,7 @@ test("student AI conversation creation succeeds for valid student request", asyn
         },
       };
     },
-    async getConversation() {
-      throw new Error("not used");
-    },
-    async sendMessage() {
-      throw new Error("not used");
-    },
-  });
+  }));
 
   try {
     const { response, payload } = await requestJson({
@@ -134,17 +138,7 @@ test("student AI conversation creation succeeds for valid student request", asyn
 
 test("student AI routes block admin users", async () => {
   const token = signToken("admin_1", Role.ADMIN);
-  const { server, baseUrl } = await createServer({
-    async getOrCreateConversation() {
-      throw new Error("should not be called");
-    },
-    async getConversation() {
-      throw new Error("should not be called");
-    },
-    async sendMessage() {
-      throw new Error("should not be called");
-    },
-  });
+  const { server, baseUrl } = await createServer(createServiceStub());
 
   try {
     const { response, payload } = await requestJson({
@@ -162,17 +156,11 @@ test("student AI routes block admin users", async () => {
 
 test("student cannot fetch another user's AI conversation", async () => {
   const token = signToken("user_1", Role.STUDENT);
-  const { server, baseUrl } = await createServer({
-    async getOrCreateConversation() {
-      throw new Error("not used");
-    },
+  const { server, baseUrl } = await createServer(createServiceStub({
     async getConversation() {
       throw new AppError("Conversation not found.", 404);
     },
-    async sendMessage() {
-      throw new Error("not used");
-    },
-  });
+  }));
 
   try {
     const { response, payload } = await requestJson({
@@ -189,17 +177,11 @@ test("student cannot fetch another user's AI conversation", async () => {
 
 test("student AI route blocks lesson mismatch between path and conversation", async () => {
   const token = signToken("user_1", Role.STUDENT);
-  const { server, baseUrl } = await createServer({
-    async getOrCreateConversation() {
-      throw new Error("not used");
-    },
-    async getConversation() {
-      throw new Error("not used");
-    },
+  const { server, baseUrl } = await createServer(createServiceStub({
     async sendMessage() {
       throw new AppError("Conversation not found.", 404);
     },
-  });
+  }));
 
   try {
     const { response, payload } = await requestJson({
@@ -220,17 +202,11 @@ test("student AI route blocks lesson mismatch between path and conversation", as
 
 test("student AI routes return controlled service errors without crashing", async () => {
   const token = signToken("user_1", Role.STUDENT);
-  const { server, baseUrl } = await createServer({
+  const { server, baseUrl } = await createServer(createServiceStub({
     async getOrCreateConversation() {
       throw new AppError("Lesson AI storage is not ready right now. Please try again later.", 503);
     },
-    async getConversation() {
-      throw new Error("not used");
-    },
-    async sendMessage() {
-      throw new Error("not used");
-    },
-  });
+  }));
 
   try {
     const { response, payload } = await requestJson({
@@ -248,14 +224,10 @@ test("student AI routes return controlled service errors without crashing", asyn
 
 test("student AI message route returns structured MCQ payload when available", async () => {
   const token = signToken("user_1", Role.STUDENT);
-  const { server, baseUrl } = await createServer({
-    async getOrCreateConversation() {
-      throw new Error("not used");
-    },
-    async getConversation() {
-      throw new Error("not used");
-    },
-    async sendMessage() {
+  let receivedInput: { responseLanguage?: string } | null = null;
+  const { server, baseUrl } = await createServer(createServiceStub({
+    async sendMessage(_userId, _lessonId, _conversationId, input) {
+      receivedInput = input as { responseLanguage?: string };
       return {
         conversation: {
           id: "conv_1",
@@ -335,7 +307,7 @@ test("student AI message route returns structured MCQ payload when available", a
         },
       };
     },
-  });
+  }));
 
   try {
     const { response, payload } = await requestJson({
@@ -346,12 +318,124 @@ test("student AI message route returns structured MCQ payload when available", a
       body: {
         content: "Ask 3 MCQs from this lesson",
         requestType: "ASK_3_MCQS",
+        responseLanguage: "Hindi",
       },
     });
     assert.equal(response.status, 201);
+    assert.equal((receivedInput as { responseLanguage?: string } | null)?.responseLanguage, "Hindi");
     assert.equal(payload.mcqSet.title, "3 Lesson MCQs");
     assert.equal(payload.mcqSet.questions.length, 3);
     assert.equal(payload.mcqSet.questions[0].options.length, 4);
+  } finally {
+    server.close();
+  }
+});
+
+test("student AI voice session blocks unauthorized requests", async () => {
+  const { server, baseUrl } = await createServer(createServiceStub());
+
+  try {
+    const { response, payload } = await requestJson({
+      baseUrl,
+      path: "/student/ai/lesson/lesson_1/voice-session",
+      method: "POST",
+    });
+    assert.equal(response.status, 401);
+    assert.equal(payload.message, "Unauthorized");
+  } finally {
+    server.close();
+  }
+});
+
+test("student AI voice session blocks admin users", async () => {
+  const token = signToken("admin_voice", Role.ADMIN);
+  const { server, baseUrl } = await createServer(createServiceStub());
+
+  try {
+    const { response, payload } = await requestJson({
+      baseUrl,
+      path: "/student/ai/lesson/lesson_1/voice-session",
+      method: "POST",
+      token,
+    });
+    assert.equal(response.status, 403);
+    assert.equal(payload.message, "Forbidden");
+  } finally {
+    server.close();
+  }
+});
+
+test("student AI voice session enforces lesson access", async () => {
+  const token = signToken("user_voice", Role.STUDENT);
+  const { server, baseUrl } = await createServer(
+    createServiceStub({
+      async createVoiceSession() {
+        throw new AppError("Lesson not found.", 404);
+      },
+    })
+  );
+
+  try {
+    const { response, payload } = await requestJson({
+      baseUrl,
+      path: "/student/ai/lesson/lesson_missing/voice-session",
+      method: "POST",
+      token,
+      body: {
+        responseLanguage: "Punjabi",
+      },
+    });
+    assert.equal(response.status, 404);
+    assert.equal(payload.message, "Lesson not found.");
+  } finally {
+    server.close();
+  }
+});
+
+test("student AI voice session returns a grounded realtime payload", async () => {
+  const token = signToken("user_voice_ok", Role.STUDENT);
+  let receivedLanguage = "";
+  const { server, baseUrl } = await createServer(
+    createServiceStub({
+      async createVoiceSession(_userId, lessonId, input) {
+        receivedLanguage = String(input?.responseLanguage || "");
+        return {
+          clientSecret: "rt_secret_123",
+          expiresAt: "2026-03-14T12:00:00.000Z",
+          session: {
+            id: "sess_123",
+            model: "gpt-realtime",
+            voice: "marin",
+            lessonId,
+            preferredLanguage: "English",
+          },
+          context: {
+            lessonId,
+            lessonTitle: "Sample Lesson",
+            chapterTitle: "Sample Chapter",
+            courseTitle: "Sample Course",
+            hasTranscript: true,
+          },
+        };
+      },
+    })
+  );
+
+  try {
+    const { response, payload } = await requestJson({
+      baseUrl,
+      path: "/student/ai/lesson/lesson_1/voice-session",
+      method: "POST",
+      token,
+      body: {
+        responseLanguage: "English",
+      },
+    });
+    assert.equal(response.status, 201);
+    assert.equal(receivedLanguage, "English");
+    assert.equal(payload.clientSecret, "rt_secret_123");
+    assert.equal(payload.session.model, "gpt-realtime");
+    assert.equal(payload.context.lessonId, "lesson_1");
   } finally {
     server.close();
   }

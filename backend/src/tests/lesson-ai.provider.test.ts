@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSystemPrompt, buildUserPrompt } from "../modules/ai/lesson-ai.provider";
+import {
+  buildRealtimeVoiceTutorInstructions,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from "../modules/ai/lesson-ai.provider";
 
 test("lesson AI prompt stays tutoring-oriented and grounded for selected-text language requests", () => {
   const systemPrompt = buildSystemPrompt();
@@ -90,4 +94,23 @@ test("lesson AI prompt includes grounded guidance for MCQs and key exam points",
   assert.match(mcqPrompt, /Create exactly 3 lesson-grounded MCQs/i);
   assert.match(keyPointsPrompt, /Requested Response Mode: KEY_EXAM_POINTS/);
   assert.match(keyPointsPrompt, /Return short, high-yield revision notes/i);
+});
+
+test("lesson AI voice instructions stay grounded to the current lesson context", () => {
+  const instructions = buildRealtimeVoiceTutorInstructions({
+    context: {
+      lessonId: "lesson_voice",
+      lessonTitle: "Voice Lesson",
+      chapterTitle: "Chapter 5",
+      courseTitle: "PSTET-2",
+      transcriptText: "Development supports learning when observation and guided practice are present.",
+      transcriptSegments: [],
+    },
+    responseLanguage: "Punjabi",
+  });
+
+  assert.match(instructions, /live voice tutoring session/i);
+  assert.match(instructions, /answer strictly and only from the supplied lesson context/i);
+  assert.match(instructions, /Preferred spoken answer language for this session: Punjabi/i);
+  assert.match(instructions, /Development supports learning when observation and guided practice are present/i);
 });

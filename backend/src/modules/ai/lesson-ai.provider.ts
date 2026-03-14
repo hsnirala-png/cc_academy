@@ -384,6 +384,32 @@ export const buildUserPrompt = (input: GenerateLessonAiReplyInput) => {
     .join("\n\n");
 };
 
+export const buildRealtimeVoiceTutorInstructions = ({
+  context,
+  responseLanguage,
+}: {
+  context: LessonAiContext;
+  responseLanguage?: string | null;
+}) => {
+  const requestedLanguage = normalizeResponseLanguage(responseLanguage);
+  const contextText = buildGroundingContextText(context);
+  return [
+    buildSystemPrompt(),
+    "This is a live voice tutoring session for the current lesson only.",
+    "Speak naturally like a supportive exam-prep teacher.",
+    "Keep spoken replies short, clear, and easy to follow unless the student asks for more detail.",
+    "Answer follow-up questions only when they are clearly supported by the supplied lesson context.",
+    "If the student asks for Punjabi, Hindi, or English, respond in that language when it is still grounded in the lesson.",
+    requestedLanguage
+      ? `Preferred spoken answer language for this session: ${requestedLanguage}.`
+      : "",
+    "If the student asks something outside this lesson, reply exactly with the fallback message and do not guess.",
+    `Grounded Lesson Context:\n${contextText}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+};
+
 class MockLessonAiProvider implements LessonAiProvider {
   async generateReply(input: GenerateLessonAiReplyInput): Promise<GenerateLessonAiReplyResult> {
     const transcriptText = extractPrimaryStudyText({
