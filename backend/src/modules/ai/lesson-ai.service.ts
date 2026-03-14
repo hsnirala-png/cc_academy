@@ -11,6 +11,7 @@ import {
   LessonAiHistoryMessage,
   LessonAiProvider,
 } from "./lesson-ai.provider";
+import { isLessonAiMcqSet, LessonAiMcqSet } from "./lesson-ai-mcq";
 
 type LessonPayload = Awaited<ReturnType<typeof lessonService.getLessonForUser>>;
 
@@ -279,6 +280,23 @@ const buildContextSnapshot = (
 const hasGroundingContext = (context: LessonAiContext) =>
   Boolean(normalizeText(context.transcriptText) || context.transcriptSegments.length);
 
+const serializeMcqSet = (mcqSet: LessonAiMcqSet | null | undefined) => {
+  if (!mcqSet || !isLessonAiMcqSet(mcqSet)) return null;
+  return {
+    title: mcqSet.title,
+    questions: mcqSet.questions.map((question) => ({
+      id: question.id,
+      question: question.question,
+      options: question.options.map((option) => ({
+        key: option.key,
+        text: option.text,
+      })),
+      correctAnswer: question.correctAnswer,
+      explanation: question.explanation,
+    })),
+  };
+};
+
 const normalizeLessonAiStorageError = (error: unknown): AppError | null => {
   if (error instanceof AppError) {
     return error;
@@ -424,6 +442,7 @@ export const createLessonAiService = ({
 
         let assistantContent = lessonAiFallbackMessage;
         let tokenUsage: number | null = null;
+        let mcqSet: ReturnType<typeof serializeMcqSet> = null;
         if (requestType === "EXPLAIN_SELECTION" && selectionNeedsClarification(selectedText)) {
           assistantContent = lessonAiSelectionNeedsMoreContextMessage;
         } else if (hasGroundingContext(context)) {
@@ -438,6 +457,10 @@ export const createLessonAiService = ({
             });
             assistantContent = normalizeText(providerResult.content) || lessonAiFallbackMessage;
             tokenUsage = providerResult.tokenUsage ?? null;
+            mcqSet = serializeMcqSet(providerResult.mcqSet);
+            if (requestType === "ASK_3_MCQS" && !mcqSet) {
+              assistantContent = lessonAiUnavailableMessage;
+            }
           } catch (error) {
             assistantContent = lessonAiUnavailableMessage;
             tokenUsage = null;
@@ -470,6 +493,7 @@ export const createLessonAiService = ({
           context: serializeContext(context),
           userMessage: serializeMessage(userMessage),
           assistantMessage: serializeMessage(assistantMessage),
+          mcqSet,
         };
       } catch (error) {
         throw normalizeLessonAiStorageError(error) || error;

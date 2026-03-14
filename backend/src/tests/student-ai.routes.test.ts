@@ -245,3 +245,114 @@ test("student AI routes return controlled service errors without crashing", asyn
     server.close();
   }
 });
+
+test("student AI message route returns structured MCQ payload when available", async () => {
+  const token = signToken("user_1", Role.STUDENT);
+  const { server, baseUrl } = await createServer({
+    async getOrCreateConversation() {
+      throw new Error("not used");
+    },
+    async getConversation() {
+      throw new Error("not used");
+    },
+    async sendMessage() {
+      return {
+        conversation: {
+          id: "conv_1",
+          userId: "user_1",
+          lessonId: "lesson_1",
+          title: "Lesson AI Teacher",
+          mode: "LESSON_CHAT",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messages: [],
+        },
+        context: {
+          lessonId: "lesson_1",
+          lessonTitle: "Sample Lesson",
+          chapterTitle: "Sample Chapter",
+          courseTitle: "Sample Course",
+          hasTranscript: true,
+        },
+        userMessage: {
+          id: "msg_user",
+          conversationId: "conv_1",
+          role: "USER",
+          content: "Ask 3 MCQs from this lesson",
+          contextSnapshotJson: null,
+          tokenUsage: null,
+          createdAt: new Date().toISOString(),
+        },
+        assistantMessage: {
+          id: "msg_assistant",
+          conversationId: "conv_1",
+          role: "ASSISTANT",
+          content: "Opened 3 grounded lesson MCQs in the popup.",
+          contextSnapshotJson: null,
+          tokenUsage: 12,
+          createdAt: new Date().toISOString(),
+        },
+        mcqSet: {
+          title: "3 Lesson MCQs",
+          questions: [
+            {
+              id: "q1",
+              question: "According to this lesson, which point is correct?",
+              options: [
+                { key: "A", text: "Option A" },
+                { key: "B", text: "Option B" },
+                { key: "C", text: "Option C" },
+                { key: "D", text: "Option D" },
+              ],
+              correctAnswer: "A",
+              explanation: "Grounded explanation.",
+            },
+            {
+              id: "q2",
+              question: "Which idea is emphasized?",
+              options: [
+                { key: "A", text: "Option A" },
+                { key: "B", text: "Option B" },
+                { key: "C", text: "Option C" },
+                { key: "D", text: "Option D" },
+              ],
+              correctAnswer: "B",
+              explanation: "Grounded explanation.",
+            },
+            {
+              id: "q3",
+              question: "Which idea should be revised?",
+              options: [
+                { key: "A", text: "Option A" },
+                { key: "B", text: "Option B" },
+                { key: "C", text: "Option C" },
+                { key: "D", text: "Option D" },
+              ],
+              correctAnswer: "C",
+              explanation: "Grounded explanation.",
+            },
+          ],
+        },
+      };
+    },
+  });
+
+  try {
+    const { response, payload } = await requestJson({
+      baseUrl,
+      path: "/student/ai/lesson/lesson_1/conversations/conv_1/messages",
+      method: "POST",
+      token,
+      body: {
+        content: "Ask 3 MCQs from this lesson",
+        requestType: "ASK_3_MCQS",
+      },
+    });
+    assert.equal(response.status, 201);
+    assert.equal(payload.mcqSet.title, "3 Lesson MCQs");
+    assert.equal(payload.mcqSet.questions.length, 3);
+    assert.equal(payload.mcqSet.questions[0].options.length, 4);
+  } finally {
+    server.close();
+  }
+});

@@ -1,5 +1,11 @@
 import OpenAI from "openai";
 import { AppError } from "../../utils/appError";
+import {
+  isLessonAiMcqSet,
+  LessonAiMcqOption,
+  LessonAiMcqOptionKey,
+  LessonAiMcqSet,
+} from "./lesson-ai-mcq";
 
 export type LessonAiContext = {
   lessonId: string;
@@ -33,6 +39,7 @@ export type GenerateLessonAiReplyResult = {
   tokenUsage: number | null;
   provider: string;
   model: string;
+  mcqSet?: LessonAiMcqSet | null;
 };
 
 export interface LessonAiProvider {
@@ -187,7 +194,13 @@ const buildKeyExamPoints = (sourceText: string, requestedLanguage: string) => {
   ].join("\n");
 };
 
-const buildLessonMcqs = (sourceText: string, requestedLanguage: string) => {
+const buildMcqOptionsFromPool = (optionPool: string[]): LessonAiMcqOption[] =>
+  optionPool.slice(0, 4).map((option, index) => ({
+    key: (["A", "B", "C", "D"][index] || "A") as LessonAiMcqOptionKey,
+    text: option,
+  }));
+
+const buildLessonMcqSet = (sourceText: string, requestedLanguage: string): LessonAiMcqSet => {
   const sentences = splitSourceSentences(sourceText);
   const optionPool = (sentences.length ? sentences : [sourceText])
     .slice(0, 4)
@@ -217,34 +230,55 @@ const buildLessonMcqs = (sourceText: string, requestedLanguage: string) => {
             "Which idea should a student revise from this lesson?",
           ];
 
-  const labels = ["A", "B", "C", "D"];
-  const mcqLines: string[] = [
+  const labels = ["A", "B", "C", "D"] as const;
+  const title =
     requestedLanguage === "Hindi"
-      ? "3 MCQs:"
+      ? "3 Lesson MCQs"
       : requestedLanguage === "Punjabi"
-        ? "3 MCQs:"
-        : "3 MCQs:",
-  ];
-  const answerLines = [
-    requestedLanguage === "Hindi"
-      ? "Correct Answers:"
-      : requestedLanguage === "Punjabi"
-        ? "Correct Answers:"
-        : "Correct Answers:",
-  ];
+        ? "3 Lesson MCQs"
+        : "3 Lesson MCQs";
+  const questions = [];
 
   for (let index = 0; index < 3; index += 1) {
     const correctIndex = index % 4;
-    mcqLines.push(`${index + 1}. ${stems[index]}`);
-    optionPool.forEach((option, optionIndex) => {
-      mcqLines.push(`${labels[optionIndex]}. ${option}`);
+    questions.push({
+      id: `q${index + 1}`,
+      question: stems[index],
+      options: buildMcqOptionsFromPool(optionPool),
+      correctAnswer: labels[correctIndex],
+      explanation:
+        requestedLanguage === "Hindi"
+          ? "यह सही उत्तर सीधे इसी पाठ की दी गई जानकारी से लिया गया है।"
+          : requestedLanguage === "Punjabi"
+            ? "ਇਹ ਸਹੀ ਜਵਾਬ ਸਿੱਧਾ ਇਸੇ ਪਾਠ ਦੀ ਦਿੱਤੀ ਜਾਣਕਾਰੀ ਤੋਂ ਲਿਆ ਗਿਆ ਹੈ।"
+            : "This correct answer comes directly from the current lesson content.",
     });
-    mcqLines.push("");
-    answerLines.push(`${index + 1}. ${labels[correctIndex]}`);
     optionPool.push(optionPool.shift() || optionPool[0]);
   }
 
-  return [...mcqLines, ...answerLines].join("\n").trim();
+  return {
+    title,
+    questions,
+  };
+};
+
+const buildLessonMcqSummary = (requestedLanguage: string) => {
+  if (requestedLanguage === "Hindi") {
+    return "Opened 3 grounded lesson MCQs in the popup.";
+  }
+  if (requestedLanguage === "Punjabi") {
+    return "Opened 3 grounded lesson MCQs in the popup.";
+  }
+  return "Opened 3 grounded lesson MCQs in the popup.";
+};
+
+const parseLessonMcqSet = (rawContent: string): LessonAiMcqSet | null => {
+  try {
+    const parsed = JSON.parse(rawContent);
+    return isLessonAiMcqSet(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 const buildTeacherStyleExplanation = (
@@ -371,12 +405,14 @@ class MockLessonAiProvider implements LessonAiProvider {
 
     const sourceText = selectedText || transcriptText;
     let content = buildTeacherStyleExplanation(sourceText, requestedLanguage, Boolean(selectedText));
+    let mcqSet: LessonAiMcqSet | null = null;
     if (requestType === "SUMMARIZE") {
       content = buildExamStudyNotes(sourceText, requestedLanguage);
     } else if (requestType === "KEY_EXAM_POINTS") {
       content = buildKeyExamPoints(sourceText, requestedLanguage);
     } else if (requestType === "ASK_3_MCQS") {
-      content = buildLessonMcqs(sourceText, requestedLanguage);
+      mcqSet = buildLessonMcqSet(sourceText, requestedLanguage);
+      content = buildLessonMcqSummary(requestedLanguage);
     } else if (requestType === "EXPLAIN_SELECTION" && selectedText) {
       content = buildTeacherStyleExplanation(selectedText, requestedLanguage, true);
     }
@@ -386,6 +422,7 @@ class MockLessonAiProvider implements LessonAiProvider {
       tokenUsage: null,
       provider: "mock",
       model: "mock-grounded",
+      mcqSet,
     };
   }
 }
@@ -406,6 +443,44 @@ class OpenAiLessonAiProvider implements LessonAiProvider {
   }
 
   async generateReply(input: GenerateLessonAiReplyInput): Promise<GenerateLessonAiReplyResult> {
+    const requestType = normalizeRequestType(input.requestType);
+    if (requestType === "ASK_3_MCQS") {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              buildSystemPrompt(),
+              "For this request, return JSON only.",
+              'Required JSON shape: {"title":"3 Lesson MCQs","questions":[{"id":"q1","question":"...","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"correctAnswer":"A","explanation":"..."}]}',
+              "Return exactly 3 questions.",
+            ].join(" "),
+          },
+          {
+            role: "user",
+            content: buildUserPrompt(input),
+          },
+        ],
+      });
+
+      const rawContent = String(response.choices?.[0]?.message?.content || "").trim();
+      const mcqSet = parseLessonMcqSet(rawContent);
+      if (!mcqSet) {
+        throw new AppError("Lesson AI provider returned invalid MCQ data.", 502);
+      }
+
+      return {
+        content: buildLessonMcqSummary(normalizeResponseLanguage(input.responseLanguage)),
+        tokenUsage: Number(response.usage?.total_tokens || 0) || null,
+        provider: "openai",
+        model: this.model,
+        mcqSet,
+      };
+    }
+
     const response = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0.2,
@@ -431,6 +506,7 @@ class OpenAiLessonAiProvider implements LessonAiProvider {
       tokenUsage: Number(response.usage?.total_tokens || 0) || null,
       provider: "openai",
       model: this.model,
+      mcqSet: null,
     };
   }
 }

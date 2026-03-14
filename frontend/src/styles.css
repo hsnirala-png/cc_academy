@@ -3760,6 +3760,100 @@ body:not(.admin-login-page) .auth-modal-logo {
   line-height: 1.4;
 }
 
+.lesson-ai-mcq-card {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.lesson-ai-mcq-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-right: 2rem;
+}
+
+.lesson-ai-mcq-head h2 {
+  margin: 0;
+}
+
+.lesson-ai-mcq-question {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #12305c;
+  line-height: 1.5;
+}
+
+.lesson-ai-mcq-options {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.lesson-ai-mcq-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid #d9e3f5;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+}
+
+.lesson-ai-mcq-option input {
+  margin-top: 0.15rem;
+  accent-color: var(--brand);
+}
+
+.lesson-ai-mcq-option.is-selected {
+  border-color: #8eb4ff;
+  background: #eef4ff;
+}
+
+.lesson-ai-mcq-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.lesson-ai-mcq-result {
+  border: 1px solid #dbe6ff;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lesson-ai-mcq-score {
+  margin: 0;
+  font-weight: 800;
+  color: #102653;
+}
+
+.lesson-ai-mcq-review-item {
+  border-top: 1px solid #dbe3f2;
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.lesson-ai-mcq-review-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.lesson-ai-mcq-review-item strong {
+  color: #12305c;
+}
+
+.lesson-ai-mcq-review-item p {
+  margin: 0;
+  color: #42577f;
+  line-height: 1.45;
+}
+
 .card-collapse-enabled {
   position: relative;
 }

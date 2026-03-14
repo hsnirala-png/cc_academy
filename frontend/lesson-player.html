@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lesson Player | Student</title>
-    <link rel="stylesheet" href="./src/styles.css?v=46" />
+    <link rel="stylesheet" href="./src/styles.css?v=47" />
   </head>
   <body>
     <header class="site-header">
@@ -127,7 +127,27 @@
       </section>
     </main>
 
-    <script type="module" src="./src/lesson-player.js?v=29"></script>
+    <div id="lessonAiMcqModal" class="modal-overlay lesson-ai-mcq-modal" aria-hidden="true">
+      <div class="modal-card lesson-ai-mcq-card" role="dialog" aria-modal="true" aria-labelledby="lessonAiMcqTitle">
+        <button id="lessonAiMcqCloseBtn" class="modal-close" type="button" aria-label="Close MCQ popup">&times;</button>
+        <div class="lesson-ai-mcq-head">
+          <div>
+            <h2 id="lessonAiMcqTitle">3 Lesson MCQs</h2>
+            <p id="lessonAiMcqProgress" class="mock-subtitle">1 / 3</p>
+          </div>
+        </div>
+        <p id="lessonAiMcqStatus" class="form-message"></p>
+        <div id="lessonAiMcqQuestion" class="lesson-ai-mcq-question"></div>
+        <div id="lessonAiMcqOptions" class="lesson-ai-mcq-options"></div>
+        <div id="lessonAiMcqResult" class="lesson-ai-mcq-result hidden"></div>
+        <div class="lesson-ai-mcq-actions">
+          <button id="lessonAiMcqNextBtn" class="btn-secondary" type="button" disabled>Next</button>
+          <button id="lessonAiMcqDoneBtn" class="btn-primary hidden" type="button" disabled>Done</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/lesson-player.js?v=30"></script>
       <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

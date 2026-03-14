@@ -551,11 +551,51 @@ test("lesson AI MCQ requests stay grounded in the current lesson context", async
           transcriptText: input.context.transcriptText,
         });
         return {
-          content:
-            "3 MCQs:\n1. According to this lesson, which point is correct?\nA. Observation supports learning.\nB. Guided explanation strengthens understanding.\nC. Repeated practice improves retention.\nD. Teacher support builds confidence.\n\n2. Which idea is emphasized in this lesson?\nA. Guided explanation strengthens understanding.\nB. Repeated practice improves retention.\nC. Teacher support builds confidence.\nD. Observation supports learning.\n\n3. Which idea should a student revise from this lesson?\nA. Repeated practice improves retention.\nB. Teacher support builds confidence.\nC. Observation supports learning.\nD. Guided explanation strengthens understanding.\n\nCorrect Answers:\n1. A\n2. A\n3. A",
+          content: "Opened 3 grounded lesson MCQs in the popup.",
           tokenUsage: 26,
           provider: "test",
           model: "fake",
+          mcqSet: {
+            title: "3 Lesson MCQs",
+            questions: [
+              {
+                id: "q1",
+                question: "According to this lesson, which point is correct?",
+                options: [
+                  { key: "A", text: "Observation supports learning." },
+                  { key: "B", text: "Guided explanation strengthens understanding." },
+                  { key: "C", text: "Repeated practice improves retention." },
+                  { key: "D", text: "Teacher support builds confidence." },
+                ],
+                correctAnswer: "A",
+                explanation: "Observation is directly stated in the lesson.",
+              },
+              {
+                id: "q2",
+                question: "Which idea is emphasized in this lesson?",
+                options: [
+                  { key: "A", text: "Guided explanation strengthens understanding." },
+                  { key: "B", text: "Repeated practice improves retention." },
+                  { key: "C", text: "Teacher support builds confidence." },
+                  { key: "D", text: "Observation supports learning." },
+                ],
+                correctAnswer: "A",
+                explanation: "Guided explanation is directly supported by the lesson.",
+              },
+              {
+                id: "q3",
+                question: "Which idea should a student revise from this lesson?",
+                options: [
+                  { key: "A", text: "Repeated practice improves retention." },
+                  { key: "B", text: "Teacher support builds confidence." },
+                  { key: "C", text: "Observation supports learning." },
+                  { key: "D", text: "Guided explanation strengthens understanding." },
+                ],
+                correctAnswer: "A",
+                explanation: "The lesson directly mentions repeated practice and retention.",
+              },
+            ],
+          },
         };
       },
     },
@@ -570,8 +610,9 @@ test("lesson AI MCQ requests stay grounded in the current lesson context", async
   assert.equal(observedCalls.length, 1);
   assert.equal(observedCalls[0]?.requestType, "ASK_3_MCQS");
   assert.match(observedCalls[0]?.transcriptText || "", /Observation supports learning/i);
-  assert.match(reply.assistantMessage.content, /3 MCQs:/);
-  assert.match(reply.assistantMessage.content, /Correct Answers:/);
+  assert.match(reply.assistantMessage.content, /Opened 3 grounded lesson MCQs/i);
+  assert.equal(reply.mcqSet?.questions?.length, 3);
+  assert.equal(reply.mcqSet?.questions?.[0]?.options?.length, 4);
 });
 
 test("lesson AI key exam points requests stay grounded in the current lesson context", async () => {
@@ -619,4 +660,40 @@ test("lesson AI key exam points requests stay grounded in the current lesson con
   assert.equal(observedCalls[0]?.requestType, "KEY_EXAM_POINTS");
   assert.match(observedCalls[0]?.transcriptText || "", /Development prepares the base for learning/i);
   assert.match(reply.assistantMessage.content, /Key Exam Points:/);
+});
+
+test("lesson AI MCQ generation fails safely when no structured MCQ payload is returned", async () => {
+  const memory = createInMemoryRepository();
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_mcq_failure",
+      lessonTitle: "MCQ Failure Lesson",
+      chapterTitle: "Chapter 13",
+      courseTitle: "PSTET-2",
+      transcriptText: "Observation supports learning in this lesson.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply() {
+        return {
+          content: "Invalid MCQ response",
+          tokenUsage: 8,
+          provider: "test",
+          model: "fake",
+          mcqSet: null,
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_mcq_failure", "lesson_mcq_failure");
+  const reply = await service.sendMessage("user_mcq_failure", "lesson_mcq_failure", created.conversation.id, {
+    content: "Ask 3 MCQs from this lesson only.",
+    requestType: "ASK_3_MCQS",
+  });
+
+  assert.equal(reply.assistantMessage.content, "Lesson AI is temporarily unavailable. Please try again later.");
+  assert.equal(reply.mcqSet, null);
 });

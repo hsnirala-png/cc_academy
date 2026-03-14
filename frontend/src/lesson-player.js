@@ -364,6 +364,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonAiExplainPunjabiBtn = document.querySelector("#lessonAiExplainPunjabiBtn");
   const lessonAiExplainHindiBtn = document.querySelector("#lessonAiExplainHindiBtn");
   const lessonAiExplainEnglishBtn = document.querySelector("#lessonAiExplainEnglishBtn");
+  const lessonAiMcqModalEl = document.querySelector("#lessonAiMcqModal");
+  const lessonAiMcqTitleEl = document.querySelector("#lessonAiMcqTitle");
+  const lessonAiMcqProgressEl = document.querySelector("#lessonAiMcqProgress");
+  const lessonAiMcqStatusEl = document.querySelector("#lessonAiMcqStatus");
+  const lessonAiMcqQuestionEl = document.querySelector("#lessonAiMcqQuestion");
+  const lessonAiMcqOptionsEl = document.querySelector("#lessonAiMcqOptions");
+  const lessonAiMcqResultEl = document.querySelector("#lessonAiMcqResult");
+  const lessonAiMcqNextBtn = document.querySelector("#lessonAiMcqNextBtn");
+  const lessonAiMcqDoneBtn = document.querySelector("#lessonAiMcqDoneBtn");
+  const lessonAiMcqCloseBtn = document.querySelector("#lessonAiMcqCloseBtn");
 
   const state = {
     lessonId: getQueryParam("lessonId"),
@@ -400,6 +410,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     aiHasTranscript: false,
     aiUnavailable: false,
     aiEnabled: String(user?.role || "").trim().toUpperCase() === "STUDENT",
+    aiMcqSet: null,
+    aiMcqCurrentIndex: 0,
+    aiMcqAnswers: {},
+    aiMcqCompleted: false,
   };
 
   if (!state.aiEnabled && lessonAiCardEl instanceof HTMLElement) {
@@ -518,6 +532,170 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderAiSelection();
   };
 
+  const isValidLessonAiMcqSet = (value) => {
+    if (!value || typeof value !== "object") return false;
+    const questions = Array.isArray(value.questions) ? value.questions : [];
+    if (questions.length !== 3) return false;
+    return questions.every((question) => {
+      if (!question || typeof question !== "object") return false;
+      if (!String(question.id || "").trim() || !String(question.question || "").trim()) return false;
+      if (!["A", "B", "C", "D"].includes(String(question.correctAnswer || "").trim().toUpperCase())) return false;
+      const options = Array.isArray(question.options) ? question.options : [];
+      if (options.length !== 4) return false;
+      const keys = options.map((option) => String(option?.key || "").trim().toUpperCase()).sort();
+      return JSON.stringify(keys) === JSON.stringify(["A", "B", "C", "D"]);
+    });
+  };
+
+  const canAdvanceLessonAiMcq = (selectedOption) =>
+    ["A", "B", "C", "D"].includes(String(selectedOption || "").trim().toUpperCase());
+
+  const evaluateLessonAiMcqSet = () => {
+    const mcqSet = state.aiMcqSet;
+    if (!isValidLessonAiMcqSet(mcqSet)) {
+      return {
+        score: 0,
+        total: 0,
+        items: [],
+      };
+    }
+
+    const items = mcqSet.questions.map((question) => {
+      const selectedOption = String(state.aiMcqAnswers?.[question.id] || "").trim().toUpperCase() || null;
+      const correctAnswer = String(question.correctAnswer || "").trim().toUpperCase();
+      return {
+        questionId: question.id,
+        question: question.question,
+        selectedOption,
+        correctAnswer,
+        isCorrect: selectedOption === correctAnswer,
+        explanation: String(question.explanation || "").trim(),
+      };
+    });
+
+    return {
+      score: items.reduce((sum, item) => sum + (item.isCorrect ? 1 : 0), 0),
+      total: items.length,
+      items,
+    };
+  };
+
+  const setLessonAiMcqStatus = (text, type) => {
+    if (!(lessonAiMcqStatusEl instanceof HTMLElement)) return;
+    lessonAiMcqStatusEl.textContent = text || "";
+    lessonAiMcqStatusEl.classList.remove("error", "success");
+    if (type) lessonAiMcqStatusEl.classList.add(type);
+  };
+
+  const closeLessonAiMcqModal = () => {
+    if (!(lessonAiMcqModalEl instanceof HTMLElement)) return;
+    lessonAiMcqModalEl.classList.remove("open");
+    lessonAiMcqModalEl.setAttribute("aria-hidden", "true");
+  };
+
+  const renderLessonAiMcqResult = () => {
+    if (!(lessonAiMcqResultEl instanceof HTMLElement)) return;
+    const result = evaluateLessonAiMcqSet();
+    if (!result.total) {
+      lessonAiMcqResultEl.classList.add("hidden");
+      lessonAiMcqResultEl.innerHTML = "";
+      return;
+    }
+
+    lessonAiMcqResultEl.classList.remove("hidden");
+    lessonAiMcqResultEl.innerHTML = [
+      `<p class="lesson-ai-mcq-score">Score: ${result.score} / ${result.total}</p>`,
+      ...result.items.map((item, index) => {
+        const wrongExplanation = !item.isCorrect && item.explanation ? `<p>${escapeHtml(item.explanation)}</p>` : "";
+        return `
+          <div class="lesson-ai-mcq-review-item ${item.isCorrect ? "is-correct" : "is-wrong"}">
+            <strong>Q${index + 1}: ${item.isCorrect ? "Correct" : "Wrong"}</strong>
+            <p>Your answer: ${escapeHtml(item.selectedOption || "-")}</p>
+            <p>Correct answer: ${escapeHtml(item.correctAnswer)}</p>
+            ${wrongExplanation}
+          </div>
+        `;
+      }),
+    ].join("");
+  };
+
+  const renderLessonAiMcqModal = () => {
+    if (
+      !(lessonAiMcqQuestionEl instanceof HTMLElement) ||
+      !(lessonAiMcqOptionsEl instanceof HTMLElement) ||
+      !(lessonAiMcqProgressEl instanceof HTMLElement) ||
+      !(lessonAiMcqNextBtn instanceof HTMLButtonElement) ||
+      !(lessonAiMcqDoneBtn instanceof HTMLButtonElement)
+    ) {
+      return;
+    }
+
+    const mcqSet = state.aiMcqSet;
+    if (!isValidLessonAiMcqSet(mcqSet)) {
+      setLessonAiMcqStatus("Unable to load grounded lesson MCQs right now.", "error");
+      return;
+    }
+
+    const question = mcqSet.questions[state.aiMcqCurrentIndex];
+    if (!question) return;
+
+    if (lessonAiMcqTitleEl instanceof HTMLElement) {
+      lessonAiMcqTitleEl.textContent = String(mcqSet.title || "3 Lesson MCQs");
+    }
+    lessonAiMcqProgressEl.textContent = `${state.aiMcqCurrentIndex + 1} / ${mcqSet.questions.length}`;
+    lessonAiMcqQuestionEl.textContent = question.question;
+
+    const selectedOption = String(state.aiMcqAnswers?.[question.id] || "").trim().toUpperCase();
+    lessonAiMcqOptionsEl.innerHTML = question.options
+      .map((option) => {
+        const optionKey = String(option?.key || "").trim().toUpperCase();
+        const isChecked = optionKey === selectedOption;
+        return `
+          <label class="lesson-ai-mcq-option ${isChecked ? "is-selected" : ""}">
+            <input type="radio" name="lessonAiMcqOption" value="${escapeHtml(optionKey)}" ${isChecked ? "checked" : ""} />
+            <span><strong>${escapeHtml(optionKey)}.</strong> ${escapeHtml(String(option?.text || "").trim())}</span>
+          </label>
+        `;
+      })
+      .join("");
+
+    const attempted = canAdvanceLessonAiMcq(selectedOption);
+    const isLast = state.aiMcqCurrentIndex === mcqSet.questions.length - 1;
+    lessonAiMcqNextBtn.classList.toggle("hidden", isLast);
+    lessonAiMcqNextBtn.disabled = !attempted;
+    lessonAiMcqDoneBtn.classList.toggle("hidden", !isLast);
+    lessonAiMcqDoneBtn.disabled = !attempted;
+    lessonAiMcqOptionsEl.querySelectorAll('input[name="lessonAiMcqOption"]').forEach((input) => {
+      input.addEventListener("change", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        state.aiMcqAnswers[question.id] = String(target.value || "").trim().toUpperCase();
+        renderLessonAiMcqModal();
+      });
+    });
+
+    if (lessonAiMcqResultEl instanceof HTMLElement && !state.aiMcqCompleted) {
+      lessonAiMcqResultEl.classList.add("hidden");
+      lessonAiMcqResultEl.innerHTML = "";
+    }
+  };
+
+  const openLessonAiMcqModal = (mcqSet) => {
+    if (!isValidLessonAiMcqSet(mcqSet) || !(lessonAiMcqModalEl instanceof HTMLElement)) {
+      setAiStatus("Unable to open grounded lesson MCQs right now.", "error");
+      return;
+    }
+
+    state.aiMcqSet = mcqSet;
+    state.aiMcqCurrentIndex = 0;
+    state.aiMcqAnswers = {};
+    state.aiMcqCompleted = false;
+    setLessonAiMcqStatus("");
+    renderLessonAiMcqModal();
+    lessonAiMcqModalEl.classList.add("open");
+    lessonAiMcqModalEl.setAttribute("aria-hidden", "false");
+  };
+
   const getTranscriptSelectionText = () => {
     if (!(transcriptListEl instanceof HTMLElement)) return "";
     const selection = window.getSelection();
@@ -591,9 +769,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.aiMessages = Array.isArray(payload?.conversation?.messages) ? payload.conversation.messages : [];
       state.aiUnavailable = false;
       renderAiMessages();
+      if (requestType === "ASK_3_MCQS") {
+        if (isValidLessonAiMcqSet(payload?.mcqSet)) {
+          openLessonAiMcqModal(payload.mcqSet);
+        } else {
+          setAiStatus("Unable to generate grounded lesson MCQs right now.", "error");
+        }
+      }
       if (!payload?.context?.hasTranscript) {
         setAiStatus("This lesson does not have enough transcript context for AI explanation.", "error");
-      } else {
+      } else if (requestType !== "ASK_3_MCQS" || isValidLessonAiMcqSet(payload?.mcqSet)) {
         setAiStatus("");
       }
     } catch (error) {
@@ -1414,6 +1599,58 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (state.aiEnabled && lessonAiExplainEnglishBtn instanceof HTMLButtonElement) {
     lessonAiExplainEnglishBtn.addEventListener("click", async () => {
       await sendAiMessage(buildLanguageExplainPrompt("English"));
+    });
+  }
+
+  if (lessonAiMcqCloseBtn instanceof HTMLButtonElement) {
+    lessonAiMcqCloseBtn.addEventListener("click", () => {
+      closeLessonAiMcqModal();
+    });
+  }
+
+  if (lessonAiMcqModalEl instanceof HTMLElement) {
+    lessonAiMcqModalEl.addEventListener("click", (event) => {
+      if (event.target === lessonAiMcqModalEl) {
+        closeLessonAiMcqModal();
+      }
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeLessonAiMcqModal();
+    }
+  });
+
+  if (lessonAiMcqNextBtn instanceof HTMLButtonElement) {
+    lessonAiMcqNextBtn.addEventListener("click", () => {
+      const mcqSet = state.aiMcqSet;
+      if (!isValidLessonAiMcqSet(mcqSet)) return;
+      const question = mcqSet.questions[state.aiMcqCurrentIndex];
+      const selectedOption = String(state.aiMcqAnswers?.[question?.id] || "").trim().toUpperCase();
+      if (!canAdvanceLessonAiMcq(selectedOption)) {
+        setLessonAiMcqStatus("Select an option before moving to the next MCQ.", "error");
+        return;
+      }
+      setLessonAiMcqStatus("");
+      state.aiMcqCurrentIndex = Math.min(mcqSet.questions.length - 1, state.aiMcqCurrentIndex + 1);
+      renderLessonAiMcqModal();
+    });
+  }
+
+  if (lessonAiMcqDoneBtn instanceof HTMLButtonElement) {
+    lessonAiMcqDoneBtn.addEventListener("click", () => {
+      const mcqSet = state.aiMcqSet;
+      if (!isValidLessonAiMcqSet(mcqSet)) return;
+      const question = mcqSet.questions[state.aiMcqCurrentIndex];
+      const selectedOption = String(state.aiMcqAnswers?.[question?.id] || "").trim().toUpperCase();
+      if (!canAdvanceLessonAiMcq(selectedOption)) {
+        setLessonAiMcqStatus("Select an option before finishing the lesson MCQs.", "error");
+        return;
+      }
+      state.aiMcqCompleted = true;
+      setLessonAiMcqStatus("Lesson MCQs evaluated.", "success");
+      renderLessonAiMcqResult();
     });
   }
 });
