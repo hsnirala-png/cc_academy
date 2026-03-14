@@ -86,9 +86,23 @@ const normalizeResponseLanguage = (value?: string | null) => {
   return "";
 };
 
+const splitSourceSentences = (sourceText: string) =>
+  String(sourceText || "")
+    .split(/(?<=[.?!])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const buildRequestTypeGuidance = (requestType: string) => {
   if (requestType === "SUMMARIZE") {
     return "Return concise study notes for revision. Focus on the main lesson idea, a simple explanation, and an exam point.";
+  }
+
+  if (requestType === "KEY_EXAM_POINTS") {
+    return "Return short, high-yield revision notes from this lesson only. Keep them concise, exam-oriented, and easy to revise.";
+  }
+
+  if (requestType === "ASK_3_MCQS") {
+    return "Create exactly 3 lesson-grounded MCQs. Each MCQ must have 4 options. Put the correct answers only after all 3 questions. Do not include facts or options that are not clearly supported by the supplied lesson context.";
   }
 
   if (requestType === "EXPLAIN_SELECTION") {
@@ -115,10 +129,7 @@ const extractPrimaryStudyText = (input: GenerateLessonAiReplyInput) => {
 };
 
 const buildExamStudyNotes = (sourceText: string, requestedLanguage: string) => {
-  const sentences = sourceText
-    .split(/(?<=[.?!])\s+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const sentences = splitSourceSentences(sourceText);
   const concept = clipText(sentences[0] || sourceText, 220);
   const explanation = clipText(sentences.slice(0, 2).join(" ") || sourceText, 420);
   const examPoint = clipText(sentences.slice(0, 3).join(" ") || sourceText, 300);
@@ -149,15 +160,99 @@ const buildExamStudyNotes = (sourceText: string, requestedLanguage: string) => {
   ].join("\n");
 };
 
+const buildKeyExamPoints = (sourceText: string, requestedLanguage: string) => {
+  const sentences = splitSourceSentences(sourceText);
+  const points = (sentences.length ? sentences : [sourceText])
+    .slice(0, 4)
+    .map((item) => clipText(item, 220))
+    .filter(Boolean);
+
+  if (requestedLanguage === "Hindi") {
+    return [
+      "मुख्य परीक्षा बिंदु:",
+      ...points.map((point) => `- ${point}`),
+    ].join("\n");
+  }
+
+  if (requestedLanguage === "Punjabi") {
+    return [
+      "ਮੁੱਖ ਪੇਪਰ ਪੁਆਇੰਟ:",
+      ...points.map((point) => `- ${point}`),
+    ].join("\n");
+  }
+
+  return [
+    "Key Exam Points:",
+    ...points.map((point) => `- ${point}`),
+  ].join("\n");
+};
+
+const buildLessonMcqs = (sourceText: string, requestedLanguage: string) => {
+  const sentences = splitSourceSentences(sourceText);
+  const optionPool = (sentences.length ? sentences : [sourceText])
+    .slice(0, 4)
+    .map((item) => clipText(item, 110))
+    .filter(Boolean);
+
+  while (optionPool.length < 4) {
+    optionPool.push(clipText(sourceText, 110));
+  }
+
+  const stems =
+    requestedLanguage === "Hindi"
+      ? [
+          "इस पाठ के अनुसार कौन-सा बिंदु सही है?",
+          "इस पाठ में किस विचार पर ज़ोर दिया गया है?",
+          "पुनरावृत्ति के लिए कौन-सा विचार इसी पाठ से लिया गया है?",
+        ]
+      : requestedLanguage === "Punjabi"
+        ? [
+            "ਇਸ ਪਾਠ ਅਨੁਸਾਰ ਕਿਹੜਾ ਬਿੰਦੂ ਸਹੀ ਹੈ?",
+            "ਇਸ ਪਾਠ ਵਿੱਚ ਕਿਸ ਵਿਚਾਰ ਉੱਤੇ ਜ਼ੋਰ ਦਿੱਤਾ ਗਿਆ ਹੈ?",
+            "ਦੁਹਰਾਈ ਲਈ ਕਿਹੜਾ ਵਿਚਾਰ ਇਸੇ ਪਾਠ ਤੋਂ ਲਿਆ ਗਿਆ ਹੈ?",
+          ]
+        : [
+            "According to this lesson, which point is correct?",
+            "Which idea is emphasized in this lesson?",
+            "Which idea should a student revise from this lesson?",
+          ];
+
+  const labels = ["A", "B", "C", "D"];
+  const mcqLines: string[] = [
+    requestedLanguage === "Hindi"
+      ? "3 MCQs:"
+      : requestedLanguage === "Punjabi"
+        ? "3 MCQs:"
+        : "3 MCQs:",
+  ];
+  const answerLines = [
+    requestedLanguage === "Hindi"
+      ? "Correct Answers:"
+      : requestedLanguage === "Punjabi"
+        ? "Correct Answers:"
+        : "Correct Answers:",
+  ];
+
+  for (let index = 0; index < 3; index += 1) {
+    const correctIndex = index % 4;
+    mcqLines.push(`${index + 1}. ${stems[index]}`);
+    optionPool.forEach((option, optionIndex) => {
+      mcqLines.push(`${labels[optionIndex]}. ${option}`);
+    });
+    mcqLines.push("");
+    answerLines.push(`${index + 1}. ${labels[correctIndex]}`);
+    optionPool.push(optionPool.shift() || optionPool[0]);
+  }
+
+  return [...mcqLines, ...answerLines].join("\n").trim();
+};
+
 const buildTeacherStyleExplanation = (
   sourceText: string,
   requestedLanguage: string,
   hasSelectedText: boolean
 ) => {
-  const sentences = sourceText
-    .split(/(?<=[.?!])\s+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const sentences = splitSourceSentences(sourceText);
   const concept = clipText(sentences[0] || sourceText, 220);
   const explanation = clipText(sentences.slice(0, 2).join(" ") || sourceText, 420);
   const examPoint = clipText(sentences.slice(0, 3).join(" ") || sourceText, 280);
@@ -229,6 +324,8 @@ export const buildSystemPrompt = () =>
     "Use simple, student-friendly wording and explain step by step when needed.",
     "When it fits, structure the reply with these short sections: Concept, Simple explanation, Exam point.",
     "For lesson summaries, return concise study notes with short bullets or short labeled sections.",
+    "For key exam points requests, return concise high-yield revision bullets from the lesson only.",
+    "For MCQ requests, create exactly 3 MCQs with 4 options each and place the answer key after all 3 questions.",
     "If selected lesson text is provided, explain that exact excerpt first before expanding to the surrounding lesson context.",
     "If the student asks for Punjabi, Hindi, or English explanation, answer in that language using only the provided lesson context.",
     "If no explicit answer language is requested, answer in the same language as the student's question whenever possible.",
@@ -276,6 +373,10 @@ class MockLessonAiProvider implements LessonAiProvider {
     let content = buildTeacherStyleExplanation(sourceText, requestedLanguage, Boolean(selectedText));
     if (requestType === "SUMMARIZE") {
       content = buildExamStudyNotes(sourceText, requestedLanguage);
+    } else if (requestType === "KEY_EXAM_POINTS") {
+      content = buildKeyExamPoints(sourceText, requestedLanguage);
+    } else if (requestType === "ASK_3_MCQS") {
+      content = buildLessonMcqs(sourceText, requestedLanguage);
     } else if (requestType === "EXPLAIN_SELECTION" && selectedText) {
       content = buildTeacherStyleExplanation(selectedText, requestedLanguage, true);
     }

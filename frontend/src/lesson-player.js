@@ -358,7 +358,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lessonAiInput = document.querySelector("#lessonAiInput");
   const lessonAiSendBtn = document.querySelector("#lessonAiSendBtn");
   const lessonAiSelectionHintEl = document.querySelector("#lessonAiSelectionHint");
-  const lessonAiSummarizeBtn = document.querySelector("#lessonAiSummarizeBtn");
+  const lessonAiKeyExamPointsBtn = document.querySelector("#lessonAiKeyExamPointsBtn");
+  const lessonAiAskMcqsBtn = document.querySelector("#lessonAiAskMcqsBtn");
   const lessonAiExplainSelectionBtn = document.querySelector("#lessonAiExplainSelectionBtn");
   const lessonAiExplainPunjabiBtn = document.querySelector("#lessonAiExplainPunjabiBtn");
   const lessonAiExplainHindiBtn = document.querySelector("#lessonAiExplainHindiBtn");
@@ -429,7 +430,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const messages = Array.isArray(state.aiMessages) ? state.aiMessages : [];
     if (!messages.length) {
       lessonAiMessagesEl.innerHTML =
-        '<p class="lesson-ai-empty">Ask a lesson doubt, build quick study notes, or explain a selected transcript part.</p>';
+        '<p class="lesson-ai-empty">Ask a lesson doubt, revise key exam points, generate 3 grounded MCQs, or explain a selected transcript part.</p>';
       return;
     }
 
@@ -504,7 +505,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       lessonAiSendBtn.disabled = state.aiBusy || !canUseAi;
     }
     [
-      lessonAiSummarizeBtn,
+      lessonAiKeyExamPointsBtn,
+      lessonAiAskMcqsBtn,
       lessonAiExplainPunjabiBtn,
       lessonAiExplainHindiBtn,
       lessonAiExplainEnglishBtn,
@@ -1364,11 +1366,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  if (state.aiEnabled && lessonAiSummarizeBtn instanceof HTMLButtonElement) {
-    lessonAiSummarizeBtn.addEventListener("click", async () => {
+  if (state.aiEnabled && lessonAiKeyExamPointsBtn instanceof HTMLButtonElement) {
+    lessonAiKeyExamPointsBtn.addEventListener("click", async () => {
       await sendAiMessage({
-        content: "Create short, exam-focused study notes for this lesson using only the lesson context.",
-        requestType: "SUMMARIZE",
+        content: "Give key exam points from this lesson only. Keep them short, high-yield, and easy to revise.",
+        requestType: "KEY_EXAM_POINTS",
+      });
+    });
+  }
+
+  if (state.aiEnabled && lessonAiAskMcqsBtn instanceof HTMLButtonElement) {
+    lessonAiAskMcqsBtn.addEventListener("click", async () => {
+      await sendAiMessage({
+        content: "Ask 3 MCQs from this lesson only. Give 4 options each and place the correct answers after all 3 questions.",
+        requestType: "ASK_3_MCQS",
       });
     });
   }

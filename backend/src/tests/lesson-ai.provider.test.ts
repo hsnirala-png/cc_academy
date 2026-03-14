@@ -54,3 +54,40 @@ test("lesson AI prompt treats manual doubts as grounded lesson explanation", () 
   assert.match(userPrompt, /Request Guidance: Treat this as a lesson-grounded concept explanation/i);
   assert.match(userPrompt, /Current Student Request:\s*How does the lesson connect development with learning\?/i);
 });
+
+test("lesson AI prompt includes grounded guidance for MCQs and key exam points", () => {
+  const mcqPrompt = buildUserPrompt({
+    context: {
+      lessonId: "lesson_3",
+      lessonTitle: "MCQ Lesson",
+      chapterTitle: "Chapter 3",
+      courseTitle: "PSTET-2",
+      transcriptText: "Observation supports learning. Guided explanation strengthens understanding.",
+      transcriptSegments: [],
+    },
+    userMessage: "Ask 3 MCQs from this lesson.",
+    history: [],
+    requestType: "ASK_3_MCQS",
+    responseLanguage: null,
+  });
+
+  const keyPointsPrompt = buildUserPrompt({
+    context: {
+      lessonId: "lesson_4",
+      lessonTitle: "Key Points Lesson",
+      chapterTitle: "Chapter 4",
+      courseTitle: "PSTET-1",
+      transcriptText: "Development prepares the base for learning. Learning strengthens development.",
+      transcriptSegments: [],
+    },
+    userMessage: "Give key exam points from this lesson.",
+    history: [],
+    requestType: "KEY_EXAM_POINTS",
+    responseLanguage: null,
+  });
+
+  assert.match(mcqPrompt, /Requested Response Mode: ASK_3_MCQS/);
+  assert.match(mcqPrompt, /Create exactly 3 lesson-grounded MCQs/i);
+  assert.match(keyPointsPrompt, /Requested Response Mode: KEY_EXAM_POINTS/);
+  assert.match(keyPointsPrompt, /Return short, high-yield revision notes/i);
+});

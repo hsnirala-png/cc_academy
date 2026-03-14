@@ -525,3 +525,98 @@ test("manual doubt still falls back when the concept is not supported by the les
 
   assert.equal(reply.assistantMessage.content, lessonAiFallbackMessage);
 });
+
+test("lesson AI MCQ requests stay grounded in the current lesson context", async () => {
+  const memory = createInMemoryRepository();
+  const observedCalls: Array<{
+    requestType?: string;
+    transcriptText: string;
+  }> = [];
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_mcq",
+      lessonTitle: "MCQ Lesson",
+      chapterTitle: "Chapter 11",
+      courseTitle: "PSTET-2",
+      transcriptText:
+        "Observation supports learning. Guided explanation strengthens understanding. Repeated practice improves retention. Teacher support builds confidence.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply(input) {
+        observedCalls.push({
+          requestType: input.requestType,
+          transcriptText: input.context.transcriptText,
+        });
+        return {
+          content:
+            "3 MCQs:\n1. According to this lesson, which point is correct?\nA. Observation supports learning.\nB. Guided explanation strengthens understanding.\nC. Repeated practice improves retention.\nD. Teacher support builds confidence.\n\n2. Which idea is emphasized in this lesson?\nA. Guided explanation strengthens understanding.\nB. Repeated practice improves retention.\nC. Teacher support builds confidence.\nD. Observation supports learning.\n\n3. Which idea should a student revise from this lesson?\nA. Repeated practice improves retention.\nB. Teacher support builds confidence.\nC. Observation supports learning.\nD. Guided explanation strengthens understanding.\n\nCorrect Answers:\n1. A\n2. A\n3. A",
+          tokenUsage: 26,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_mcq", "lesson_mcq");
+  const reply = await service.sendMessage("user_mcq", "lesson_mcq", created.conversation.id, {
+    content: "Ask 3 MCQs from this lesson only. Give 4 options each and place the correct answers after all 3 questions.",
+    requestType: "ASK_3_MCQS",
+  });
+
+  assert.equal(observedCalls.length, 1);
+  assert.equal(observedCalls[0]?.requestType, "ASK_3_MCQS");
+  assert.match(observedCalls[0]?.transcriptText || "", /Observation supports learning/i);
+  assert.match(reply.assistantMessage.content, /3 MCQs:/);
+  assert.match(reply.assistantMessage.content, /Correct Answers:/);
+});
+
+test("lesson AI key exam points requests stay grounded in the current lesson context", async () => {
+  const memory = createInMemoryRepository();
+  const observedCalls: Array<{
+    requestType?: string;
+    transcriptText: string;
+  }> = [];
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_key_points",
+      lessonTitle: "Key Points Lesson",
+      chapterTitle: "Chapter 12",
+      courseTitle: "PSTET-1",
+      transcriptText:
+        "Development prepares the base for learning. Learning strengthens development. Teachers should consider age, readiness, and individual differences.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply(input) {
+        observedCalls.push({
+          requestType: input.requestType,
+          transcriptText: input.context.transcriptText,
+        });
+        return {
+          content:
+            "Key Exam Points:\n- Development prepares the base for learning.\n- Learning strengthens development.\n- Teachers should consider age, readiness, and individual differences.",
+          tokenUsage: 17,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_key_points", "lesson_key_points");
+  const reply = await service.sendMessage("user_key_points", "lesson_key_points", created.conversation.id, {
+    content: "Give key exam points from this lesson only. Keep them short, high-yield, and easy to revise.",
+    requestType: "KEY_EXAM_POINTS",
+  });
+
+  assert.equal(observedCalls.length, 1);
+  assert.equal(observedCalls[0]?.requestType, "KEY_EXAM_POINTS");
+  assert.match(observedCalls[0]?.transcriptText || "", /Development prepares the base for learning/i);
+  assert.match(reply.assistantMessage.content, /Key Exam Points:/);
+});
