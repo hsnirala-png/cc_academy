@@ -75,7 +75,34 @@ const clipText = (value: string, limit: number) => {
 
 const normalizeRequestType = (value?: string) => String(value || "CHAT").trim().toUpperCase() || "CHAT";
 
-const resolveResponseLanguage = (requestType: string, content: string) => {
+const normalizeResponseLanguage = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "punjabi") return "Punjabi";
+  if (normalized === "hindi") return "Hindi";
+  if (normalized === "english") return "English";
+  return null;
+};
+
+const detectLessonLanguage = (context: LessonAiContext) => {
+  const transcriptSource =
+    normalizeText(context.transcriptText) ||
+    context.transcriptSegments
+      .map((segment) => normalizeText(segment.text))
+      .filter(Boolean)
+      .join("\n");
+  if (/[\u0A00-\u0A7F]/.test(transcriptSource)) return "Punjabi";
+  if (/[\u0900-\u097F]/.test(transcriptSource)) return "Hindi";
+  return "English";
+};
+
+const resolveResponseLanguage = (
+  requestType: string,
+  content: string,
+  explicitResponseLanguage?: string | null,
+  context?: LessonAiContext
+) => {
+  const explicitLanguage = normalizeResponseLanguage(explicitResponseLanguage);
+  if (explicitLanguage) return explicitLanguage;
   const normalizedType = normalizeRequestType(requestType);
   if (normalizedType.includes("PUNJABI")) return "Punjabi";
   if (normalizedType.includes("HINDI")) return "Hindi";
@@ -85,7 +112,7 @@ const resolveResponseLanguage = (requestType: string, content: string) => {
   if (normalizedContent.includes(" in punjabi")) return "Punjabi";
   if (normalizedContent.includes(" in hindi")) return "Hindi";
   if (normalizedContent.includes(" in english")) return "English";
-  return null;
+  return context ? detectLessonLanguage(context) : null;
 };
 
 const selectionNeedsClarification = (value: string) => {
@@ -409,6 +436,7 @@ export const createLessonAiService = ({
         content: string;
         selectedText?: string;
         requestType?: string;
+        responseLanguage?: string;
       }
     ) {
       try {
@@ -428,7 +456,12 @@ export const createLessonAiService = ({
 
         const requestType = normalizeRequestType(input.requestType);
         const selectedText = clipText(String(input.selectedText || ""), MAX_SELECTION_LENGTH);
-        const responseLanguage = resolveResponseLanguage(requestType, content);
+        const responseLanguage = resolveResponseLanguage(
+          requestType,
+          content,
+          input.responseLanguage,
+          context
+        );
         const userMessage = await repository.createMessage({
           conversationId: conversation.id,
           role: AiMessageRole.USER,

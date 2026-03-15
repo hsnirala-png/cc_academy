@@ -71,5 +71,54 @@ test("Done flow evaluation computes score and correctness correctly", () => {
   assert.equal(result.items[0]?.isCorrect, true);
   assert.equal(result.items[1]?.isCorrect, false);
   assert.equal(result.items[1]?.correctAnswer, "A");
+  assert.match(result.items[1]?.feedback || "", /B is not correct/i);
   assert.match(result.items[1]?.explanation || "", /guided explanation/i);
+  assert.match(result.weakAreaSummary, /guided explanation strengthens understanding/i);
+});
+
+test("wrong-answer explanation gives teacher-style grounded feedback", () => {
+  const result = evaluateLessonAiMcqAnswers(sampleMcqSet, {
+    q1: "B",
+    q2: "A",
+    q3: "D",
+  });
+
+  assert.equal(result.items[0]?.isCorrect, false);
+  assert.match(result.items[0]?.feedback || "", /not the lesson-supported point/i);
+  assert.match(result.items[0]?.feedback || "", /A is right/i);
+  assert.match(result.items[2]?.feedback || "", /Repeated practice improves retention/i);
+});
+
+test("weak-area summary is generated from missed lesson concepts", () => {
+  const result = evaluateLessonAiMcqAnswers(sampleMcqSet, {
+    q1: "B",
+    q2: "B",
+    q3: "D",
+  });
+
+  assert.match(result.weakAreaSummary, /Weak Area:/);
+  assert.match(result.weakAreaSummary, /Observation supports learning/i);
+});
+
+test("MCQ feedback stays safe when explanation context is weak", () => {
+  const weakContextSet = {
+    ...sampleMcqSet,
+    questions: [
+      {
+        ...sampleMcqSet.questions[0],
+        explanation: "",
+      },
+      ...sampleMcqSet.questions.slice(1),
+    ],
+  } as LessonAiMcqSet;
+
+  const result = evaluateLessonAiMcqAnswers(weakContextSet, {
+    q1: "B",
+    q2: "A",
+    q3: "A",
+  });
+
+  assert.equal(result.items[0]?.isCorrect, false);
+  assert.match(result.items[0]?.feedback || "", /matches the current lesson context better/i);
+  assert.match(result.weakAreaSummary, /Observation supports learning/i);
 });

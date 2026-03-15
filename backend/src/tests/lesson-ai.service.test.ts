@@ -302,6 +302,51 @@ test("lesson AI passes language-aware explain requests to the provider", async (
   assert.equal(observedCalls[0]?.selectedText, "");
 });
 
+test("lesson AI respects an explicit response language for non-language-specific actions", async () => {
+  const memory = createInMemoryRepository();
+  const observedCalls: Array<{
+    requestType?: string;
+    responseLanguage?: string | null;
+  }> = [];
+
+  const service = createLessonAiService({
+    repository: memory.repository,
+    loadLessonContext: async () => ({
+      lessonId: "lesson_explicit_lang",
+      lessonTitle: "Explicit Language Lesson",
+      chapterTitle: "Chapter 5A",
+      courseTitle: "PSTET-2",
+      transcriptText: "Learning grows through observation and guided practice.",
+      transcriptSegments: [],
+    }),
+    provider: {
+      async generateReply(input) {
+        observedCalls.push({
+          requestType: input.requestType,
+          responseLanguage: input.responseLanguage,
+        });
+        return {
+          content: "English key points.",
+          tokenUsage: 15,
+          provider: "test",
+          model: "fake",
+        };
+      },
+    },
+  });
+
+  const created = await service.getOrCreateConversation("user_explicit_lang", "lesson_explicit_lang");
+  await service.sendMessage("user_explicit_lang", "lesson_explicit_lang", created.conversation.id, {
+    content: "Give key exam points from this lesson.",
+    requestType: "KEY_EXAM_POINTS",
+    responseLanguage: "English",
+  });
+
+  assert.equal(observedCalls.length, 1);
+  assert.equal(observedCalls[0]?.requestType, "KEY_EXAM_POINTS");
+  assert.equal(observedCalls[0]?.responseLanguage, "English");
+});
+
 test("lesson AI asks for a clearer transcript selection when the excerpt is too short", async () => {
   const memory = createInMemoryRepository();
   let providerWasCalled = false;
@@ -487,7 +532,7 @@ test("manual English doubt can stay grounded against Punjabi transcript content"
 
   assert.equal(observedCalls.length, 1);
   assert.equal(observedCalls[0]?.requestType, "EXPLAIN_LESSON");
-  assert.equal(observedCalls[0]?.responseLanguage, null);
+  assert.equal(observedCalls[0]?.responseLanguage, "Punjabi");
   assert.match(observedCalls[0]?.transcriptText || "", /ਵਿਕਾਸ ਅਤੇ ਸਿੱਖਣ/);
   assert.match(reply.assistantMessage.content, /development and learning are deeply connected/i);
 });
