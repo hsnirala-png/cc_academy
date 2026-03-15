@@ -6,9 +6,48 @@
     <title>Admin Login - CC Academy</title>
     <link rel="stylesheet" href="./src/styles.css" />
     <style>
+      .admin-login-page .site-header {
+        position: relative;
+        padding: 1.1rem 5vw 0.35rem;
+        align-items: flex-start;
+      }
+
+      .admin-login-page .brand {
+        display: block;
+        position: relative;
+        width: 243.2px;
+        height: 73.6px;
+        flex: 0 0 auto;
+        text-decoration: none;
+      }
+
+      .admin-login-page .brand-logo {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        height: auto;
+        object-fit: contain;
+      }
+
+      .admin-login-page .logo-b {
+        width: 243.2px;
+        opacity: 1;
+      }
+
+      .admin-login-page .logo-a {
+        width: 60.8px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .admin-login-page .header-actions {
+        margin-left: auto;
+      }
+
       .admin-login-wrap {
         width: min(460px, 92%);
-        margin: 3.5rem auto 2rem;
+        margin: 1.25rem auto 2rem;
       }
 
       .admin-login-card {
@@ -48,6 +87,30 @@
         padding: 0.62rem 0.7rem;
         font: inherit;
       }
+
+      @media (max-width: 640px) {
+        .admin-login-page .site-header {
+          padding: 0.9rem 1rem 0.3rem;
+        }
+
+        .admin-login-page .brand {
+          width: 190px;
+          height: 58px;
+        }
+
+        .admin-login-page .logo-b {
+          width: 190px;
+        }
+
+        .admin-login-page .logo-a {
+          width: 48px;
+        }
+
+        .admin-login-wrap {
+          width: min(460px, calc(100% - 2rem));
+          margin-top: 0.8rem;
+        }
+      }
     </style>
   </head>
   <body class="admin-login-page">
@@ -77,7 +140,7 @@
       </article>
     </main>
 
-    <script src="./src/admin-login.js?v=2"></script>
+    <script src="./src/admin-login.js?v=3"></script>
       <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>
