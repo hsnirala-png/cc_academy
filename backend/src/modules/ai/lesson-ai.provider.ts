@@ -171,7 +171,7 @@ const buildKeyExamPoints = (sourceText: string, requestedLanguage: string) => {
   const sentences = splitSourceSentences(sourceText);
   const points = (sentences.length ? sentences : [sourceText])
     .slice(0, 4)
-    .map((item) => clipText(item, 220))
+    .map((item) => normalizeWhitespace(item))
     .filter(Boolean);
 
   if (requestedLanguage === "Hindi") {
