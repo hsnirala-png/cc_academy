@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=45" />
+    <link rel="stylesheet" href="./src/styles.css?v=50" />
   </head>
   <body class="home-page checkout-page">
     <header class="site-header">
@@ -19,6 +19,7 @@
             <span class="sr-only">All Courses</span>
             <select id="headerCourseSelectCheckout" class="home-course-select">
               <option value="">All Courses</option>
+              <option value="smart-tuitions">CC Academy Smart Tuitions</option>
               <option value="products" selected>Study Materials</option>
               <option value="mock-tests">Mock Tests</option>
             </select>
@@ -38,6 +39,13 @@
         </div>
 
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a
+            href="./smart-tuitions.html"
+            class="nav-link-smart-tuitions"
+            data-label="Smart Tuitions"
+            aria-label="Smart Tuitions"
+            >Smart Tuitions</a
+          >
           <a href="./index.html#features">Features</a>
           <a href="./index.html#testimonials">Testimonials</a>
           <a href="./index.html#contact">Contact</a>
@@ -153,6 +161,7 @@
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="./src/checkout.js?v=4"></script>
+    <script src="./src/course-discovery.js?v=1"></script>
     <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

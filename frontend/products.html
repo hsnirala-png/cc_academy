@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Products | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=46" />
+    <link rel="stylesheet" href="./src/styles.css?v=50" />
   </head>
   <body class="home-page products-page">
     <header class="site-header">
@@ -19,6 +19,7 @@
             <span class="sr-only">All Courses</span>
             <select id="headerCourseSelect" class="home-course-select">
               <option value="">All Courses</option>
+              <option value="smart-tuitions">CC Academy Smart Tuitions</option>
               <option value="products" selected>Study Materials</option>
               <option value="mock-tests">Mock Tests</option>
               <option value="pstet-1">PSTET-1 Complete Batch</option>
@@ -41,6 +42,13 @@
         </div>
 
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a
+            href="./smart-tuitions.html"
+            class="nav-link-smart-tuitions"
+            data-label="Smart Tuitions"
+            aria-label="Smart Tuitions"
+            >Smart Tuitions</a
+          >
           <a href="./index.html#features" data-label="Features" aria-label="Features">Features</a>
           <a href="./index.html#testimonials" data-label="Testimonials" aria-label="Testimonials"
             >Testimonials</a
@@ -57,6 +65,7 @@
               <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
               <select id="headerCourseSelectMobile" class="home-course-select">
                 <option value="">All Courses</option>
+                <option value="smart-tuitions">CC Academy Smart Tuitions</option>
                 <option value="products" selected>Study Materials</option>
                 <option value="mock-tests">Mock Tests</option>
                 <option value="pstet-1">PSTET-1 Complete Batch</option>
@@ -155,7 +164,8 @@
       </section>
     </main>
 
-    <script type="module" src="./src/products.js?v=58"></script>
+    <script type="module" src="./src/products.js?v=59"></script>
+    <script src="./src/course-discovery.js?v=1"></script>
     <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

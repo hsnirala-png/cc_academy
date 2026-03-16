@@ -22,17 +22,14 @@ document.addEventListener("DOMContentLoaded", () => {
     ? `${window.location.protocol}//${window.location.hostname}:5000`
     : "";
   const FALLBACK_PRODUCT_THUMB = "./public/PSTET_1.png";
-  const isStudentLoggedIn = (() => {
-    let storedUser = null;
-    try {
-      storedUser = JSON.parse(localStorage.getItem("cc_user") || "null");
-    } catch {
-      storedUser = null;
-    }
-    const token = localStorage.getItem("cc_token");
-    return Boolean(token && storedUser?.role === "STUDENT");
-  })();
-  const readStudentAuth = () => {
+  const resolveStoredUserRole = (user, defaultStudent = false) => {
+    const role = String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")
+      .trim()
+      .toUpperCase();
+    if (role) return role;
+    return defaultStudent ? "STUDENT" : "";
+  };
+  const readAnyStoredAuth = () => {
     const parseAuth = (storage) => {
       const token = storage.getItem("cc_token");
       let user = null;
@@ -45,9 +42,17 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const localAuth = parseAuth(localStorage);
     const sessionAuth = parseAuth(sessionStorage);
-    const auth = localAuth.token ? localAuth : sessionAuth;
-    const role = String(auth?.user?.role || "").trim().toUpperCase();
-    if (!auth?.token || role !== "STUDENT") return null;
+    return localAuth.token ? localAuth : sessionAuth;
+  };
+  const isStudentLoggedIn = (() => {
+    const auth = readAnyStoredAuth();
+    const role = resolveStoredUserRole(auth?.user, true);
+    return Boolean(auth?.token && role !== "ADMIN");
+  })();
+  const readStudentAuth = () => {
+    const auth = readAnyStoredAuth();
+    const role = resolveStoredUserRole(auth?.user, true);
+    if (!auth?.token || role === "ADMIN") return null;
     return auth;
   };
 
@@ -301,75 +306,54 @@ document.addEventListener("DOMContentLoaded", () => {
     if (type) homeLatestProductsMessage.classList.add(type);
   };
 
-  const closeHomeMockRegistrationPopup = () => {
-    const modal = document.querySelector("#homeMockRegistrationPopup");
+  const closeHomeStudentPromoPopup = () => {
+    const modal = document.querySelector("#homeStudentPromoPopup");
     if (modal instanceof HTMLElement) modal.remove();
   };
 
-  const showHomeMockRegistrationPopup = (option) => {
-    const registrationUrl = String(option?.registrationPageUrl || "").trim();
-    if (!registrationUrl) return;
-    const popupImageUrl = String(option?.popupImageUrl || "").trim();
-    if (!popupImageUrl) return;
-
-    closeHomeMockRegistrationPopup();
+  const showHomeStudentPromoPopup = () => {
+    closeHomeStudentPromoPopup();
     const modal = document.createElement("div");
-    modal.id = "homeMockRegistrationPopup";
-    modal.className = "mock-registration-modal";
+    modal.id = "homeStudentPromoPopup";
+    modal.className = "mock-registration-modal landing-login-promo-modal";
     modal.innerHTML = `
-      <div class=\"mock-registration-dialog mock-global-reg-popup mock-global-reg-popup--image-only\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
-        <button type=\"button\" class=\"mock-registration-close\" data-home-reg-close aria-label=\"Close\">x</button>
-        <img src=\"${escapeHtml(popupImageUrl)}\" alt=\"Mock registration\" class=\"mock-global-reg-image-only\" />
+      <div class=\"mock-registration-dialog mock-global-reg-popup--image-only landing-login-promo-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"CC Academy Smart Tuitions\">
+        <button type=\"button\" class=\"mock-registration-close\" data-home-student-promo-close aria-label=\"Close\">x</button>
+        <img src=\"./public/tuition_3.png\" alt=\"CC Academy Smart Tuitions\" class=\"landing-login-promo-image\" />
       </div>
     `;
     document.body.appendChild(modal);
 
-    const routeToRegistration = () => {
-      window.location.href = registrationUrl;
+    const closePopup = () => {
+      modal.remove();
     };
 
-    const closeBtn = modal.querySelector("[data-home-reg-close]");
+    const closeBtn = modal.querySelector("[data-home-student-promo-close]");
     if (closeBtn instanceof HTMLButtonElement) {
       closeBtn.addEventListener("click", (event) => {
+        event.preventDefault();
         event.stopPropagation();
-        modal.remove();
+        closePopup();
       });
     }
 
-    const dialog = modal.querySelector(".mock-global-reg-popup");
+    const dialog = modal.querySelector(".landing-login-promo-dialog");
     if (dialog instanceof HTMLElement) {
       dialog.addEventListener("click", (event) => {
-        const target = event.target;
-        if (target instanceof HTMLElement && target.closest("[data-home-reg-close]")) return;
-        routeToRegistration();
+        event.stopPropagation();
       });
     }
+
+    modal.addEventListener("click", (event) => {
+      if (event.target !== modal) return;
+      closePopup();
+    });
   };
 
-  const loadHomeMockRegistrationPopup = async () => {
-    const auth = readStudentAuth();
-    if (!auth?.token) return;
-    try {
-      const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const data = await response.json().catch(() => ({}));
-      const options = Array.isArray(data?.options) ? data.options : [];
-      const popupOptions = options.filter((item) => String(item?.popupImageUrl || "").trim());
-      if (!popupOptions.length) return;
-      const preferred =
-        popupOptions.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
-        popupOptions.find(
-          (item) =>
-            !item?.hasPaidAccess &&
-            Number(item?.remainingAttempts || 0) > 0
-        ) || popupOptions[0];
-      showHomeMockRegistrationPopup(preferred);
-    } catch {
-      // Keep silent on home page.
-    }
+  const loadHomeStudentPromoPopup = () => {
+    const isLandingPage = document.querySelector("main#home") instanceof HTMLElement;
+    if (!isLandingPage) return;
+    showHomeStudentPromoPopup();
   };
 
   const renderHomeLatestProductCard = (product) => {
@@ -1596,7 +1580,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     void loadHomeLatestProducts();
   }
-  void loadHomeMockRegistrationPopup();
+  loadHomeStudentPromoPopup();
   enforceMobileHomeHeader();
   toggleHeaderLogo();
   window.addEventListener("scroll", toggleHeaderLogo, { passive: true });

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="CC Academy Smart Tuitions offers online classes for CBSE, ICSE, and PSEB students from classes 6 to 12 across all major subjects."
+    />
+    <title>CC Academy Smart Tuitions</title>
+    <link rel="stylesheet" href="./src/styles.css?v=50" />
+  </head>
+  <body class="home-page smart-tuitions-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_B1.png" alt="CC Academy logo" class="brand-logo logo-b1" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <div class="home-header-tools" aria-label="Course tools">
+          <label class="home-course-select-wrap" for="headerCourseSelect">
+            <span class="sr-only">All Courses</span>
+            <select id="headerCourseSelect" class="home-course-select">
+              <option value="">All Courses</option>
+              <option value="smart-tuitions" selected>CC Academy Smart Tuitions</option>
+              <option value="pstet-1">PSTET-1 Complete Batch</option>
+              <option value="pstet-2-science">PSTET-2 Science/Math</option>
+              <option value="pstet-2-social">PSTET-2 Social Studies</option>
+              <option value="mock-tests">Mock Tests</option>
+              <option value="products">Study Materials</option>
+              <option value="spoken-english">Spoken English</option>
+              <option value="personality-development">Personality Development</option>
+            </select>
+          </label>
+          <form class="home-search-form" role="search" aria-label="Search courses">
+            <input
+              id="headerCourseSearch"
+              class="home-search-input"
+              type="search"
+              placeholder="Search courses..."
+              aria-label="Search courses"
+            />
+          </form>
+          <a class="btn-secondary refer-earn-btn" href="./refer-earn-public.html">Refer &amp; Earn</a>
+        </div>
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a
+            href="./smart-tuitions.html"
+            class="nav-link-smart-tuitions"
+            data-label="Smart Tuitions"
+            aria-label="Smart Tuitions"
+            >Smart Tuitions</a
+          >
+          <a href="#classes" data-label="Classes" aria-label="Classes">Classes</a>
+          <a href="#subjects" data-label="Subjects" aria-label="Subjects">Subjects</a>
+          <a href="#boards" data-label="Boards" aria-label="Boards">Boards</a>
+          <a href="#contact" data-label="Contact" aria-label="Contact">Contact</a>
+          <div class="mobile-toggle-top">
+            <a href="./index.html?auth=login" class="btn-secondary mobile-toggle-login">Login</a>
+            <a href="./refer-earn-public.html" class="mobile-gift-btn" aria-label="Refer and Earn">&#127873;</a>
+          </div>
+          <div class="mobile-toggle-courses">
+            <button type="button" id="mobileCoursesToggle" class="mobile-courses-toggle">
+              <span>All Courses</span>
+            </button>
+            <div class="mobile-courses-select-wrap">
+              <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
+              <select id="headerCourseSelectMobile" class="home-course-select">
+                <option value="">All Courses</option>
+                <option value="smart-tuitions" selected>CC Academy Smart Tuitions</option>
+                <option value="pstet-1">PSTET-1 Complete Batch</option>
+                <option value="pstet-2-science">PSTET-2 Science/Math</option>
+                <option value="pstet-2-social">PSTET-2 Social Studies</option>
+                <option value="mock-tests">Mock Tests</option>
+                <option value="products">Study Materials</option>
+                <option value="spoken-english">Spoken English</option>
+                <option value="personality-development">Personality Development</option>
+              </select>
+            </div>
+          </div>
+        </nav>
+        <div class="mobile-search-panel" aria-label="Search courses panel">
+          <label class="sr-only" for="headerCourseSearchMobile">Search courses</label>
+          <input
+            id="headerCourseSearchMobile"
+            class="home-search-input"
+            type="search"
+            placeholder="Search courses..."
+            aria-label="Search courses"
+          />
+        </div>
+        <div class="header-actions">
+          <button
+            id="mobileSearchToggle"
+            class="mobile-search-btn"
+            type="button"
+            aria-label="Open search"
+            aria-expanded="false"
+          ></button>
+          <a href="./index.html?auth=login" class="btn-secondary top-login-btn">Login</a>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="smart-tuitions-main">
+      <section class="section smart-tuitions-banner-section" aria-label="Smart Tuitions banner">
+        <img
+          src="./public/tuition_1.png"
+          alt="CC Academy Smart Tuitions banner"
+          class="smart-tuitions-banner"
+        />
+      </section>
+
+      <section class="section smart-tuitions-hero">
+        <div class="smart-tuitions-copy">
+          <p class="eyebrow smart-tuitions-kicker">
+            <span class="smart-tuitions-kicker-icon" aria-hidden="true"></span>
+            CC Academy Smart Tuitions
+          </p>
+          <h1 class="smart-tuitions-title">
+            <span>Online Classes for</span>
+            <span>CBSE | ICSE | PSEB</span>
+            <span>Students</span>
+          </h1>
+          <p class="smart-tuitions-lead">
+            Structured tuition support for students from classes 6 to 12 across all major boards,
+            built for strong concepts, regular practice, and exam confidence.
+          </p>
+          <div class="smart-tuitions-actions">
+            <a class="btn-primary" href="./products.html?search=Smart%20Tuitions">Explore Courses</a>
+            <a class="btn-secondary" href="./index.html#contact">Talk to Counsellor</a>
+          </div>
+          <div class="smart-tuitions-highlights">
+            <span>Live + Recorded Support</span>
+            <span>Board-wise Coverage</span>
+            <span>Classes 6 to 12</span>
+          </div>
+        </div>
+        <div class="smart-tuitions-hero-card card">
+          <div class="smart-tuitions-hero-top">
+            <span class="smart-tuitions-chip">CBSE</span>
+            <span class="smart-tuitions-chip">ICSE</span>
+            <span class="smart-tuitions-chip">PSEB</span>
+          </div>
+          <div class="smart-tuitions-hero-panel">
+            <h2>Your weekly learning stack</h2>
+            <ul>
+              <li>Concept classes with chapter-wise planning</li>
+              <li>Homework and revision support</li>
+              <li>Doubt solving with teacher guidance</li>
+              <li>Test practice for school and board exams</li>
+            </ul>
+          </div>
+          <div class="smart-tuitions-stats">
+            <article>
+              <strong>6-12</strong>
+              <span>Classes Covered</span>
+            </article>
+            <article>
+              <strong>All</strong>
+              <span>Major Subjects</span>
+            </article>
+            <article>
+              <strong>3</strong>
+              <span>Boards Supported</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="classes" class="section">
+        <div class="section-heading">
+          <h2>Tuition Support by Class</h2>
+          <p>Programs designed to match the learning level and exam pressure of each stage.</p>
+        </div>
+        <div class="smart-tuitions-class-grid">
+          <article class="card smart-tuitions-class-card">
+            <h3>Classes 6 to 8</h3>
+            <p>Build strong fundamentals in Maths, Science, English, Social Studies, and languages.</p>
+          </article>
+          <article class="card smart-tuitions-class-card">
+            <h3>Classes 9 and 10</h3>
+            <p>Focused board preparation with concept revision, question practice, and test support.</p>
+          </article>
+          <article class="card smart-tuitions-class-card">
+            <h3>Classes 11 and 12</h3>
+            <p>Stream-aware guidance for Science, Commerce, and core academic subjects.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="subjects" class="section smart-tuitions-layout">
+        <div>
+          <div class="section-heading smart-tuitions-left-heading">
+            <h2>Subjects Covered</h2>
+            <p>Board-based tuition support with flexible combinations based on class and stream.</p>
+          </div>
+          <div class="smart-tuitions-subject-grid">
+            <article class="card smart-tuitions-subject-card"><h3>Mathematics</h3><p>Concept clarity, practice sets, and chapter tests.</p></article>
+            <article class="card smart-tuitions-subject-card"><h3>Science</h3><p>Physics, Chemistry, Biology, and General Science coverage.</p></article>
+            <article class="card smart-tuitions-subject-card"><h3>English</h3><p>Grammar, writing, comprehension, and literature support.</p></article>
+            <article class="card smart-tuitions-subject-card"><h3>Social Studies</h3><p>History, Civics, Geography, and Economics guidance.</p></article>
+            <article class="card smart-tuitions-subject-card"><h3>Commerce</h3><p>Accountancy, Business Studies, and Economics for senior classes.</p></article>
+            <article class="card smart-tuitions-subject-card"><h3>Languages</h3><p>Hindi, Punjabi, and other school language support based on board.</p></article>
+          </div>
+        </div>
+        <aside class="card smart-tuitions-support-card">
+          <h2>What students get</h2>
+          <ul>
+            <li>Daily study rhythm with planned learning targets</li>
+            <li>Teacher support for homework and doubts</li>
+            <li>Revision worksheets and chapter tests</li>
+            <li>Exam strategy sessions before school assessments</li>
+            <li>Parent-friendly progress communication</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section id="boards" class="section">
+        <div class="section-heading">
+          <h2>Board-Based Learning</h2>
+          <p>Each tuition track is aligned to the syllabus, pace, and exam style of the relevant board.</p>
+        </div>
+        <div class="smart-tuitions-board-grid">
+          <article class="card smart-tuitions-board-card">
+            <h3>CBSE</h3>
+            <p>NCERT-aligned teaching with chapter mastery, school exam practice, and board-focused revision.</p>
+          </article>
+          <article class="card smart-tuitions-board-card">
+            <h3>ICSE</h3>
+            <p>Detailed concept teaching with strong writing practice and subject-depth support.</p>
+          </article>
+          <article class="card smart-tuitions-board-card">
+            <h3>PSEB</h3>
+            <p>Punjab-board aligned guidance with regular tests and local syllabus-focused preparation.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="contact" class="section smart-tuitions-cta">
+        <div class="card smart-tuitions-cta-card">
+          <div>
+            <p class="eyebrow">Admissions Open</p>
+            <h2>Start Smart Tuition Support with CC Academy</h2>
+            <p>
+              For school tuition enquiries from class 6 to 12, connect with the team and choose the right
+              board, class, and subject plan.
+            </p>
+          </div>
+          <div class="smart-tuitions-actions">
+            <a class="btn-primary" href="./products.html?search=Smart%20Tuitions">See Courses</a>
+            <a class="btn-secondary" href="./index.html#contact">Ask Callback</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./src/smart-tuitions.js?v=1"></script>
+    <script src="./src/course-discovery.js?v=1"></script>
+  </body>
+</html>

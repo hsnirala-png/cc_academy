@@ -8,7 +8,7 @@
       content="Coaching programs to help you build confidence, clarity, and consistent results."
     />
     <title>CC Academy Coaching</title>
-    <link rel="stylesheet" href="./src/styles.css?v=48" />
+    <link rel="stylesheet" href="./src/styles.css?v=52" />
   </head>
   <body class="home-page">
     <header class="site-header">
@@ -23,6 +23,7 @@
             <span class="sr-only">All Courses</span>
             <select id="headerCourseSelect" class="home-course-select">
               <option value="">All Courses</option>
+              <option value="smart-tuitions">CC Academy Smart Tuitions</option>
               <option value="pstet-1">PSTET-1 Complete Batch</option>
               <option value="pstet-2-science">PSTET-2 Science/Math</option>
               <option value="pstet-2-social">PSTET-2 Social Studies</option>
@@ -46,6 +47,13 @@
           </button>
         </div>
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a
+            href="./smart-tuitions.html"
+            class="nav-link-smart-tuitions"
+            data-label="Smart Tuitions"
+            aria-label="Smart Tuitions"
+            >Smart Tuitions</a
+          >
           <a href="./products.html" data-label="Products" data-icon="&#128230;" aria-label="Products">Products</a>
           <a href="#testimonials" data-label="Testimonials" data-icon="&#128172;" aria-label="Testimonials">Testimonials</a>
           <a href="#contact" data-label="Contact" data-icon="&#9993;" aria-label="Contact">Contact</a>
@@ -62,6 +70,7 @@
               <label class="sr-only" for="headerCourseSelectMobile">All Courses</label>
               <select id="headerCourseSelectMobile" class="home-course-select">
                 <option value="">All Courses</option>
+                <option value="smart-tuitions">CC Academy Smart Tuitions</option>
                 <option value="pstet-1">PSTET-1 Complete Batch</option>
                 <option value="pstet-2-science">PSTET-2 Science/Math</option>
                 <option value="pstet-2-social">PSTET-2 Social Studies</option>
@@ -111,6 +120,10 @@
 
     <div class="home-announcement" aria-label="Latest announcement">
       <div class="home-announcement-track">
+        <a href="./smart-tuitions.html">Smart Tuitions for Classes 6 to 12</a>
+        <span class="home-announcement-sep" aria-hidden="true">â€¢</span>
+        <span>Online Classes for CBSE, ICSE, and PSEB students</span>
+        <span class="home-announcement-sep" aria-hidden="true">â€¢</span>
         <a href="./pstet-2025-syllabus.html">PSTET-2025 Syllabus</a>
         <span class="home-announcement-sep" aria-hidden="true">•</span>
         <span>Updated syllabus page for Paper I and Paper II</span>
@@ -422,7 +435,8 @@
         </form>
       </div>
     </div>
-    <script src="./src/main.js?v=25"></script>
+    <script src="./src/main.js?v=27"></script>
+    <script src="./src/course-discovery.js?v=1"></script>
     <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

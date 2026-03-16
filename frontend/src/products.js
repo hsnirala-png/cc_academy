@@ -290,10 +290,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pageParams = new URLSearchParams(window.location.search);
   const productIdFromLink = String(pageParams.get("productId") || "").trim();
   const checkoutProductIdFromLink = String(pageParams.get("checkoutProductId") || "").trim();
+  const searchFromLink = String(pageParams.get("search") || "").trim();
   const sourceFromLink = String(pageParams.get("from") || "").trim().toLowerCase();
   const mockSourceMockTestId = String(pageParams.get("mockTestId") || "").trim();
   const isFromMockRegistration = sourceFromLink === "mock-registration";
   state.selectedProductId = productIdFromLink || checkoutProductIdFromLink;
+  if (!state.selectedProductId && searchFromLink) {
+    state.search = searchFromLink;
+    if (headerSearchDesktop instanceof HTMLInputElement) headerSearchDesktop.value = searchFromLink;
+    if (headerSearchMobile instanceof HTMLInputElement) headerSearchMobile.value = searchFromLink;
+  }
 
   const createMockTestBackHref = () => {
     const basePath = isExtensionlessRoute() ? "./mock-test-registration" : "./mock-test-registration.html";

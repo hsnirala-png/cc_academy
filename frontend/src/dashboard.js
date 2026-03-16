@@ -25,6 +25,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const storedAuth = readStoredAuth();
   const token = storedAuth.token;
+  const storedUserRole = String(
+    storedAuth?.user?.role || storedAuth?.user?.userRole || storedAuth?.user?.user_type || storedAuth?.user?.accountType || ""
+  )
+    .trim()
+    .toUpperCase();
+  const shouldShowStudentPromoPopup = Boolean(token && storedUserRole !== "ADMIN");
   const dashMessage = document.querySelector("#dashMessage");
   const logoutBtn = document.querySelector("#logoutBtn");
   const dashTitleName = document.querySelector("#dashTitleName");
@@ -148,70 +154,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     dashActiveSubscriptionsStatus.classList.remove("error", "success");
     if (type) dashActiveSubscriptionsStatus.classList.add(type);
   };
-  const closeDashboardRegistrationPopup = () => {
-    const modal = document.querySelector("#dashboardMockRegistrationPopup");
+  const closeDashboardStudentPromoPopup = () => {
+    const modal = document.querySelector("#dashboardStudentPromoPopup");
     if (modal instanceof HTMLElement) modal.remove();
   };
 
-  const showDashboardRegistrationPopup = (option) => {
-    const registrationUrl = String(option?.registrationPageUrl || "").trim();
-    if (!registrationUrl) return;
-    const popupImageUrl = String(option?.popupImageUrl || "").trim();
-    if (!popupImageUrl) return;
-    closeDashboardRegistrationPopup();
+  const showDashboardStudentPromoPopup = () => {
+    closeDashboardStudentPromoPopup();
     const modal = document.createElement("div");
-    modal.id = "dashboardMockRegistrationPopup";
-    modal.className = "mock-registration-modal";
+    modal.id = "dashboardStudentPromoPopup";
+    modal.className = "mock-registration-modal landing-login-promo-modal";
     modal.innerHTML = `
-      <div class=\"mock-registration-dialog mock-global-reg-popup mock-global-reg-popup--image-only\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Mock Registration\">
-        <button type=\"button\" class=\"mock-registration-close\" data-dash-reg-close aria-label=\"Close\">x</button>
-        <img src=\"${escapeHtml(popupImageUrl)}\" alt=\"Mock registration\" class=\"mock-global-reg-image-only\" />
+      <div class=\"mock-registration-dialog mock-global-reg-popup--image-only landing-login-promo-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"CC Academy Smart Tuitions\">
+        <button type=\"button\" class=\"mock-registration-close\" data-dashboard-student-promo-close aria-label=\"Close\">x</button>
+        <img src=\"./public/tuition_3.png\" alt=\"CC Academy Smart Tuitions\" class=\"landing-login-promo-image\" />
       </div>
     `;
     document.body.appendChild(modal);
 
-    const routeToRegistration = () => {
-      window.location.href = registrationUrl;
+    const closePopup = () => {
+      modal.remove();
     };
 
-    const closeBtn = modal.querySelector("[data-dash-reg-close]");
+    const closeBtn = modal.querySelector("[data-dashboard-student-promo-close]");
     if (closeBtn instanceof HTMLButtonElement) {
       closeBtn.addEventListener("click", (event) => {
+        event.preventDefault();
         event.stopPropagation();
-        modal.remove();
+        closePopup();
       });
     }
 
-    const dialog = modal.querySelector(".mock-global-reg-popup");
+    const dialog = modal.querySelector(".landing-login-promo-dialog");
     if (dialog instanceof HTMLElement) {
       dialog.addEventListener("click", (event) => {
-        const target = event.target;
-        if (target instanceof HTMLElement && target.closest("[data-dash-reg-close]")) return;
-        routeToRegistration();
+        event.stopPropagation();
       });
     }
-  };
 
-  const loadDashboardRegistrationPopup = async () => {
-    if (!token) return;
-    try {
-      const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const data = await response.json().catch(() => ({}));
-      const options = Array.isArray(data?.options) ? data.options : [];
-      const popupOptions = options.filter((item) => String(item?.popupImageUrl || "").trim());
-      if (!popupOptions.length) return;
-      const preferred =
-        popupOptions.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
-        popupOptions.find((item) => !item?.hasPaidAccess && Number(item?.remainingAttempts || 0) > 0) ||
-        popupOptions[0];
-      showDashboardRegistrationPopup(preferred);
-    } catch {
-      // Keep silent in dashboard if popup API is unavailable.
-    }
+    modal.addEventListener("click", (event) => {
+      if (event.target !== modal) return;
+      closePopup();
+    });
   };
 
   const state = {
@@ -1348,7 +1332,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       setActiveSubscriptionsStatus(message, "error");
       setProductsStatus(message, "error");
     }
-    void loadDashboardRegistrationPopup();
+    if (shouldShowStudentPromoPopup) {
+      showDashboardStudentPromoPopup();
+    }
   } catch (error) {
     setMessage("Unable to load dashboard. Please ensure backend is running.", "error");
     const localUser = readStoredAuth().user;
@@ -1392,6 +1378,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       "error"
     );
     setProductsStatus("Student dashboard loaded in offline mode. Product catalog needs backend connection.", "error");
+    if (shouldShowStudentPromoPopup) {
+      showDashboardStudentPromoPopup();
+    }
   }
 
   if (logoutBtn) {
