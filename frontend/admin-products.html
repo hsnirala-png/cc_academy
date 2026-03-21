@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Products</title>
-    <link rel="stylesheet" href="./src/styles.css?v=43" />
+    <link rel="stylesheet" href="./src/styles.css?v=53" />
   </head>
   <body>
     <div class="admin-shell">
@@ -52,6 +52,7 @@
                 <button class="admin-tab-btn active" type="button" data-product-tab-btn="create">Create Product</button>
                 <button class="admin-tab-btn" type="button" data-product-tab-btn="attachments">Attachments</button>
                 <button class="admin-tab-btn" type="button" data-product-tab-btn="addons">Add-Ons</button>
+                <button class="admin-tab-btn" type="button" data-product-tab-btn="plans">Trial & Packages</button>
               </div>
 
               <div class="admin-tab-panel active" data-product-tab-panel="create">
@@ -325,6 +326,35 @@
                 </div>
               </div>
 
+              <div class="admin-tab-panel" data-product-tab-panel="plans">
+                <div class="admin-form-row">
+                  <div class="admin-field">
+                    <label class="admin-field inline-check" for="productTrialEnabled">
+                      <input id="productTrialEnabled" type="checkbox" />
+                      <span>Enable Free Trial For This Product</span>
+                    </label>
+                  </div>
+                  <div class="admin-field">
+                    <label for="productTrialDays">Free Trial Days</label>
+                    <input id="productTrialDays" type="number" min="1" step="1" placeholder="7" />
+                    <small class="admin-subtitle">Students can claim this only once per product on the same mobile number and device.</small>
+                  </div>
+                </div>
+
+                <section class="admin-addon-card admin-product-packages-card">
+                  <div class="admin-header-row" style="margin-bottom: 0.8rem">
+                    <div>
+                      <h3 style="margin:0">Package Plans</h3>
+                      <p class="admin-subtitle" style="margin:0.3rem 0 0">
+                        Add unlimited packages. Enter only the new features for each next package. The student popup will automatically show previous features plus the new ones.
+                      </p>
+                    </div>
+                    <button id="addProductPackageBtn" class="btn-secondary" type="button">Add Package</button>
+                  </div>
+                  <div id="productPackagesList" class="admin-product-packages-list"></div>
+                </section>
+              </div>
+
               <div class="admin-actions product-form-step-actions">
                 <button id="productTabSaveBtn" class="btn-secondary" type="button">Save</button>
                 <button id="productTabNextBtn" class="btn-ghost" type="button">Next</button>
@@ -386,6 +416,7 @@
                     <th>Referral Bonus</th>
                     <th>Friend Discount</th>
                     <th>Access</th>
+                    <th>Trial / Packages</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -421,7 +452,7 @@
       </div>
     </div>
 
-    <script type="module" src="./src/admin-products.js?v=28"></script>
+    <script type="module" src="./src/admin-products.js?v=30"></script>
     <script src="./src/global-nav.js?v=1"></script>
   </body>
 </html>

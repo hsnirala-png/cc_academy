@@ -4,7 +4,7 @@ const isLocalHost =
   window.location.hostname === "0.0.0.0";
 
 const API_BASE = isLocalHost ? `${window.location.protocol}//${window.location.hostname}:5000` : "";
-const FALLBACK_THUMB = "./public/PSTET_1.png";
+const FALLBACK_THUMB = "./public/PSTET_7.png";
 const ADMISSION_CONTACT_NUMBER = "+91 62394-16404";
 const ADMISSION_CONTACT_TEL = "+916239416404";
 const DEFAULT_PRODUCT_HIGHLIGHTS = [
@@ -248,6 +248,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     sessionStorage.removeItem("cc_user");
   };
 
+  const getDeviceFingerprint = () => {
+    const storageKey = "cc_device_fingerprint";
+    let current = String(localStorage.getItem(storageKey) || "").trim();
+    if (current) return current;
+    current = `device_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    localStorage.setItem(storageKey, current);
+    return current;
+  };
+
   /** @type {{products: any[], filtered: any[], quickType: string, category: string, exams: Set<string>, languages: Set<string>, search: string, examSearch: string, minPrice: number|null, maxPrice: number|null, selectedProductId: string}} */
   const state = {
     products: [],
@@ -290,6 +299,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pageParams = new URLSearchParams(window.location.search);
   const productIdFromLink = String(pageParams.get("productId") || "").trim();
   const checkoutProductIdFromLink = String(pageParams.get("checkoutProductId") || "").trim();
+  const packageIdFromLink = String(pageParams.get("packageId") || "").trim();
   const searchFromLink = String(pageParams.get("search") || "").trim();
   const sourceFromLink = String(pageParams.get("from") || "").trim().toLowerCase();
   const mockSourceMockTestId = String(pageParams.get("mockTestId") || "").trim();
@@ -361,6 +371,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const checkoutState = {
     product: null,
+    selectedPackageId: "",
     includeDefaultOffer: true,
     referralInput: "",
     appliedReferralCode: "",
@@ -378,6 +389,11 @@ document.addEventListener("DOMContentLoaded", async () => {
    *  root: HTMLElement,
    *  dialog: HTMLElement,
    *  closeBtn: HTMLButtonElement,
+   *  packageList: HTMLElement,
+   *  packageFeatures: HTMLElement,
+   *  trialCard: HTMLElement,
+   *  trialText: HTMLElement,
+   *  trialBtn: HTMLButtonElement,
    *  chip: HTMLElement,
    *  tokenValue: HTMLElement,
    *  tokenCode: HTMLElement,
@@ -452,8 +468,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         payableAmount: 0,
       };
     }
-    const listPrice = Math.max(0, toSafeNumber(product.listPrice));
-    const salePrice = Math.max(0, toSafeNumber(product.salePrice));
+    const packages = Array.isArray(product.packages) ? product.packages.filter((item) => item?.isActive !== false) : [];
+    const selectedPackage =
+      packages.find((item) => String(item?.id || "") === String(checkoutState.selectedPackageId || "")) || null;
+    const listPrice = Math.max(0, toSafeNumber(selectedPackage?.price ?? product.listPrice));
+    const salePrice = Math.max(0, toSafeNumber(selectedPackage?.price ?? product.salePrice));
     const includeDefaultOffer = checkoutState.includeDefaultOffer;
     const currentPrice = includeDefaultOffer ? Math.min(salePrice || listPrice, listPrice) : listPrice;
     const defaultOfferDiscount = includeDefaultOffer ? Math.max(0, listPrice - currentPrice) : 0;
@@ -486,7 +505,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderCheckoutModal = () => {
     if (!checkoutModal || !checkoutState.product) return;
     const product = checkoutState.product;
-    const discountPercent = getDiscountPercentForProduct(product);
+    const packages = Array.isArray(product.packages) ? product.packages.filter((item) => item?.isActive !== false) : [];
+    const selectedPackage =
+      packages.find((item) => String(item?.id || "") === String(checkoutState.selectedPackageId || "")) || null;
+    const discountPercent = selectedPackage ? 0 : getDiscountPercentForProduct(product);
     const offerCode = discountPercent > 0 ? `CC${discountPercent}` : "OFFER";
     const pricing = checkoutState.preview?.pricing || resolveCheckoutFallbackPricing();
     const defaultDiscount = Math.max(0, toSafeNumber(pricing.defaultOfferDiscount));
@@ -513,7 +535,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       checkoutModal.orderImage.src = FALLBACK_THUMB;
     };
     checkoutModal.orderImage.alt = String(product.title || "Product");
-    checkoutModal.orderTitle.textContent = String(product.title || "Product");
+    checkoutModal.orderTitle.textContent = selectedPackage
+      ? `${String(product.title || "Product")} - ${String(selectedPackage.title || "Package")}`
+      : String(product.title || "Product");
     checkoutModal.orderMeta.textContent = String(product.validityLabel || `${Number(product.accessDays || 0)} days access`);
     checkoutModal.orderCurrentPrice.textContent = toCurrency(currentPrice);
     checkoutModal.subtotalValue.textContent = toCurrency(listPrice);
@@ -530,6 +554,65 @@ document.addEventListener("DOMContentLoaded", async () => {
     checkoutModal.offerHelp.textContent = checkoutState.includeDefaultOffer
       ? `Get extra ${discountPercent}% off with this token`
       : `Apply token to unlock ${discountPercent}% off`;
+    const tokenRow = checkoutModal.tokenValue.parentElement;
+    if (tokenRow instanceof HTMLElement) {
+      tokenRow.style.display = discountPercent > 0 ? "flex" : "none";
+    }
+    checkoutModal.tokenToggleBtn.disabled = checkoutState.busy || discountPercent <= 0;
+    if (discountPercent <= 0) {
+      checkoutModal.chip.textContent = "(Standard Price)";
+      checkoutModal.offerHelp.textContent = "Selected pricing is already applied.";
+    }
+    checkoutModal.packageList.innerHTML = packages.length
+      ? packages
+          .map((item, index) => {
+            const checked = String(item?.id || "") === String(checkoutState.selectedPackageId || "");
+            const featureCount = Array.isArray(item?.allFeatureLines) ? item.allFeatureLines.length : 0;
+            const newFeatureCount = Array.isArray(item?.featureLines) ? item.featureLines.length : 0;
+            const intro =
+              index === 0
+                ? `${featureCount} feature${featureCount === 1 ? "" : "s"} included`
+                : `All previous features + ${newFeatureCount} new`;
+            return `
+              <label class="product-checkout-package-option">
+                <input type="radio" name="checkoutPackageId" value="${escapeHtml(String(item?.id || ""))}" ${checked ? "checked" : ""} ${checkoutState.busy ? "disabled" : ""} />
+                <span>
+                  <strong>${escapeHtml(String(item?.title || "Package"))}</strong>
+                  <small>${escapeHtml(intro)}</small>
+                </span>
+                <b>${toCurrency(item?.price || 0)}</b>
+              </label>
+            `;
+          })
+          .join("")
+      : `<div class="product-checkout-package-empty">Main product price will be used for checkout.</div>`;
+    checkoutModal.packageFeatures.innerHTML = selectedPackage
+      ? `
+          <div class="product-checkout-package-feature-box">
+            <strong>Included in ${escapeHtml(String(selectedPackage.title || "this package"))}</strong>
+            <ul>
+              ${(Array.isArray(selectedPackage.allFeatureLines) ? selectedPackage.allFeatureLines : [])
+                .map((item) => `<li>${escapeHtml(String(item || ""))}</li>`)
+                .join("")}
+            </ul>
+          </div>
+        `
+      : "";
+    const trialConfig = product.trialConfig || {};
+    const trialStatus = product.trialStatus || {};
+    const trialEnabled = Boolean(trialConfig.enabled) && Number(trialConfig.days || 0) > 0;
+    checkoutModal.trialCard.style.display = trialEnabled ? "block" : "none";
+    if (trialEnabled) {
+      const isTrialActive = Boolean(trialStatus.isActive);
+      const hasClaimed = Boolean(trialStatus.hasClaimed);
+      checkoutModal.trialText.textContent = isTrialActive
+        ? `Trial active until ${new Date(trialStatus.expiresAt).toLocaleDateString()}.`
+        : hasClaimed
+          ? "Free trial already used for this product."
+          : `${Number(trialConfig.days || 0)} day free trial available for this product.`;
+      checkoutModal.trialBtn.textContent = isTrialActive ? "Trial Active" : hasClaimed ? "Already Used" : "Start Free Trial";
+      checkoutModal.trialBtn.disabled = checkoutState.busy || isTrialActive || hasClaimed;
+    }
     checkoutModal.sponsorInput.value = checkoutState.referralInput;
     checkoutModal.sponsorApplyBtn.textContent = "Apply";
     checkoutState.walletBalance = walletAvailable;
@@ -550,7 +633,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       : INELIGIBLE_WALLET_BALANCE_MESSAGE;
     setCheckoutFriendMessage(checkoutState.friendMessage, checkoutState.friendMessageType);
     checkoutModal.continueBtn.disabled = checkoutState.busy;
-    checkoutModal.continueBtn.textContent = checkoutState.busy ? "Processing..." : "Continue";
+    checkoutModal.continueBtn.textContent = checkoutState.busy
+      ? "Processing..."
+      : packages.length
+        ? "Continue With Package"
+        : "Continue";
 
     const hasDiscount = totalDiscount > 0;
     checkoutModal.tokenDiscountValue.parentElement.style.display = hasDiscount || defaultDiscount > 0 ? "flex" : "none";
@@ -578,6 +665,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const includeDefaultOffer = options.includeDefaultOffer !== false;
     const referralCode = String(options.referralCode || "").trim();
     const walletUseAmount = Math.max(0, toSafeNumber(options.walletUseAmount));
+    const packageId = String(options.packageId || "").trim();
 
     const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/checkout-preview`, {
       method: "POST",
@@ -586,6 +674,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        packageId: packageId || undefined,
         includeDefaultOffer,
         referralCode: referralCode || undefined,
         walletUseAmount: walletUseAmount > 0 ? walletUseAmount : undefined,
@@ -606,6 +695,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const requestedWalletUseAmount = getRequestedWalletUseAmount();
       const payload = await loadCheckoutPreview(productId, {
+        packageId: checkoutState.selectedPackageId,
         includeDefaultOffer: checkoutState.includeDefaultOffer,
         referralCode: checkoutState.appliedReferralCode,
         walletUseAmount: requestedWalletUseAmount,
@@ -633,6 +723,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const referralCode = String(options.referralCode || "").trim();
     const includeDefaultOffer = options.includeDefaultOffer !== false;
+    const packageId = String(options.packageId || "").trim();
 
     const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/buy-with-wallet`, {
       method: "POST",
@@ -641,6 +732,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        packageId: packageId || undefined,
         includeDefaultOffer,
         referralCode: referralCode || undefined,
       }),
@@ -662,6 +754,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const referralCode = String(options.referralCode || "").trim();
     const includeDefaultOffer = options.includeDefaultOffer !== false;
+    const packageId = String(options.packageId || "").trim();
 
     const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/buy`, {
       method: "POST",
@@ -670,6 +763,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        packageId: packageId || undefined,
         includeDefaultOffer,
         referralCode: referralCode || undefined,
       }),
@@ -687,6 +781,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     return buyDirect(productId, options);
   };
 
+  const claimFreeTrial = async (productId) => {
+    const { token, isStudentLoggedIn } = getAuthState();
+    if (!isStudentLoggedIn || !token) {
+      redirectGuestToLogin();
+      return null;
+    }
+
+    const response = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/claim-trial`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        deviceFingerprint: getDeviceFingerprint(),
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || "Unable to activate free trial.");
+    }
+    return payload;
+  };
+
   const createCheckoutModal = () => {
     if (checkoutModal) return checkoutModal;
     const root = document.createElement("div");
@@ -698,6 +817,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         <h3>Available Offers</h3>
         <div class="product-checkout-layout">
           <section class="product-checkout-left">
+            <article class="product-checkout-package-card">
+              <div class="product-checkout-offer-top">
+                <strong>Select Package</strong>
+              </div>
+              <div class="product-checkout-package-list" data-checkout-package-list></div>
+              <div class="product-checkout-package-features" data-checkout-package-features></div>
+            </article>
+            <article class="product-checkout-trial-card" data-checkout-trial-card>
+              <div class="product-checkout-offer-top">
+                <strong>Free Trial</strong>
+              </div>
+              <p class="product-checkout-offer-help product-checkout-trial-text" data-checkout-trial-text></p>
+              <button type="button" class="btn-secondary product-checkout-trial-btn" data-checkout-trial-btn>
+                Start Free Trial
+              </button>
+            </article>
             <article class="product-checkout-offer-card">
               <div class="product-checkout-offer-top">
                 <strong>Available Offers</strong>
@@ -787,6 +922,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const dialog = root.querySelector(".product-checkout-dialog");
     const closeBtn = root.querySelector(".product-checkout-close");
+    const packageList = root.querySelector("[data-checkout-package-list]");
+    const packageFeatures = root.querySelector("[data-checkout-package-features]");
+    const trialCard = root.querySelector("[data-checkout-trial-card]");
+    const trialText = root.querySelector("[data-checkout-trial-text]");
+    const trialBtn = root.querySelector("[data-checkout-trial-btn]");
     const chip = root.querySelector("[data-checkout-chip]");
     const tokenValue = root.querySelector("[data-checkout-token-percent]");
     const tokenCode = root.querySelector("[data-checkout-token-code]");
@@ -812,6 +952,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (
       !(dialog instanceof HTMLElement) ||
       !(closeBtn instanceof HTMLButtonElement) ||
+      !(packageList instanceof HTMLElement) ||
+      !(packageFeatures instanceof HTMLElement) ||
+      !(trialCard instanceof HTMLElement) ||
+      !(trialText instanceof HTMLElement) ||
+      !(trialBtn instanceof HTMLButtonElement) ||
       !(chip instanceof HTMLElement) ||
       !(tokenValue instanceof HTMLElement) ||
       !(tokenCode instanceof HTMLElement) ||
@@ -841,6 +986,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeBtn.addEventListener("click", () => closeCheckoutModal());
     root.addEventListener("click", (event) => {
       if (event.target === root) closeCheckoutModal();
+    });
+
+    packageList.addEventListener("change", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.name !== "checkoutPackageId") return;
+      const previousPackageId = checkoutState.selectedPackageId;
+      checkoutState.selectedPackageId = String(target.value || "").trim();
+      checkoutState.useWalletBalance = false;
+      checkoutState.walletUseInput = "";
+      checkoutState.preview = null;
+      renderCheckoutModal();
+      try {
+        await refreshCheckoutPreview();
+      } catch (error) {
+        checkoutState.selectedPackageId = previousPackageId;
+        renderCheckoutModal();
+        const message = error instanceof Error ? error.message : "Unable to update package.";
+        setCheckoutFriendMessage(message, "error");
+      }
+    });
+
+    trialBtn.addEventListener("click", async () => {
+      const productId = String(checkoutState.product?.id || "").trim();
+      if (!productId || checkoutState.busy) return;
+      setCheckoutBusy(true);
+      try {
+        const payload = await claimFreeTrial(productId);
+        const matchedProduct = state.products.find((item) => String(item?.id || "") === productId);
+        if (matchedProduct) {
+          matchedProduct.trialStatus = {
+            hasClaimed: true,
+            claimedAt: String(payload?.trial?.claimedAt || ""),
+            expiresAt: String(payload?.trial?.expiresAt || ""),
+            isActive: true,
+          };
+          matchedProduct.isPremiumUnlocked = true;
+        }
+        renderAll();
+        renderCheckoutModal();
+        setCheckoutFriendMessage(payload?.message || "Free trial activated.", "success");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to activate free trial.";
+        setCheckoutFriendMessage(message, "error");
+      } finally {
+        setCheckoutBusy(false);
+      }
     });
 
     tokenToggleBtn.addEventListener("click", async () => {
@@ -983,6 +1175,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const checkoutPagePath = await resolveCheckoutPagePath();
         const nextUrl = new URL(checkoutPagePath, window.location.href);
         nextUrl.searchParams.set("productId", String(checkoutState.product.id || ""));
+        if (checkoutState.selectedPackageId) {
+          nextUrl.searchParams.set("packageId", checkoutState.selectedPackageId);
+        } else {
+          nextUrl.searchParams.delete("packageId");
+        }
         nextUrl.searchParams.set("includeDefaultOffer", checkoutState.includeDefaultOffer ? "1" : "0");
         if (checkoutState.appliedReferralCode) {
           nextUrl.searchParams.set("referralCode", checkoutState.appliedReferralCode);
@@ -1023,6 +1220,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       sponsorInput,
       sponsorApplyBtn,
       sponsorMessage,
+      packageList,
+      packageFeatures,
+      trialCard,
+      trialText,
+      trialBtn,
       walletToggle,
       walletInput,
       walletHelp,
@@ -1041,7 +1243,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return checkoutModal;
   };
 
-  const openCheckoutModal = async (productId, seededReferralCode = "") => {
+  const openCheckoutModal = async (productId, seededReferralCode = "", seededPackageId = "") => {
     const { token, isStudentLoggedIn } = getAuthState();
     if (!isStudentLoggedIn || !token) {
       redirectGuestToLogin();
@@ -1054,6 +1256,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     createCheckoutModal();
     checkoutState.product = product;
+    const activePackages = Array.isArray(product.packages) ? product.packages.filter((item) => item?.isActive !== false) : [];
+    checkoutState.selectedPackageId =
+      String(
+        activePackages.find((item) => String(item?.id || "") === String(seededPackageId || "").trim())?.id ||
+          activePackages[0]?.id ||
+          ""
+      ).trim();
     checkoutState.includeDefaultOffer = getDiscountPercentForProduct(product) > 0;
     checkoutState.referralInput = String(seededReferralCode || "").trim().toUpperCase();
     checkoutState.appliedReferralCode = checkoutState.referralInput;
@@ -1883,20 +2092,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = createProductPageHref(safeProductId, safeProductId);
   };
 
+  const getActivePackages = (product) =>
+    Array.isArray(product?.packages) ? product.packages.filter((item) => item?.isActive !== false) : [];
+
+  const getTrialBadgeText = (product) => {
+    const config = product?.trialConfig || {};
+    const status = product?.trialStatus || {};
+    if (!config.enabled || !(Number(config.days || 0) > 0)) return "";
+    if (status.isActive) return "Trial Active";
+    if (status.hasClaimed) return "Trial Used";
+    return `${Number(config.days || 0)} Day Trial`;
+  };
+
   const renderProductCatalogCard = (product) => {
     const thumb = normalizeAssetUrl(product.thumbnailUrl);
     const productId = String(product.id || "").trim();
     const discount = Number(product.discountPercent || 0);
+    const packages = getActivePackages(product);
+    const trialBadge = getTrialBadgeText(product);
     const detailsHref = createProductPageHref(productId, "");
     const primaryHref = isSubscriptionsPage ? detailsHref : createProductPageHref(productId, productId);
-    const primaryLabel = isSubscriptionsPage ? "Open" : "Buy";
+    const primaryLabel = isSubscriptionsPage ? "Open" : packages.length ? "Choose Package" : "Buy";
     return `
       <article class="home-latest-card product-catalog-card">
         <img
           class="home-latest-thumb"
           src="${escapeHtml(thumb)}"
           alt="${escapeHtml(product.title)}"
-          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+          onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
         />
         <div class="home-latest-body">
           <p class="home-latest-tags">
@@ -1910,6 +2133,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             <span class="home-latest-mrp">${toCurrency(product.listPrice)}</span>
             <span class="home-latest-off">(${discount}% off)</span>
           </div>
+          ${
+            !isSubscriptionsPage
+              ? `
+                <div class="product-card-mini-meta">
+                  ${trialBadge ? `<span class="product-mini-pill">${escapeHtml(trialBadge)}</span>` : ""}
+                  ${packages.length ? `<span class="product-mini-pill">${packages.length} package${packages.length === 1 ? "" : "s"}</span>` : ""}
+                </div>
+              `
+              : ""
+          }
           <div class="home-latest-actions">
             <a class="btn-secondary" href="${detailsHref}">Details</a>
             <a class="btn-primary" href="${primaryHref}">${primaryLabel}</a>
@@ -1926,6 +2159,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const productId = String(product.id || "").trim();
     const referralFriendDiscount = Number(product.referralDiscountAmount || 0);
     const showPurchaseActions = !isSubscriptionsPage;
+    const packages = getActivePackages(product);
+    const trialConfig = product.trialConfig || {};
+    const trialStatus = product.trialStatus || {};
     return `
       <div class="product-card-stack">
         <article class="product-card product-card-wide">
@@ -1934,7 +2170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             class="product-thumb"
             src="${escapeHtml(thumb)}"
             alt="${escapeHtml(product.title)}"
-            onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+            onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
           />
           <div class="product-body">
             <p class="product-tags">
@@ -1960,6 +2196,44 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             <p class="product-access">${product.accessDays} days access</p>
             ${
+              showPurchaseActions && (packages.length || trialConfig.enabled)
+                ? `
+                  <div class="product-offer-summary">
+                    ${
+                      packages.length
+                        ? `
+                          <div class="product-offer-box">
+                            <strong>${packages.length} package plan${packages.length === 1 ? "" : "s"} available</strong>
+                            <small>Students can choose from ${escapeHtml(
+                              packages
+                                .map((item) => `${item.title} - ${toCurrency(item.price)}`)
+                                .join(", ")
+                            )}</small>
+                          </div>
+                        `
+                        : ""
+                    }
+                    ${
+                      trialConfig.enabled
+                        ? `
+                          <div class="product-offer-box">
+                            <strong>Free trial: ${Number(trialConfig.days || 0)} day${Number(trialConfig.days || 0) === 1 ? "" : "s"}</strong>
+                            <small>${
+                              trialStatus.isActive
+                                ? `Trial active until ${new Date(trialStatus.expiresAt).toLocaleDateString()}`
+                                : trialStatus.hasClaimed
+                                  ? "Free trial already used."
+                                  : "One-time activation on this product."
+                            }</small>
+                          </div>
+                        `
+                        : ""
+                    }
+                  </div>
+                `
+                : ""
+            }
+            ${
               showPurchaseActions
                 ? `
                   <div class="product-actions">
@@ -1968,15 +2242,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                       class="btn-primary"
                       data-buy-product="${escapeHtml(productId)}"
                     >
-                      Buy
+                      ${packages.length ? "Choose Package" : "Buy"}
                     </button>
                     <button
                       type="button"
                       class="btn-sky"
                       data-buy-wallet-product="${escapeHtml(productId)}"
                     >
-                      Buy with Wallet
+                      ${packages.length ? "Buy With Wallet" : "Buy with Wallet"}
                     </button>
+                    ${
+                      trialConfig.enabled
+                        ? `
+                          <button
+                            type="button"
+                            class="btn-secondary"
+                            data-claim-trial-product="${escapeHtml(productId)}"
+                            ${trialStatus.hasClaimed || trialStatus.isActive ? "disabled" : ""}
+                          >
+                            ${trialStatus.isActive ? "Trial Active" : trialStatus.hasClaimed ? "Trial Used" : "Start Free Trial"}
+                          </button>
+                        `
+                        : ""
+                    }
                   </div>
                 `
                 : ""
@@ -2428,27 +2716,49 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const walletButton = target.closest("[data-buy-wallet-product]");
-        if (!(walletButton instanceof HTMLElement)) return;
+        if (walletButton instanceof HTMLElement) {
+          const walletProductId = walletButton.getAttribute("data-buy-wallet-product");
+          if (!walletProductId) return;
+          const walletReferralCode = getReferralCodeFromActionTarget(walletButton);
 
-        const walletProductId = walletButton.getAttribute("data-buy-wallet-product");
-        if (!walletProductId) return;
-        const walletReferralCode = getReferralCodeFromActionTarget(walletButton);
-
-        try {
-          setMessage("Processing wallet purchase...");
-          const payload = await buyWithWallet(walletProductId, { referralCode: walletReferralCode });
-          await loadProducts();
-          const savedAmount = Number(payload?.purchase?.referralDiscountApplied || 0);
-          if (savedAmount > 0) {
-            setMessage(
-              `Purchase successful using referral wallet. You saved ${toCurrency(savedAmount)}.`,
-              "success"
-            );
-          } else {
-            setMessage("Purchase successful using referral wallet.", "success");
+          try {
+            setMessage("");
+            await openCheckoutModal(walletProductId, walletReferralCode);
+            if (checkoutModal?.walletToggle instanceof HTMLInputElement) {
+              checkoutModal.walletToggle.checked = true;
+              checkoutState.useWalletBalance = true;
+              const pricing = checkoutState.preview?.pricing || resolveCheckoutFallbackPricing();
+              const payableBeforeWallet = Math.max(
+                0,
+                toSafeNumber(
+                  pricing.payableBeforeWallet !== undefined && pricing.payableBeforeWallet !== null
+                    ? pricing.payableBeforeWallet
+                    : pricing.payableAmount
+                )
+              );
+              const autoWalletUse = Math.min(payableBeforeWallet, checkoutState.walletBalance);
+              checkoutState.walletUseInput = autoWalletUse > 0 ? String(Number(autoWalletUse.toFixed(2))) : "";
+              renderCheckoutModal();
+              await refreshCheckoutPreview();
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to purchase product.";
+            setMessage(message, "error");
           }
+          return;
+        }
+
+        const trialButton = target.closest("[data-claim-trial-product]");
+        if (!(trialButton instanceof HTMLElement)) return;
+        const trialProductId = String(trialButton.getAttribute("data-claim-trial-product") || "").trim();
+        if (!trialProductId) return;
+        try {
+          setMessage("Activating free trial...");
+          const payload = await claimFreeTrial(trialProductId);
+          await loadProducts();
+          setMessage(payload?.message || "Free trial activated.", "success");
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unable to purchase product.";
+          const message = error instanceof Error ? error.message : "Unable to activate free trial.";
           setMessage(message, "error");
         }
       });
@@ -2486,7 +2796,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadProducts();
     if (checkoutProductIdFromLink) {
       try {
-        await openCheckoutModal(checkoutProductIdFromLink);
+        await openCheckoutModal(checkoutProductIdFromLink, "", packageIdFromLink);
       } finally {
         const nextUrl = new URL(window.location.href);
         if (!String(nextUrl.searchParams.get("productId") || "").trim()) {

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Tuition Syllabus | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=58" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-start.html" data-label="Tuition Home" aria-label="Tuition Home">Tuition Home</a>
+          <a href="./smart-tuitions.html" data-label="Smart Tuitions" aria-label="Smart Tuitions">Smart Tuitions</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-flow-hero">
+        <div>
+          <p class="eyebrow">Phase 2</p>
+          <h1>Upload School Syllabus</h1>
+          <p>
+            Select your board, class, and subject, then upload the syllabus image or PDF. The parser stays
+            manual-review friendly for now and does not depend on an OCR provider.
+          </p>
+        </div>
+        <article class="card tuition-flow-side-card">
+          <h2>Flow</h2>
+          <ol class="tuition-flow-steps">
+            <li>Set board, class, and subject</li>
+            <li>Upload the syllabus file</li>
+            <li>Review parsed chapters</li>
+            <li>Start a text-first tuition session</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="section">
+        <article class="card tuition-flow-form-card">
+          <h2>Profile + Upload</h2>
+          <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
+          <form id="tuitionUploadForm" class="tuition-flow-form">
+            <div class="tuition-flow-grid">
+              <label>
+                <span>Board</span>
+                <select id="tuitionBoardSelect" required></select>
+              </label>
+              <label>
+                <span>Class</span>
+                <select id="tuitionClassSelect" required></select>
+              </label>
+              <label>
+                <span>Subject</span>
+                <select id="tuitionSubjectSelect" required></select>
+              </label>
+              <label>
+                <span>Preferred Language</span>
+                <select id="tuitionLanguageSelect">
+                  <option value="ENGLISH">English</option>
+                  <option value="HINDI">Hindi</option>
+                  <option value="PUNJABI">Punjabi</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>Syllabus File</span>
+              <input id="tuitionFileInput" type="file" accept="image/*,.pdf" capture="environment" required />
+            </label>
+
+            <label>
+              <span>Manual Notes For Parsing</span>
+              <textarea
+                id="tuitionManualText"
+                rows="6"
+                placeholder="Optional: paste chapter names or the syllabus text to improve the draft parse."
+              ></textarea>
+            </label>
+
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Upload And Parse</button>
+              <a class="btn-secondary" href="./tuition-start.html">Back</a>
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-syllabus-upload.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

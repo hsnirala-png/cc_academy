@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Tuition Teacher | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=57" />
+  </head>
+  <body class="tuition-start-page">
+    <header class="site-header">
+      <a href="./index.html#home" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./smart-tuitions.html" data-label="Smart Tuitions" aria-label="Smart Tuitions">Smart Tuitions</a>
+          <a href="./products.html" data-label="Products" aria-label="Products">Products</a>
+        </nav>
+        <div class="header-actions">
+          <a id="tuitionStartLoginLink" href="./index.html?auth=login" class="btn-secondary top-login-btn">Login</a>
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-start-main">
+      <section class="section tuition-start-hero">
+        <div class="tuition-start-copy">
+          <p class="eyebrow">Phase 1</p>
+          <h1>AI Tuition Teacher</h1>
+          <p>
+            The separate tuition domain is now mounted without changing the competitive exam AI flow.
+            This page is the safe entry point for the upcoming board, class, subject, and syllabus flow.
+          </p>
+          <div class="tuition-start-actions">
+            <a id="tuitionStartPrimaryCta" class="btn-primary" href="./smart-tuitions.html">Back to Smart Tuitions</a>
+            <a id="tuitionStartSecondaryCta" class="btn-secondary" href="./dashboard.html">Go to Dashboard</a>
+          </div>
+        </div>
+        <article class="card tuition-start-status-card">
+          <h2>Current Scope</h2>
+          <p id="tuitionStartStatus" class="form-message">Checking tuition bootstrap...</p>
+          <div id="tuitionStartBootstrap" class="tuition-start-bootstrap"></div>
+        </article>
+      </section>
+
+      <section class="section tuition-start-grid">
+        <article class="card tuition-start-card">
+          <h2>What is live now</h2>
+          <ul>
+            <li>Separate student tuition routes</li>
+            <li>Separate admin tuition routes</li>
+            <li>Separate tuition frontend entry page</li>
+            <li>No changes to the exam AI lesson flow</li>
+          </ul>
+        </article>
+        <article class="card tuition-start-card">
+          <h2>Next planned in Phase 2</h2>
+          <ul>
+            <li>Profile and syllabus schema</li>
+            <li>Core tuition bootstrap APIs</li>
+            <li>Syllabus upload and review flow</li>
+            <li>Chapter-wise tuition session bootstrap</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-start.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

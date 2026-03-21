@@ -15,6 +15,12 @@
 
   const COURSE_ROUTES = [
     {
+      value: "tuition-start",
+      label: "AI Tuition Teacher",
+      href: () => getRoute("tuition-start"),
+      keywords: ["ai tuition teacher", "tuition teacher", "tuition start", "school ai teacher"],
+    },
+    {
       value: "smart-tuitions",
       label: "CC Academy Smart Tuitions",
       href: () => getRoute("smart-tuitions"),

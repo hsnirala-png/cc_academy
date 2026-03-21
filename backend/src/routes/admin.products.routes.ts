@@ -9,6 +9,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
+import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
 
@@ -68,6 +69,13 @@ const productFaqItemSchema = z.object({
 const productExamCoveredItemSchema = z.object({
   title: z.string().trim().min(1).max(160),
   imageUrl: optionalTrimmedString(1000),
+});
+
+const productPackageSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  price: z.coerce.number().positive(),
+  isActive: optionalBoolean.default(true),
+  featureLines: productTextListSchema.optional(),
 });
 
 const productDetailsTabsSchema = z
@@ -134,6 +142,15 @@ const createProductSchema = z.object({
   mockTestLinks: z.array(productMockTestLinkSchema).max(200).optional(),
   demoMockTestLinks: z.array(productMockTestLinkSchema).max(200).optional(),
   comboProductIds: z.array(z.string().trim().min(1)).optional(),
+  trialEnabled: optionalBoolean,
+  trialDays: z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) return undefined;
+      return value;
+    },
+    z.coerce.number().int().positive().optional()
+  ),
+  packages: z.array(productPackageSchema).max(60).optional(),
   isActive: optionalBoolean,
 });
 
@@ -258,6 +275,8 @@ type ProductRow = {
   addons: unknown;
   demoLessonTitle: string | null;
   demoLessonUrl: string | null;
+  trialEnabled?: number | boolean;
+  trialDays?: number | null;
   isActive: number | boolean;
   createdBy: string | null;
   createdAt: Date | string;
@@ -301,6 +320,18 @@ type ProductComboRow = {
   childLanguageMode: string | null;
   childThumbnailUrl: string | null;
   childIsActive: number | boolean;
+};
+
+type ProductPackageRow = {
+  id: string;
+  productId: string;
+  title: string;
+  price: number | string;
+  featureLines: unknown;
+  sortOrder: number;
+  isActive: number | boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 };
 
 const toNumber = (value: unknown): number => {
@@ -401,6 +432,18 @@ const parseAddons = (value: unknown): ProductDetailsContent => {
   return normalizeProductDetailsContent(value);
 };
 
+const normalizePackageFeatureLines = (value: unknown): string[] => {
+  if (!value) return [];
+  if (typeof value === "string") {
+    try {
+      return normalizeTextList(JSON.parse(value), []);
+    } catch {
+      return normalizeTextList(value.split("\n"), []);
+    }
+  }
+  return normalizeTextList(value, []);
+};
+
 const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   const normalized = String(value || "")
     .trim()
@@ -438,6 +481,29 @@ const toLinkedComboProduct = (row: ProductComboRow) => ({
   thumbnailUrl: row.childThumbnailUrl,
   isActive: toBoolean(row.childIsActive),
 });
+
+const buildSerializedPackages = (rows: ProductPackageRow[]) => {
+  const ordered = [...rows].sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+    return new Date(String(left.createdAt)).getTime() - new Date(String(right.createdAt)).getTime();
+  });
+  let cumulativeFeatureLines: string[] = [];
+  return ordered.map((row) => {
+    const featureLines = normalizePackageFeatureLines(row.featureLines);
+    cumulativeFeatureLines = [...cumulativeFeatureLines, ...featureLines];
+    return {
+      id: row.id,
+      title: row.title,
+      price: toNumber(row.price),
+      featureLines,
+      allFeatureLines: [...cumulativeFeatureLines],
+      sortOrder: Number(row.sortOrder || 0),
+      isActive: toBoolean(row.isActive),
+      createdAt: toIso(row.createdAt),
+      updatedAt: toIso(row.updatedAt),
+    };
+  });
+};
 
 const loadMockTestsByProductIds = async (productIds: string[]) => {
   if (!productIds.length) return new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
@@ -548,11 +614,57 @@ const loadComboProductsByParentIds = async (productIds: string[]) => {
   }
 };
 
+const loadPackagesByProductIds = async (productIds: string[]) => {
+  if (!productIds.length) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          pp.id,
+          pp.productId,
+          pp.title,
+          pp.price,
+          pp.featureLines,
+          pp.sortOrder,
+          pp.isActive,
+          pp.createdAt,
+          pp.updatedAt
+        FROM ProductPackage pp
+        WHERE pp.productId IN (${placeholders})
+        ORDER BY pp.productId ASC, pp.sortOrder ASC, pp.createdAt ASC
+      `,
+      ...productIds
+    )) as ProductPackageRow[];
+
+    const groupedRows = new Map<string, ProductPackageRow[]>();
+    rows.forEach((row) => {
+      const list = groupedRows.get(row.productId) || [];
+      list.push(row);
+      groupedRows.set(row.productId, list);
+    });
+
+    const grouped = new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    groupedRows.forEach((value, key) => {
+      grouped.set(key, buildSerializedPackages(value));
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("productpackage");
+    if (missingTable) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    throw error;
+  }
+};
+
 const serializeProduct = (
   row: ProductRow,
   linkedMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   linkedDemoMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
-  comboProducts: ReturnType<typeof toLinkedComboProduct>[] = []
+  comboProducts: ReturnType<typeof toLinkedComboProduct>[] = [],
+  packages: ReturnType<typeof buildSerializedPackages> = []
 ) => {
   const listPrice = toNumber(row.listPrice);
   const salePrice = toNumber(row.salePrice);
@@ -564,7 +676,7 @@ const serializeProduct = (
     examName: row.examName,
     courseType: row.courseType,
     languageMode: row.languageMode,
-    thumbnailUrl: row.thumbnailUrl,
+    thumbnailUrl: resolveProductThumbnailUrl(row.thumbnailUrl),
     description: row.description,
     listPrice,
     salePrice,
@@ -575,6 +687,11 @@ const serializeProduct = (
     addons: parseAddons(row.addons),
     demoLessonTitle: row.demoLessonTitle || null,
     demoLessonUrl: row.demoLessonUrl || null,
+    trialConfig: {
+      enabled: toBoolean(row.trialEnabled),
+      days: Number(row.trialDays || 0),
+    },
+    packages,
     isActive: toBoolean(row.isActive),
     createdBy: row.createdBy,
     createdByUser: row.createdByUserId
@@ -605,6 +722,13 @@ const assertReferralDiscount = (salePrice: number, referralDiscountAmount: numbe
   }
   if (referralDiscountAmount > salePrice) {
     throw new AppError("Referral friend discount cannot be greater than sale price.", 400);
+  }
+};
+
+const assertTrialConfig = (trialEnabled: boolean, trialDays: number | undefined) => {
+  if (!trialEnabled) return;
+  if (!(Number(trialDays || 0) > 0)) {
+    throw new AppError("Trial days must be greater than 0 when free trial is enabled.", 400);
   }
 };
 
@@ -878,6 +1002,45 @@ const syncProductComboItems = async (productId: string, comboProductIds: string[
   }
 };
 
+const syncProductPackages = async (
+  productId: string,
+  packages: Array<{ title: string; price: number; isActive?: boolean; featureLines?: string[] }>
+) => {
+  await prisma.$executeRawUnsafe("DELETE FROM ProductPackage WHERE productId = ?", productId);
+  if (!Array.isArray(packages) || !packages.length) return;
+
+  const baseMs = Date.now();
+  for (let index = 0; index < packages.length; index += 1) {
+    const item = packages[index];
+    const title = String(item?.title || "").trim();
+    const price = toNumber(item?.price);
+    const featureLines = normalizeTextList(item?.featureLines, []);
+    if (!title) {
+      throw new AppError(`Package ${index + 1} title is required.`, 400);
+    }
+    if (!(price > 0)) {
+      throw new AppError(`Package ${index + 1} price must be greater than 0.`, 400);
+    }
+    const createdAt = new Date(baseMs + index);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductPackage
+        (id, productId, title, price, featureLines, sortOrder, isActive, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      randomUUID(),
+      productId,
+      title,
+      price,
+      JSON.stringify(featureLines),
+      index,
+      item?.isActive === false ? 0 : 1,
+      createdAt,
+      createdAt
+    );
+  }
+};
+
 adminProductsRouter.post(
   "/products/thumbnail-upload",
   ...ensureAdmin,
@@ -992,16 +1155,18 @@ const fetchOneProduct = async (id: string) => {
 const fetchSerializedProduct = async (id: string) => {
   const product = await fetchOneProduct(id);
   if (!product) return null;
-  const [linkedMap, linkedDemoMap, comboMap] = await Promise.all([
+  const [linkedMap, linkedDemoMap, comboMap, packageMap] = await Promise.all([
     loadMockTestsByProductIds([id]),
     loadDemoMockTestsByProductIds([id]),
     loadComboProductsByParentIds([id]),
+    loadPackagesByProductIds([id]),
   ]);
   return serializeProduct(
     product,
     linkedMap.get(id) || [],
     linkedDemoMap.get(id) || [],
-    comboMap.get(id) || []
+    comboMap.get(id) || [],
+    packageMap.get(id) || []
   );
 };
 
@@ -1062,10 +1227,11 @@ adminProductsRouter.get("/products", ...ensureAdmin, async (req, res, next) => {
       ...params
     )) as ProductRow[];
     const productIds = rows.map((item) => item.id);
-    const [linkedMap, linkedDemoMap, comboMap] = await Promise.all([
+    const [linkedMap, linkedDemoMap, comboMap, packageMap] = await Promise.all([
       loadMockTestsByProductIds(productIds),
       loadDemoMockTestsByProductIds(productIds),
       loadComboProductsByParentIds(productIds),
+      loadPackagesByProductIds(productIds),
     ]);
 
     res.json({
@@ -1074,7 +1240,8 @@ adminProductsRouter.get("/products", ...ensureAdmin, async (req, res, next) => {
           row,
           linkedMap.get(row.id) || [],
           linkedDemoMap.get(row.id) || [],
-          comboMap.get(row.id) || []
+          comboMap.get(row.id) || [],
+          packageMap.get(row.id) || []
         )
       ),
     });
@@ -1088,6 +1255,7 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
     const input = createProductSchema.parse(req.body);
     assertPricing(input.listPrice, input.salePrice);
     assertReferralDiscount(input.salePrice, input.referralDiscountAmount ?? 0);
+    assertTrialConfig(Boolean(input.trialEnabled), input.trialDays);
     const normalizedDescription = String(input.description || "").trim() || DEFAULT_PRODUCT_DESCRIPTION;
     const normalizedAddons = normalizeProductDetailsContent(input.addons);
 
@@ -1117,6 +1285,8 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
           addons,
           demoLessonTitle,
           demoLessonUrl,
+          trialEnabled,
+          trialDays,
           isActive,
           createdBy,
           createdAt,
@@ -1141,6 +1311,8 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
       JSON.stringify(normalizedAddons),
       input.demoLessonTitle ?? null,
       input.demoLessonUrl ?? null,
+      input.trialEnabled ?? false,
+      input.trialEnabled ? input.trialDays ?? null : null,
       input.isActive ?? true,
       req.user!.userId,
       now,
@@ -1150,6 +1322,7 @@ adminProductsRouter.post("/products", ...ensureAdmin, async (req, res, next) => 
       syncProductMockTests(productId, mockTestLinks),
       syncProductDemoMockTests(productId, demoMockTestLinks),
       syncProductComboItems(productId, input.comboProductIds || []),
+      syncProductPackages(productId, input.packages || []),
     ]);
 
     const product = await fetchSerializedProduct(productId);
@@ -1218,8 +1391,12 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
       updates.demoMockTestLinks !== undefined || updates.demoMockTestIds !== undefined
         ? normalizeMockTestLinks(updates.demoMockTestLinks, updates.demoMockTestIds)
         : undefined;
+    const nextTrialEnabled = updates.trialEnabled ?? toBoolean(existing.trialEnabled);
+    const nextTrialDays =
+      nextTrialEnabled ? updates.trialDays ?? Number(existing.trialDays || 0) : undefined;
     assertPricing(nextListPrice, nextSalePrice);
     assertReferralDiscount(nextSalePrice, nextReferralDiscountAmount);
+    assertTrialConfig(Boolean(nextTrialEnabled), nextTrialDays);
 
     const setClauses: string[] = [];
     const params: unknown[] = [];
@@ -1255,6 +1432,15 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
     if (updates.demoLessonUrl !== undefined) {
       setValue("demoLessonUrl", updates.demoLessonUrl ?? null);
     }
+    if (updates.trialEnabled !== undefined) {
+      setValue("trialEnabled", updates.trialEnabled ? 1 : 0);
+      if (!updates.trialEnabled && updates.trialDays === undefined) {
+        setValue("trialDays", null);
+      }
+    }
+    if (updates.trialDays !== undefined) {
+      setValue("trialDays", nextTrialEnabled ? updates.trialDays : null);
+    }
     if (updates.isActive !== undefined) setValue("isActive", updates.isActive ? 1 : 0);
     if (nextMockTestLinks !== undefined) {
       await syncProductMockTests(productId, nextMockTestLinks);
@@ -1264,6 +1450,9 @@ adminProductsRouter.patch("/products/:id", ...ensureAdmin, async (req, res, next
     }
     if (updates.comboProductIds !== undefined) {
       await syncProductComboItems(productId, updates.comboProductIds || []);
+    }
+    if (updates.packages !== undefined) {
+      await syncProductPackages(productId, updates.packages || []);
     }
 
     setValue("updatedAt", new Date());

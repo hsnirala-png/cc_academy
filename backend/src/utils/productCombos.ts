@@ -27,18 +27,27 @@ export const loadDirectAccessibleProductIds = async (userId: string): Promise<Se
           SELECT spa.productId
           FROM StudentProductAccess spa
           WHERE spa.userId = ?
+          UNION
+          SELECT ptc.productId
+          FROM ProductTrialClaim ptc
+          WHERE ptc.userId = ?
+            AND ptc.expiresAt >= CURRENT_TIMESTAMP(3)
         ) unlocked
       `,
+      userId,
       userId,
       userId
     )) as Array<{ productId: string }>;
     return new Set(rows.map((item) => String(item.productId || "").trim()).filter(Boolean));
   } catch (error) {
     const message = String((error as { message?: string })?.message || "").toLowerCase();
-    const missingPurchaseTable =
+    const missingAccessTable =
       message.includes("1146") &&
-      (message.includes("productpurchase") || message.includes("product purchase"));
-    if (!missingPurchaseTable) throw error;
+      (message.includes("productpurchase") ||
+        message.includes("product purchase") ||
+        message.includes("producttrialclaim") ||
+        message.includes("product trial claim"));
+    if (!missingAccessTable) throw error;
 
     const assignedOnlyRows = (await prisma.$queryRawUnsafe(
       `

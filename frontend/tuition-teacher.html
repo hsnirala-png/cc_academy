@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Teacher | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=58" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Upload" aria-label="Upload">Upload</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-teacher-layout">
+        <article class="card tuition-teacher-sidebar">
+          <p class="eyebrow">Text-first MVP</p>
+          <h1 id="tuitionTeacherTitle">Loading chapter...</h1>
+          <p id="tuitionTeacherSummary" class="form-message">Loading chapter context...</p>
+          <div class="tuition-flow-grid">
+            <label>
+              <span>Language</span>
+              <select id="tuitionTeacherLanguage">
+                <option value="ENGLISH">English</option>
+                <option value="HINDI">Hindi</option>
+                <option value="PUNJABI">Punjabi</option>
+              </select>
+            </label>
+            <label>
+              <span>Speed</span>
+              <select id="tuitionTeacherSpeed">
+                <option value="SLOW">Slow</option>
+                <option value="NORMAL" selected>Normal</option>
+                <option value="FAST">Fast</option>
+              </select>
+            </label>
+            <label>
+              <span>Difficulty</span>
+              <select id="tuitionTeacherDifficulty">
+                <option value="EASY">Easy</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HARD">Hard</option>
+              </select>
+            </label>
+          </div>
+          <div class="tuition-flow-actions">
+            <a class="btn-secondary" href="./tuition-chapters.html">Back To Chapters</a>
+          </div>
+        </article>
+
+        <article class="card tuition-teacher-chat-card">
+          <div id="tuitionTeacherMessages" class="tuition-chat-thread"></div>
+          <p id="tuitionTeacherStatus" class="form-message">Creating or resuming tuition session...</p>
+          <form id="tuitionTeacherForm" class="tuition-chat-form">
+            <textarea
+              id="tuitionTeacherInput"
+              rows="4"
+              maxlength="8000"
+              placeholder="Ask about the chapter concept, example, or practice question."
+              required
+            ></textarea>
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Send Message</button>
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-teacher.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

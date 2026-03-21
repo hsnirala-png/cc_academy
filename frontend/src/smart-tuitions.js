@@ -1,4 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const getRoute = (name) => {
+    const pathname = String(window.location.pathname || "").toLowerCase();
+    const prefersExtensionless = Boolean(pathname) && pathname !== "/" && !pathname.endsWith(".html");
+    return prefersExtensionless ? `./${name}` : `./${name}.html`;
+  };
+
   const header = document.querySelector(".site-header");
   const menuToggle = document.querySelector(".menu-toggle");
   const mobileSearchToggle = document.querySelector("#mobileSearchToggle");
@@ -75,6 +81,13 @@ document.addEventListener("DOMContentLoaded", () => {
       closeHeaderMenus();
     });
   });
+
+  document
+    .querySelectorAll('.smart-tuitions-actions .btn-primary[href*="products"], .smart-tuitions-actions .btn-primary[href*="Smart%20Tuitions"]')
+    .forEach((link) => {
+      if (!(link instanceof HTMLAnchorElement)) return;
+      link.setAttribute("href", getRoute("tuition-start"));
+    });
 
   document.addEventListener("click", (event) => {
     const target = event.target;

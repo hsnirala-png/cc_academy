@@ -103,6 +103,47 @@ enum AiMessageRole {
   ASSISTANT
 }
 
+enum TuitionParseStatus {
+  UPLOADED
+  PROCESSING
+  PARSED
+  NEEDS_REVIEW
+  CONFIRMED
+  FAILED
+}
+
+enum TuitionSessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum TuitionProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TuitionSpeedMode {
+  SLOW
+  NORMAL
+  FAST
+}
+
+enum TuitionDifficultyMode {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum TuitionHomeworkStatus {
+  GENERATED
+  ASSIGNED
+  SUBMITTED
+  EVALUATED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -126,8 +167,14 @@ model User {
   referralTransactions ReferralTransaction[]
   referralWithdrawals ReferralWithdrawal[]
   productPurchases ProductPurchase[]
+  productTrialClaims ProductTrialClaim[]
   contactConversations ContactConversation[]
   aiConversations AiConversation[]
+  tuitionProfile TuitionProfile?
+  tuitionUploads TuitionSyllabusUpload[]
+  tuitionSyllabi TuitionSyllabus[]
+  tuitionSessions TuitionSession[]
+  tuitionProgress TuitionProgress[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -267,10 +314,14 @@ model Product {
   accessDays    Int
   validityLabel String?
   addons        Json?
+  trialEnabled  Boolean  @default(false)
+  trialDays     Int?
   isActive      Boolean  @default(true)
   createdBy     String?
   createdByUser User?    @relation("ProductsCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   purchases     ProductPurchase[]
+  packages      ProductPackage[]
+  trialClaims   ProductTrialClaim[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -447,6 +498,9 @@ model ProductPurchase {
   amountPaid    Decimal  @db.Decimal(10, 2)
   walletUsed    Decimal  @db.Decimal(10, 2)
   referralBonusCredited Decimal @default(0) @db.Decimal(10, 2)
+  packageId      String?
+  packageTitle   String?
+  packagePrice   Decimal? @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -454,6 +508,42 @@ model ProductPurchase {
 
   @@index([userId, createdAt])
   @@index([productId, createdAt])
+  @@index([packageId])
+}
+
+model ProductPackage {
+  id           String   @id @default(cuid())
+  productId    String
+  title        String
+  price        Decimal  @db.Decimal(10, 2)
+  featureLines Json?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@index([productId, isActive])
+}
+
+model ProductTrialClaim {
+  id                String   @id @default(cuid())
+  userId            String
+  productId         String
+  mobile            String
+  deviceFingerprint String
+  trialDays         Int
+  claimedAt         DateTime @default(now())
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, mobile])
+  @@unique([productId, deviceFingerprint])
+  @@index([userId, expiresAt])
 }
 
 model ReferralPayoutMethod {
@@ -548,4 +638,189 @@ model ContactMessage {
   conversation   ContactConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+model TuitionBoard {
+  id        String           @id @default(cuid())
+  code      String           @unique
+  name      String
+  isActive  Boolean          @default(true)
+  profiles  TuitionProfile[]
+  syllabi   TuitionSyllabus[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([isActive, name])
+}
+
+model TuitionSubject {
+  id        String           @id @default(cuid())
+  code      String           @unique
+  name      String
+  isActive  Boolean          @default(true)
+  profiles  TuitionProfile[]
+  syllabi   TuitionSyllabus[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([isActive, name])
+}
+
+model TuitionProfile {
+  id               String                  @id @default(cuid())
+  userId           String                  @unique
+  boardId          String?
+  classLevel       Int?
+  subjectId        String?
+  preferredLanguage String?
+  activeSyllabusId String?
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board            TuitionBoard?           @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  subject          TuitionSubject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  activeSyllabus   TuitionSyllabus?        @relation("ActiveTuitionSyllabus", fields: [activeSyllabusId], references: [id], onDelete: SetNull)
+  uploads          TuitionSyllabusUpload[]
+  syllabi          TuitionSyllabus[]       @relation("ProfileTuitionSyllabi")
+  chapterPlans     TuitionChapterPlan[]
+  sessions         TuitionSession[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([boardId])
+  @@index([subjectId])
+  @@index([activeSyllabusId])
+}
+
+model TuitionSyllabusUpload {
+  id            String             @id @default(cuid())
+  userId        String
+  profileId     String
+  sourceType    String
+  fileName      String
+  mimeType      String
+  fileUrl       String
+  parseStatus   TuitionParseStatus @default(UPLOADED)
+  ocrRawText    String?            @db.LongText
+  parseWarnings Json?
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile       TuitionProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  syllabus      TuitionSyllabus?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([parseStatus, updatedAt])
+}
+
+model TuitionSyllabus {
+  id             String                  @id @default(cuid())
+  userId         String
+  profileId      String
+  uploadId       String?                 @unique
+  title          String
+  boardId        String?
+  classLevel     Int?
+  subjectId      String?
+  isConfirmed    Boolean                 @default(false)
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile        TuitionProfile          @relation("ProfileTuitionSyllabi", fields: [profileId], references: [id], onDelete: Cascade)
+  upload         TuitionSyllabusUpload?  @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  board          TuitionBoard?           @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  subject        TuitionSubject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapters       TuitionSyllabusChapter[]
+  activeProfiles TuitionProfile[]        @relation("ActiveTuitionSyllabus")
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([profileId, createdAt])
+  @@index([boardId])
+  @@index([subjectId])
+}
+
+model TuitionSyllabusChapter {
+  id              String              @id @default(cuid())
+  syllabusId      String
+  name            String
+  normalizedName  String
+  orderIndex      Int
+  sourceText      String?             @db.Text
+  isIncluded      Boolean             @default(true)
+  syllabus        TuitionSyllabus     @relation(fields: [syllabusId], references: [id], onDelete: Cascade)
+  chapterPlans    TuitionChapterPlan[]
+  sessions        TuitionSession[]
+  progressRecords TuitionProgress[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([syllabusId, orderIndex])
+  @@index([syllabusId, normalizedName])
+}
+
+model TuitionChapterPlan {
+  id               String                @id @default(cuid())
+  profileId        String
+  syllabusChapterId String
+  goalSummary      String?               @db.Text
+  estimatedSessions Int?
+  recommendedOrder Int
+  profile          TuitionProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  syllabusChapter  TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([profileId, syllabusChapterId])
+  @@index([profileId, recommendedOrder])
+}
+
+model TuitionSession {
+  id               String                @id @default(cuid())
+  userId           String
+  profileId        String
+  syllabusChapterId String
+  title            String
+  speedMode        TuitionSpeedMode      @default(NORMAL)
+  difficultyMode   TuitionDifficultyMode @default(MEDIUM)
+  responseLanguage String?
+  status           TuitionSessionStatus  @default(ACTIVE)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile          TuitionProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  syllabusChapter  TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
+  messages         TuitionMessage[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([userId, syllabusChapterId, updatedAt])
+  @@index([profileId, status, updatedAt])
+}
+
+model TuitionMessage {
+  id                  String        @id @default(cuid())
+  sessionId           String
+  role                AiMessageRole
+  content             String        @db.LongText
+  contextSnapshotJson Json?
+  tokenUsage          Int?
+  session             TuitionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt           DateTime      @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model TuitionProgress {
+  id               String                @id @default(cuid())
+  userId           String
+  syllabusChapterId String
+  status           TuitionProgressStatus @default(NOT_STARTED)
+  completionPercent Int                  @default(0)
+  lastSessionId    String?
+  lastStudiedAt    DateTime?
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syllabusChapter  TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([userId, syllabusChapterId])
+  @@index([status, lastStudiedAt])
+  @@index([lastSessionId])
 }

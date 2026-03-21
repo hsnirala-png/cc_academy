@@ -189,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const normalizeProductAssetUrl = (value) => {
     const raw = String(value || "").trim();
-    if (!raw) return "./public/PSTET_1.png";
+    if (!raw) return "./public/PSTET_7.png";
     if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) return raw;
     if (raw.startsWith("/") || raw.startsWith("./") || raw.startsWith("../")) return raw;
     return `./${raw}`;
@@ -509,7 +509,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           class="home-latest-thumb"
           src="${escapeHtml(image)}"
           alt="${escapeHtml(product?.title || "Product")}"
-          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+          onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
         />
         <div class="home-latest-body">
           <p class="home-latest-tags">

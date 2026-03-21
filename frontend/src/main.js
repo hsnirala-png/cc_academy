@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const API_BASE = isLocalHost
     ? `${window.location.protocol}//${window.location.hostname}:5000`
     : "";
-  const FALLBACK_PRODUCT_THUMB = "./public/PSTET_1.png";
+  const FALLBACK_PRODUCT_THUMB = "./public/PSTET_7.png";
   const resolveStoredUserRole = (user, defaultStudent = false) => {
     const role = String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")
       .trim()
@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
           class="home-latest-thumb"
           src="${escapeHtml(thumb)}"
           alt="${escapeHtml(title)}"
-          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+          onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
         />
         <div class="home-latest-body">
           <p class="home-latest-tags">

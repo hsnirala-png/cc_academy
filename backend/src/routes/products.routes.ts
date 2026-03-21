@@ -9,6 +9,7 @@ import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { verifyToken } from "../utils/jwt";
 import { loadAccessibleProductIdsForSelection } from "../utils/productCombos";
+import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
 
@@ -60,9 +61,29 @@ type ProductRow = {
   addons: unknown;
   demoLessonTitle: string | null;
   demoLessonUrl: string | null;
+  trialEnabled?: number | boolean;
+  trialDays?: number | null;
   isActive: number | boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
+};
+
+type ProductPackageRow = {
+  id: string;
+  productId: string;
+  title: string;
+  price: number | string;
+  featureLines: unknown;
+  sortOrder: number;
+  isActive: number | boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+type ProductTrialClaimRow = {
+  productId: string;
+  claimedAt: Date | string;
+  expiresAt: Date | string;
 };
 
 type ProductMockTestRow = {
@@ -276,6 +297,41 @@ const parseAddons = (value: unknown): ProductDetailsContent => {
   }
 
   return normalizeProductDetailsContent(value);
+};
+
+const normalizePackageFeatureLines = (value: unknown): string[] => {
+  if (!value) return [];
+  if (typeof value === "string") {
+    try {
+      return normalizeTextList(JSON.parse(value), []);
+    } catch {
+      return normalizeTextList(value.split("\n"), []);
+    }
+  }
+  return normalizeTextList(value, []);
+};
+
+const buildSerializedPackages = (rows: ProductPackageRow[]) => {
+  const ordered = [...rows].sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+    return new Date(String(left.createdAt)).getTime() - new Date(String(right.createdAt)).getTime();
+  });
+  let cumulativeFeatureLines: string[] = [];
+  return ordered.map((row) => {
+    const featureLines = normalizePackageFeatureLines(row.featureLines);
+    cumulativeFeatureLines = [...cumulativeFeatureLines, ...featureLines];
+    return {
+      id: row.id,
+      title: row.title,
+      price: toNumber(row.price),
+      featureLines,
+      allFeatureLines: [...cumulativeFeatureLines],
+      sortOrder: Number(row.sortOrder || 0),
+      isActive: toBoolean(row.isActive),
+      createdAt: toIso(row.createdAt),
+      updatedAt: toIso(row.updatedAt),
+    };
+  });
 };
 
 const toLinkedMockTest = (row: ProductMockTestRow) => ({
@@ -694,6 +750,81 @@ const loadChapterSubSubjectsByProductIds = async (productIds: string[]) => {
   return grouped;
 };
 
+const loadPackagesByProductIds = async (productIds: string[]) => {
+  if (!productIds.length) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          pp.id,
+          pp.productId,
+          pp.title,
+          pp.price,
+          pp.featureLines,
+          pp.sortOrder,
+          pp.isActive,
+          pp.createdAt,
+          pp.updatedAt
+        FROM ProductPackage pp
+        WHERE pp.productId IN (${placeholders})
+        ORDER BY pp.productId ASC, pp.sortOrder ASC, pp.createdAt ASC
+      `,
+      ...productIds
+    )) as ProductPackageRow[];
+
+    const groupedRows = new Map<string, ProductPackageRow[]>();
+    rows.forEach((row) => {
+      const list = groupedRows.get(row.productId) || [];
+      list.push(row);
+      groupedRows.set(row.productId, list);
+    });
+
+    const grouped = new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    groupedRows.forEach((value, key) => {
+      grouped.set(key, buildSerializedPackages(value));
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("productpackage");
+    if (missingTable) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    throw error;
+  }
+};
+
+const loadTrialClaimsByProductIds = async (userId: string | null, productIds: string[]) => {
+  if (!userId || !productIds.length) return new Map<string, ProductTrialClaimRow>();
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT productId, claimedAt, expiresAt
+        FROM ProductTrialClaim
+        WHERE userId = ?
+          AND productId IN (${placeholders})
+        ORDER BY createdAt DESC
+      `,
+      userId,
+      ...productIds
+    )) as ProductTrialClaimRow[];
+    const grouped = new Map<string, ProductTrialClaimRow>();
+    rows.forEach((row) => {
+      const productId = String(row.productId || "").trim();
+      if (!productId || grouped.has(productId)) return;
+      grouped.set(productId, row);
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("producttrialclaim");
+    if (missingTable) return new Map<string, ProductTrialClaimRow>();
+    throw error;
+  }
+};
+
 const resolveOptionalStudentUserId = (req: Request): string | null => {
   const authHeader = String(req.headers.authorization || "").trim();
   if (!authHeader.startsWith("Bearer ")) return null;
@@ -716,7 +847,9 @@ const serializeProduct = (
   linkedMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   demoMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   isPremiumUnlocked = false,
-  tocTabPreset: TocTabPreset = null
+  tocTabPreset: TocTabPreset = null,
+  packages: ReturnType<typeof buildSerializedPackages> = [],
+  trialClaim: ProductTrialClaimRow | null = null
 ) => {
   const listPrice = toNumber(row.listPrice);
   const salePrice = toNumber(row.salePrice);
@@ -730,7 +863,7 @@ const serializeProduct = (
     examName: row.examName,
     courseType: row.courseType,
     languageMode: row.languageMode,
-    thumbnailUrl: row.thumbnailUrl,
+    thumbnailUrl: resolveProductThumbnailUrl(row.thumbnailUrl),
     description: row.description,
     listPrice,
     salePrice,
@@ -742,6 +875,17 @@ const serializeProduct = (
     addons: parseAddons(row.addons),
     demoLessonTitle: row.demoLessonTitle || null,
     demoLessonUrl: row.demoLessonUrl || null,
+    trialConfig: {
+      enabled: toBoolean(row.trialEnabled),
+      days: Number(row.trialDays || 0),
+    },
+    trialStatus: {
+      hasClaimed: Boolean(trialClaim),
+      claimedAt: trialClaim ? toIso(trialClaim.claimedAt) : null,
+      expiresAt: trialClaim ? toIso(trialClaim.expiresAt) : null,
+      isActive: trialClaim ? new Date(String(trialClaim.expiresAt)).getTime() >= Date.now() : false,
+    },
+    packages,
     linkedMockTests,
     demoMockTests,
     tocTabPreset,
@@ -752,6 +896,7 @@ const serializeProduct = (
 };
 
 const buyWithWalletSchema = z.object({
+  packageId: optionalTrimmedString(191),
   referralCode: z.string().trim().min(4).max(40).optional(),
   includeDefaultOffer: z.preprocess((value) => {
     if (value === undefined || value === null || value === "") return undefined;
@@ -768,6 +913,10 @@ const buyWithWalletSchema = z.object({
     },
     z.coerce.number().nonnegative().optional()
   ),
+});
+
+const claimTrialSchema = z.object({
+  deviceFingerprint: z.string().trim().min(8).max(191),
 });
 
 const REFERRAL_DISCOUNT_SLABS = [
@@ -842,13 +991,23 @@ type CheckoutProductRow = {
   listPrice: number | string;
   salePrice: number | string;
   referralBonusAmount: number | string | null;
+  trialEnabled?: number | boolean;
+  trialDays?: number | null;
   isActive: number | boolean;
 };
 
-const getCheckoutProduct = async (productId: string): Promise<CheckoutProductRow> => {
+type CheckoutPackageRow = {
+  id: string;
+  productId: string;
+  title: string;
+  price: number | string;
+  isActive: number | boolean;
+};
+
+const getCheckoutSelection = async (productId: string, packageId?: string | null) => {
   const productRows = (await prisma.$queryRawUnsafe(
     `
-      SELECT id, title, listPrice, salePrice, referralBonusAmount, isActive
+      SELECT id, title, listPrice, salePrice, referralBonusAmount, trialEnabled, trialDays, isActive
       FROM Product
       WHERE id = ?
       LIMIT 1
@@ -862,12 +1021,50 @@ const getCheckoutProduct = async (productId: string): Promise<CheckoutProductRow
   if (!Boolean(Number(product.isActive) === 1 || product.isActive === true)) {
     throw new AppError("This product is currently inactive.", 400);
   }
-  return product;
+
+  let selectedPackage: CheckoutPackageRow | null = null;
+  const normalizedPackageId = String(packageId || "").trim();
+  if (normalizedPackageId) {
+    const packageRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, productId, title, price, isActive
+        FROM ProductPackage
+        WHERE id = ?
+          AND productId = ?
+        LIMIT 1
+      `,
+      normalizedPackageId,
+      productId
+    ).catch((error: unknown) => {
+      const message = String((error as { message?: string })?.message || "").toLowerCase();
+      const missingTable =
+        (message.includes("1146") || message.includes("p2010")) && message.includes("productpackage");
+      if (missingTable) return [];
+      throw error;
+    })) as CheckoutPackageRow[];
+    selectedPackage = packageRows[0] || null;
+    if (!selectedPackage) {
+      throw new AppError("Selected package not found for this product.", 404);
+    }
+    if (!Boolean(Number(selectedPackage.isActive) === 1 || selectedPackage.isActive === true)) {
+      throw new AppError("Selected package is currently inactive.", 400);
+    }
+  }
+
+  return {
+    product,
+    selectedPackage,
+  };
 };
 
-const buildOfferPricing = (product: CheckoutProductRow, includeDefaultOffer: boolean, applyFriendOffer: boolean) => {
-  const listPrice = normalizeAmount(product.listPrice);
-  const salePrice = normalizeAmount(product.salePrice);
+const buildOfferPricing = (
+  product: CheckoutProductRow,
+  includeDefaultOffer: boolean,
+  applyFriendOffer: boolean,
+  selectedPackage?: CheckoutPackageRow | null
+) => {
+  const listPrice = normalizeAmount(selectedPackage?.price ?? product.listPrice);
+  const salePrice = normalizeAmount(selectedPackage?.price ?? product.salePrice);
   const effectiveSalePrice = normalizeAmount(Math.min(salePrice > 0 ? salePrice : listPrice, listPrice));
   if (listPrice <= 0 || effectiveSalePrice <= 0) {
     throw new AppError("Product pricing is invalid.", 400);
@@ -970,11 +1167,13 @@ productsRouter.get("/", async (req, res, next) => {
     )) as ProductRow[];
 
     const productIds = rows.map((item) => item.id);
-    const [linkedMap, demoMap, chapterSubSubjectMap, unlockedSet] = await Promise.all([
+    const [linkedMap, demoMap, chapterSubSubjectMap, unlockedSet, packageMap, trialClaimMap] = await Promise.all([
       loadLinkedMockTestsByProductIds(productIds),
       loadDemoMockTestsByProductIds(productIds),
       loadChapterSubSubjectsByProductIds(productIds),
       loadUnlockedProductIdsForUser(studentUserId, productIds),
+      loadPackagesByProductIds(productIds),
+      loadTrialClaimsByProductIds(studentUserId, productIds),
     ]);
     const products = rows.map((row) =>
       {
@@ -991,7 +1190,9 @@ productsRouter.get("/", async (req, res, next) => {
           linkedMockTests,
           demoMockTests,
           unlockedSet.has(row.id),
-          tocTabPreset
+          tocTabPreset,
+          packageMap.get(row.id) || [],
+          trialClaimMap.get(row.id) || null
         );
       }
     );
@@ -1014,6 +1215,99 @@ productsRouter.get("/", async (req, res, next) => {
         exams,
         courseTypes,
         languages,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+productsRouter.post("/:productId/claim-trial", ...ensureStudent, async (req, res, next) => {
+  try {
+    const input = claimTrialSchema.parse(req.body || {});
+    const userId = req.user!.userId;
+    const productId = String(req.params.productId || "").trim();
+    if (!productId) {
+      throw new AppError("Product id is required.", 400);
+    }
+
+    const userRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, mobile
+        FROM User
+        WHERE id = ?
+        LIMIT 1
+      `,
+      userId
+    )) as Array<{ id: string; mobile: string | null }>;
+    const user = userRows[0];
+    if (!user) {
+      throw new AppError("Student not found.", 404);
+    }
+
+    const { product } = await getCheckoutSelection(productId, null);
+    const trialEnabled = Boolean(Number(product.trialEnabled) === 1 || product.trialEnabled === true);
+    const trialDays = Number(product.trialDays || 0);
+    if (!trialEnabled || !(trialDays > 0)) {
+      throw new AppError("Free trial is not enabled for this product.", 400);
+    }
+
+    const mobile = String(user.mobile || "").trim();
+    if (!mobile) {
+      throw new AppError("Student mobile number is missing.", 400);
+    }
+
+    const existingRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id
+        FROM ProductTrialClaim
+        WHERE productId = ?
+          AND (mobile = ? OR deviceFingerprint = ?)
+        LIMIT 1
+      `,
+      productId,
+      mobile,
+      input.deviceFingerprint
+    ).catch((error: unknown) => {
+      const message = String((error as { message?: string })?.message || "").toLowerCase();
+      const missingTable =
+        (message.includes("1146") || message.includes("p2010")) && message.includes("producttrialclaim");
+      if (missingTable) return [];
+      throw error;
+    })) as Array<{ id: string }>;
+
+    if (existingRows.length) {
+      throw new AppError("Free trial has already been used for this product on this device or mobile number.", 400);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductTrialClaim
+        (id, userId, productId, mobile, deviceFingerprint, trialDays, claimedAt, expiresAt, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      randomUUID(),
+      userId,
+      productId,
+      mobile,
+      input.deviceFingerprint,
+      trialDays,
+      now,
+      expiresAt,
+      now,
+      now
+    );
+
+    res.status(201).json({
+      message: `Free trial activated for ${trialDays} day${trialDays === 1 ? "" : "s"}.`,
+      trial: {
+        productId,
+        days: trialDays,
+        claimedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        isActive: true,
       },
     });
   } catch (error) {
@@ -1044,10 +1338,15 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
 
@@ -1055,6 +1354,13 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
       product: {
         id: product.id,
         title: product.title,
+        selectedPackage: selectedPackage
+          ? {
+              id: selectedPackage.id,
+              title: selectedPackage.title,
+              price: normalizeAmount(selectedPackage.price),
+            }
+          : null,
       },
       offers: {
         includeDefaultOffer,
@@ -1102,7 +1408,7 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
@@ -1111,7 +1417,12 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
       purchaseReferrerId = friendOffer.referrerId;
     }
 
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
     const referralBonusAmount = normalizeAmount(product.referralBonusAmount ?? 0);
@@ -1133,9 +1444,12 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
             amountPaid,
             walletUsed,
             referralBonusCredited,
+            packageId,
+            packageTitle,
+            packagePrice,
             createdAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         purchaseId,
         userId,
@@ -1143,6 +1457,9 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         wallet.payableAfterWallet,
         wallet.walletUsed,
         bonusToCredit,
+        selectedPackage?.id || null,
+        selectedPackage?.title || null,
+        selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         now
       ),
     ];
@@ -1213,6 +1530,9 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         productId,
         amountPaid: wallet.payableAfterWallet,
         walletUsed: wallet.walletUsed,
+        packageId: selectedPackage?.id || null,
+        packageTitle: selectedPackage?.title || null,
+        packagePrice: selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         listPrice: pricing.listPrice,
         currentPrice: pricing.currentPrice,
         defaultOfferApplied: includeDefaultOffer,
@@ -1252,7 +1572,7 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
@@ -1261,7 +1581,12 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
       purchaseReferrerId = friendOffer.referrerId;
     }
 
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
 
     const walletBalance = await getWalletBalance(userId);
     if (walletBalance < pricing.payableAmount) {
@@ -1287,9 +1612,12 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
             amountPaid,
             walletUsed,
             referralBonusCredited,
+            packageId,
+            packageTitle,
+            packagePrice,
             createdAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         purchaseId,
         userId,
@@ -1297,6 +1625,9 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
         pricing.payableAmount,
         pricing.payableAmount,
         bonusToCredit,
+        selectedPackage?.id || null,
+        selectedPackage?.title || null,
+        selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         now
       ),
       prisma.$executeRawUnsafe(
@@ -1363,6 +1694,9 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
         productId,
         amountPaid: pricing.payableAmount,
         walletUsed: pricing.payableAmount,
+        packageId: selectedPackage?.id || null,
+        packageTitle: selectedPackage?.title || null,
+        packagePrice: selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         listPrice: pricing.listPrice,
         currentPrice: pricing.currentPrice,
         defaultOfferApplied: includeDefaultOffer,

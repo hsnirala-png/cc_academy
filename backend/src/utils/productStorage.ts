@@ -44,6 +44,22 @@ const ensureColumns = async (): Promise<void> => {
       )
       .catch(() => undefined);
   }
+
+  if (!(await hasColumn("Product", "trialEnabled"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `trialEnabled` BOOLEAN NOT NULL DEFAULT false"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("Product", "trialDays"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `Product` ADD COLUMN `trialDays` INTEGER NULL"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureIndexes = async (): Promise<void> => {
@@ -145,6 +161,30 @@ const ensureProductPurchaseColumns = async (): Promise<void> => {
       )
       .catch(() => undefined);
   }
+
+  if (!(await hasColumn("ProductPurchase", "packageId"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `packageId` VARCHAR(191) NULL"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("ProductPurchase", "packageTitle"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `packageTitle` VARCHAR(191) NULL"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasColumn("ProductPurchase", "packagePrice"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPurchase` ADD COLUMN `packagePrice` DECIMAL(10, 2) NULL"
+      )
+      .catch(() => undefined);
+  }
 };
 
 const ensureProductPurchaseIndexes = async (): Promise<void> => {
@@ -160,6 +200,14 @@ const ensureProductPurchaseIndexes = async (): Promise<void> => {
     await prisma
       .$executeRawUnsafe(
         "CREATE INDEX `ProductPurchase_productId_createdAt_idx` ON `ProductPurchase`(`productId`, `createdAt`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasIndex("ProductPurchase", "ProductPurchase_packageId_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductPurchase_packageId_idx` ON `ProductPurchase`(`packageId`)"
       )
       .catch(() => undefined);
   }
@@ -245,6 +293,113 @@ const ensureProductComboItemForeignKeys = async (): Promise<void> => {
   }
 };
 
+const ensureProductPackageTable = async (): Promise<void> => {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`ProductPackage\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`productId\` VARCHAR(191) NOT NULL,
+      \`title\` VARCHAR(191) NOT NULL,
+      \`price\` DECIMAL(10, 2) NOT NULL,
+      \`featureLines\` JSON NULL,
+      \`sortOrder\` INTEGER NOT NULL DEFAULT 0,
+      \`isActive\` BOOLEAN NOT NULL DEFAULT true,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+};
+
+const ensureProductPackageIndexes = async (): Promise<void> => {
+  if (!(await hasIndex("ProductPackage", "ProductPackage_productId_sortOrder_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductPackage_productId_sortOrder_idx` ON `ProductPackage`(`productId`, `sortOrder`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasIndex("ProductPackage", "ProductPackage_productId_isActive_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductPackage_productId_isActive_idx` ON `ProductPackage`(`productId`, `isActive`)"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureProductPackageForeignKeys = async (): Promise<void> => {
+  if (!(await hasConstraint("ProductPackage", "ProductPackage_productId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductPackage` ADD CONSTRAINT `ProductPackage_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureProductTrialClaimTable = async (): Promise<void> => {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`ProductTrialClaim\` (
+      \`id\` VARCHAR(191) NOT NULL,
+      \`userId\` VARCHAR(191) NOT NULL,
+      \`productId\` VARCHAR(191) NOT NULL,
+      \`mobile\` VARCHAR(191) NOT NULL,
+      \`deviceFingerprint\` VARCHAR(191) NOT NULL,
+      \`trialDays\` INTEGER NOT NULL,
+      \`claimedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`expiresAt\` DATETIME(3) NOT NULL,
+      \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      \`updatedAt\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`id\`)
+    ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+};
+
+const ensureProductTrialClaimIndexes = async (): Promise<void> => {
+  if (!(await hasIndex("ProductTrialClaim", "ProductTrialClaim_productId_mobile_key"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE UNIQUE INDEX `ProductTrialClaim_productId_mobile_key` ON `ProductTrialClaim`(`productId`, `mobile`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasIndex("ProductTrialClaim", "ProductTrialClaim_productId_deviceFingerprint_key"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE UNIQUE INDEX `ProductTrialClaim_productId_deviceFingerprint_key` ON `ProductTrialClaim`(`productId`, `deviceFingerprint`)"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasIndex("ProductTrialClaim", "ProductTrialClaim_userId_expiresAt_idx"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "CREATE INDEX `ProductTrialClaim_userId_expiresAt_idx` ON `ProductTrialClaim`(`userId`, `expiresAt`)"
+      )
+      .catch(() => undefined);
+  }
+};
+
+const ensureProductTrialClaimForeignKeys = async (): Promise<void> => {
+  if (!(await hasConstraint("ProductTrialClaim", "ProductTrialClaim_userId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductTrialClaim` ADD CONSTRAINT `ProductTrialClaim_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+
+  if (!(await hasConstraint("ProductTrialClaim", "ProductTrialClaim_productId_fkey", "FOREIGN KEY"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductTrialClaim` ADD CONSTRAINT `ProductTrialClaim_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE"
+      )
+      .catch(() => undefined);
+  }
+};
+
 export const ensureProductStorageReady = async (): Promise<void> => {
   if (isProductStorageReady) return;
   if (productStoragePromise) return productStoragePromise;
@@ -269,6 +424,8 @@ export const ensureProductStorageReady = async (): Promise<void> => {
         \`addons\` JSON NULL,
         \`demoLessonTitle\` VARCHAR(191) NULL,
         \`demoLessonUrl\` VARCHAR(1000) NULL,
+        \`trialEnabled\` BOOLEAN NOT NULL DEFAULT false,
+        \`trialDays\` INTEGER NULL,
         \`isActive\` BOOLEAN NOT NULL DEFAULT true,
         \`createdBy\` VARCHAR(191) NULL,
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -288,6 +445,12 @@ export const ensureProductStorageReady = async (): Promise<void> => {
     await ensureProductComboItemColumns();
     await ensureProductComboItemIndexes();
     await ensureProductComboItemForeignKeys();
+    await ensureProductPackageTable();
+    await ensureProductPackageIndexes();
+    await ensureProductPackageForeignKeys();
+    await ensureProductTrialClaimTable();
+    await ensureProductTrialClaimIndexes();
+    await ensureProductTrialClaimForeignKeys();
 
     isProductStorageReady = true;
   })().finally(() => {

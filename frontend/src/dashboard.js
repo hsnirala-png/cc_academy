@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const headerReferEarnBtn = document.querySelector("#headerReferEarnBtn");
   const dashSliderTrack = document.querySelector("#dashSliderTrack");
   const dashSliderDotsWrap = document.querySelector("#dashSliderDots");
+  const dashGridEl = document.querySelector(".dash-grid");
   let dashSliderDots = [];
 
   const isLocalHost =
@@ -247,7 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const normalizeProductAssetUrl = (input) => {
     const raw = String(input || "").trim();
-    if (!raw) return "./public/PSTET_1.png";
+    if (!raw) return "./public/PSTET_7.png";
     if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) return raw;
     if (raw.startsWith("./") || raw.startsWith("../") || raw.startsWith("/")) return raw;
     return `./${raw}`;
@@ -540,6 +541,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const examName = String(product?.examName || "-");
     const discountPercent =
       listPrice > 0 ? Math.max(0, Math.round(((listPrice - salePrice) / listPrice) * 100)) : 0;
+    const packages = Array.isArray(product?.packages) ? product.packages.filter((item) => item?.isActive !== false) : [];
+    const trialConfig = product?.trialConfig || {};
+    const trialStatus = product?.trialStatus || {};
+    const trialText =
+      trialConfig.enabled && Number(trialConfig.days || 0) > 0
+        ? trialStatus.isActive
+          ? "Trial Active"
+          : trialStatus.hasClaimed
+            ? "Trial Used"
+            : `${Number(trialConfig.days || 0)} Day Trial`
+        : "";
     const productsPagePath = getProductsPagePath();
     const encodedProductId = id ? encodeURIComponent(id) : "";
     const productDetailsLink = encodedProductId
@@ -551,7 +563,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const detailsHref = String(options.detailsHref || productDetailsLink).trim() || productDetailsLink;
     const detailsLabel = String(options.detailsLabel || "Details").trim() || "Details";
     const primaryHref = String(options.primaryHref || buyNowLink).trim() || buyNowLink;
-    const primaryLabel = String(options.primaryLabel || "Buy").trim() || "Buy";
+    const primaryLabel = String(options.primaryLabel || (packages.length ? "Choose Package" : "Buy")).trim() || "Buy";
     const primaryButtonClass = String(options.primaryButtonClass || "btn-primary").trim() || "btn-primary";
     const showDemoAction = options.showDemoAction !== false;
     return `
@@ -560,7 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           class="home-latest-thumb"
           src="${escapeHtml(image)}"
           alt="${escapeHtml(title)}"
-          onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+          onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
         />
         <div class="home-latest-body">
           <p class="home-latest-tags">
@@ -574,9 +586,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${listPrice > salePrice ? `<span class="home-latest-mrp">${toCurrency(listPrice)}</span>` : ""}
             ${discountPercent > 0 ? `<span class="home-latest-off">(${discountPercent}% off)</span>` : ""}
           </div>
+          ${
+            !options.hideOfferMeta
+              ? `
+                <div class="product-card-mini-meta">
+                  ${trialText ? `<span class="product-mini-pill">${escapeHtml(trialText)}</span>` : ""}
+                  ${packages.length ? `<span class="product-mini-pill">${packages.length} package${packages.length === 1 ? "" : "s"}</span>` : ""}
+                </div>
+              `
+              : ""
+          }
           <div class="home-latest-actions dash-product-actions">
             <a class="btn-secondary" href="${escapeHtml(detailsHref)}">${escapeHtml(detailsLabel)}</a>
             <a class="${escapeHtml(primaryButtonClass)}" href="${escapeHtml(primaryHref)}">${escapeHtml(primaryLabel)}</a>
+            ${
+              trialText && !trialStatus?.hasClaimed && !trialStatus?.isActive
+                ? `<a class="btn-secondary" href="${escapeHtml(detailsHref)}">Try Free</a>`
+                : ""
+            }
             ${
               showDemoAction
                 ? `
@@ -883,6 +910,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     setProductsStatus(`Showing ${visibleCount} of ${state.productsCatalog.length} catalog product(s).`, "success");
   };
 
+  const renderTuitionTeacherEntry = () => {
+    if (!(dashGridEl instanceof HTMLElement)) return;
+    if (dashGridEl.querySelector("[data-dash-tuition-entry]")) return;
+
+    const card = document.createElement("article");
+    card.className = "dash-card is-tuition-entry";
+    card.setAttribute("data-dash-tuition-entry", "true");
+    card.innerHTML = `
+      <p class="dash-k">AI Tuition Teacher</p>
+      <p class="dash-v">Use the separate tuition domain entry for upcoming board, class, subject, and syllabus flows.</p>
+      <div class="dash-card-actions dash-card-actions-single">
+        <a class="btn-primary" href="${getPagePath("tuition-start")}">Open Tuition Teacher</a>
+      </div>
+    `;
+    dashGridEl.appendChild(card);
+  };
+
   if (header) {
     let isScrolled = false;
     const enterThreshold = 120;
@@ -1135,6 +1179,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     setTimeout(goToHome, 700);
     return;
   }
+
+  renderTuitionTeacherEntry();
 
   if (dashLessonTests instanceof HTMLElement) {
     dashLessonTests.addEventListener("click", async (event) => {

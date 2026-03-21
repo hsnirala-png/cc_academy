@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review Tuition Syllabus | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=58" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Upload" aria-label="Upload">Upload</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section">
+        <article class="card tuition-flow-form-card">
+          <h1>Review Parsed Chapters</h1>
+          <p id="tuitionReviewStatus" class="form-message">Loading parsed syllabus...</p>
+          <form id="tuitionReviewForm" class="tuition-flow-form hidden">
+            <label>
+              <span>Syllabus Title</span>
+              <input id="tuitionReviewTitle" type="text" maxlength="191" required />
+            </label>
+            <div class="tuition-flow-actions">
+              <button id="tuitionAddChapterBtn" type="button" class="btn-secondary">Add Chapter</button>
+            </div>
+            <div id="tuitionReviewChapters" class="tuition-review-list"></div>
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Confirm And Continue</button>
+              <a class="btn-secondary" href="./tuition-syllabus-upload.html">Upload Another</a>
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-syllabus-review.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

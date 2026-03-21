@@ -4,7 +4,7 @@ const isLocalHost =
   window.location.hostname === "0.0.0.0";
 
 const API_BASE = isLocalHost ? `${window.location.protocol}//${window.location.hostname}:5000` : "";
-const FALLBACK_THUMB = "./public/PSTET_1.png";
+const FALLBACK_THUMB = "./public/PSTET_7.png";
 
 const toCurrency = (value) => `\u20B9${Number(value || 0).toFixed(2)}`;
 const toSafeNumber = (value) => {
@@ -86,7 +86,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   })();
   const token = localStorage.getItem("cc_token");
-  const isStudentLoggedIn = Boolean(token && storedUser?.role === "STUDENT");
+  const storedRole = String(
+    storedUser?.role || storedUser?.userRole || storedUser?.user_type || storedUser?.accountType || ""
+  )
+    .trim()
+    .toUpperCase();
+  const isStudentLoggedIn = Boolean(token && storedRole === "STUDENT");
   if (!isStudentLoggedIn) {
     window.location.href = "./index.html?auth=login";
     return;
@@ -101,11 +106,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const state = {
     productId,
+    packageId: String(params.get("packageId") || "").trim(),
     product: null,
     includeDefaultOffer: String(params.get("includeDefaultOffer") || "1").toLowerCase() !== "0",
     referralCode: String(params.get("referralCode") || "").trim().toUpperCase(),
     walletUseAmount: Math.max(0, toSafeNumber(params.get("walletUseAmount"))),
     pricing: null,
+    previewProduct: null,
     busy: false,
   };
 
@@ -147,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        packageId: state.packageId || undefined,
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
         walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
@@ -157,6 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error(payload?.message || "Unable to load price details.");
     }
     state.pricing = payload?.pricing || null;
+    state.previewProduct = payload?.product || null;
     state.referralCode = String(payload?.offers?.appliedReferralCode || "").trim();
     state.walletUseAmount = Math.max(0, toSafeNumber(payload?.pricing?.walletUsed));
   };
@@ -204,6 +213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        packageId: state.packageId || undefined,
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
         walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
@@ -285,7 +295,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       checkoutProductThumb.onerror = null;
       checkoutProductThumb.src = FALLBACK_THUMB;
     };
-    checkoutProductTitle.textContent = String(product.title || "Product");
+    const selectedPackage = state.previewProduct?.selectedPackage || null;
+    checkoutProductTitle.textContent = selectedPackage
+      ? `${String(product.title || "Product")} - ${String(selectedPackage.title || "Package")}`
+      : String(product.title || "Product");
     checkoutProductValidity.textContent = String(product.validityLabel || `${Number(product.accessDays || 0)} days access`);
     checkoutProductCurrent.textContent = toCurrency(currentPrice);
 

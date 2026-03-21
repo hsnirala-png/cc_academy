@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const referralBonusInput = document.querySelector("#productReferralBonus");
   const referralDiscountInput = document.querySelector("#productReferralDiscount");
   const accessDaysInput = document.querySelector("#productAccessDays");
+  const trialEnabledInput = document.querySelector("#productTrialEnabled");
+  const trialDaysInput = document.querySelector("#productTrialDays");
   const isComboInput = document.querySelector("#productIsCombo");
   const comboPanel = document.querySelector("#productComboPanel");
   const comboSearchInput = document.querySelector("#productComboSearch");
@@ -71,6 +73,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productTabPanels = Array.from(document.querySelectorAll("[data-product-tab-panel]"));
   const productTabSaveBtn = document.querySelector("#productTabSaveBtn");
   const productTabNextBtn = document.querySelector("#productTabNextBtn");
+  const addProductPackageBtn = document.querySelector("#addProductPackageBtn");
+  const productPackagesList = document.querySelector("#productPackagesList");
   const productLinksModal = document.querySelector("#productLinksModal");
   const productLinksTitle = document.querySelector("#productLinksTitle");
   const productLinksSubtitle = document.querySelector("#productLinksSubtitle");
@@ -125,7 +129,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const ATTACHMENT_PAGE_SIZE = 10;
   /** @type {{ productId: string, mode: "demo" | "lessons" } | null} */
   let activeLinksModal = null;
-  const PRODUCT_TAB_ORDER = ["create", "attachments", "addons"];
+  const PRODUCT_TAB_ORDER = ["create", "attachments", "addons", "plans"];
   let activeProductTab = "create";
   const pageQuery = new URLSearchParams(window.location.search);
   const pendingAttachmentPreset = {
@@ -156,12 +160,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   let activeAddonsDetailsTab = "overview";
   let activeAddonsEditorTarget = "";
+  let packageDrafts = [];
   const tabSavedState = {
     create: false,
-    attachments: false,
-    addons: false,
+    attachments: true,
+    addons: true,
+    plans: true,
   };
-  const FALLBACK_THUMB = "./public/PSTET_1.png";
+  const FALLBACK_THUMB = "./public/PSTET_7.png";
   const REFERRAL_REWARD_SLABS = [
     { min: 299, max: 500, earn: 25, friendDiscount: 10 },
     { min: 501, max: 1000, earn: 50, friendDiscount: 40 },
@@ -295,6 +301,85 @@ document.addEventListener("DOMContentLoaded", async () => {
       .split(/\r?\n/)
       .map((item) => item.replace(/^[\u2022\-*]+\s*/, "").trim())
       .filter(Boolean);
+
+  const createPackageDraft = (index = 0, source = {}) => ({
+    title: String(source.title || `Package ${index + 1}`).trim(),
+    price: source.price === undefined || source.price === null ? "" : String(source.price),
+    isActive: source.isActive !== false,
+    featureLines: Array.isArray(source.featureLines) ? source.featureLines.map((item) => String(item || "").trim()).filter(Boolean) : [],
+  });
+
+  const normalizePackageDrafts = (value) =>
+    (Array.isArray(value) ? value : []).map((item, index) => createPackageDraft(index, item));
+
+  const movePackageDraft = (index, direction) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= packageDrafts.length) return;
+    const copy = [...packageDrafts];
+    const [moved] = copy.splice(index, 1);
+    copy.splice(nextIndex, 0, moved);
+    packageDrafts = copy;
+    renderPackageDrafts();
+  };
+
+  const renderPackageDrafts = () => {
+    if (!(productPackagesList instanceof HTMLElement)) return;
+    if (!packageDrafts.length) {
+      productPackagesList.innerHTML = `
+        <div class="admin-product-package-empty">
+          No package added yet. Students will buy the product using the main product price until you add package plans.
+        </div>
+      `;
+      return;
+    }
+
+    productPackagesList.innerHTML = packageDrafts
+      .map(
+        (item, index) => `
+          <article class="admin-product-package-item" data-package-index="${index}">
+            <div class="admin-product-package-head">
+              <strong>Package ${index + 1}</strong>
+              <div class="admin-product-package-actions">
+                <button class="table-btn" type="button" data-package-move="-1" ${index === 0 ? "disabled" : ""}>Up</button>
+                <button class="table-btn" type="button" data-package-move="1" ${index === packageDrafts.length - 1 ? "disabled" : ""}>Down</button>
+                <button class="table-btn delete" type="button" data-package-remove="true">Remove</button>
+              </div>
+            </div>
+            <div class="admin-form-row">
+              <div class="admin-field">
+                <label>Package Name</label>
+                <input type="text" data-package-field="title" value="${escapeHtml(item.title)}" placeholder="Starter Pack" />
+              </div>
+              <div class="admin-field">
+                <label>Package Price (Rs)</label>
+                <input type="number" min="1" step="0.01" data-package-field="price" value="${escapeHtml(item.price)}" placeholder="99" />
+              </div>
+              <div class="admin-field">
+                <label class="admin-field inline-check" style="margin-top:1.65rem;">
+                  <input type="checkbox" data-package-field="isActive" ${item.isActive ? "checked" : ""} />
+                  <span>Active</span>
+                </label>
+              </div>
+            </div>
+            <div class="admin-field">
+              <label>New Features In This Package (one per line)</label>
+              <textarea rows="5" data-package-field="featureLines" placeholder="Recorded classes&#10;Topic tests&#10;Doubt support">${escapeHtml(
+                item.featureLines.join("\n")
+              )}</textarea>
+            </div>
+          </article>
+        `
+      )
+      .join("");
+  };
+
+  const buildPackagesPayload = () =>
+    packageDrafts.map((item) => ({
+      title: String(item.title || "").trim(),
+      price: Number(item.price || 0),
+      isActive: Boolean(item.isActive),
+      featureLines: parseLineList(Array.isArray(item.featureLines) ? item.featureLines.join("\n") : item.featureLines),
+    }));
 
   const parseExamsCoveredInput = () =>
     String(examsCoveredInput?.value || "")
@@ -1567,13 +1652,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (subjectsCoveredInput) subjectsCoveredInput.value = DEFAULT_DETAILS_TABS.subjectsCovered.join("\n");
     if (examPatternInput) examPatternInput.value = DEFAULT_DETAILS_TABS.examPattern.join("\n");
     if (faqsInput) faqsInput.value = formatFaqsForInput(DEFAULT_DETAILS_TABS.faqs);
+    if (trialEnabledInput instanceof HTMLInputElement) trialEnabledInput.checked = false;
+    if (trialDaysInput instanceof HTMLInputElement) trialDaysInput.value = "";
+    packageDrafts = [];
+    renderPackageDrafts();
     setThumbnailPreview("");
     activeAddonsDetailsTab = "overview";
     closeAllAddonEditors();
     renderAddonsPreview();
     autoWireReferralRewards();
     activeProductTab = "create";
-    markAllTabsSaved(false);
+    tabSavedState.create = false;
+    tabSavedState.attachments = true;
+    tabSavedState.addons = true;
+    tabSavedState.plans = true;
+    updateTabUi();
   };
 
   const buildProductContentFromForm = () => ({
@@ -1605,6 +1698,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       referralBonusAmount: referralBonusInput?.value ? Number(referralBonusInput.value) : 0,
       referralDiscountAmount: referralDiscountInput?.value ? Number(referralDiscountInput.value) : 0,
       accessDays: accessDaysInput?.value ? Number(accessDaysInput.value) : 0,
+      trialEnabled: Boolean(trialEnabledInput?.checked),
+      trialDays:
+        trialEnabledInput?.checked && trialDaysInput?.value
+          ? Number(trialDaysInput.value)
+          : undefined,
       validityLabel: validityInput?.value?.trim() || undefined,
       thumbnailUrl: thumbnailInput?.value?.trim() || undefined,
       mockTestLinks: [
@@ -1632,6 +1730,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         })),
       ],
       comboProductIds: isComboInput?.checked ? Array.from(selectedComboProductIds) : [],
+      packages: buildPackagesPayload(),
       addons: buildProductContentFromForm(),
       description: descriptionInput?.value?.trim() || undefined,
       isActive: Boolean(isActiveInput?.checked),
@@ -1723,6 +1822,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const referralDiscount = Number(referralDiscountInput?.value || 0);
     const accessDays = Number(accessDaysInput?.value || 0);
     const referralBonus = Number(referralBonusInput?.value || 0);
+    const trialDays = Number(trialDaysInput?.value || 0);
 
     if (!getFieldValue(titleInput)) return "Title is required.";
     if (!getFieldValue(categoryInput)) return "Exam Category is required.";
@@ -1734,11 +1834,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (referralBonus < 0) return "Referral Bonus cannot be negative.";
     if (referralDiscount < 0) return "Referral Friend Discount cannot be negative.";
     if (referralDiscount > salePrice) return "Referral friend discount cannot be greater than Discount Price.";
+    if (trialEnabledInput?.checked && !(trialDays > 0)) return "Trial days must be greater than 0 when free trial is enabled.";
     return "";
   };
 
   const validateTab = (tabId) => {
     if (tabId === "create") return validateCreateTab();
+    if (tabId === "plans") {
+      if (trialEnabledInput?.checked && !(Number(trialDaysInput?.value || 0) > 0)) {
+        return "Trial days must be greater than 0 when free trial is enabled.";
+      }
+      const invalidPackage = buildPackagesPayload().find(
+        (item) => !String(item.title || "").trim() || !(Number(item.price || 0) > 0)
+      );
+      if (invalidPackage) return "Every package must have a name and a price greater than 0.";
+    }
     return "";
   };
 
@@ -1967,7 +2077,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!tableBody) return;
     if (!products.length) {
       tableBody.innerHTML =
-        '<tr><td colspan="13" style="text-align:center;color:#666;">No products added yet.</td></tr>';
+        '<tr><td colspan="14" style="text-align:center;color:#666;">No products added yet.</td></tr>';
       return;
     }
 
@@ -1983,6 +2093,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? product.linkedDemoMockTests
           : [];
         const comboProducts = Array.isArray(product.comboProducts) ? product.comboProducts : [];
+        const packages = Array.isArray(product.packages) ? product.packages : [];
+        const trialConfig = product.trialConfig || {};
         const productId = String(product.id || "");
 
         return `
@@ -1992,7 +2104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 class="admin-product-thumb"
                 src="${escapeHtml(thumb)}"
                 alt="${escapeHtml(product.title || "Product")}" 
-                onerror="this.onerror=null;this.src='./public/PSTET_1.png';"
+                onerror="this.onerror=null;this.src='./public/PSTET_7.png';"
               />
             </td>
             <td>${escapeHtml(product.title || "-")}</td>
@@ -2032,6 +2144,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${toCurrency(product.referralBonusAmount || 0)}</td>
             <td>${toCurrency(product.referralDiscountAmount || 0)}</td>
             <td>${Number(product.accessDays || 0)} days</td>
+            <td>
+              <div class="admin-linked-summary">
+                <span class="table-link-btn" style="cursor:default;">
+                  Trial-${trialConfig.enabled ? `${Number(trialConfig.days || 0)}d` : "Off"}
+                </span>
+                <span class="table-link-btn" style="cursor:default;">Packages-${packages.length}</span>
+              </div>
+            </td>
             <td><span class="chip ${product.isActive ? "active" : "inactive"}">${
           product.isActive ? "Active" : "Inactive"
         }</span></td>
@@ -2082,6 +2202,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (examPatternInput) examPatternInput.value = productContent.detailsTabs.examPattern.join("\n");
     if (faqsInput) faqsInput.value = formatFaqsForInput(productContent.detailsTabs.faqs);
     if (descriptionInput) descriptionInput.value = product.description || DEFAULT_PRODUCT_DESCRIPTION;
+    if (trialEnabledInput instanceof HTMLInputElement) {
+      trialEnabledInput.checked = Boolean(product?.trialConfig?.enabled);
+    }
+    if (trialDaysInput instanceof HTMLInputElement) {
+      trialDaysInput.value = product?.trialConfig?.enabled ? String(product?.trialConfig?.days || "") : "";
+    }
+    packageDrafts = normalizePackageDrafts(product?.packages);
+    renderPackageDrafts();
     if (isActiveInput) isActiveInput.checked = Boolean(product.isActive);
     activeAddonsDetailsTab = "overview";
     closeAllAddonEditors();
@@ -2251,6 +2379,63 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderAddonsPreview();
     });
   });
+
+  if (addProductPackageBtn instanceof HTMLButtonElement) {
+    addProductPackageBtn.addEventListener("click", () => {
+      packageDrafts = [...packageDrafts, createPackageDraft(packageDrafts.length)];
+      renderPackageDrafts();
+      setTabSaved("plans", false);
+    });
+  }
+
+  if (productPackagesList instanceof HTMLElement) {
+    productPackagesList.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) return;
+      const item = target.closest("[data-package-index]");
+      if (!(item instanceof HTMLElement)) return;
+      const index = Number(item.getAttribute("data-package-index") || "-1");
+      if (index < 0 || index >= packageDrafts.length) return;
+      const field = String(target.getAttribute("data-package-field") || "");
+      if (field === "title") packageDrafts[index].title = target.value;
+      if (field === "price") packageDrafts[index].price = target.value;
+      if (field === "featureLines") packageDrafts[index].featureLines = parseLineList(target.value);
+      setTabSaved("plans", false);
+    });
+
+    productPackagesList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const item = target.closest("[data-package-index]");
+      if (!(item instanceof HTMLElement)) return;
+      const index = Number(item.getAttribute("data-package-index") || "-1");
+      if (index < 0 || index >= packageDrafts.length) return;
+      const field = String(target.getAttribute("data-package-field") || "");
+      if (field === "isActive") packageDrafts[index].isActive = target.checked;
+      setTabSaved("plans", false);
+    });
+
+    productPackagesList.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const item = target.closest("[data-package-index]");
+      if (!(item instanceof HTMLElement)) return;
+      const index = Number(item.getAttribute("data-package-index") || "-1");
+      if (index < 0 || index >= packageDrafts.length) return;
+      const removeBtn = target.closest("[data-package-remove]");
+      if (removeBtn) {
+        packageDrafts = packageDrafts.filter((_, itemIndex) => itemIndex !== index);
+        renderPackageDrafts();
+        setTabSaved("plans", false);
+        return;
+      }
+      const moveBtn = target.closest("[data-package-move]");
+      if (moveBtn instanceof HTMLButtonElement) {
+        movePackageDraft(index, Number(moveBtn.getAttribute("data-package-move") || "0"));
+        setTabSaved("plans", false);
+      }
+    });
+  }
 
   if (form) {
     form.addEventListener("submit", async (event) => {
