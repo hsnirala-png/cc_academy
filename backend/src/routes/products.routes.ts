@@ -9,6 +9,7 @@ import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
 import { verifyToken } from "../utils/jwt";
 import { loadAccessibleProductIdsForSelection } from "../utils/productCombos";
+import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
 
@@ -60,9 +61,29 @@ type ProductRow = {
   addons: unknown;
   demoLessonTitle: string | null;
   demoLessonUrl: string | null;
+  trialEnabled?: number | boolean;
+  trialDays?: number | null;
   isActive: number | boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
+};
+
+type ProductPackageRow = {
+  id: string;
+  productId: string;
+  title: string;
+  price: number | string;
+  featureLines: unknown;
+  sortOrder: number;
+  isActive: number | boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+type ProductTrialClaimRow = {
+  productId: string;
+  claimedAt: Date | string;
+  expiresAt: Date | string;
 };
 
 type ProductMockTestRow = {
@@ -72,10 +93,12 @@ type ProductMockTestRow = {
   mockTestExamType: string;
   mockTestSubject: string;
   mockTestChapterSubSubject?: string | null;
+  linkFlowType?: string | null;
   mockTestAccessCode: string | null;
   mockTestIsActive: number | boolean;
   mockTestHasLessonContext?: number | boolean | null;
   mockTestHasTranscriptFlow?: number | boolean | null;
+  mockTestActiveQuestionCount?: number | string | null;
   isUpcoming: number | boolean;
 };
 
@@ -186,6 +209,14 @@ const normalizeAccessCode = (value: unknown): "DEMO" | "MOCK" | "LESSON" => {
   return "DEMO";
 };
 
+const normalizeProductFlowType = (value: unknown, fallback: "MOCK" | "LESSON" = "LESSON"): "MOCK" | "LESSON" => {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (normalized === "MOCK" || normalized === "LESSON") return normalized;
+  return fallback;
+};
+
 const normalizeTextList = (value: unknown, fallback: string[]): string[] => {
   const source = Array.isArray(value) ? value : [];
   const cleaned = source
@@ -268,6 +299,41 @@ const parseAddons = (value: unknown): ProductDetailsContent => {
   return normalizeProductDetailsContent(value);
 };
 
+const normalizePackageFeatureLines = (value: unknown): string[] => {
+  if (!value) return [];
+  if (typeof value === "string") {
+    try {
+      return normalizeTextList(JSON.parse(value), []);
+    } catch {
+      return normalizeTextList(value.split("\n"), []);
+    }
+  }
+  return normalizeTextList(value, []);
+};
+
+const buildSerializedPackages = (rows: ProductPackageRow[]) => {
+  const ordered = [...rows].sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+    return new Date(String(left.createdAt)).getTime() - new Date(String(right.createdAt)).getTime();
+  });
+  let cumulativeFeatureLines: string[] = [];
+  return ordered.map((row) => {
+    const featureLines = normalizePackageFeatureLines(row.featureLines);
+    cumulativeFeatureLines = [...cumulativeFeatureLines, ...featureLines];
+    return {
+      id: row.id,
+      title: row.title,
+      price: toNumber(row.price),
+      featureLines,
+      allFeatureLines: [...cumulativeFeatureLines],
+      sortOrder: Number(row.sortOrder || 0),
+      isActive: toBoolean(row.isActive),
+      createdAt: toIso(row.createdAt),
+      updatedAt: toIso(row.updatedAt),
+    };
+  });
+};
+
 const toLinkedMockTest = (row: ProductMockTestRow) => ({
   id: row.mockTestId,
   title: row.mockTestTitle,
@@ -275,11 +341,161 @@ const toLinkedMockTest = (row: ProductMockTestRow) => ({
   subject: row.mockTestSubject,
   chapterSubSubject: String(row.mockTestChapterSubSubject || "").trim() || null,
   accessCode: normalizeAccessCode(row.mockTestAccessCode),
+  flowType: normalizeProductFlowType(row.linkFlowType, normalizeAccessCode(row.mockTestAccessCode) === "MOCK" ? "MOCK" : "LESSON"),
   isActive: toBoolean(row.mockTestIsActive),
   hasLessonContext: toBoolean(row.mockTestHasLessonContext),
   hasTranscriptFlow: toBoolean(row.mockTestHasTranscriptFlow),
+  activeQuestionCount: toNumber(row.mockTestActiveQuestionCount),
   isUpcoming: toBoolean(row.isUpcoming),
 });
+
+const normalizeMockTitleMatch = (value: unknown) =>
+  String(value || "")
+    .replace(/^\s*\d+\s*[\.\)\-:]\s*/i, "")
+    .replace(/\b(demo|premium|mock\s*test|mock|lesson)\b/gi, " ")
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9\s]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const scoreLinkedMockTestRow = (row: ProductMockTestRow) => {
+  let score = 0;
+  if (toBoolean(row.mockTestIsActive)) score += 100;
+  if (toBoolean(row.mockTestHasLessonContext)) score += 400;
+  if (toBoolean(row.mockTestHasTranscriptFlow)) score += 200;
+  score += Math.max(0, toNumber(row.mockTestActiveQuestionCount));
+  return score;
+};
+
+const resolveEffectiveLinkedMockTestRows = async (rows: ProductMockTestRow[]) => {
+  if (!rows.length) return rows;
+  const fallbackTitles = Array.from(
+    new Set(
+      rows
+        .filter(
+          (row) =>
+            (!toBoolean(row.mockTestHasLessonContext) || toNumber(row.mockTestActiveQuestionCount) < 1) &&
+            String(row.mockTestTitle || "").trim()
+        )
+        .map((row) => String(row.mockTestTitle || "").trim())
+        .filter(Boolean)
+    )
+  );
+  if (!fallbackTitles.length) return rows;
+
+  const placeholders = fallbackTitles.map(() => "?").join(", ");
+  const candidateRows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        '' AS productId,
+        mt.id AS mockTestId,
+        mt.title AS mockTestTitle,
+        mt.examType AS mockTestExamType,
+        mt.subject AS mockTestSubject,
+        (
+          SELECT ch.subSubject
+          FROM Lesson lesson
+          INNER JOIN Chapter ch ON ch.id = lesson.chapterId
+          WHERE lesson.assessmentTestId = mt.id
+            AND ch.subSubject IS NOT NULL
+          ORDER BY ch.orderIndex ASC, lesson.orderIndex ASC
+          LIMIT 1
+        ) AS mockTestChapterSubSubject,
+        NULL AS linkFlowType,
+        (
+          SELECT mar2.accessCode
+          FROM MockTestAccessRule mar2
+          WHERE mar2.mockTestId = mt.id
+          ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
+          LIMIT 1
+        ) AS mockTestAccessCode,
+        mt.isActive AS mockTestIsActive,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+          LIMIT 1
+        ) AS mockTestHasLessonContext,
+        EXISTS(
+          SELECT 1
+          FROM Lesson lesson
+          WHERE lesson.assessmentTestId = mt.id
+            AND (
+              NULLIF(TRIM(COALESCE(lesson.transcriptText, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.transcriptUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.audioUrl, '')), '') IS NOT NULL
+              OR NULLIF(TRIM(COALESCE(lesson.videoUrl, '')), '') IS NOT NULL
+              OR lesson.transcriptSegments IS NOT NULL
+            )
+          LIMIT 1
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount,
+        0 AS isUpcoming
+      FROM MockTest mt
+      WHERE mt.title IN (${placeholders})
+    `,
+    ...fallbackTitles
+  )) as ProductMockTestRow[];
+
+  if (!candidateRows.length) return rows;
+
+  const candidatesByTitle = new Map<string, ProductMockTestRow[]>();
+  candidateRows.forEach((row) => {
+    const key = normalizeMockTitleMatch(row.mockTestTitle);
+    if (!key) return;
+    const current = candidatesByTitle.get(key) || [];
+    current.push(row);
+    candidatesByTitle.set(key, current);
+  });
+
+  return rows.map((row) => {
+    const currentKey = normalizeMockTitleMatch(row.mockTestTitle);
+    if (!currentKey) return row;
+    const candidates = (candidatesByTitle.get(currentKey) || []).filter((candidate) => {
+      if (String(candidate.mockTestExamType || "").trim() !== String(row.mockTestExamType || "").trim()) return false;
+      const currentSubject = String(row.mockTestSubject || "").trim().toUpperCase();
+      const candidateSubject = String(candidate.mockTestSubject || "").trim().toUpperCase();
+      if (currentSubject && candidateSubject && currentSubject !== candidateSubject) return false;
+      return true;
+    });
+    if (!candidates.length) return row;
+    const currentQuestionCount = toNumber(row.mockTestActiveQuestionCount);
+    const questionBearingCandidates = candidates.filter((candidate) => toNumber(candidate.mockTestActiveQuestionCount) > 0);
+    const preferredCandidates = currentQuestionCount < 1 && questionBearingCandidates.length ? questionBearingCandidates : candidates;
+    const bestCandidate = [...preferredCandidates].sort((left, right) => {
+      const questionDelta = toNumber(right.mockTestActiveQuestionCount) - toNumber(left.mockTestActiveQuestionCount);
+      if (questionDelta !== 0) return questionDelta;
+      return scoreLinkedMockTestRow(right) - scoreLinkedMockTestRow(left);
+    })[0];
+    if (!bestCandidate) return row;
+    if (
+      toNumber(bestCandidate.mockTestActiveQuestionCount) <= currentQuestionCount &&
+      scoreLinkedMockTestRow(bestCandidate) <= scoreLinkedMockTestRow(row)
+    ) {
+      return row;
+    }
+    return {
+      ...row,
+      mockTestId: bestCandidate.mockTestId,
+      mockTestTitle: bestCandidate.mockTestTitle,
+      mockTestExamType: bestCandidate.mockTestExamType,
+      mockTestSubject: bestCandidate.mockTestSubject,
+      mockTestChapterSubSubject: bestCandidate.mockTestChapterSubSubject,
+      mockTestAccessCode: bestCandidate.mockTestAccessCode,
+      mockTestIsActive: bestCandidate.mockTestIsActive,
+      mockTestHasLessonContext: bestCandidate.mockTestHasLessonContext,
+      mockTestHasTranscriptFlow: bestCandidate.mockTestHasTranscriptFlow,
+      mockTestActiveQuestionCount: bestCandidate.mockTestActiveQuestionCount,
+    };
+  });
+};
 
 const normalizeLookupText = (value: unknown) =>
   String(value || "")
@@ -339,6 +555,7 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
       SELECT
         pmt.productId,
         pmt.mockTestId,
+        pmt.flowType AS linkFlowType,
         pmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
@@ -378,17 +595,27 @@ const loadLinkedMockTestsByProductIds = async (productIds: string[]) => {
               OR lesson.transcriptSegments IS NOT NULL
             )
           LIMIT 1
-        ) AS mockTestHasTranscriptFlow
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount
       FROM ProductMockTest pmt
       INNER JOIN MockTest mt ON mt.id = pmt.mockTestId
       WHERE pmt.productId IN (${placeholders})
+        AND mt.isActive = 1
       ORDER BY pmt.productId ASC, pmt.createdAt ASC, mt.createdAt ASC
     `,
     ...productIds
   )) as ProductMockTestRow[];
 
+  const resolvedRows = await resolveEffectiveLinkedMockTestRows(rows);
+
   const grouped = new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
-  rows.forEach((row) => {
+  resolvedRows.forEach((row) => {
     const list = grouped.get(row.productId) || [];
     list.push(toLinkedMockTest(row));
     grouped.set(row.productId, list);
@@ -402,9 +629,10 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
   const rows = (await prisma.$queryRawUnsafe(
     `
       SELECT
-        linked.productId,
-        linked.mockTestId,
-        linked.isUpcoming AS isUpcoming,
+        pdmt.productId,
+        pdmt.mockTestId,
+        pdmt.flowType AS linkFlowType,
+        pdmt.isUpcoming AS isUpcoming,
         mt.title AS mockTestTitle,
         mt.examType AS mockTestExamType,
         mt.subject AS mockTestSubject,
@@ -443,55 +671,27 @@ const loadDemoMockTestsByProductIds = async (productIds: string[]) => {
               OR lesson.transcriptSegments IS NOT NULL
             )
           LIMIT 1
-        ) AS mockTestHasTranscriptFlow
-      FROM (
-        SELECT
-          rawLinks.productId,
-          rawLinks.mockTestId,
-          MAX(rawLinks.isUpcoming) AS isUpcoming,
-          MIN(rawLinks.linkCreatedAt) AS linkCreatedAt
-        FROM (
-          SELECT
-            pdmt.productId,
-            pdmt.mockTestId,
-            pdmt.isUpcoming AS isUpcoming,
-            pdmt.createdAt AS linkCreatedAt
-          FROM ProductDemoMockTest pdmt
-          WHERE pdmt.productId IN (${placeholders})
-
-          UNION ALL
-
-          SELECT
-            pmt.productId,
-            pmt.mockTestId,
-            pmt.isUpcoming AS isUpcoming,
-            pmt.createdAt AS linkCreatedAt
-          FROM ProductMockTest pmt
-          WHERE pmt.productId IN (${placeholders})
-            AND UPPER(
-              COALESCE(
-                (
-                  SELECT mar2.accessCode
-                  FROM MockTestAccessRule mar2
-                  WHERE mar2.mockTestId = pmt.mockTestId
-                  ORDER BY mar2.updatedAt DESC, mar2.createdAt DESC
-                  LIMIT 1
-                ),
-                'DEMO'
-              )
-            ) LIKE 'DEMO%'
-        ) rawLinks
-        GROUP BY rawLinks.productId, rawLinks.mockTestId
-      ) linked
-      INNER JOIN MockTest mt ON mt.id = linked.mockTestId
-      ORDER BY linked.productId ASC, linked.linkCreatedAt ASC, mt.createdAt ASC
+        ) AS mockTestHasTranscriptFlow,
+        (
+          SELECT COUNT(*)
+          FROM Question q
+          WHERE q.mockTestId = mt.id
+            AND q.isActive = 1
+            AND COALESCE(q.isArchived, 0) = 0
+        ) AS mockTestActiveQuestionCount
+      FROM ProductDemoMockTest pdmt
+      INNER JOIN MockTest mt ON mt.id = pdmt.mockTestId
+      WHERE pdmt.productId IN (${placeholders})
+        AND mt.isActive = 1
+      ORDER BY pdmt.productId ASC, pdmt.createdAt ASC, mt.createdAt ASC
     `,
-    ...productIds,
     ...productIds
   )) as ProductMockTestRow[];
 
+  const resolvedRows = await resolveEffectiveLinkedMockTestRows(rows);
+
   const grouped = new Map<string, ReturnType<typeof toLinkedMockTest>[]>();
-  rows.forEach((row) => {
+  resolvedRows.forEach((row) => {
     const list = grouped.get(row.productId) || [];
     list.push(toLinkedMockTest(row));
     grouped.set(row.productId, list);
@@ -550,6 +750,81 @@ const loadChapterSubSubjectsByProductIds = async (productIds: string[]) => {
   return grouped;
 };
 
+const loadPackagesByProductIds = async (productIds: string[]) => {
+  if (!productIds.length) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT
+          pp.id,
+          pp.productId,
+          pp.title,
+          pp.price,
+          pp.featureLines,
+          pp.sortOrder,
+          pp.isActive,
+          pp.createdAt,
+          pp.updatedAt
+        FROM ProductPackage pp
+        WHERE pp.productId IN (${placeholders})
+        ORDER BY pp.productId ASC, pp.sortOrder ASC, pp.createdAt ASC
+      `,
+      ...productIds
+    )) as ProductPackageRow[];
+
+    const groupedRows = new Map<string, ProductPackageRow[]>();
+    rows.forEach((row) => {
+      const list = groupedRows.get(row.productId) || [];
+      list.push(row);
+      groupedRows.set(row.productId, list);
+    });
+
+    const grouped = new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    groupedRows.forEach((value, key) => {
+      grouped.set(key, buildSerializedPackages(value));
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("productpackage");
+    if (missingTable) return new Map<string, ReturnType<typeof buildSerializedPackages>>();
+    throw error;
+  }
+};
+
+const loadTrialClaimsByProductIds = async (userId: string | null, productIds: string[]) => {
+  if (!userId || !productIds.length) return new Map<string, ProductTrialClaimRow>();
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const rows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT productId, claimedAt, expiresAt
+        FROM ProductTrialClaim
+        WHERE userId = ?
+          AND productId IN (${placeholders})
+        ORDER BY createdAt DESC
+      `,
+      userId,
+      ...productIds
+    )) as ProductTrialClaimRow[];
+    const grouped = new Map<string, ProductTrialClaimRow>();
+    rows.forEach((row) => {
+      const productId = String(row.productId || "").trim();
+      if (!productId || grouped.has(productId)) return;
+      grouped.set(productId, row);
+    });
+    return grouped;
+  } catch (error) {
+    const message = String((error as { message?: string })?.message || "").toLowerCase();
+    const missingTable =
+      (message.includes("1146") || message.includes("p2010")) && message.includes("producttrialclaim");
+    if (missingTable) return new Map<string, ProductTrialClaimRow>();
+    throw error;
+  }
+};
+
 const resolveOptionalStudentUserId = (req: Request): string | null => {
   const authHeader = String(req.headers.authorization || "").trim();
   if (!authHeader.startsWith("Bearer ")) return null;
@@ -572,7 +847,9 @@ const serializeProduct = (
   linkedMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   demoMockTests: ReturnType<typeof toLinkedMockTest>[] = [],
   isPremiumUnlocked = false,
-  tocTabPreset: TocTabPreset = null
+  tocTabPreset: TocTabPreset = null,
+  packages: ReturnType<typeof buildSerializedPackages> = [],
+  trialClaim: ProductTrialClaimRow | null = null
 ) => {
   const listPrice = toNumber(row.listPrice);
   const salePrice = toNumber(row.salePrice);
@@ -586,7 +863,7 @@ const serializeProduct = (
     examName: row.examName,
     courseType: row.courseType,
     languageMode: row.languageMode,
-    thumbnailUrl: row.thumbnailUrl,
+    thumbnailUrl: resolveProductThumbnailUrl(row.thumbnailUrl),
     description: row.description,
     listPrice,
     salePrice,
@@ -598,6 +875,17 @@ const serializeProduct = (
     addons: parseAddons(row.addons),
     demoLessonTitle: row.demoLessonTitle || null,
     demoLessonUrl: row.demoLessonUrl || null,
+    trialConfig: {
+      enabled: toBoolean(row.trialEnabled),
+      days: Number(row.trialDays || 0),
+    },
+    trialStatus: {
+      hasClaimed: Boolean(trialClaim),
+      claimedAt: trialClaim ? toIso(trialClaim.claimedAt) : null,
+      expiresAt: trialClaim ? toIso(trialClaim.expiresAt) : null,
+      isActive: trialClaim ? new Date(String(trialClaim.expiresAt)).getTime() >= Date.now() : false,
+    },
+    packages,
     linkedMockTests,
     demoMockTests,
     tocTabPreset,
@@ -608,6 +896,7 @@ const serializeProduct = (
 };
 
 const buyWithWalletSchema = z.object({
+  packageId: optionalTrimmedString(191),
   referralCode: z.string().trim().min(4).max(40).optional(),
   includeDefaultOffer: z.preprocess((value) => {
     if (value === undefined || value === null || value === "") return undefined;
@@ -624,6 +913,10 @@ const buyWithWalletSchema = z.object({
     },
     z.coerce.number().nonnegative().optional()
   ),
+});
+
+const claimTrialSchema = z.object({
+  deviceFingerprint: z.string().trim().min(8).max(191),
 });
 
 const REFERRAL_DISCOUNT_SLABS = [
@@ -698,13 +991,23 @@ type CheckoutProductRow = {
   listPrice: number | string;
   salePrice: number | string;
   referralBonusAmount: number | string | null;
+  trialEnabled?: number | boolean;
+  trialDays?: number | null;
   isActive: number | boolean;
 };
 
-const getCheckoutProduct = async (productId: string): Promise<CheckoutProductRow> => {
+type CheckoutPackageRow = {
+  id: string;
+  productId: string;
+  title: string;
+  price: number | string;
+  isActive: number | boolean;
+};
+
+const getCheckoutSelection = async (productId: string, packageId?: string | null) => {
   const productRows = (await prisma.$queryRawUnsafe(
     `
-      SELECT id, title, listPrice, salePrice, referralBonusAmount, isActive
+      SELECT id, title, listPrice, salePrice, referralBonusAmount, trialEnabled, trialDays, isActive
       FROM Product
       WHERE id = ?
       LIMIT 1
@@ -718,12 +1021,50 @@ const getCheckoutProduct = async (productId: string): Promise<CheckoutProductRow
   if (!Boolean(Number(product.isActive) === 1 || product.isActive === true)) {
     throw new AppError("This product is currently inactive.", 400);
   }
-  return product;
+
+  let selectedPackage: CheckoutPackageRow | null = null;
+  const normalizedPackageId = String(packageId || "").trim();
+  if (normalizedPackageId) {
+    const packageRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, productId, title, price, isActive
+        FROM ProductPackage
+        WHERE id = ?
+          AND productId = ?
+        LIMIT 1
+      `,
+      normalizedPackageId,
+      productId
+    ).catch((error: unknown) => {
+      const message = String((error as { message?: string })?.message || "").toLowerCase();
+      const missingTable =
+        (message.includes("1146") || message.includes("p2010")) && message.includes("productpackage");
+      if (missingTable) return [];
+      throw error;
+    })) as CheckoutPackageRow[];
+    selectedPackage = packageRows[0] || null;
+    if (!selectedPackage) {
+      throw new AppError("Selected package not found for this product.", 404);
+    }
+    if (!Boolean(Number(selectedPackage.isActive) === 1 || selectedPackage.isActive === true)) {
+      throw new AppError("Selected package is currently inactive.", 400);
+    }
+  }
+
+  return {
+    product,
+    selectedPackage,
+  };
 };
 
-const buildOfferPricing = (product: CheckoutProductRow, includeDefaultOffer: boolean, applyFriendOffer: boolean) => {
-  const listPrice = normalizeAmount(product.listPrice);
-  const salePrice = normalizeAmount(product.salePrice);
+const buildOfferPricing = (
+  product: CheckoutProductRow,
+  includeDefaultOffer: boolean,
+  applyFriendOffer: boolean,
+  selectedPackage?: CheckoutPackageRow | null
+) => {
+  const listPrice = normalizeAmount(selectedPackage?.price ?? product.listPrice);
+  const salePrice = normalizeAmount(selectedPackage?.price ?? product.salePrice);
   const effectiveSalePrice = normalizeAmount(Math.min(salePrice > 0 ? salePrice : listPrice, listPrice));
   if (listPrice <= 0 || effectiveSalePrice <= 0) {
     throw new AppError("Product pricing is invalid.", 400);
@@ -826,11 +1167,13 @@ productsRouter.get("/", async (req, res, next) => {
     )) as ProductRow[];
 
     const productIds = rows.map((item) => item.id);
-    const [linkedMap, demoMap, chapterSubSubjectMap, unlockedSet] = await Promise.all([
+    const [linkedMap, demoMap, chapterSubSubjectMap, unlockedSet, packageMap, trialClaimMap] = await Promise.all([
       loadLinkedMockTestsByProductIds(productIds),
       loadDemoMockTestsByProductIds(productIds),
       loadChapterSubSubjectsByProductIds(productIds),
       loadUnlockedProductIdsForUser(studentUserId, productIds),
+      loadPackagesByProductIds(productIds),
+      loadTrialClaimsByProductIds(studentUserId, productIds),
     ]);
     const products = rows.map((row) =>
       {
@@ -847,7 +1190,9 @@ productsRouter.get("/", async (req, res, next) => {
           linkedMockTests,
           demoMockTests,
           unlockedSet.has(row.id),
-          tocTabPreset
+          tocTabPreset,
+          packageMap.get(row.id) || [],
+          trialClaimMap.get(row.id) || null
         );
       }
     );
@@ -870,6 +1215,99 @@ productsRouter.get("/", async (req, res, next) => {
         exams,
         courseTypes,
         languages,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+productsRouter.post("/:productId/claim-trial", ...ensureStudent, async (req, res, next) => {
+  try {
+    const input = claimTrialSchema.parse(req.body || {});
+    const userId = req.user!.userId;
+    const productId = String(req.params.productId || "").trim();
+    if (!productId) {
+      throw new AppError("Product id is required.", 400);
+    }
+
+    const userRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, mobile
+        FROM User
+        WHERE id = ?
+        LIMIT 1
+      `,
+      userId
+    )) as Array<{ id: string; mobile: string | null }>;
+    const user = userRows[0];
+    if (!user) {
+      throw new AppError("Student not found.", 404);
+    }
+
+    const { product } = await getCheckoutSelection(productId, null);
+    const trialEnabled = Boolean(Number(product.trialEnabled) === 1 || product.trialEnabled === true);
+    const trialDays = Number(product.trialDays || 0);
+    if (!trialEnabled || !(trialDays > 0)) {
+      throw new AppError("Free trial is not enabled for this product.", 400);
+    }
+
+    const mobile = String(user.mobile || "").trim();
+    if (!mobile) {
+      throw new AppError("Student mobile number is missing.", 400);
+    }
+
+    const existingRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id
+        FROM ProductTrialClaim
+        WHERE productId = ?
+          AND (mobile = ? OR deviceFingerprint = ?)
+        LIMIT 1
+      `,
+      productId,
+      mobile,
+      input.deviceFingerprint
+    ).catch((error: unknown) => {
+      const message = String((error as { message?: string })?.message || "").toLowerCase();
+      const missingTable =
+        (message.includes("1146") || message.includes("p2010")) && message.includes("producttrialclaim");
+      if (missingTable) return [];
+      throw error;
+    })) as Array<{ id: string }>;
+
+    if (existingRows.length) {
+      throw new AppError("Free trial has already been used for this product on this device or mobile number.", 400);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO ProductTrialClaim
+        (id, userId, productId, mobile, deviceFingerprint, trialDays, claimedAt, expiresAt, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      randomUUID(),
+      userId,
+      productId,
+      mobile,
+      input.deviceFingerprint,
+      trialDays,
+      now,
+      expiresAt,
+      now,
+      now
+    );
+
+    res.status(201).json({
+      message: `Free trial activated for ${trialDays} day${trialDays === 1 ? "" : "s"}.`,
+      trial: {
+        productId,
+        days: trialDays,
+        claimedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        isActive: true,
       },
     });
   } catch (error) {
@@ -900,10 +1338,15 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
 
@@ -911,6 +1354,13 @@ productsRouter.post("/:productId/checkout-preview", ...ensureStudent, async (req
       product: {
         id: product.id,
         title: product.title,
+        selectedPackage: selectedPackage
+          ? {
+              id: selectedPackage.id,
+              title: selectedPackage.title,
+              price: normalizeAmount(selectedPackage.price),
+            }
+          : null,
       },
       offers: {
         includeDefaultOffer,
@@ -958,7 +1408,7 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
@@ -967,7 +1417,12 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
       purchaseReferrerId = friendOffer.referrerId;
     }
 
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
     const referralBonusAmount = normalizeAmount(product.referralBonusAmount ?? 0);
@@ -989,9 +1444,12 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
             amountPaid,
             walletUsed,
             referralBonusCredited,
+            packageId,
+            packageTitle,
+            packagePrice,
             createdAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         purchaseId,
         userId,
@@ -999,6 +1457,9 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         wallet.payableAfterWallet,
         wallet.walletUsed,
         bonusToCredit,
+        selectedPackage?.id || null,
+        selectedPackage?.title || null,
+        selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         now
       ),
     ];
@@ -1069,6 +1530,9 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
         productId,
         amountPaid: wallet.payableAfterWallet,
         walletUsed: wallet.walletUsed,
+        packageId: selectedPackage?.id || null,
+        packageTitle: selectedPackage?.title || null,
+        packagePrice: selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         listPrice: pricing.listPrice,
         currentPrice: pricing.currentPrice,
         defaultOfferApplied: includeDefaultOffer,
@@ -1108,7 +1572,7 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
       throw new AppError("Student not found.", 404);
     }
 
-    const product = await getCheckoutProduct(productId);
+    const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
@@ -1117,7 +1581,12 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
       purchaseReferrerId = friendOffer.referrerId;
     }
 
-    const pricing = buildOfferPricing(product, includeDefaultOffer, Boolean(friendOffer.appliedReferralCode));
+    const pricing = buildOfferPricing(
+      product,
+      includeDefaultOffer,
+      Boolean(friendOffer.appliedReferralCode),
+      selectedPackage
+    );
 
     const walletBalance = await getWalletBalance(userId);
     if (walletBalance < pricing.payableAmount) {
@@ -1143,9 +1612,12 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
             amountPaid,
             walletUsed,
             referralBonusCredited,
+            packageId,
+            packageTitle,
+            packagePrice,
             createdAt
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         purchaseId,
         userId,
@@ -1153,6 +1625,9 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
         pricing.payableAmount,
         pricing.payableAmount,
         bonusToCredit,
+        selectedPackage?.id || null,
+        selectedPackage?.title || null,
+        selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         now
       ),
       prisma.$executeRawUnsafe(
@@ -1219,6 +1694,9 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
         productId,
         amountPaid: pricing.payableAmount,
         walletUsed: pricing.payableAmount,
+        packageId: selectedPackage?.id || null,
+        packageTitle: selectedPackage?.title || null,
+        packagePrice: selectedPackage ? normalizeAmount(selectedPackage.price) : null,
         listPrice: pricing.listPrice,
         currentPrice: pricing.currentPrice,
         defaultOfferApplied: includeDefaultOffer,

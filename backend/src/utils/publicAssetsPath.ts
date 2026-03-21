@@ -1,6 +1,7 @@
 import path from "node:path";
 
 const backendRoot = path.resolve(__dirname, "..", "..");
+const defaultBackendPublicDir = path.resolve(backendRoot, "public");
 const defaultFrontendPublicDir = path.resolve(backendRoot, "..", "frontend", "public");
 
 const normalizeEnvPath = (value: string | undefined): string | null => {
@@ -10,5 +11,11 @@ const normalizeEnvPath = (value: string | undefined): string | null => {
 };
 
 export const resolvePublicAssetsDir = (): string =>
-  normalizeEnvPath(process.env.PUBLIC_ASSETS_DIR) || defaultFrontendPublicDir;
+  normalizeEnvPath(process.env.PUBLIC_ASSETS_DIR) || defaultBackendPublicDir;
 
+export const resolveFrontendPublicDir = (): string => defaultFrontendPublicDir;
+
+export const resolveServedPublicAssetDirs = (): string[] => {
+  const candidates = [defaultBackendPublicDir, defaultFrontendPublicDir, resolvePublicAssetsDir()];
+  return Array.from(new Set(candidates));
+};
