@@ -6946,3 +6946,456 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+.dash-card.is-tuition-entry {
+  background: linear-gradient(135deg, rgba(15, 83, 189, 0.08), rgba(84, 182, 255, 0.12));
+}
+
+.tuition-flow-page {
+  background:
+    radial-gradient(circle at top left, rgba(15, 83, 189, 0.08), transparent 28%),
+    linear-gradient(180deg, #f6f9ff 0%, #eef4ff 100%);
+  min-height: 100vh;
+}
+
+.tuition-flow-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.tuition-flow-hero,
+.tuition-teacher-layout,
+.tuition-setup-layout,
+.tuition-homework-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.tuition-flow-side-card,
+.tuition-flow-form-card,
+.tuition-chapter-card,
+.tuition-teacher-sidebar,
+.tuition-teacher-chat-card,
+.tuition-teacher-board-card,
+.tuition-homework-card,
+.tuition-homework-side-card {
+  border-radius: 24px;
+  border: 1px solid #d7e4ff;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--ui-card-shadow);
+}
+
+.tuition-flow-side-card,
+.tuition-teacher-sidebar,
+.tuition-homework-side-card {
+  padding: 1.3rem;
+}
+
+.tuition-flow-form-card,
+.tuition-teacher-chat-card,
+.tuition-teacher-board-card,
+.tuition-homework-card {
+  padding: 1.35rem;
+}
+
+.tuition-teacher-layout {
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.2fr) minmax(280px, 0.9fr);
+}
+
+.tuition-flow-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.tuition-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.tuition-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.tuition-flow-form label,
+.tuition-teacher-sidebar label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tuition-flow-form span,
+.tuition-teacher-sidebar span {
+  font-weight: 600;
+  color: var(--ui-card-title);
+}
+
+.tuition-flow-form input,
+.tuition-flow-form select,
+.tuition-flow-form textarea,
+.tuition-teacher-sidebar select,
+.tuition-chat-form textarea,
+.tuition-review-row input,
+.tuition-flow-side-card textarea {
+  width: 100%;
+  border: 1px solid #cfe0ff;
+  border-radius: 16px;
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+.tuition-flow-form textarea,
+.tuition-chat-form textarea,
+.tuition-flow-side-card textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.tuition-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.tuition-flow-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tuition-review-list,
+.tuition-list-stack,
+.tuition-summary-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tuition-summary-stack.compact,
+.tuition-summary-item.compact {
+  gap: 0.45rem;
+}
+
+.tuition-summary-item,
+.tuition-list-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid #d8e6ff;
+  background: rgba(246, 250, 255, 0.96);
+}
+
+.tuition-summary-item.is-warning {
+  border-color: rgba(255, 123, 95, 0.35);
+  background: rgba(255, 123, 95, 0.08);
+}
+
+.tuition-list-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tuition-list-card p {
+  margin: 0.2rem 0 0;
+  color: var(--ui-card-muted);
+}
+
+.tuition-file-meta {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.tuition-review-row {
+  display: grid;
+  grid-template-columns: 52px 110px minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid #d8e6ff;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.tuition-review-order {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 83, 189, 0.08);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.tuition-review-check {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tuition-review-check input {
+  width: auto;
+}
+
+.tuition-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.tuition-chapter-card {
+  padding: 1.2rem;
+}
+
+.tuition-chapter-card h2,
+.tuition-flow-form-card h1,
+.tuition-flow-form-card h2,
+.tuition-teacher-sidebar h1,
+.tuition-teacher-chat-card h2 {
+  margin-top: 0;
+}
+
+.tuition-chapter-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.tuition-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.9rem 0 1rem;
+}
+
+.tuition-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 83, 189, 0.08);
+  color: var(--brand);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.tuition-chat-thread {
+  display: grid;
+  gap: 0.9rem;
+  max-height: 60vh;
+  overflow: auto;
+  padding-right: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.tuition-chat-message {
+  border-radius: 20px;
+  padding: 0.95rem 1rem;
+  border: 1px solid #d6e4ff;
+}
+
+.tuition-chat-message strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.tuition-chat-message p {
+  margin: 0;
+  color: var(--ui-card-title);
+  line-height: 1.65;
+}
+
+.tuition-chat-message.is-user {
+  background: rgba(15, 83, 189, 0.08);
+}
+
+.tuition-chat-message.is-assistant {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.tuition-chat-list {
+  margin-top: 0.85rem;
+}
+
+.tuition-chat-list ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.tuition-chat-empty,
+.tuition-empty-note {
+  padding: 1.2rem;
+  border-radius: 18px;
+  border: 1px dashed #b8cfff;
+  color: var(--ui-card-muted);
+  text-align: center;
+}
+
+.tuition-chat-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.tuition-board-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.tuition-board-section,
+.tuition-board-example {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid #d8e6ff;
+  background: rgba(246, 250, 255, 0.96);
+}
+
+.tuition-board-section h3,
+.tuition-board-example h3 {
+  margin: 0;
+}
+
+.tuition-board-list,
+.tuition-board-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ui-card-title);
+}
+
+.tuition-board-empty-item {
+  color: var(--ui-card-muted);
+}
+
+.tuition-voice-card {
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid #d8e6ff;
+  background: rgba(246, 250, 255, 0.96);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tuition-voice-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tuition-voice-meta {
+  margin: 0;
+  color: var(--ui-card-muted);
+  line-height: 1.6;
+}
+
+.tuition-voice-chip {
+  min-width: 92px;
+}
+
+.tuition-voice-chip.is-muted,
+.tuition-voice-chip.state-idle,
+.tuition-voice-chip.state-ended {
+  background: rgba(108, 123, 152, 0.12);
+  color: #4d627e;
+}
+
+.tuition-voice-chip.state-connecting {
+  background: rgba(230, 143, 20, 0.12);
+  color: #a85a00;
+}
+
+.tuition-voice-chip.state-live {
+  background: rgba(33, 150, 83, 0.14);
+  color: #1c7b45;
+}
+
+.tuition-voice-chip.state-error {
+  background: rgba(207, 66, 66, 0.12);
+  color: #b42318;
+}
+
+.tuition-homework-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.tuition-homework-task-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.tuition-homework-task {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid #d8e6ff;
+  background: rgba(246, 250, 255, 0.96);
+}
+
+.tuition-homework-task-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tuition-homework-task h3,
+.tuition-homework-section h2 {
+  margin: 0;
+}
+
+.tuition-homework-format {
+  margin: 0;
+  color: var(--ui-card-muted);
+}
+
+@media (max-width: 980px) {
+  .tuition-flow-hero,
+  .tuition-teacher-layout,
+  .tuition-setup-layout,
+  .tuition-homework-layout,
+  .tuition-chapter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .tuition-flow-main {
+    padding-top: 0.9rem;
+  }
+
+  .tuition-flow-grid,
+  .tuition-review-row,
+  .tuition-list-card,
+  .tuition-card-header {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tuition-flow-actions .btn-primary,
+  .tuition-flow-actions .btn-secondary,
+  .tuition-flow-actions .btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}

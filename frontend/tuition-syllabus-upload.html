@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Setup | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=60" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Setup" aria-label="Setup">Setup</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-flow-hero">
+        <div>
+          <p class="eyebrow">Phase 3</p>
+          <h1>Set Up Your Tuition Flow</h1>
+          <p>
+            Save your board, class, subject, and preferred language first. Then upload a syllabus file
+            or image so the chapter review and teacher flow stay aligned to the same school context.
+          </p>
+          <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
+        </div>
+        <article class="card tuition-flow-side-card">
+          <h2>Current Context</h2>
+          <div id="tuitionUploadSummary" class="tuition-summary-stack"></div>
+          <div class="tuition-flow-actions">
+            <a id="tuitionActiveSyllabusCta" class="btn-primary hidden" href="./tuition-chapters.html"
+              >Go To Chapters</a
+            >
+          </div>
+        </article>
+      </section>
+
+      <section class="section tuition-setup-layout">
+        <article class="card tuition-flow-form-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">1. Profile</p>
+              <h2>Board, Class, Subject, Language</h2>
+            </div>
+            <button id="tuitionSaveProfileBtn" type="button" class="btn-secondary">Save Profile</button>
+          </div>
+
+          <form id="tuitionUploadForm" class="tuition-flow-form">
+            <div class="tuition-flow-grid">
+              <label>
+                <span>Board</span>
+                <select id="tuitionBoardSelect" required></select>
+              </label>
+              <label>
+                <span>Class</span>
+                <select id="tuitionClassSelect" required></select>
+              </label>
+              <label>
+                <span>Subject</span>
+                <select id="tuitionSubjectSelect" required></select>
+              </label>
+              <label>
+                <span>Preferred Language</span>
+                <select id="tuitionLanguageSelect">
+                  <option value="ENGLISH">English</option>
+                  <option value="HINDI">Hindi</option>
+                  <option value="PUNJABI">Punjabi</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="tuition-card-header">
+              <div>
+                <p class="eyebrow">2. Upload</p>
+                <h2>Upload Syllabus File Or Image</h2>
+              </div>
+            </div>
+
+            <label>
+              <span>Syllabus File</span>
+              <input id="tuitionFileInput" type="file" accept="image/*,.pdf,.txt" capture="environment" required />
+            </label>
+
+            <label>
+              <span>Draft Title Override</span>
+              <input
+                id="tuitionDraftTitle"
+                type="text"
+                maxlength="191"
+                placeholder="Optional: Class 8 Science 2026-27"
+              />
+            </label>
+
+            <label>
+              <span>Manual Parse Notes</span>
+              <textarea
+                id="tuitionManualText"
+                rows="6"
+                placeholder="Optional: paste chapter names or syllabus text to guide the manual-safe parser."
+              ></textarea>
+            </label>
+
+            <div class="tuition-file-meta" id="tuitionFileMeta"></div>
+
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Upload And Prepare Review</button>
+              <a class="btn-secondary" href="./dashboard.html">Back To Dashboard</a>
+            </div>
+          </form>
+        </article>
+
+        <article class="card tuition-flow-side-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Recent Work</p>
+              <h2>Stored Syllabi</h2>
+            </div>
+          </div>
+          <div id="tuitionStoredSyllabi" class="tuition-list-stack"></div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-syllabus-upload.js?v=2"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

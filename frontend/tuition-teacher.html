@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Teacher | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=60" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Setup" aria-label="Setup">Setup</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-teacher-layout">
+        <article class="card tuition-teacher-sidebar">
+          <p class="eyebrow">Text-first tutor</p>
+          <h1 id="tuitionTeacherTitle">Loading chapter...</h1>
+          <div id="tuitionTeacherSummary" class="tuition-summary-stack"></div>
+          <div class="tuition-flow-grid">
+            <label>
+              <span>Language</span>
+              <select id="tuitionTeacherLanguage">
+                <option value="ENGLISH">English</option>
+                <option value="HINDI">Hindi</option>
+                <option value="PUNJABI">Punjabi</option>
+              </select>
+            </label>
+            <label>
+              <span>Speed</span>
+              <select id="tuitionTeacherSpeed">
+                <option value="SLOW">Slow</option>
+                <option value="NORMAL" selected>Normal</option>
+                <option value="FAST">Fast</option>
+              </select>
+            </label>
+            <label>
+              <span>Difficulty</span>
+              <select id="tuitionTeacherDifficulty">
+                <option value="EASY">Easy</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HARD">Hard</option>
+              </select>
+            </label>
+          </div>
+          <div class="tuition-flow-actions">
+            <button id="tuitionTeacherResumeBtn" type="button" class="btn-secondary">Refresh Session</button>
+            <button id="tuitionTeacherVoiceBtn" type="button" class="btn-secondary">Start Voice Tutor</button>
+            <button id="tuitionTeacherVoiceEndBtn" type="button" class="btn-ghost hidden">End Voice Tutor</button>
+            <button id="tuitionTeacherHomeworkBtn" type="button" class="btn-primary">Generate Homework</button>
+            <a class="btn-secondary" href="./tuition-chapters.html">Back To Chapters</a>
+          </div>
+          <div class="tuition-voice-card">
+            <div class="tuition-voice-card-head">
+              <strong>Voice Tutor</strong>
+              <span id="tuitionTeacherVoiceState" class="tuition-chip is-muted">Idle</span>
+            </div>
+            <p id="tuitionTeacherVoiceMeta" class="tuition-voice-meta">
+              Start voice mode to speak with the chapter tutor using the current language, speed, and difficulty.
+            </p>
+            <audio id="tuitionTeacherVoiceAudio" class="hidden" autoplay playsinline></audio>
+          </div>
+        </article>
+
+        <article class="card tuition-teacher-chat-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Session</p>
+              <h2 id="tuitionTeacherSessionLabel">Preparing session...</h2>
+            </div>
+            <div id="tuitionTeacherSessionMeta" class="tuition-chip-row"></div>
+          </div>
+          <div id="tuitionTeacherMessages" class="tuition-chat-thread"></div>
+          <p id="tuitionTeacherStatus" class="form-message">Creating or resuming tuition session...</p>
+          <form id="tuitionTeacherForm" class="tuition-chat-form">
+            <textarea
+              id="tuitionTeacherInput"
+              rows="4"
+              maxlength="8000"
+              placeholder="Ask about the chapter concept, example, or practice question."
+              required
+            ></textarea>
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Send Message</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card tuition-teacher-board-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Board Notes</p>
+              <h2 id="tuitionTeacherBoardTitle">Teaching Board</h2>
+            </div>
+            <div id="tuitionTeacherBoardMeta" class="tuition-chip-row"></div>
+          </div>
+          <div id="tuitionTeacherBoardEmpty" class="tuition-chat-empty">
+            Ask the tuition teacher a chapter question to generate structured board notes, steps, and examples.
+          </div>
+          <div id="tuitionTeacherBoardPanel" class="tuition-board-panel hidden">
+            <section class="tuition-board-section">
+              <h3>Board Lines</h3>
+              <ul id="tuitionTeacherBoardLines" class="tuition-board-list"></ul>
+            </section>
+            <section class="tuition-board-section">
+              <h3>Formulas / Key Rules</h3>
+              <ul id="tuitionTeacherBoardFormulas" class="tuition-board-list"></ul>
+            </section>
+            <section class="tuition-board-section">
+              <h3>Worked Steps</h3>
+              <ol id="tuitionTeacherBoardSteps" class="tuition-board-steps"></ol>
+            </section>
+            <section id="tuitionTeacherBoardExample" class="tuition-board-example hidden">
+              <h3 id="tuitionTeacherBoardExampleTitle">Worked Example</h3>
+              <ol id="tuitionTeacherBoardExampleSteps" class="tuition-board-steps"></ol>
+            </section>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-teacher.js?v=2"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

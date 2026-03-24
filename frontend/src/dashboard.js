@@ -250,9 +250,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   const getSliderTransition = () => Math.max(120, state.sliderTransitionMs);
   const getMySubscriptionsPagePath = () => getPagePath("my-subscriptions");
   const getProductsPagePath = () => getPagePath("products");
+  const getTuitionEntryPath = () => getPagePath("tuition-syllabus-upload");
   const getProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
   const getProductsCardsPerView = () => 3;
   const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
+
+  const renderTuitionTeacherEntry = () => {
+    const host = dashProductsCatalog instanceof HTMLElement ? dashProductsCatalog.parentElement : null;
+    if (!(host instanceof HTMLElement)) return;
+    if (host.querySelector("[data-dash-tuition-entry]")) return;
+
+    const card = document.createElement("article");
+    card.className = "dash-card is-tuition-entry";
+    card.setAttribute("data-dash-tuition-entry", "true");
+    card.innerHTML = `
+      <p class="dash-k">AI Tuition Teacher</p>
+      <p class="dash-v">Upload your school syllabus, review the chapter plan, and continue chapter-wise tuition sessions.</p>
+      <div class="dash-card-actions dash-card-actions-single">
+        <a class="btn-primary" href="${getTuitionEntryPath()}">Open Tuition Flow</a>
+      </div>
+    `;
+    host.prepend(card);
+  };
 
   const normalizeSliderAssetUrl = (input) => {
     const raw = String(input || "").trim();
@@ -1151,6 +1170,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     setTimeout(goToHome, 700);
     return;
   }
+
+  renderTuitionTeacherEntry();
 
   if (dashLessonTests instanceof HTMLElement) {
     dashLessonTests.addEventListener("click", async (event) => {
