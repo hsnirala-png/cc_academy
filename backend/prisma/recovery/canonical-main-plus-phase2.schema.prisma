@@ -164,8 +164,6 @@ model User {
   tuitionSyllabi TuitionSyllabus[]
   tuitionSessions TuitionSession[]
   tuitionProgress TuitionProgress[]
-  tuitionHomework TuitionHomework[]
-  tuitionHomeworkSubmissions TuitionHomeworkSubmission[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -599,7 +597,6 @@ model TuitionProfile {
   syllabi           TuitionSyllabus[]       @relation("ProfileTuitionSyllabi")
   chapterPlans      TuitionChapterPlan[]
   sessions          TuitionSession[]
-  homework          TuitionHomework[]
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
@@ -668,7 +665,6 @@ model TuitionSyllabusChapter {
   chapterPlans    TuitionChapterPlan[]
   sessions        TuitionSession[]
   progressRecords TuitionProgress[]
-  homework        TuitionHomework[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -706,7 +702,6 @@ model TuitionSession {
   profile           TuitionProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
   syllabusChapter   TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
   messages          TuitionMessage[]
-  homework          TuitionHomework[]
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
@@ -743,49 +738,4 @@ model TuitionProgress {
   @@unique([userId, syllabusChapterId])
   @@index([status, lastStudiedAt])
   @@index([lastSessionId])
-}
-
-model TuitionHomework {
-  id                String                @id @default(cuid())
-  userId            String
-  profileId         String
-  syllabusChapterId String
-  sessionId         String?
-  title             String
-  instructions      String?               @db.Text
-  speedMode         TuitionSpeedMode      @default(NORMAL)
-  difficultyMode    TuitionDifficultyMode @default(MEDIUM)
-  responseLanguage  String?
-  status            TuitionHomeworkStatus @default(GENERATED)
-  assignmentPayload Json
-  sourceContextJson Json?
-  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profile           TuitionProfile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  syllabusChapter   TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
-  session           TuitionSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  submissions       TuitionHomeworkSubmission[]
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-
-  @@index([userId, createdAt])
-  @@index([profileId, createdAt])
-  @@index([syllabusChapterId, createdAt])
-  @@index([sessionId])
-  @@index([status, updatedAt])
-}
-
-model TuitionHomeworkSubmission {
-  id                String           @id @default(cuid())
-  homeworkId        String
-  userId            String
-  answerPayload     Json
-  notes             String?          @db.Text
-  evaluationPayload Json?
-  homework          TuitionHomework  @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-
-  @@index([homeworkId, createdAt])
-  @@index([userId, createdAt])
 }

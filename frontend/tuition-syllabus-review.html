@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review Tuition Syllabus | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=60" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Setup" aria-label="Setup">Setup</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-flow-hero">
+        <div>
+          <p class="eyebrow">Phase 3</p>
+          <h1>Review Parsed Chapters</h1>
+          <p>
+            Edit chapter names, reorder them, exclude anything unnecessary, and confirm the final syllabus
+            that should drive chapter planning and teacher sessions.
+          </p>
+          <p id="tuitionReviewStatus" class="form-message">Loading parsed upload...</p>
+        </div>
+        <article class="card tuition-flow-side-card">
+          <h2>Parse Notes</h2>
+          <div id="tuitionReviewWarnings" class="tuition-list-stack"></div>
+          <div class="tuition-flow-actions">
+            <a class="btn-secondary" href="./tuition-syllabus-upload.html">Upload Again</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="section tuition-setup-layout">
+        <article class="card tuition-flow-form-card">
+          <form id="tuitionReviewForm" class="tuition-flow-form hidden">
+            <label>
+              <span>Syllabus Title</span>
+              <input id="tuitionReviewTitle" type="text" maxlength="191" required />
+            </label>
+
+            <div class="tuition-card-header">
+              <div>
+                <p class="eyebrow">Chapter Draft</p>
+                <h2>Reorder, Include, Or Edit</h2>
+              </div>
+              <button id="tuitionAddChapterBtn" type="button" class="btn-secondary">Add Chapter</button>
+            </div>
+
+            <div id="tuitionReviewChapters" class="tuition-review-list"></div>
+
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Confirm Final Syllabus</button>
+              <a class="btn-secondary" href="./tuition-syllabus-upload.html">Back To Setup</a>
+            </div>
+          </form>
+        </article>
+
+        <article class="card tuition-flow-side-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Source</p>
+              <h2>Uploaded Context</h2>
+            </div>
+          </div>
+          <div id="tuitionReviewMeta" class="tuition-summary-stack"></div>
+          <label>
+            <span>Raw Parse Text</span>
+            <textarea id="tuitionReviewRawText" rows="14" readonly></textarea>
+          </label>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-syllabus-review.js?v=2"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

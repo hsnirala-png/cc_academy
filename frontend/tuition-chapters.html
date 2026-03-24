@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Chapters | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=60" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Setup" aria-label="Setup">Setup</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-flow-hero">
+        <div>
+          <p class="eyebrow">Phase 3</p>
+          <h1>Chapter Plan</h1>
+          <p id="tuitionChaptersMeta" class="form-message">Loading chapter plan...</p>
+        </div>
+        <article class="card tuition-flow-side-card">
+          <h2>Progress Snapshot</h2>
+          <div id="tuitionChaptersSummary" class="tuition-summary-stack"></div>
+          <div class="tuition-flow-actions">
+            <a class="btn-secondary" href="./tuition-syllabus-upload.html">Update Syllabus</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="section">
+        <div id="tuitionChaptersGrid" class="tuition-chapter-grid"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-chapters.js?v=2"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Homework | CC Academy</title>
+    <link rel="stylesheet" href="./src/styles.css?v=61" />
+  </head>
+  <body class="tuition-flow-page">
+    <header class="site-header">
+      <a href="./dashboard.html" class="brand">
+        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
+      </a>
+      <div class="header-right">
+        <nav id="primary-nav" class="nav-links" aria-label="Primary">
+          <a href="./dashboard.html" data-label="Dashboard" aria-label="Dashboard">Dashboard</a>
+          <a href="./tuition-chapters.html" data-label="Chapters" aria-label="Chapters">Chapters</a>
+          <a href="./tuition-syllabus-upload.html" data-label="Setup" aria-label="Setup">Setup</a>
+        </nav>
+        <div class="header-actions">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="tuition-flow-main">
+      <section class="section tuition-homework-layout">
+        <article class="card tuition-homework-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Phase 4</p>
+              <h1 id="tuitionHomeworkTitle">Loading homework...</h1>
+            </div>
+            <div id="tuitionHomeworkMeta" class="tuition-chip-row"></div>
+          </div>
+
+          <p id="tuitionHomeworkStatus" class="form-message">Loading homework details...</p>
+
+          <div id="tuitionHomeworkSummary" class="tuition-summary-stack"></div>
+
+          <section class="tuition-homework-section">
+            <h2>Tasks</h2>
+            <div id="tuitionHomeworkTasks" class="tuition-homework-task-list"></div>
+          </section>
+
+          <form id="tuitionHomeworkForm" class="tuition-flow-form">
+            <label>
+              <span>Submission Notes</span>
+              <textarea
+                id="tuitionHomeworkNotes"
+                rows="4"
+                placeholder="Optional: mention where you found the homework easy or difficult."
+              ></textarea>
+            </label>
+            <div class="tuition-flow-actions">
+              <button type="submit" class="btn-primary">Submit Homework</button>
+              <a id="tuitionHomeworkBackLink" class="btn-secondary" href="./tuition-chapters.html"
+                >Back To Tuition Flow</a
+              >
+            </div>
+          </form>
+        </article>
+
+        <article class="card tuition-homework-side-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Recent Homework</p>
+              <h2>Previous Assignments</h2>
+            </div>
+          </div>
+          <div id="tuitionHomeworkRecent" class="tuition-list-stack"></div>
+
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">Latest Submission</p>
+              <h2>Stored Answers</h2>
+            </div>
+          </div>
+          <div id="tuitionHomeworkSubmissions" class="tuition-list-stack"></div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/tuition-homework.js?v=1"></script>
+    <script src="./src/global-nav.js?v=12"></script>
+  </body>
+</html>

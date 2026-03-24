@@ -1,6 +1,7 @@
 import "../src/config/loadEnv";
 import { ExamType, MockOption, MockSubject, Role } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { tuitionProfileService } from "../src/modules/tuition/tuition-profile.service";
 import { prisma } from "../src/utils/prisma";
 
 const buildQuestionSeed = (label: string, index: number) => {
@@ -192,6 +193,9 @@ const run = async (): Promise<void> => {
   await ensureDemoLessonData({
     assessmentTestId: punjabiTest.id,
   });
+
+  await tuitionProfileService.ensureSeedData();
+  console.log("Tuition boards and subjects are ready.");
 };
 
 run()
