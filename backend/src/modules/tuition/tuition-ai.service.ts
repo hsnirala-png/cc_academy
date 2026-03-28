@@ -37,17 +37,54 @@ type TuitionSessionRecord = Prisma.TuitionSessionGetPayload<{
 
 type AssistantPayload = {
   replyText: string;
+  title?: string | null;
   chapterTitle: string;
+  topicTitle?: string | null;
+  subjectName?: string | null;
+  explanationLanguage?: string | null;
+  boardLanguage?: string | null;
+  voiceLanguage?: string | null;
+  curriculumBoard?: string | null;
   recapPoints?: string[];
   nextSuggestedAction?: string | null;
   progressUpdate?: string | null;
+  practiceQuestion?: string | null;
+  diagramInstructions?: string[];
   boardTitle?: string | null;
   boardLines?: string[];
   formulas?: string[];
   steps?: string[];
   exampleTitle?: string | null;
   exampleSteps?: string[];
+  teacherMode?: string | null;
+  speechChunks?: Array<{
+    id: string;
+    kind: string;
+    text: string;
+  }>;
+  boardActions?: Array<{
+    id: string;
+    type: string;
+    lane: string;
+    text?: string | null;
+    label?: string | null;
+    targetId?: string | null;
+    fromLabel?: string | null;
+    toLabel?: string | null;
+    accent?: string | null;
+  }>;
+  teachingSteps?: Array<{
+    id: string;
+    title: string;
+    speechChunkId?: string | null;
+    actionIds: string[];
+    autoDelayMs?: number | null;
+  }>;
 };
+
+type AssistantSpeechChunk = NonNullable<AssistantPayload["speechChunks"]>[number];
+type AssistantBoardAction = NonNullable<AssistantPayload["boardActions"]>[number];
+type AssistantTeachingStep = NonNullable<AssistantPayload["teachingSteps"]>[number];
 
 type HomeworkTask = {
   id: string;
@@ -75,6 +112,16 @@ const normalizeOptionalText = (value: string | null | undefined): string | null 
   return normalized || null;
 };
 
+const normalizeSessionTitle = (value: string | null | undefined): string =>
+  String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+
+const normalizeTeachingLanguageCode = (value: string | null | undefined): "ENGLISH" | "HINDI" | "PUNJABI" => {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "HINDI") return "HINDI";
+  if (normalized === "PUNJABI") return "PUNJABI";
+  return "ENGLISH";
+};
+
 const normalizeSpeedMode = (value: string | null | undefined): TuitionSpeedMode => {
   const normalized = String(value || "").trim().toUpperCase();
   if (normalized === TuitionSpeedMode.SLOW) return TuitionSpeedMode.SLOW;
@@ -97,18 +144,96 @@ const toAssistantPayload = (value: unknown): AssistantPayload | null => {
   if (!replyText || !chapterTitle) return null;
   const toStringArray = (input: unknown): string[] =>
     Array.isArray(input) ? input.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const toSpeechChunks = (
+    input: unknown
+  ): AssistantSpeechChunk[] =>
+    Array.isArray(input)
+      ? input
+          .map((item, index) => {
+            if (!item || typeof item !== "object") return null;
+            const candidateItem = item as Record<string, unknown>;
+            const text = String(candidateItem.text || "").trim();
+            if (!text) return null;
+            return {
+              id: String(candidateItem.id || `speech-${index + 1}`).trim() || `speech-${index + 1}`,
+              kind: String(candidateItem.kind || "EXPLAIN").trim() || "EXPLAIN",
+              text,
+            };
+          })
+          .filter(Boolean) as AssistantSpeechChunk[]
+      : [];
+  const toBoardActions = (
+    input: unknown
+  ): AssistantBoardAction[] =>
+    Array.isArray(input)
+      ? input
+          .map((item, index) => {
+            if (!item || typeof item !== "object") return null;
+            const action = item as Record<string, unknown>;
+            const type = String(action.type || "").trim();
+            const lane = String(action.lane || "").trim();
+            if (!type || !lane) return null;
+            return {
+              id: String(action.id || `action-${index + 1}`).trim() || `action-${index + 1}`,
+              type,
+              lane,
+              text: String(action.text || "").trim() || null,
+              label: String(action.label || "").trim() || null,
+              targetId: String(action.targetId || "").trim() || null,
+              fromLabel: String(action.fromLabel || "").trim() || null,
+              toLabel: String(action.toLabel || "").trim() || null,
+              accent: String(action.accent || "").trim() || null,
+            };
+          })
+          .filter(Boolean) as AssistantBoardAction[]
+      : [];
+  const toTeachingSteps = (
+    input: unknown
+  ): AssistantTeachingStep[] =>
+    Array.isArray(input)
+      ? input
+          .map((item, index) => {
+            if (!item || typeof item !== "object") return null;
+            const step = item as Record<string, unknown>;
+            const title = String(step.title || "").trim();
+            const actionIds = toStringArray(step.actionIds);
+            if (!title || !actionIds.length) return null;
+            const autoDelayMs = Number(step.autoDelayMs);
+            return {
+              id: String(step.id || `teaching-step-${index + 1}`).trim() || `teaching-step-${index + 1}`,
+              title,
+              speechChunkId: String(step.speechChunkId || "").trim() || null,
+              actionIds,
+              autoDelayMs: Number.isFinite(autoDelayMs) && autoDelayMs > 0 ? autoDelayMs : null,
+            };
+          })
+          .filter(Boolean) as AssistantTeachingStep[]
+      : [];
   return {
     replyText,
+    title: String(candidate.title || "").trim() || null,
     chapterTitle,
+    topicTitle: String(candidate.topicTitle || "").trim() || null,
+    subjectName: String(candidate.subjectName || "").trim() || null,
+    explanationLanguage: String(candidate.explanationLanguage || "").trim() || null,
+    boardLanguage: String(candidate.boardLanguage || "").trim() || null,
+    voiceLanguage: String(candidate.voiceLanguage || "").trim() || null,
+    curriculumBoard: String(candidate.curriculumBoard || "").trim() || null,
     recapPoints: toStringArray(candidate.recapPoints),
     nextSuggestedAction: String(candidate.nextSuggestedAction || "").trim() || null,
     progressUpdate: String(candidate.progressUpdate || "").trim() || null,
+    practiceQuestion: String(candidate.practiceQuestion || "").trim() || null,
+    diagramInstructions: toStringArray(candidate.diagramInstructions),
     boardTitle: String(candidate.boardTitle || "").trim() || null,
     boardLines: toStringArray(candidate.boardLines),
     formulas: toStringArray(candidate.formulas),
     steps: toStringArray(candidate.steps),
     exampleTitle: String(candidate.exampleTitle || "").trim() || null,
     exampleSteps: toStringArray(candidate.exampleSteps),
+    teacherMode: String(candidate.teacherMode || "").trim() || null,
+    speechChunks: toSpeechChunks(candidate.speechChunks),
+    boardActions: toBoardActions(candidate.boardActions),
+    teachingSteps: toTeachingSteps(candidate.teachingSteps),
   };
 };
 
@@ -133,38 +258,92 @@ const serializeMessage = (message: {
   };
 };
 
-const serializeSession = (session: TuitionSessionRecord) => ({
-  id: session.id,
-  title: session.title,
-  status: session.status,
-  speedMode: session.speedMode,
-  difficultyMode: session.difficultyMode,
-  responseLanguage: session.responseLanguage,
-  messageCount: session.messages.length,
-  chapter: {
-    id: session.syllabusChapter.id,
-    title: session.syllabusChapter.name,
-    syllabusId: session.syllabusChapter.syllabusId,
-    syllabusTitle: session.syllabusChapter.syllabus.title,
-  },
-  profile: {
-    id: session.profile.id,
-    boardCode: session.profile.board?.code || null,
-    boardName: session.profile.board?.name || null,
-    classLevel: session.profile.classLevel ?? null,
-    subjectCode: session.profile.subject?.code || null,
-    subjectName: session.profile.subject?.name || null,
-    preferredLanguage: session.profile.preferredLanguage || null,
-  },
-  messages: session.messages.map(serializeMessage),
-  chapterContext: {
-    boardName: session.profile.board?.name || null,
-    classLevel: session.profile.classLevel ?? null,
-    subjectName: session.profile.subject?.name || null,
-  },
-  createdAt: session.createdAt,
-  updatedAt: session.updatedAt,
-});
+const serializeSession = (session: TuitionSessionRecord) => {
+  const latestAssistant =
+    [...session.messages]
+      .reverse()
+      .map((message) => serializeMessage(message).structured)
+      .find(Boolean) || null;
+  const chapterTitle = session.syllabusChapter.name;
+  const topicTitle = latestAssistant?.topicTitle || latestAssistant?.title || session.title || chapterTitle;
+  const explanationLanguage = normalizeTeachingLanguageCode(
+    latestAssistant?.explanationLanguage || session.responseLanguage || session.profile.preferredLanguage || "ENGLISH"
+  );
+  const boardLanguage = normalizeTeachingLanguageCode(
+    latestAssistant?.boardLanguage || latestAssistant?.explanationLanguage || explanationLanguage
+  );
+  const voiceLanguage = normalizeTeachingLanguageCode(
+    latestAssistant?.voiceLanguage || latestAssistant?.explanationLanguage || explanationLanguage
+  );
+  return {
+    id: session.id,
+    title: session.title,
+    status: session.status,
+    speedMode: session.speedMode,
+    difficultyMode: session.difficultyMode,
+    responseLanguage: session.responseLanguage,
+    messageCount: session.messages.length,
+    chapter: {
+      id: session.syllabusChapter.id,
+      title: session.syllabusChapter.name,
+      syllabusId: session.syllabusChapter.syllabusId,
+      syllabusTitle: session.syllabusChapter.syllabus.title,
+    },
+    profile: {
+      id: session.profile.id,
+      boardCode: session.profile.board?.code || null,
+      boardName: session.profile.board?.name || null,
+      classLevel: session.profile.classLevel ?? null,
+      subjectCode: session.profile.subject?.code || null,
+      subjectName: session.profile.subject?.name || null,
+      preferredLanguage: session.profile.preferredLanguage || null,
+    },
+    teacherContext: {
+      subject: latestAssistant?.subjectName || session.profile.subject?.name || null,
+      topic: topicTitle,
+      explanationLanguage,
+      boardLanguage,
+      voiceLanguage,
+      curriculumBoard: latestAssistant?.curriculumBoard || session.profile.board?.name || null,
+    },
+    messages: session.messages.map(serializeMessage),
+    chapterContext: {
+      boardName: session.profile.board?.name || null,
+      classLevel: session.profile.classLevel ?? null,
+      subjectName: session.profile.subject?.name || null,
+    },
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+};
+
+const resolveTeacherContext = (input: {
+  boardName?: string | null;
+  preferredLanguage?: string | null;
+  subjectName?: string | null;
+  chapterTitle: string;
+  responseLanguage?: string | null;
+  explanationLanguage?: string | null;
+  boardLanguage?: string | null;
+  voiceLanguage?: string | null;
+  subject?: string | null;
+  topic?: string | null;
+  curriculumBoard?: string | null;
+}) => {
+  const explanationLanguage = normalizeTeachingLanguageCode(
+    input.explanationLanguage || input.responseLanguage || input.preferredLanguage || "ENGLISH"
+  );
+  const boardLanguage = normalizeTeachingLanguageCode(input.boardLanguage || explanationLanguage);
+  const voiceLanguage = normalizeTeachingLanguageCode(input.voiceLanguage || explanationLanguage);
+  return {
+    subjectName: normalizeOptionalText(input.subject || input.subjectName),
+    topicTitle: normalizeOptionalText(input.topic) || input.chapterTitle,
+    explanationLanguage,
+    boardLanguage,
+    voiceLanguage,
+    curriculumBoard: normalizeOptionalText(input.curriculumBoard || input.boardName),
+  };
+};
 
 const resolveOwnedSession = async (userId: string, chapterId: string, sessionId: string) => {
   const session = await prisma.tuitionSession.findFirst({
@@ -357,7 +536,7 @@ export const tuitionAiService = {
         mode: "text-and-voice",
       },
       board: "enabled",
-      whiteboard: "not-enabled",
+      whiteboard: "live-board-mvp",
       homework: "enabled",
       voice: "enabled",
     };
@@ -387,6 +566,12 @@ export const tuitionAiService = {
       speedMode?: string | null;
       difficultyMode?: string | null;
       responseLanguage?: string | null;
+      explanationLanguage?: string | null;
+      boardLanguage?: string | null;
+      voiceLanguage?: string | null;
+      subject?: string | null;
+      topic?: string | null;
+      curriculumBoard?: string | null;
       resume?: boolean;
     }
   ) {
@@ -394,9 +579,14 @@ export const tuitionAiService = {
     const profile = await tuitionProfileService.getOrCreateProfile(userId);
     const speedMode = normalizeSpeedMode(input.speedMode);
     const difficultyMode = normalizeDifficultyMode(input.difficultyMode);
-    const responseLanguage = normalizeOptionalText(
-      input.responseLanguage || profile.preferredLanguage || "ENGLISH"
-    );
+    const teacherContext = resolveTeacherContext({
+      boardName: profile.board?.name || null,
+      preferredLanguage: profile.preferredLanguage,
+      subjectName: profile.subject?.name || null,
+      chapterTitle: chapter.name,
+      ...input,
+    });
+    const responseLanguage = teacherContext.explanationLanguage;
     const shouldResume = input.resume !== false;
 
     let session =
@@ -405,6 +595,7 @@ export const tuitionAiService = {
             where: {
               userId,
               syllabusChapterId,
+              title: teacherContext.topicTitle,
               status: {
                 in: [TuitionSessionStatus.ACTIVE, TuitionSessionStatus.PAUSED],
               },
@@ -414,6 +605,24 @@ export const tuitionAiService = {
           })
         : null;
 
+    if (!session && shouldResume) {
+      session = await prisma.tuitionSession.findFirst({
+        where: {
+          userId,
+          syllabusChapterId,
+          status: {
+            in: [TuitionSessionStatus.ACTIVE, TuitionSessionStatus.PAUSED],
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+        include: sessionInclude,
+      });
+
+      if (session && normalizeSessionTitle(session.title) !== normalizeSessionTitle(teacherContext.topicTitle)) {
+        session = null;
+      }
+    }
+
     if (session) {
       session = await prisma.tuitionSession.update({
         where: { id: session.id },
@@ -422,7 +631,7 @@ export const tuitionAiService = {
           speedMode,
           difficultyMode,
           responseLanguage,
-          title: chapter.name,
+          title: teacherContext.topicTitle,
         },
         include: sessionInclude,
       });
@@ -432,7 +641,7 @@ export const tuitionAiService = {
           userId,
           profileId: profile.id,
           syllabusChapterId,
-          title: chapter.name,
+          title: teacherContext.topicTitle,
           speedMode,
           difficultyMode,
           responseLanguage,
@@ -469,6 +678,12 @@ export const tuitionAiService = {
     input: {
       content: string;
       responseLanguage?: string | null;
+      explanationLanguage?: string | null;
+      boardLanguage?: string | null;
+      voiceLanguage?: string | null;
+      subject?: string | null;
+      topic?: string | null;
+      curriculumBoard?: string | null;
       speedMode?: string | null;
       difficultyMode?: string | null;
     }
@@ -479,9 +694,15 @@ export const tuitionAiService = {
       throw new AppError("Message content is required.", 400);
     }
 
-    const responseLanguage = normalizeOptionalText(
-      input.responseLanguage || session.responseLanguage || session.profile.preferredLanguage || "ENGLISH"
-    );
+    const teacherContext = resolveTeacherContext({
+      boardName: session.profile.board?.name || null,
+      preferredLanguage: session.profile.preferredLanguage,
+      subjectName: session.profile.subject?.name || null,
+      chapterTitle: session.syllabusChapter.name,
+      responseLanguage: session.responseLanguage,
+      ...input,
+    });
+    const responseLanguage = teacherContext.explanationLanguage;
     const speedMode = normalizeSpeedMode(input.speedMode || session.speedMode);
     const difficultyMode = normalizeDifficultyMode(input.difficultyMode || session.difficultyMode);
 
@@ -492,6 +713,7 @@ export const tuitionAiService = {
         responseLanguage,
         speedMode,
         difficultyMode,
+        title: teacherContext.topicTitle,
       },
     });
 
@@ -504,12 +726,14 @@ export const tuitionAiService = {
     });
 
     const refreshed = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
-    const assistantPayload = buildTuitionTeacherAssistantPayload({
+    const assistantPayload = await buildTuitionTeacherAssistantPayload({
       boardName: refreshed.profile.board?.name || null,
       classLevel: refreshed.profile.classLevel,
-      subjectName: refreshed.profile.subject?.name || null,
-      chapterTitle: refreshed.syllabusChapter.name,
-      responseLanguage,
+      subjectName: teacherContext.subjectName || refreshed.profile.subject?.name || null,
+      topicTitle: teacherContext.topicTitle,
+      explanationLanguage: teacherContext.explanationLanguage,
+      boardLanguage: teacherContext.boardLanguage,
+      voiceLanguage: teacherContext.voiceLanguage,
       speedMode,
       difficultyMode,
       studentPrompt: content,
@@ -529,6 +753,7 @@ export const tuitionAiService = {
           classLevel: refreshed.profile.classLevel,
           subjectCode: refreshed.profile.subject?.code || null,
           syllabusChapterId: refreshed.syllabusChapter.id,
+          teacherContext,
           assistant: assistantPayload,
         },
       },
@@ -550,14 +775,26 @@ export const tuitionAiService = {
     sessionId: string,
     input: {
       responseLanguage?: string | null;
+      explanationLanguage?: string | null;
+      boardLanguage?: string | null;
+      voiceLanguage?: string | null;
+      subject?: string | null;
+      topic?: string | null;
+      curriculumBoard?: string | null;
       speedMode?: string | null;
       difficultyMode?: string | null;
     }
   ) {
     const session = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
-    const responseLanguage = normalizeOptionalText(
-      input.responseLanguage || session.responseLanguage || session.profile.preferredLanguage || "ENGLISH"
-    );
+    const teacherContext = resolveTeacherContext({
+      boardName: session.profile.board?.name || null,
+      preferredLanguage: session.profile.preferredLanguage,
+      subjectName: session.profile.subject?.name || null,
+      chapterTitle: session.syllabusChapter.name,
+      responseLanguage: session.responseLanguage,
+      ...input,
+    });
+    const responseLanguage = teacherContext.explanationLanguage;
     const speedMode = normalizeSpeedMode(input.speedMode || session.speedMode);
     const difficultyMode = normalizeDifficultyMode(input.difficultyMode || session.difficultyMode);
 
@@ -568,6 +805,7 @@ export const tuitionAiService = {
         responseLanguage,
         speedMode,
         difficultyMode,
+        title: teacherContext.topicTitle,
       },
       include: sessionInclude,
     });
@@ -576,11 +814,12 @@ export const tuitionAiService = {
       context: {
         boardName: updatedSession.profile.board?.name || null,
         classLevel: updatedSession.profile.classLevel,
-        subjectName: updatedSession.profile.subject?.name || null,
-        chapterTitle: updatedSession.syllabusChapter.name,
+        subjectName: teacherContext.subjectName || updatedSession.profile.subject?.name || null,
+        topicTitle: teacherContext.topicTitle,
         syllabusTitle: updatedSession.syllabusChapter.syllabus.title,
+        voiceLanguage: teacherContext.voiceLanguage,
       },
-      responseLanguage,
+      voiceLanguage: teacherContext.voiceLanguage,
       speedMode,
       difficultyMode,
     });

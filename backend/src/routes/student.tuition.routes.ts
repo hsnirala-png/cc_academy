@@ -70,18 +70,36 @@ const sessionSchema = z.object({
   speedMode: trimmedOptionalString(20).optional(),
   difficultyMode: trimmedOptionalString(20).optional(),
   responseLanguage: trimmedOptionalString(40).optional(),
+  explanationLanguage: trimmedOptionalString(40).optional(),
+  boardLanguage: trimmedOptionalString(40).optional(),
+  voiceLanguage: trimmedOptionalString(40).optional(),
+  subject: trimmedOptionalString(120).optional(),
+  topic: trimmedOptionalString(191).optional(),
+  curriculumBoard: trimmedOptionalString(120).optional(),
   resume: z.coerce.boolean().optional(),
 });
 
 const messageSchema = z.object({
   content: z.string().trim().min(1).max(8000),
   responseLanguage: trimmedOptionalString(40).optional(),
+  explanationLanguage: trimmedOptionalString(40).optional(),
+  boardLanguage: trimmedOptionalString(40).optional(),
+  voiceLanguage: trimmedOptionalString(40).optional(),
+  subject: trimmedOptionalString(120).optional(),
+  topic: trimmedOptionalString(191).optional(),
+  curriculumBoard: trimmedOptionalString(120).optional(),
   speedMode: trimmedOptionalString(20).optional(),
   difficultyMode: trimmedOptionalString(20).optional(),
 });
 
 const voiceSessionSchema = z.object({
   responseLanguage: trimmedOptionalString(40).optional(),
+  voiceLanguage: trimmedOptionalString(40).optional(),
+  boardLanguage: trimmedOptionalString(40).optional(),
+  explanationLanguage: trimmedOptionalString(40).optional(),
+  subject: trimmedOptionalString(120).optional(),
+  topic: trimmedOptionalString(191).optional(),
+  curriculumBoard: trimmedOptionalString(120).optional(),
   speedMode: trimmedOptionalString(20).optional(),
   difficultyMode: trimmedOptionalString(20).optional(),
 });

@@ -165,6 +165,7 @@ export const tuitionProfileService = {
         take: 5,
         select: {
           id: true,
+          uploadId: true,
           title: true,
           isConfirmed: true,
           updatedAt: true,
@@ -184,6 +185,7 @@ export const tuitionProfileService = {
       classes: [...TUITION_CLASS_LEVELS],
       storedSyllabi: syllabiSummary.map((item) => ({
         id: item.id,
+        uploadId: item.uploadId,
         title: item.title,
         isConfirmed: item.isConfirmed,
         updatedAt: item.updatedAt,

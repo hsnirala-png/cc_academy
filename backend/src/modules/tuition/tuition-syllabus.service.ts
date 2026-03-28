@@ -20,9 +20,10 @@ const chapterInclude = {
   progressRecords: true,
   sessions: {
     orderBy: { updatedAt: "desc" },
-    take: 1,
+    take: 5,
     select: {
       id: true,
+      title: true,
       status: true,
       updatedAt: true,
       speedMode: true,
@@ -102,7 +103,11 @@ const serializeUpload = (upload: UploadRecord) => ({
 });
 
 const serializeChapter = (chapter: ChapterRecord) => {
-  const latestSession = chapter.sessions[0] || null;
+  const normalizedChapterTitle = normalizeText(chapter.name).toLowerCase();
+  const latestSession =
+    chapter.sessions.find((session) => normalizeText(session.title).toLowerCase() === normalizedChapterTitle) ||
+    chapter.sessions[0] ||
+    null;
   const progress = chapter.progressRecords[0] || null;
   const plan = chapter.chapterPlans[0] || null;
   const recommendedOrder = plan?.recommendedOrder || chapter.orderIndex;

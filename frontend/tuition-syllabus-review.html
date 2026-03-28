@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Review Tuition Syllabus | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=60" />
+    <link rel="stylesheet" href="./src/styles.css?v=63" />
   </head>
   <body class="tuition-flow-page">
     <header class="site-header">
@@ -76,6 +76,9 @@
               <button type="submit" class="btn-primary">Confirm Final Syllabus</button>
               <a class="btn-secondary" href="./tuition-syllabus-upload.html">Back To Setup</a>
             </div>
+            <p id="tuitionReviewInlineStatus" class="form-message">
+              Confirm the syllabus to unlock the chapter lesson cards and AI teacher sessions.
+            </p>
           </form>
         </article>
 
@@ -95,7 +98,16 @@
       </section>
     </main>
 
-    <script type="module" src="./src/tuition-syllabus-review.js?v=2"></script>
+    <div id="tuitionReviewProcessingModal" class="tuition-processing-modal hidden" aria-hidden="true">
+      <div class="tuition-processing-backdrop"></div>
+      <div class="tuition-processing-card" role="status" aria-live="polite">
+        <div class="tuition-processing-spinner"></div>
+        <h3 id="tuitionReviewProcessingTitle">Confirming Syllabus</h3>
+        <p id="tuitionReviewProcessingMessage">Please wait while the chapter lesson cards are being prepared.</p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/tuition-syllabus-review.js?v=5"></script>
     <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

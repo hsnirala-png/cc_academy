@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tuition Setup | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=60" />
+    <link rel="stylesheet" href="./src/styles.css?v=64" />
   </head>
   <body class="tuition-flow-page">
     <header class="site-header">
@@ -40,14 +40,15 @@
           <p class="eyebrow">Phase 3</p>
           <h1>Set Up Your Tuition Flow</h1>
           <p>
-            Save your board, class, subject, and preferred language first. Then upload a syllabus file
-            or image so the chapter review and teacher flow stay aligned to the same school context.
+            Save your board, class, subject, and preferred language first. Then either upload a syllabus
+            file or enter chapters manually so the review and teacher flow stay aligned to the same school context.
           </p>
           <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
         </div>
         <article class="card tuition-flow-side-card">
           <h2>Current Context</h2>
           <div id="tuitionUploadSummary" class="tuition-summary-stack"></div>
+          <div id="tuitionActivationPanel" class="tuition-activation-panel"></div>
           <div class="tuition-flow-actions">
             <a id="tuitionActiveSyllabusCta" class="btn-primary hidden" href="./tuition-chapters.html"
               >Go To Chapters</a
@@ -93,13 +94,13 @@
             <div class="tuition-card-header">
               <div>
                 <p class="eyebrow">2. Upload</p>
-                <h2>Upload Syllabus File Or Image</h2>
+              <h2>Upload Syllabus File Or Enter It Manually</h2>
               </div>
             </div>
 
             <label>
-              <span>Syllabus File</span>
-              <input id="tuitionFileInput" type="file" accept="image/*,.pdf,.txt" capture="environment" required />
+              <span>Syllabus File (Optional)</span>
+              <input id="tuitionFileInput" type="file" accept="image/*,.pdf,.txt" capture="environment" />
             </label>
 
             <label>
@@ -113,6 +114,19 @@
             </label>
 
             <label>
+              <span>Manual Chapter List</span>
+              <textarea
+                id="tuitionManualChapterList"
+                rows="6"
+                placeholder="Enter one chapter per line if you want to continue without uploading a file."
+              ></textarea>
+            </label>
+
+            <div class="tuition-flow-actions">
+              <button id="tuitionUseDemoChaptersBtn" type="button" class="btn-secondary">Use Demo Chapters</button>
+            </div>
+
+            <label>
               <span>Manual Parse Notes</span>
               <textarea
                 id="tuitionManualText"
@@ -122,11 +136,17 @@
             </label>
 
             <div class="tuition-file-meta" id="tuitionFileMeta"></div>
+            <p class="tuition-empty-note tuition-manual-input-note">
+              You can continue with either a file upload or a manual chapter list. At least one of them is required.
+            </p>
 
             <div class="tuition-flow-actions">
               <button type="submit" class="btn-primary">Upload And Prepare Review</button>
               <a class="btn-secondary" href="./dashboard.html">Back To Dashboard</a>
             </div>
+            <p id="tuitionUploadInlineStatus" class="form-message">
+              Save the tuition profile, then upload a file or enter chapters manually to prepare the lesson flow.
+            </p>
           </form>
         </article>
 
@@ -140,9 +160,33 @@
           <div id="tuitionStoredSyllabi" class="tuition-list-stack"></div>
         </article>
       </section>
+
+      <section class="section">
+        <article class="card tuition-flow-form-card">
+          <div class="tuition-card-header">
+            <div>
+              <p class="eyebrow">3. Chapter Lessons</p>
+              <h2>Chapter-Wise Learning Flow</h2>
+            </div>
+          </div>
+          <p id="tuitionChapterPreviewStatus" class="form-message">
+            Confirm a syllabus to unlock chapter-wise learning.
+          </p>
+          <div id="tuitionChapterPreview" class="tuition-chapter-preview-wrap"></div>
+        </article>
+      </section>
     </main>
 
-    <script type="module" src="./src/tuition-syllabus-upload.js?v=2"></script>
+    <div id="tuitionProcessingModal" class="tuition-processing-modal hidden" aria-hidden="true">
+      <div class="tuition-processing-backdrop"></div>
+      <div class="tuition-processing-card" role="status" aria-live="polite">
+        <div class="tuition-processing-spinner"></div>
+        <h3 id="tuitionProcessingTitle">Preparing Tuition Flow</h3>
+        <p id="tuitionProcessingMessage">Please wait while the syllabus and chapter lesson draft is being prepared.</p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/tuition-syllabus-upload.js?v=7"></script>
     <script src="./src/global-nav.js?v=12"></script>
   </body>
 </html>

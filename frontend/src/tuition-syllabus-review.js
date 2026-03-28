@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   const statusEl = document.querySelector("#tuitionReviewStatus");
+  const inlineStatusEl = document.querySelector("#tuitionReviewInlineStatus");
   const warningsEl = document.querySelector("#tuitionReviewWarnings");
   const metaEl = document.querySelector("#tuitionReviewMeta");
   const rawTextEl = document.querySelector("#tuitionReviewRawText");
@@ -37,6 +38,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const titleInput = document.querySelector("#tuitionReviewTitle");
   const chaptersEl = document.querySelector("#tuitionReviewChapters");
   const addChapterBtn = document.querySelector("#tuitionAddChapterBtn");
+  const processingModal = document.querySelector("#tuitionReviewProcessingModal");
+  const processingTitleEl = document.querySelector("#tuitionReviewProcessingTitle");
+  const processingMessageEl = document.querySelector("#tuitionReviewProcessingMessage");
 
   let chapterRows = [];
 
@@ -44,6 +48,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(statusEl instanceof HTMLElement)) return;
     statusEl.textContent = message;
     statusEl.className = `form-message${type ? ` ${type}` : ""}`;
+  };
+
+  const setInlineStatus = (message, type = "") => {
+    if (!(inlineStatusEl instanceof HTMLElement)) return;
+    inlineStatusEl.textContent = message;
+    inlineStatusEl.className = `form-message${type ? ` ${type}` : ""}`;
+  };
+
+  const setProcessingModal = (visible, title = "", message = "") => {
+    if (!(processingModal instanceof HTMLElement)) return;
+    processingModal.classList.toggle("hidden", !visible);
+    processingModal.setAttribute("aria-hidden", visible ? "false" : "true");
+    if (processingTitleEl instanceof HTMLElement && title) {
+      processingTitleEl.textContent = title;
+    }
+    if (processingMessageEl instanceof HTMLElement && message) {
+      processingMessageEl.textContent = message;
+    }
   };
 
   const renderWarnings = (warnings) => {
@@ -184,8 +206,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderRows();
     form?.classList.remove("hidden");
     setStatus("Review the chapter list, then confirm the final active syllabus.", "success");
+    setInlineStatus("When you confirm this syllabus, the chapter lesson cards will open next.", "success");
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Unable to load the parsed syllabus.", "error");
+    setInlineStatus("Unable to load the syllabus review.", "error");
   }
 
   form?.addEventListener("submit", async (event) => {
@@ -193,15 +217,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const chapters = collectPayload();
     if (!chapters.length) {
       setStatus("Add at least one chapter before continuing.", "error");
+      setInlineStatus("Add at least one chapter to create chapter lesson cards.", "error");
       return;
     }
     if (!chapters.some((chapter) => chapter.isIncluded)) {
       setStatus("Include at least one chapter before confirming the syllabus.", "error");
+      setInlineStatus("At least one chapter must stay included before lessons can be prepared.", "error");
       return;
     }
 
     try {
       setStatus("Confirming reviewed syllabus...");
+      setInlineStatus("Confirming the syllabus and preparing chapter lesson cards...", "");
+      setProcessingModal(
+        true,
+        "Preparing Chapter Lessons",
+        "The syllabus is being confirmed. The chapter lesson cards will open in the next step."
+      );
       await apiRequest({
         path: `/student/tuition/syllabus-uploads/${uploadId}/review`,
         method: "PUT",
@@ -212,9 +244,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           activate: true,
         },
       });
-      window.location.href = "./tuition-chapters.html";
+      setStatus("Syllabus confirmed. Opening chapter lesson cards...", "success");
+      setInlineStatus("Syllabus confirmed. Opening the chapter lesson cards now.", "success");
+      setProcessingModal(
+        true,
+        "Chapter Lessons Ready",
+        "Opening the chapter lesson cards. Use any chapter card to start the AI Tuition Teacher."
+      );
+      window.setTimeout(() => {
+        window.location.href = "./tuition-chapters.html?highlight=first";
+      }, 700);
     } catch (error) {
+      setProcessingModal(false);
       setStatus(error instanceof Error ? error.message : "Unable to confirm the syllabus.", "error");
+      setInlineStatus(error instanceof Error ? error.message : "Unable to confirm the syllabus.", "error");
     }
   });
 });

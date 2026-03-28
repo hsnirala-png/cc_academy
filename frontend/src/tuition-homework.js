@@ -197,16 +197,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderTasks(homework);
     renderSubmissions(homework);
 
-    if (backLink instanceof HTMLAnchorElement) {
-      if (homework?.session?.id) {
-        backLink.href = `./tuition-teacher.html?chapterId=${encodeURIComponent(
-          homework.chapter.id
-        )}&sessionId=${encodeURIComponent(homework.session.id)}`;
-      } else if (homework?.chapter?.id) {
-        backLink.href = `./tuition-teacher.html?chapterId=${encodeURIComponent(homework.chapter.id)}`;
-      } else {
-        backLink.href = "./tuition-chapters.html";
-      }
+      if (backLink instanceof HTMLAnchorElement) {
+        if (homework?.session?.id) {
+          backLink.href = `./tuition-teacher.html?chapterId=${encodeURIComponent(
+            homework.chapter.id
+          )}&sessionId=${encodeURIComponent(homework.session.id)}&savedSession=1`;
+        } else if (homework?.chapter?.id) {
+          backLink.href = `./tuition-teacher.html?chapterId=${encodeURIComponent(homework.chapter.id)}`;
+        } else {
+          backLink.href = "./tuition-chapters.html";
+        }
     }
   };
 

@@ -311,6 +311,9 @@
     if (normalized.includes("/admin")) return false;
     if (isAdminSession()) return false;
     if (isMockNavPage()) return false;
+    const isTuitionTeacherPage =
+      normalized.endsWith("/tuition-teacher") || normalized.endsWith("/tuition-teacher.html");
+    if (isTuitionTeacherPage) return false;
     const isMobileView = window.matchMedia("(max-width: 680px)").matches;
     const isLessonPlayerPage =
       normalized.endsWith("/lesson-player") || normalized.endsWith("/lesson-player.html");

@@ -251,26 +251,116 @@ document.addEventListener("DOMContentLoaded", async () => {
   const getMySubscriptionsPagePath = () => getPagePath("my-subscriptions");
   const getProductsPagePath = () => getPagePath("products");
   const getTuitionEntryPath = () => getPagePath("tuition-syllabus-upload");
+  const getTuitionChaptersPath = () => getPagePath("tuition-chapters");
   const getProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
   const getProductsCardsPerView = () => 3;
   const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
 
-  const renderTuitionTeacherEntry = () => {
-    const host = dashProductsCatalog instanceof HTMLElement ? dashProductsCatalog.parentElement : null;
-    if (!(host instanceof HTMLElement)) return;
-    if (host.querySelector("[data-dash-tuition-entry]")) return;
+  const renderTuitionTeacherEntry = async () => {
+    let card = document.querySelector("[data-dash-tuition-entry]");
+    if (!(card instanceof HTMLElement)) {
+      card = document.createElement("article");
+      card.className = "dash-card is-tuition-entry";
+      card.setAttribute("data-dash-tuition-entry", "true");
+      const primaryGrid = document.querySelector(".dash-grid");
+      if (primaryGrid instanceof HTMLElement) {
+        primaryGrid.prepend(card);
+      } else {
+        const productsSection = dashProductsCatalog instanceof HTMLElement ? dashProductsCatalog.parentElement : null;
+        if (productsSection instanceof HTMLElement) {
+          productsSection.prepend(card);
+        }
+      }
+    }
 
-    const card = document.createElement("article");
-    card.className = "dash-card is-tuition-entry";
-    card.setAttribute("data-dash-tuition-entry", "true");
-    card.innerHTML = `
-      <p class="dash-k">AI Tuition Teacher</p>
-      <p class="dash-v">Upload your school syllabus, review the chapter plan, and continue chapter-wise tuition sessions.</p>
-      <div class="dash-card-actions dash-card-actions-single">
-        <a class="btn-primary" href="${getTuitionEntryPath()}">Open Tuition Flow</a>
-      </div>
-    `;
-    host.prepend(card);
+    if (!(card instanceof HTMLElement)) return;
+
+    const renderStaticFallback = () => {
+      card.innerHTML = `
+        <p class="dash-k">AI Tuition Teacher</p>
+        <p class="dash-v">Upload your school syllabus, review chapter plans, and continue chapter-wise tuition sessions with text, voice, board notes, and homework.</p>
+        <div class="dash-card-actions">
+          <a class="btn-primary" href="${getTuitionEntryPath()}">Open Tuition Flow</a>
+          <a class="btn-secondary" href="${getTuitionEntryPath()}?mode=manual">Enter Chapters Manually</a>
+        </div>
+      `;
+    };
+
+    renderStaticFallback();
+
+    try {
+      const bootstrapResponse = await fetch(`${API_BASE}/student/tuition/bootstrap`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      if (!bootstrapResponse.ok) return;
+      const bootstrapPayload = await bootstrapResponse.json().catch(() => ({}));
+      const profile = bootstrapPayload?.profile?.profile || bootstrapPayload?.profile || {};
+      const activeSyllabusId = String(profile?.activeSyllabusId || "").trim();
+      const activeSyllabusTitle = String(profile?.activeSyllabusTitle || "").trim();
+      const boardLabel = profile?.boardName || profile?.boardCode || "Board not set";
+      const classLabel = profile?.classLevel ? `Class ${profile.classLevel}` : "Class not set";
+      const subjectLabel = profile?.subjectName || profile?.subjectCode || "Subject not set";
+      const languageLabel = profile?.preferredLanguage || "Language not set";
+
+      let continueTeacherHref = "";
+        if (activeSyllabusId) {
+          const chaptersResponse = await fetch(`${API_BASE}/student/tuition/chapters`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          cache: "no-store",
+        });
+        if (chaptersResponse.ok) {
+            const chaptersPayload = await chaptersResponse.json().catch(() => ({}));
+            const chapters = Array.isArray(chaptersPayload?.chapters) ? chaptersPayload.chapters : [];
+            const preferredChapter = chapters[0];
+            if (preferredChapter?.id) {
+              continueTeacherHref = `${getPagePath("tuition-teacher")}?chapterId=${encodeURIComponent(
+                preferredChapter.id
+              )}`;
+            }
+          }
+        }
+
+      if (activeSyllabusId) {
+        card.innerHTML = `
+          <p class="dash-k">AI Tuition Teacher</p>
+          <p class="dash-v">${escapeHtml(activeSyllabusTitle || "Active tuition syllabus ready")}</p>
+          <div class="tuition-chip-row">
+            <span class="tuition-chip">${escapeHtml(boardLabel)}</span>
+            <span class="tuition-chip">${escapeHtml(classLabel)}</span>
+            <span class="tuition-chip">${escapeHtml(subjectLabel)}</span>
+            <span class="tuition-chip">${escapeHtml(languageLabel)}</span>
+          </div>
+          <div class="dash-card-actions">
+            <a class="btn-primary" href="${continueTeacherHref || getTuitionChaptersPath()}">Continue Tuition</a>
+            <a class="btn-secondary" href="${getTuitionChaptersPath()}">Open Chapters</a>
+            <a class="btn-secondary" href="${getTuitionEntryPath()}">Update Syllabus</a>
+          </div>
+        `;
+        return;
+      }
+
+      card.innerHTML = `
+        <p class="dash-k">AI Tuition Teacher</p>
+        <p class="dash-v">Start your school tuition flow directly from the dashboard.</p>
+        <div class="tuition-chip-row">
+          <span class="tuition-chip">${escapeHtml(boardLabel)}</span>
+          <span class="tuition-chip">${escapeHtml(classLabel)}</span>
+          <span class="tuition-chip">${escapeHtml(subjectLabel)}</span>
+          <span class="tuition-chip">${escapeHtml(languageLabel)}</span>
+        </div>
+        <div class="dash-card-actions">
+          <a class="btn-primary" href="${getTuitionEntryPath()}">Set Up Tuition</a>
+          <a class="btn-secondary" href="${getTuitionEntryPath()}?mode=manual">Enter Chapters Manually</a>
+        </div>
+      `;
+    } catch {
+      renderStaticFallback();
+    }
   };
 
   const normalizeSliderAssetUrl = (input) => {

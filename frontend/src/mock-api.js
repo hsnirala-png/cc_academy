@@ -484,14 +484,63 @@ const isStudentHomeLink = (anchor) => {
 
 export const initHeaderBehavior = () => {
   const header = document.querySelector(".site-header");
+  const brand = header?.querySelector(".brand");
   const menuToggle = document.querySelector(".menu-toggle");
   const navLinks = document.querySelectorAll(".nav-links a");
   initCardCollapseToggles(document);
   if (!header) return;
 
+  if (brand instanceof HTMLElement && !brand.querySelector(".logo-b2")) {
+    const altLogo = document.createElement("img");
+    altLogo.src = "./public/ACADEEMY_LOGO_2.png";
+    altLogo.alt = "CC Academy logo";
+    altLogo.className = "brand-logo logo-b2";
+    altLogo.setAttribute("aria-hidden", "true");
+    const mainLogo = brand.querySelector(".logo-b");
+    if (mainLogo) {
+      mainLogo.insertAdjacentElement("afterend", altLogo);
+    } else {
+      brand.appendChild(altLogo);
+    }
+  }
+
   let isScrolled = false;
   const enterThreshold = 120;
   const exitThreshold = 60;
+  const desktopLogoMedia = window.matchMedia("(min-width: 981px)");
+  let heroTarget = null;
+
+  const resolveHeaderHeroTarget = () =>
+    document.querySelector(
+      [
+        "main > section:first-of-type > article:first-of-type",
+        "main > section:first-of-type > div:first-of-type",
+        "main > article:first-of-type",
+        "main > section:first-of-type",
+        "main .fb-profile:first-of-type",
+        "main .tuition-teacher-main-card:first-of-type",
+      ].join(", ")
+    );
+
+  const syncDesktopHeroLogo = () => {
+    if (!(header instanceof HTMLElement)) return;
+    if (!desktopLogoMedia.matches) {
+      header.classList.remove("hero-overlap-desktop");
+      return;
+    }
+    if (!(heroTarget instanceof HTMLElement) || !document.body.contains(heroTarget)) {
+      heroTarget = resolveHeaderHeroTarget();
+    }
+    if (!(heroTarget instanceof HTMLElement)) {
+      header.classList.remove("hero-overlap-desktop");
+      return;
+    }
+    const headerRect = header.getBoundingClientRect();
+    const heroRect = heroTarget.getBoundingClientRect();
+    const overlapsHero = heroRect.top < headerRect.bottom && heroRect.bottom > headerRect.bottom;
+    header.classList.toggle("hero-overlap-desktop", overlapsHero);
+  };
+
   const toggleHeaderLogo = () => {
     const y = window.scrollY;
     if (!isScrolled && y > enterThreshold) {
@@ -501,9 +550,16 @@ export const initHeaderBehavior = () => {
       isScrolled = false;
       header.classList.remove("scrolled");
     }
+    syncDesktopHeroLogo();
   };
   toggleHeaderLogo();
   window.addEventListener("scroll", toggleHeaderLogo, { passive: true });
+  window.addEventListener("resize", syncDesktopHeroLogo);
+  window.addEventListener("load", syncDesktopHeroLogo);
+  window.setTimeout(syncDesktopHeroLogo, 120);
+  if (typeof desktopLogoMedia.addEventListener === "function") {
+    desktopLogoMedia.addEventListener("change", syncDesktopHeroLogo);
+  }
 
   if (menuToggle) {
     menuToggle.addEventListener("click", () => {
