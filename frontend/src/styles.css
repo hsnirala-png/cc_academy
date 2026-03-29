@@ -6836,10 +6836,10 @@ h1 {
 
 .mock-launcher-fab {
   position: fixed;
-  right: 1.05rem;
+  right: 0.35rem;
   bottom: 1.05rem;
-  width: 142px;
-  height: 142px;
+  width: 128px;
+  height: 128px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -6853,8 +6853,8 @@ h1 {
 }
 
 .mock-launcher-fab img {
-  width: 142px;
-  height: 142px;
+  width: 128px;
+  height: 128px;
   object-fit: contain;
 }
 
