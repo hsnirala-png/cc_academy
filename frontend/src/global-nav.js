@@ -41,6 +41,8 @@
 
   const getStudentDashboardPath = () => resolveRoute("dashboard");
   const getMockRegistrationPath = () => resolveRoute("mock-test-registration");
+  const getAiTeacherPath = () => resolveRoute("ai-teacher");
+  const getTuitionSetupPath = () => resolveRoute("tuition-syllabus-upload");
   const getPublicAssetPath = (fileName) => `/public/${fileName}`;
   const getAdminDashboardPath = () => resolveRoute("admin");
   const getStudentNavItems = () => [
@@ -112,6 +114,8 @@
       "/profile.html",
       "/refer-earn",
       "/refer-earn.html",
+      "/ai-teacher",
+      "/ai-teacher.html",
       "/products",
       "/products.html",
     ].some((suffix) => normalized.endsWith(suffix));
@@ -262,6 +266,57 @@
     headerActions.insertAdjacentElement("afterbegin", backBtn);
   };
 
+  const initDesktopStudentHeaderLogo = () => {
+    const header = document.querySelector(".site-header");
+    if (!(header instanceof HTMLElement)) return;
+
+    const brand = header.querySelector(".brand");
+    if (!(brand instanceof HTMLElement)) return;
+
+    const desktopMedia = window.matchMedia("(min-width: 981px)");
+    const topLogo = brand.querySelector(".logo-b");
+    if (topLogo instanceof HTMLImageElement) {
+      topLogo.src = "./public/ACADEEMY_LOGO_1.png";
+    }
+
+    let scrolledLogo = brand.querySelector(".logo-b2");
+    if (!(scrolledLogo instanceof HTMLImageElement)) {
+      scrolledLogo = document.createElement("img");
+      scrolledLogo.className = "brand-logo logo-b2";
+      scrolledLogo.alt = "CC Academy logo";
+      scrolledLogo.setAttribute("aria-hidden", "true");
+      const anchorLogo = brand.querySelector(".logo-b, .logo-b1, .logo-a");
+      if (anchorLogo instanceof HTMLElement) {
+        anchorLogo.insertAdjacentElement("afterend", scrolledLogo);
+      } else {
+        brand.appendChild(scrolledLogo);
+      }
+    }
+    scrolledLogo.src = "./public/ACADEEMY_LOGO_2.png";
+    let isScrolled = window.scrollY > 120;
+
+    const syncDesktopLogoState = () => {
+      if (!desktopMedia.matches) {
+        header.classList.remove("scrolled");
+        return;
+      }
+      const y = window.scrollY;
+      if (!isScrolled && y > 120) {
+        isScrolled = true;
+      } else if (isScrolled && y < 60) {
+        isScrolled = false;
+      }
+      header.classList.toggle("scrolled", isScrolled);
+    };
+
+    syncDesktopLogoState();
+    window.addEventListener("scroll", syncDesktopLogoState, { passive: true });
+    window.addEventListener("resize", syncDesktopLogoState);
+    if (typeof desktopMedia.addEventListener === "function") {
+      desktopMedia.addEventListener("change", syncDesktopLogoState);
+    }
+  };
+
   const isLandingLikeHref = (href) => {
     const normalized = String(href || "").trim().toLowerCase();
     if (!normalized) return false;
@@ -301,7 +356,7 @@
   const buildMockAuthRedirectUrl = () => {
     const homeUrl = new URL(getHomePath(), window.location.href);
     homeUrl.searchParams.set("auth", "login");
-    homeUrl.searchParams.set("redirect", "mock-test-registration");
+    homeUrl.searchParams.set("redirect", "ai-teacher");
     return homeUrl.toString();
   };
 
@@ -332,12 +387,12 @@
     launcher.type = "button";
     launcher.id = "globalMockLauncher";
     launcher.className = "mock-launcher-fab";
-    launcher.setAttribute("aria-label", "Open mock test page");
-    launcher.setAttribute("title", "Mock Test");
-    launcher.innerHTML = `<img src="${getPublicAssetPath("mock_icon.png")}" alt="" aria-hidden="true" />`;
+    launcher.setAttribute("aria-label", "Open AI Teacher page");
+    launcher.setAttribute("title", "AI Teacher");
+    launcher.innerHTML = `<img src="${getPublicAssetPath("AI_teacher_icon.png")}" alt="" aria-hidden="true" />`;
     launcher.addEventListener("click", () => {
       if (isStudentSession()) {
-        window.location.href = getMockRegistrationPath();
+        window.location.href = getAiTeacherPath();
         return;
       }
       const authModal = document.querySelector("#authModal");
@@ -359,7 +414,7 @@
         }
         authModal.classList.add("open");
         authModal.setAttribute("aria-hidden", "false");
-        window.dispatchEvent(new CustomEvent("cc-open-auth-login", { detail: { redirect: "mock-test-registration" } }));
+        window.dispatchEvent(new CustomEvent("cc-open-auth-login", { detail: { redirect: "ai-teacher" } }));
         return;
       }
       window.location.href = buildMockAuthRedirectUrl();
@@ -392,6 +447,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     normalizeStudentNavigation();
     applyPageContextClasses();
+    initDesktopStudentHeaderLogo();
     attachBackButton();
     applyStudentDashboardLinking();
     attachMockLauncher();

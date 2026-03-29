@@ -10,7 +10,7 @@ import {
   formatDateTime,
   initHeaderBehavior,
   requireRoleGuard,
-} from "./mock-api.js?v=2";
+} from "./mock-api.js?v=4";
 
 const SUBJECTS_BY_EXAM = {
   PSTET_1: ["PUNJABI", "ENGLISH", "CHILD_PEDAGOGY", "MATHS", "EVS", "MATHS_EVS"],

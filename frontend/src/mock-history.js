@@ -7,7 +7,7 @@ import {
   formatDateTime,
   initHeaderBehavior,
   requireRoleGuard,
-} from "./mock-api.js?v=2";
+} from "./mock-api.js?v=4";
 
 const getQueryAttemptId = () => {
   const params = new URLSearchParams(window.location.search);

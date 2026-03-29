@@ -4,7 +4,7 @@ import {
   getStoredUser,
   goToStudentLogin,
   initHeaderBehavior,
-} from "./mock-api.js?v=2";
+} from "./mock-api.js?v=4";
 
 const normalizeRole = (user) =>
   String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")

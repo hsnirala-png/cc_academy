@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tuition Setup | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=64" />
+    <link rel="stylesheet" href="./src/styles.css?v=85" />
   </head>
-  <body class="tuition-flow-page">
+  <body class="tuition-flow-page tuition-upload-page">
     <header class="site-header">
       <a href="./dashboard.html" class="brand">
-        <img src="./public/logo_B.png" alt="CC Academy logo" class="brand-logo logo-b" />
+        <img src="./public/ACADEEMY_LOGO_1.png" alt="CC Academy logo" class="brand-logo logo-b" />
         <img src="./public/logo_A.png" alt="CC Academy logo" class="brand-logo logo-a" />
       </a>
       <div class="header-right">
@@ -35,16 +35,33 @@
     </header>
 
     <main class="tuition-flow-main">
+      <section class="section tuition-upload-banner-section">
+        <article class="tuition-upload-banner-card">
+          <img
+            src="./public/bannar_ai_teacher.png"
+            alt="AI Tuition Teacher banner"
+            class="tuition-upload-banner-image"
+          />
+        </article>
+      </section>
+
       <section class="section tuition-flow-hero">
-        <div>
-          <p class="eyebrow">Phase 3</p>
-          <h1>Set Up Your Tuition Flow</h1>
-          <p>
-            Save your board, class, subject, and preferred language first. Then either upload a syllabus
-            file or enter chapters manually so the review and teacher flow stay aligned to the same school context.
-          </p>
-          <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
-        </div>
+        <article class="card tuition-upload-intro-card">
+          <div class="tuition-upload-intro-copy">
+            <p class="eyebrow">Phase 3</p>
+            <h1>Set Up Your Tuition Flow</h1>
+            <p>
+              Save your board, class, subject, and preferred language first. Then either upload a syllabus
+              file or enter chapters manually so the review and teacher flow stay aligned to the same school context.
+            </p>
+            <div class="tuition-upload-highlight-row">
+              <span class="tuition-chip">Profile Setup</span>
+              <span class="tuition-chip">Syllabus Upload</span>
+              <span class="tuition-chip">Chapter Review</span>
+            </div>
+            <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
+          </div>
+        </article>
         <article class="card tuition-flow-side-card">
           <h2>Current Context</h2>
           <div id="tuitionUploadSummary" class="tuition-summary-stack"></div>
@@ -187,6 +204,6 @@
     </div>
 
     <script type="module" src="./src/tuition-syllabus-upload.js?v=7"></script>
-    <script src="./src/global-nav.js?v=12"></script>
+    <script src="./src/global-nav.js?v=17"></script>
   </body>
 </html>

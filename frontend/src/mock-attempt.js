@@ -9,7 +9,7 @@ import {
   initHeaderBehavior,
   isDebugSyncEnabled,
   requireRoleGuard,
-} from "./mock-api.js?v=2";
+} from "./mock-api.js?v=4";
 
 const getAttemptId = () => {
   const params = new URLSearchParams(window.location.search);

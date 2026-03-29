@@ -467,6 +467,46 @@ const getStudentDashboardPath = () => {
   return isExtensionless ? "./dashboard" : "./dashboard.html";
 };
 
+const isStudentDashboardHeaderPage = () => {
+  const pathname = String(window.location.pathname || "").toLowerCase();
+  return [
+    "/dashboard",
+    "/dashboard.html",
+    "/profile",
+    "/profile.html",
+    "/my-subscriptions",
+    "/my-subscriptions.html",
+    "/lessons",
+    "/lessons.html",
+    "/lesson-player",
+    "/lesson-player.html",
+    "/mock-tests",
+    "/mock-tests.html",
+    "/mock-test-registration",
+    "/mock-test-registration.html",
+    "/mock-history",
+    "/mock-history.html",
+    "/mock-attempt",
+    "/mock-attempt.html",
+    "/support",
+    "/support.html",
+    "/refer-earn",
+    "/refer-earn.html",
+    "/ai-teacher",
+    "/ai-teacher.html",
+    "/tuition-chapters",
+    "/tuition-chapters.html",
+    "/tuition-homework",
+    "/tuition-homework.html",
+    "/tuition-syllabus-upload",
+    "/tuition-syllabus-upload.html",
+    "/tuition-syllabus-review",
+    "/tuition-syllabus-review.html",
+    "/tuition-teacher",
+    "/tuition-teacher.html",
+  ].some((suffix) => pathname.endsWith(suffix));
+};
+
 const isStudentHomeLink = (anchor) => {
   if (!(anchor instanceof HTMLAnchorElement)) return false;
   if (anchor.id === "homeTopLink") return true;
@@ -487,10 +527,11 @@ export const initHeaderBehavior = () => {
   const brand = header?.querySelector(".brand");
   const menuToggle = document.querySelector(".menu-toggle");
   const navLinks = document.querySelectorAll(".nav-links a");
+  const useSharedStudentHeaderFlow = isStudentDashboardHeaderPage();
   initCardCollapseToggles(document);
   if (!header) return;
 
-  if (brand instanceof HTMLElement && !brand.querySelector(".logo-b2")) {
+  if (!useSharedStudentHeaderFlow && brand instanceof HTMLElement && !brand.querySelector(".logo-b2")) {
     const altLogo = document.createElement("img");
     altLogo.src = "./public/ACADEEMY_LOGO_2.png";
     altLogo.alt = "CC Academy logo";
@@ -504,61 +545,23 @@ export const initHeaderBehavior = () => {
     }
   }
 
-  let isScrolled = false;
-  const enterThreshold = 120;
-  const exitThreshold = 60;
-  const desktopLogoMedia = window.matchMedia("(min-width: 981px)");
-  let heroTarget = null;
+  if (!useSharedStudentHeaderFlow) {
+    let isScrolled = false;
+    const enterThreshold = 120;
+    const exitThreshold = 60;
 
-  const resolveHeaderHeroTarget = () =>
-    document.querySelector(
-      [
-        "main > section:first-of-type > article:first-of-type",
-        "main > section:first-of-type > div:first-of-type",
-        "main > article:first-of-type",
-        "main > section:first-of-type",
-        "main .fb-profile:first-of-type",
-        "main .tuition-teacher-main-card:first-of-type",
-      ].join(", ")
-    );
-
-  const syncDesktopHeroLogo = () => {
-    if (!(header instanceof HTMLElement)) return;
-    if (!desktopLogoMedia.matches) {
-      header.classList.remove("hero-overlap-desktop");
-      return;
-    }
-    if (!(heroTarget instanceof HTMLElement) || !document.body.contains(heroTarget)) {
-      heroTarget = resolveHeaderHeroTarget();
-    }
-    if (!(heroTarget instanceof HTMLElement)) {
-      header.classList.remove("hero-overlap-desktop");
-      return;
-    }
-    const headerRect = header.getBoundingClientRect();
-    const heroRect = heroTarget.getBoundingClientRect();
-    const overlapsHero = heroRect.top < headerRect.bottom && heroRect.bottom > headerRect.bottom;
-    header.classList.toggle("hero-overlap-desktop", overlapsHero);
-  };
-
-  const toggleHeaderLogo = () => {
-    const y = window.scrollY;
-    if (!isScrolled && y > enterThreshold) {
-      isScrolled = true;
-      header.classList.add("scrolled");
-    } else if (isScrolled && y < exitThreshold) {
-      isScrolled = false;
-      header.classList.remove("scrolled");
-    }
-    syncDesktopHeroLogo();
-  };
-  toggleHeaderLogo();
-  window.addEventListener("scroll", toggleHeaderLogo, { passive: true });
-  window.addEventListener("resize", syncDesktopHeroLogo);
-  window.addEventListener("load", syncDesktopHeroLogo);
-  window.setTimeout(syncDesktopHeroLogo, 120);
-  if (typeof desktopLogoMedia.addEventListener === "function") {
-    desktopLogoMedia.addEventListener("change", syncDesktopHeroLogo);
+    const toggleHeaderLogo = () => {
+      const y = window.scrollY;
+      if (!isScrolled && y > enterThreshold) {
+        isScrolled = true;
+        header.classList.add("scrolled");
+      } else if (isScrolled && y < exitThreshold) {
+        isScrolled = false;
+        header.classList.remove("scrolled");
+      }
+    };
+    toggleHeaderLogo();
+    window.addEventListener("scroll", toggleHeaderLogo, { passive: true });
   }
 
   if (menuToggle) {

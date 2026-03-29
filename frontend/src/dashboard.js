@@ -262,9 +262,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       card = document.createElement("article");
       card.className = "dash-card is-tuition-entry";
       card.setAttribute("data-dash-tuition-entry", "true");
-      const primaryGrid = document.querySelector(".dash-grid");
-      if (primaryGrid instanceof HTMLElement) {
-        primaryGrid.prepend(card);
+      const tuitionSlot = document.querySelector("#dashTuitionTeacherSlot");
+      if (tuitionSlot instanceof HTMLElement) {
+        tuitionSlot.append(card);
       } else {
         const productsSection = dashProductsCatalog instanceof HTMLElement ? dashProductsCatalog.parentElement : null;
         if (productsSection instanceof HTMLElement) {

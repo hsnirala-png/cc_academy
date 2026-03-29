@@ -7,7 +7,7 @@ import {
   getStoredUser,
   initHeaderBehavior,
   storeAuth,
-} from "./mock-api.js?v=3";
+} from "./mock-api.js?v=4";
 
 const resolveAttemptPagePath = async () => {
   const currentPath = window.location.pathname || "";

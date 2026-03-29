@@ -4,7 +4,7 @@ import {
   escapeHtml,
   formatDateTime,
   requireRoleGuardStrict,
-} from "./mock-api.js?v=2";
+} from "./mock-api.js?v=4";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = await requireRoleGuardStrict(null, "STUDENT");

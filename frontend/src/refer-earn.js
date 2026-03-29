@@ -1,4 +1,4 @@
-import { apiRequest, clearAuth, escapeHtml, formatDateTime, initHeaderBehavior, requireRoleGuard } from "./mock-api.js?v=2";
+import { apiRequest, clearAuth, escapeHtml, formatDateTime, initHeaderBehavior, requireRoleGuard } from "./mock-api.js?v=4";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = requireRoleGuard("STUDENT");
