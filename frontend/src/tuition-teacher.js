@@ -14,7 +14,6 @@ const normalizeRole = (user) =>
 const query = new URLSearchParams(window.location.search || "");
 const chapterId = query.get("chapterId") || "";
 const sessionIdFromQuery = query.get("sessionId") || "";
-const allowSavedSessionOverride = query.get("savedSession") === "1";
 
 const resolveTuitionPagePath = (name, params = {}) => {
   const pathname = String(window.location.pathname || "");
@@ -36,11 +35,10 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
-const normalizeTopicText = (value) =>
-  String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+const BOARD_PLAYBACK_STATE_PREFIX = "cc_tuition_board_playback:";
+
+const getBoardPlaybackStateKey = (sessionId) =>
+  `${BOARD_PLAYBACK_STATE_PREFIX}${String(sessionId || "").trim()}`;
 
 document.addEventListener("DOMContentLoaded", async () => {
   initHeaderBehavior();
@@ -136,6 +134,64 @@ document.addEventListener("DOMContentLoaded", async () => {
     teachingSteps: [],
     completed: false,
     mode: "teaching",
+  };
+
+  const getActiveBoardPlaybackSessionId = () =>
+    String(boardLesson.session?.id || activeSessionId || "").trim();
+
+  const readBoardPlaybackSnapshot = (sessionId) => {
+    const safeSessionId = String(sessionId || "").trim();
+    if (!safeSessionId) return null;
+    try {
+      const raw = window.localStorage.getItem(getBoardPlaybackStateKey(safeSessionId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (String(parsed.sessionId || "").trim() !== safeSessionId) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const clearBoardPlaybackSnapshot = (sessionId = getActiveBoardPlaybackSessionId()) => {
+    const safeSessionId = String(sessionId || "").trim();
+    if (!safeSessionId) return;
+    try {
+      window.localStorage.removeItem(getBoardPlaybackStateKey(safeSessionId));
+    } catch {
+      // Ignore storage failures.
+    }
+  };
+
+  const persistBoardPlaybackSnapshot = () => {
+    const sessionId = getActiveBoardPlaybackSessionId();
+    if (!sessionId) return;
+    if (!boardLesson.structured || !Array.isArray(boardLesson.teachingSteps) || !boardLesson.teachingSteps.length) {
+      clearBoardPlaybackSnapshot(sessionId);
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        getBoardPlaybackStateKey(sessionId),
+        JSON.stringify({
+          sessionId,
+          chapterId,
+          topic: boardLesson.session?.teacherContext?.topic || "",
+          currentStepIndex: Number.isFinite(Number(boardLesson.currentStepIndex))
+            ? Number(boardLesson.currentStepIndex)
+            : -1,
+          autoplay: Boolean(boardLesson.autoplay),
+          paused: Boolean(boardLesson.paused),
+          completed: Boolean(boardLesson.completed),
+          cleared: Boolean(boardLesson.cleared),
+          mode: boardLesson.mode || "teaching",
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {
+      // Ignore storage failures.
+    }
   };
 
   const closePlanModal = () => {
@@ -258,12 +314,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     setVoiceState(state, message);
   };
 
-  const clearBoardLessonPlayback = () => {
+  const clearBoardLessonPlayback = ({ resetPause = false } = {}) => {
     boardLesson.timers.forEach((timerId) => window.clearTimeout(timerId));
     boardLesson.timers = [];
     boardLesson.token += 1;
     boardLesson.speakToken += 1;
-    boardLesson.paused = false;
+    if (resetPause) {
+      boardLesson.paused = false;
+    }
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -625,6 +683,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     setBoardProgress(getBoardProgressValue());
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
     return true;
   };
 
@@ -643,10 +702,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     setBoardProgress(100);
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const queueNextTeachingStep = (structured, session) => {
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: false });
     const teachingSteps = boardLesson.teachingSteps;
     const nextIndex = boardLesson.currentStepIndex + 1;
     if (!teachingSteps.length || nextIndex >= teachingSteps.length) {
@@ -673,6 +733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (token !== boardLesson.token || boardLesson.paused) return;
       const applied = applyTeachingStep(structured, nextIndex);
       if (!applied) return;
+      if (token !== boardLesson.token || boardLesson.paused) return;
       if (nextIndex >= teachingSteps.length - 1) {
         finishTeachingPlayback(structured, session);
         return;
@@ -692,7 +753,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     boardLesson.completed = false;
     boardLesson.mode = "teaching";
     boardLesson.teachingSteps = getTeachingSteps(structured);
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: true });
     if (boardPanelEl instanceof HTMLElement) {
       boardPanelEl.classList.remove("hidden");
     }
@@ -721,6 +782,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     setBoardProgress(0);
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const runTeachingPlayback = (structured, session) => {
@@ -730,7 +792,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const stepBoardForward = () => {
     if (!boardLesson.structured || !boardLesson.teachingSteps.length || boardLesson.completed) return;
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: false });
     boardLesson.paused = true;
     const nextIndex = boardLesson.currentStepIndex + 1;
     const applied = applyTeachingStep(boardLesson.structured, nextIndex);
@@ -745,6 +807,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setBoardTeachingStatus("Manual mode is active. Click Next Step to continue.", "idle");
     setBoardTeacherCue("The board is waiting for your next step.");
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const toggleBoardPause = () => {
@@ -760,26 +823,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       setBoardControlState();
       if (boardLesson.autoplay && !boardLesson.completed) {
+        persistBoardPlaybackSnapshot();
         queueNextTeachingStep(boardLesson.structured, boardLesson.session);
+        return;
       }
+      persistBoardPlaybackSnapshot();
       return;
     }
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: false });
     boardLesson.paused = true;
     setBoardTeachingStatus("Board lesson paused.", "idle");
     setBoardTeacherCue("Resume autoplay or continue manually from the current lesson state.");
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const replayCurrentTeachingStep = () => {
     if (!boardLesson.structured || boardLesson.currentStepIndex < 0) return;
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: false });
     boardLesson.paused = true;
     const applied = applyTeachingStep(boardLesson.structured, boardLesson.currentStepIndex, { replay: true });
     if (!applied) return;
     setBoardTeachingStatus("Current step replayed.", "complete");
     setBoardTeacherCue("The current board step has been replayed.");
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const renderSummary = (chapter, progress) => {
@@ -1059,12 +1127,97 @@ document.addEventListener("DOMContentLoaded", async () => {
       } is ready.`
     );
     setBoardProgress(100);
+    persistBoardPlaybackSnapshot();
+  };
+
+  const restoreBoardLessonPlayback = (structured, session, snapshot) => {
+    const teachingSteps = getTeachingSteps(structured);
+    if (!teachingSteps.length) {
+      revealBoardLessonInstantly(structured, session);
+      return;
+    }
+
+    clearBoardLessonPlayback({ resetPause: false });
+    boardLesson.structured = structured || null;
+    boardLesson.session = session || null;
+    boardLesson.cleared = Boolean(snapshot?.cleared);
+    boardLesson.mode = "teaching";
+    boardLesson.teachingSteps = teachingSteps;
+    boardLesson.autoplay = snapshot?.autoplay !== false;
+    boardLesson.paused = Boolean(snapshot?.paused);
+    boardLesson.currentStepIndex = Math.max(
+      -1,
+      Math.min(Number(snapshot?.currentStepIndex ?? -1), teachingSteps.length - 1)
+    );
+    boardLesson.completed =
+      Boolean(snapshot?.completed) || boardLesson.currentStepIndex >= teachingSteps.length - 1;
+
+    if (boardPanelEl instanceof HTMLElement) {
+      boardPanelEl.classList.remove("hidden");
+    }
+    if (boardEmptyEl instanceof HTMLElement) {
+      boardEmptyEl.classList.add("hidden");
+    }
+
+    buildLiveBoardScene(structured);
+
+    if (boardLesson.currentStepIndex >= 0) {
+      teachingSteps.slice(0, boardLesson.currentStepIndex + 1).forEach((step) => {
+        step.actionIds.forEach((actionId) => {
+          const action = structured?.boardActions?.find((item) => item.id === actionId);
+          if (action) {
+            revealLiveBoardAction(action);
+          }
+        });
+      });
+      const currentStep = teachingSteps[boardLesson.currentStepIndex];
+      const speechText = getSpeechChunkText(structured, currentStep?.speechChunkId);
+      setLiveBoardNarration(currentStep?.title || "Teaching step", speechText);
+      setBoardTeacherCue(
+        speechText ||
+          "The live board lesson was restored to the exact step you were viewing."
+      );
+    } else {
+      setLiveBoardNarration(
+        boardLesson.autoplay ? "Opening lesson" : "Manual board lesson ready",
+        boardLesson.autoplay
+          ? "The teacher narration will stay aligned with each board step."
+          : "Use Next Step, Pause, Resume, or Replay Step while the board writes."
+      );
+      setBoardTeacherCue(
+        boardLesson.autoplay
+          ? "The teacher is about to write the first idea on the board."
+          : "Autoplay is off. Click Next Step to reveal the first teaching move."
+      );
+    }
+
+    setBoardCanvasTitle(
+      structured?.boardTitle || session?.chapter?.title || "Teaching canvas",
+      "The live board lesson was restored from your last playback state."
+    );
+    if (boardLesson.completed) {
+      setBoardTeachingStatus("Live board lesson complete. Replay it any time.", "complete");
+    } else if (boardLesson.paused) {
+      setBoardTeachingStatus("Board lesson paused.", "idle");
+    } else if (boardLesson.autoplay) {
+      setBoardTeachingStatus("Autoplay resumed from the saved lesson step.", "writing");
+    } else {
+      setBoardTeachingStatus("Manual mode resumed from the saved lesson step.", "idle");
+    }
+    setBoardProgress(getBoardProgressValue());
+    setBoardControlState();
+    persistBoardPlaybackSnapshot();
+
+    if (boardLesson.completed || boardLesson.paused || !boardLesson.autoplay) {
+      return;
+    }
+    queueNextTeachingStep(structured, session);
   };
 
   const playBoardLesson = (structured, session = null) => {
     const stages = getBoardLessonStages(structured);
     const teachingSteps = getTeachingSteps(structured);
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: true });
     boardLesson.structured = structured || null;
     boardLesson.session = session || null;
     boardLesson.cleared = false;
@@ -1191,7 +1344,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       boardLesson.structured = null;
       boardLesson.session = session || null;
       boardLesson.cleared = false;
-      clearBoardLessonPlayback();
+      boardLesson.currentStepIndex = -1;
+      boardLesson.completed = false;
+      clearBoardLessonPlayback({ resetPause: true });
+      clearBoardPlaybackSnapshot();
       if (boardEmptyEl instanceof HTMLElement) {
         boardEmptyEl.textContent =
           "Ask the tuition teacher a topic question to generate structured board notes, formulas, steps, and a worked example.";
@@ -1227,11 +1383,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    if (options.playbackSnapshot) {
+      restoreBoardLessonPlayback(structured, session, options.playbackSnapshot);
+      return;
+    }
+
     revealBoardLessonInstantly(structured, session);
   };
 
   const clearBoardView = () => {
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: true });
     boardLesson.cleared = true;
     if (boardPanelEl instanceof HTMLElement) {
       boardPanelEl.classList.add("hidden");
@@ -1251,6 +1412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setBoardTeacherCue("Use Rebuild Board to draw the latest teacher reply again.");
     setBoardProgress(0);
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
   };
 
   const applySessionState = (payload, options = {}) => {
@@ -1288,9 +1450,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (difficultyEl instanceof HTMLSelectElement && payload?.session?.difficultyMode) {
       difficultyEl.value = payload.session.difficultyMode;
     }
+    const playbackSnapshot =
+      !options.animate && activeSessionId ? readBoardPlaybackSnapshot(activeSessionId) : null;
     renderMessages(payload?.session?.messages || []);
     renderSessionMeta(payload?.session, payload?.progress);
-    renderBoard(extractLatestBoardPayload(payload?.session?.messages || []), payload?.session || null, options);
+    renderBoard(extractLatestBoardPayload(payload?.session?.messages || []), payload?.session || null, {
+      ...options,
+      playbackSnapshot,
+    });
   };
 
   const loadChapterContext = async () => {
@@ -1337,27 +1504,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       path: `/student/tuition/chapters/${chapterId}/sessions/${activeSessionId}`,
       token,
     });
-    const chapterTopic =
-      chapterContext?.chapter?.title || payload?.session?.chapter?.title || "";
-    const sessionTopic =
-      payload?.session?.teacherContext?.topic ||
-      payload?.session?.title ||
-      payload?.session?.chapter?.title ||
-      "";
-
-    if (
-      !allowSavedSessionOverride &&
-      normalizeTopicText(chapterTopic) &&
-      normalizeTopicText(sessionTopic) &&
-      normalizeTopicText(chapterTopic) !== normalizeTopicText(sessionTopic)
-    ) {
-      activeSessionId = "";
-      const nextUrl = resolveTuitionPagePath("tuition-teacher", { chapterId });
-      window.history.replaceState({}, "", nextUrl);
-      await createOrResumeSession(true);
-      setStatus("Loaded the chapter lesson instead of an unrelated saved topic session.", "success");
-      return;
-    }
     applySessionState(payload);
     setStatus("Saved session loaded.", "success");
   };
@@ -1601,7 +1747,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   window.addEventListener("beforeunload", () => {
-    clearBoardLessonPlayback();
+    clearBoardLessonPlayback({ resetPause: false });
+    persistBoardPlaybackSnapshot();
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -1620,17 +1767,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!boardLesson.structured || !boardLesson.teachingSteps.length) return;
     boardLesson.autoplay = !boardLesson.autoplay;
     if (!boardLesson.autoplay) {
-      clearBoardLessonPlayback();
+      clearBoardLessonPlayback({ resetPause: false });
       boardLesson.paused = false;
       setBoardTeachingStatus("Autoplay is off. Use Next Step to continue the lesson.", "idle");
       setBoardTeacherCue("Manual mode is active. Click Next Step to reveal the next teaching move.");
       setBoardControlState();
+      persistBoardPlaybackSnapshot();
       return;
     }
     boardLesson.paused = false;
     setBoardTeachingStatus("Autoplay is on. The teacher will continue step by step.", "writing");
     setBoardTeacherCue("Autoplay has resumed for the live board lesson.");
     setBoardControlState();
+    persistBoardPlaybackSnapshot();
     if (!boardLesson.paused && !boardLesson.completed) {
       queueNextTeachingStep(boardLesson.structured, boardLesson.session);
     }

@@ -306,10 +306,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modal instanceof HTMLElement) modal.remove();
   };
 
+  const HOME_POPUP_IMAGE_URL = "./public/popup_ai.png";
+  const HOME_POPUP_TARGET_URL = "./ai-teacher.html";
+
   const showHomeMockRegistrationPopup = (option) => {
-    const registrationUrl = String(option?.registrationPageUrl || "").trim();
+    const registrationUrl = String(option?.registrationPageUrl || HOME_POPUP_TARGET_URL).trim();
     if (!registrationUrl) return;
-    const popupImageUrl = String(option?.popupImageUrl || "").trim();
+    const popupImageUrl = HOME_POPUP_IMAGE_URL;
     if (!popupImageUrl) return;
 
     closeHomeMockRegistrationPopup();
@@ -348,17 +351,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadHomeMockRegistrationPopup = async () => {
     const auth = readStudentAuth();
-    if (!auth?.token) return;
+    if (!auth?.token) {
+      showHomeMockRegistrationPopup({ registrationPageUrl: HOME_POPUP_TARGET_URL });
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
         headers: { Authorization: `Bearer ${auth.token}` },
         cache: "no-store",
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showHomeMockRegistrationPopup({ registrationPageUrl: HOME_POPUP_TARGET_URL });
+        return;
+      }
       const data = await response.json().catch(() => ({}));
       const options = Array.isArray(data?.options) ? data.options : [];
-      const popupOptions = options.filter((item) => String(item?.popupImageUrl || "").trim());
-      if (!popupOptions.length) return;
+      const popupOptions = options.filter((item) => String(item?.registrationPageUrl || "").trim());
+      if (!popupOptions.length) {
+        showHomeMockRegistrationPopup({ registrationPageUrl: HOME_POPUP_TARGET_URL });
+        return;
+      }
       const preferred =
         popupOptions.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
         popupOptions.find(
@@ -368,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ) || popupOptions[0];
       showHomeMockRegistrationPopup(preferred);
     } catch {
-      // Keep silent on home page.
+      showHomeMockRegistrationPopup({ registrationPageUrl: HOME_POPUP_TARGET_URL });
     }
   };
 

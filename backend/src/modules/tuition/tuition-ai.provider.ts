@@ -2,6 +2,7 @@ import { TuitionDifficultyMode, TuitionSpeedMode } from "@prisma/client";
 import { AppError } from "../../utils/appError";
 import {
   buildTopicLessonContent,
+  localizeLiveBoardSubjectLabel,
   type LiveBoardAction,
   type LiveBoardContext,
   type LiveBoardLanguage,
@@ -585,7 +586,8 @@ const buildLiveTeachingModel = (
   const explanationLanguage = normalizeTeachingLanguage(input.explanationLanguage);
   const boardLanguage = normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage);
   const classLine = input.classLevel ? `Class ${input.classLevel}` : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
-  const subjectLine = normalizeText(input.subjectName) || pickLanguage(explanationLanguage, "the subject", "विषय", "ਵਿਸ਼ਾ");
+  const subjectLine = localizeLiveBoardSubjectLabel(input.subjectName, explanationLanguage);
+  const displayTopicTitle = normalizeText(boardPayload.boardTitle) || normalizeText(input.topicTitle);
   const family = inferSubjectFamily(subjectLine);
   const speechChunks: TuitionTeachingSpeechChunk[] = [];
   const boardActions: TuitionTeachingBoardAction[] = [];
@@ -617,9 +619,9 @@ const buildLiveTeachingModel = (
     "INTRO",
     pickLanguage(
       explanationLanguage,
-      `Today we are learning ${input.topicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
-      `आज हम ${subjectLine} में ${input.topicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${input.topicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
+      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
+      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
+      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
     ),
     [
       {
@@ -775,9 +777,10 @@ const buildLiveTeachingModel = (
 
 export const buildTuitionBoardPayload = (input: TuitionTeacherContext): TuitionBoardPayload => {
   const boardLanguage = normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage);
-  const subjectName =
-    normalizeText(input.subjectName) ||
-    pickLanguage(boardLanguage, "General Studies", "सामान्य अध्ययन", "ਸਧਾਰਣ ਅਧਿਐਨ");
+  const subjectName = localizeLiveBoardSubjectLabel(
+    input.subjectName || pickLanguage(boardLanguage, "General Studies", "सामान्य अध्ययन", "ਸਧਾਰਣ ਅਧਿਐਨ"),
+    boardLanguage
+  );
   const boardName = normalizeText(input.boardName);
   const classLabel = input.classLevel
     ? pickLanguage(boardLanguage, `Class ${input.classLevel}`, `कक्षा ${input.classLevel}`, `ਕਲਾਸ ${input.classLevel}`)
@@ -925,7 +928,8 @@ const buildLiveTeachingModelV2 = (
   const explanationLanguage = normalizeTeachingLanguage(input.explanationLanguage);
   const boardLanguage = normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage);
   const classLine = input.classLevel ? `Class ${input.classLevel}` : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
-  const subjectLine = normalizeText(input.subjectName) || pickLanguage(explanationLanguage, "the subject", "विषय", "ਵਿਸ਼ਾ");
+  const subjectLine = localizeLiveBoardSubjectLabel(input.subjectName, explanationLanguage);
+  const displayTopicTitle = normalizeText(lessonContent.boardPayload.boardTitle) || normalizeText(input.topicTitle);
   const speechChunks: TuitionTeachingSpeechChunk[] = [];
   const boardActions: TuitionTeachingBoardAction[] = [];
   const teachingSteps: TuitionTeachingStep[] = [];
@@ -956,9 +960,9 @@ const buildLiveTeachingModelV2 = (
     "INTRO",
     pickLanguage(
       explanationLanguage,
-      `Today we are learning ${input.topicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
-      `आज हम ${subjectLine} में ${input.topicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${input.topicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
+      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
+      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
+      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
     ),
     [
       { id: "action-title", type: "WRITE_TEXT", lane: "title", text: lessonContent.boardPayload.boardTitle, accent: "important" },
@@ -986,7 +990,7 @@ const buildLiveTeachingModelV2 = (
       "step-diagram",
       pickLanguage(explanationLanguage, "Board Sketch", "बोर्ड चित्र", "ਬੋਰਡ ਚਿੱਤਰ"),
       "DIAGRAM",
-      pickLanguage(explanationLanguage, `Now let us make a simple board sketch for ${input.topicTitle}.`, `अब ${input.topicTitle} के लिए एक सरल बोर्ड चित्र बनाते हैं।`, `ਹੁਣ ${input.topicTitle} ਲਈ ਇੱਕ ਸਧਾਰਣ ਬੋਰਡ ਚਿੱਤਰ ਬਣਾਈਏ।`),
+      pickLanguage(explanationLanguage, `Now let us make a simple board sketch for ${displayTopicTitle}.`, `अब ${displayTopicTitle} के लिए एक सरल बोर्ड चित्र बनाते हैं।`, `ਹੁਣ ${displayTopicTitle} ਲਈ ਇੱਕ ਸਧਾਰਣ ਬੋਰਡ ਚਿੱਤਰ ਬਣਾਈਏ।`),
       lessonContent.diagramActions,
       950
     );

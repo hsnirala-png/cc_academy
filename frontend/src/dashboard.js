@@ -153,10 +153,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (modal instanceof HTMLElement) modal.remove();
   };
 
+  const DASHBOARD_POPUP_IMAGE_URL = "./public/popup_ai.png";
+  const DASHBOARD_POPUP_TARGET_URL = "./ai-teacher.html";
+
   const showDashboardRegistrationPopup = (option) => {
-    const registrationUrl = String(option?.registrationPageUrl || "").trim();
+    const registrationUrl = String(option?.registrationPageUrl || DASHBOARD_POPUP_TARGET_URL).trim();
     if (!registrationUrl) return;
-    const popupImageUrl = String(option?.popupImageUrl || "").trim();
+    const popupImageUrl = DASHBOARD_POPUP_IMAGE_URL;
     if (!popupImageUrl) return;
     closeDashboardRegistrationPopup();
     const modal = document.createElement("div");
@@ -193,24 +196,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const loadDashboardRegistrationPopup = async () => {
-    if (!token) return;
+    if (!token) {
+      showDashboardRegistrationPopup({ registrationPageUrl: DASHBOARD_POPUP_TARGET_URL });
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE}/student/mock-registrations/options`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showDashboardRegistrationPopup({ registrationPageUrl: DASHBOARD_POPUP_TARGET_URL });
+        return;
+      }
       const data = await response.json().catch(() => ({}));
       const options = Array.isArray(data?.options) ? data.options : [];
-      const popupOptions = options.filter((item) => String(item?.popupImageUrl || "").trim());
-      if (!popupOptions.length) return;
+      const popupOptions = options.filter((item) => String(item?.registrationPageUrl || "").trim());
+      if (!popupOptions.length) {
+        showDashboardRegistrationPopup({ registrationPageUrl: DASHBOARD_POPUP_TARGET_URL });
+        return;
+      }
       const preferred =
         popupOptions.find((item) => item?.isRegistered && getMockReminderMeta(item)) ||
         popupOptions.find((item) => !item?.hasPaidAccess && Number(item?.remainingAttempts || 0) > 0) ||
         popupOptions[0];
       showDashboardRegistrationPopup(preferred);
     } catch {
-      // Keep silent in dashboard if popup API is unavailable.
+      showDashboardRegistrationPopup({ registrationPageUrl: DASHBOARD_POPUP_TARGET_URL });
     }
   };
 

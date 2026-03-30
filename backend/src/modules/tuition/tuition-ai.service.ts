@@ -108,12 +108,12 @@ type HomeworkPayload = {
 };
 
 const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  const normalized = String(value || "").trim();
+  const normalized = String(value || "").normalize("NFC").trim();
   return normalized || null;
 };
 
 const normalizeSessionTitle = (value: string | null | undefined): string =>
-  String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  String(value || "").normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
 
 const normalizeTeachingLanguageCode = (value: string | null | undefined): "ENGLISH" | "HINDI" | "PUNJABI" => {
   const normalized = String(value || "").trim().toUpperCase();
