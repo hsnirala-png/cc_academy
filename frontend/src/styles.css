@@ -1843,6 +1843,11 @@ h1 {
 }
 
 @media (max-width: 680px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
   .home-page .site-header,
   .home-page .site-header.scrolled {
     position: fixed !important;
@@ -2105,12 +2110,14 @@ h1 {
   }
 
   .section {
-    width: 92%;
-    padding: 3rem 0 3rem 1rem;
+    width: 100%;
+    max-width: 100%;
+    padding: 3rem 4% 3rem;
   }
 
   .home-page main#home {
     padding-top: 56px;
+    overflow-x: hidden;
   }
 
   .hero {
@@ -2160,14 +2167,14 @@ h1 {
 
   .hero-mobile-cta {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 104px;
+    grid-template-columns: 40px minmax(0, 1fr) 98px;
     align-items: stretch;
     flex-wrap: nowrap;
     width: 100%;
   }
 
   .mobile-prefix {
-    min-width: 44px;
+    min-width: 40px;
     padding: 0.68rem 0.4rem;
     font-size: 0.95rem;
   }
@@ -2188,14 +2195,14 @@ h1 {
 
   .hero-line-one,
   .hero-line-two {
-    white-space: nowrap;
+    white-space: normal;
   }
 
   .hero-subtitle {
     font-size: 0.86rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
 }
@@ -6866,13 +6873,13 @@ h1 {
   .mock-launcher-fab {
     right: 0.8rem;
     bottom: 0.8rem;
-    width: 64px;
-    height: 64px;
+    width: 77px;
+    height: 77px;
   }
 
   .mock-launcher-fab img {
-    width: 64px;
-    height: 64px;
+    width: 77px;
+    height: 77px;
   }
 }
 .auth-alt-link {
