@@ -8,7 +8,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
-import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
+import { resolveFrontendPublicDir, resolvePublicAssetsDir } from "../utils/publicAssetsPath";
 import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
 import { ensureProductStorageReady } from "../utils/productStorage";
 import { prisma } from "../utils/prisma";
@@ -741,6 +741,7 @@ const mimeTypeToExtension: Record<string, string> = {
 };
 
 const productsUploadDir = path.join(resolvePublicAssetsDir(), "uploads", "products");
+const frontendProductsUploadDir = path.join(resolveFrontendPublicDir(), "uploads", "products");
 
 const parseDataUrl = (dataUrl: string): { mimeType: string; buffer: Buffer } => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -1055,6 +1056,11 @@ adminProductsRouter.post(
       await mkdir(productsUploadDir, { recursive: true });
       const absoluteFilePath = path.join(productsUploadDir, fileName);
       await writeFile(absoluteFilePath, buffer);
+      await mkdir(frontendProductsUploadDir, { recursive: true });
+      const frontendFilePath = path.join(frontendProductsUploadDir, fileName);
+      if (frontendFilePath !== absoluteFilePath) {
+        await writeFile(frontendFilePath, buffer);
+      }
 
       res.status(201).json({
         thumbnailUrl: `/public/uploads/products/${fileName}`,
