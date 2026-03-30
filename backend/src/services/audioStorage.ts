@@ -1,8 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { resolvePublicAssetsDir } from "../utils/publicAssetsPath";
+import { resolveFrontendPublicDir, resolvePublicAssetsDir } from "../utils/publicAssetsPath";
 
 const LESSON_AUDIO_DIR = path.join(resolvePublicAssetsDir(), "audio", "lessons");
+const FRONTEND_LESSON_AUDIO_DIR = path.join(resolveFrontendPublicDir(), "audio", "lessons");
 
 const normalizeLessonId = (lessonId: string): string => {
   const normalized = String(lessonId || "").trim();
@@ -40,9 +41,14 @@ export const writeLessonAudio = async (
   const safeExtension = sanitizeExtension(extension);
   const fileName = `${normalizedLessonId}.${safeExtension}`;
   const outputPath = path.join(LESSON_AUDIO_DIR, fileName);
+  const frontendOutputPath = path.join(FRONTEND_LESSON_AUDIO_DIR, fileName);
 
   await mkdir(LESSON_AUDIO_DIR, { recursive: true });
   await writeFile(outputPath, audioBuffer);
+  await mkdir(FRONTEND_LESSON_AUDIO_DIR, { recursive: true });
+  if (frontendOutputPath !== outputPath) {
+    await writeFile(frontendOutputPath, audioBuffer);
+  }
 
   return lessonAudioRelativeUrl(normalizedLessonId, safeExtension);
 };
