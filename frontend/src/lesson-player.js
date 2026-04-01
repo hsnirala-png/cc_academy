@@ -145,12 +145,24 @@ const buildTextTranscriptSegments = (transcriptText) => {
   });
 };
 
-const buildAssetUrlCandidates = (input) => {
+const buildAssetUrlCandidates = (input, options = {}) => {
   const raw = String(input || "").trim();
+  const lessonId = String(options.lessonId || "").trim();
+  const token = String(options.token || "").trim();
   if (!raw) return [];
   if (raw.startsWith("http://") || raw.startsWith("https://")) return [raw];
 
   const sameOrigin = window.location.origin || "";
+  const lessonAudioFallback = lessonId && token
+    ? Array.from(
+        new Set(
+          [
+            sameOrigin ? `${sameOrigin}/api/lessons/${encodeURIComponent(lessonId)}/audio?token=${encodeURIComponent(token)}` : "",
+            API_BASE ? `${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}/audio?token=${encodeURIComponent(token)}` : "",
+          ].filter(Boolean)
+        )
+      )
+    : [];
   if (raw.startsWith("/public/")) {
     const rootPath = `/${raw.replace(/^\/public\/+/, "")}`;
     const sameOriginUrl = sameOrigin ? `${sameOrigin}${raw}` : "";
@@ -158,20 +170,20 @@ const buildAssetUrlCandidates = (input) => {
     const sameOriginRootUrl = sameOrigin ? `${sameOrigin}${rootPath}` : "";
     const apiRootUrl = API_BASE ? `${API_BASE}${rootPath}` : sameOriginRootUrl;
     return Array.from(
-      new Set([sameOriginUrl, apiUrl, sameOriginRootUrl, apiRootUrl].filter(Boolean))
+      new Set([...lessonAudioFallback, sameOriginUrl, apiUrl, sameOriginRootUrl, apiRootUrl].filter(Boolean))
     );
   }
 
   if (raw.startsWith("/")) {
     const apiUrl = API_BASE ? `${API_BASE}${raw}` : "";
     const sameOriginUrl = sameOrigin ? `${sameOrigin}${raw}` : "";
-    return Array.from(new Set([apiUrl, sameOriginUrl].filter(Boolean)));
+    return Array.from(new Set([...lessonAudioFallback, apiUrl, sameOriginUrl].filter(Boolean)));
   }
 
   const relative = raw.replace(/^\.\//, "");
   const apiUrl = API_BASE ? `${API_BASE}/${relative}` : "";
   const sameOriginUrl = sameOrigin ? `${sameOrigin}/${relative}` : "";
-  return Array.from(new Set([apiUrl, sameOriginUrl].filter(Boolean)));
+  return Array.from(new Set([...lessonAudioFallback, apiUrl, sameOriginUrl].filter(Boolean)));
 };
 
 const getQueryParam = (key) => {
@@ -1000,7 +1012,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const videoUrlCandidates = buildAssetUrlCandidates(payload?.lesson?.videoUrl);
-    const audioUrlCandidates = buildAssetUrlCandidates(payload?.lesson?.audioUrl);
+    const audioUrlCandidates = buildAssetUrlCandidates(payload?.lesson?.audioUrl, {
+      lessonId: state.lessonId,
+      token,
+    });
     state.hasVideo = videoUrlCandidates.length > 0;
     state.hasAudio = audioUrlCandidates.length > 0;
 

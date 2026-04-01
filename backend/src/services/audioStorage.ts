@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveFrontendPublicDir, resolvePublicAssetsDir } from "../utils/publicAssetsPath";
@@ -30,6 +31,28 @@ export const lessonAudioRelativeUrl = (lessonId: string, extension = "mp3"): str
   const normalizedLessonId = normalizeLessonId(lessonId);
   const safeExtension = sanitizeExtension(extension);
   return `/public/audio/lessons/${normalizedLessonId}.${safeExtension}`;
+};
+
+export const resolveLessonAudioAbsolutePath = (audioUrl: string | null | undefined): string | null => {
+  const raw = String(audioUrl || "").trim();
+  if (!raw) return null;
+  const relative = raw.replace(/^\/+/, "");
+  const withoutPublicPrefix = relative.replace(/^public\/+/, "");
+  const candidates = [
+    path.join(resolvePublicAssetsDir(), withoutPublicPrefix),
+    path.join(resolveFrontendPublicDir(), withoutPublicPrefix),
+    path.join(resolvePublicAssetsDir(), relative),
+    path.join(resolveFrontendPublicDir(), relative),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // Try next candidate.
+    }
+  }
+  return null;
 };
 
 export const writeLessonAudio = async (
