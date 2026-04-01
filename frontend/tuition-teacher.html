@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tuition Teacher | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=79" />
+    <link rel="stylesheet" href="./src/styles.css?v=98" />
   </head>
   <body class="tuition-flow-page">
     <header class="site-header">
@@ -39,74 +39,93 @@
         <article class="card tuition-teacher-main-card">
           <div class="tuition-teacher-main-head">
             <div class="tuition-teacher-main-copy">
-              <p class="eyebrow">Text-first tutor</p>
+              <p class="eyebrow">Board-First Tutor</p>
               <h1 id="tuitionTeacherTitle">Loading topic...</h1>
+              <p class="tuition-teacher-main-note">
+                Choose a topic and let the tutor explain it step by step on the board.
+              </p>
             </div>
-            <div class="tuition-teacher-filters">
-              <label>
-                <span class="sr-only">Subject</span>
-                <input
-                  id="tuitionTeacherSubject"
-                  type="text"
-                  maxlength="120"
-                  placeholder="Subject"
-                  aria-label="Subject"
-                />
-              </label>
-              <label class="is-wide">
-                <span class="sr-only">Topic</span>
-                <input
-                  id="tuitionTeacherTopic"
-                  type="text"
-                  maxlength="191"
-                  placeholder="Topic"
-                  aria-label="Topic"
-                />
-              </label>
-              <label>
-                <span class="sr-only">Explanation language</span>
-                <select id="tuitionTeacherExplanationLanguage" aria-label="Explanation language">
-                  <option value="ENGLISH">English</option>
-                  <option value="HINDI">Hindi</option>
-                  <option value="PUNJABI">Punjabi</option>
-                </select>
-              </label>
-              <label>
-                <span class="sr-only">Board language</span>
-                <select id="tuitionTeacherBoardLanguage" aria-label="Board language">
-                  <option value="ENGLISH">Board: English</option>
-                  <option value="HINDI">Board: Hindi</option>
-                  <option value="PUNJABI">Board: Punjabi</option>
-                </select>
-              </label>
-              <label>
-                <span class="sr-only">Voice language</span>
-                <select id="tuitionTeacherVoiceLanguage" aria-label="Voice language">
-                  <option value="ENGLISH">Voice: English</option>
-                  <option value="HINDI">Voice: Hindi</option>
-                  <option value="PUNJABI">Voice: Punjabi</option>
-                </select>
-              </label>
-              <label>
-                <span class="sr-only">Speed</span>
-                <select id="tuitionTeacherSpeed" aria-label="Speed">
-                  <option value="SLOW">Slow</option>
-                  <option value="NORMAL" selected>Normal</option>
-                  <option value="FAST">Fast</option>
-                </select>
-              </label>
-              <label>
-                <span class="sr-only">Difficulty</span>
-                <select id="tuitionTeacherDifficulty" aria-label="Difficulty">
-                  <option value="EASY">Easy</option>
-                  <option value="MEDIUM" selected>Medium</option>
-                  <option value="HARD">Hard</option>
-                </select>
-              </label>
+            <div class="tuition-teacher-setup-card">
+              <div class="tuition-teacher-filters">
+                <label>
+                  <span class="sr-only">Subject</span>
+                  <input
+                    id="tuitionTeacherSubject"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Subject"
+                    aria-label="Subject"
+                  />
+                </label>
+                <label class="is-wide">
+                  <span class="sr-only">Topic</span>
+                  <input
+                    id="tuitionTeacherTopic"
+                    type="text"
+                    maxlength="191"
+                    placeholder="Topic"
+                    aria-label="Topic"
+                  />
+                </label>
+                <label>
+                  <span class="sr-only">Explanation language</span>
+                  <select id="tuitionTeacherExplanationLanguage" aria-label="Explanation language">
+                    <option value="ENGLISH">Explain: English</option>
+                    <option value="HINDI">Explain: Hindi</option>
+                    <option value="PUNJABI">Explain: Punjabi</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="sr-only">Board language</span>
+                  <select id="tuitionTeacherBoardLanguage" aria-label="Board language">
+                    <option value="ENGLISH">Board: English</option>
+                    <option value="HINDI">Board: Hindi</option>
+                    <option value="PUNJABI">Board: Punjabi</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="sr-only">Voice language</span>
+                  <select id="tuitionTeacherVoiceLanguage" aria-label="Voice language">
+                    <option value="ENGLISH">Voice: English</option>
+                    <option value="HINDI">Voice: Hindi</option>
+                    <option value="PUNJABI">Voice: Punjabi</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="sr-only">Speed</span>
+                  <select id="tuitionTeacherSpeed" aria-label="Speed">
+                    <option value="SLOW">Speed: Slow</option>
+                    <option value="NORMAL" selected>Speed: Normal</option>
+                    <option value="FAST">Speed: Fast</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="sr-only">Difficulty</span>
+                  <select id="tuitionTeacherDifficulty" aria-label="Difficulty">
+                    <option value="EASY">Difficulty: Easy</option>
+                    <option value="MEDIUM" selected>Difficulty: Medium</option>
+                    <option value="HARD">Difficulty: Hard</option>
+                  </select>
+                </label>
+              </div>
+              <div class="tuition-teacher-primary-actions">
+                <button id="tuitionTeacherTeachBtn" type="button" class="btn-primary">
+                  Start Teaching On Board
+                </button>
+                <button id="tuitionTeacherResumeBtn" type="button" class="btn-secondary">Refresh Lesson</button>
+              </div>
             </div>
           </div>
 
           <div id="tuitionTeacherSummary" class="tuition-teacher-summary-row"></div>
+          <div class="tuition-teacher-session-strip">
+            <div>
+              <p class="eyebrow">Current Lesson</p>
+              <h2 id="tuitionTeacherSessionLabel">Preparing session...</h2>
+            </div>
+            <div id="tuitionTeacherSessionMeta" class="tuition-chip-row"></div>
+          </div>
+          <p id="tuitionTeacherStatus" class="form-message">Creating or resuming tuition session...</p>
           <div id="tuitionTeacherPlanModal" class="tuition-plan-modal hidden" aria-hidden="true">
             <div id="tuitionTeacherPlanOverlay" class="tuition-plan-modal-overlay"></div>
             <div class="tuition-plan-modal-card" role="dialog" aria-modal="true" aria-labelledby="tuitionTeacherPlanTitle">
@@ -125,76 +144,19 @@
             </div>
           </div>
 
-          <div class="tuition-teacher-workbench">
-            <div class="tuition-teacher-content">
-              <div class="tuition-teacher-stage-space">
-                <div class="tuition-card-header tuition-teacher-session-head">
-                  <div>
-                    <p class="eyebrow">Session</p>
-                    <h2 id="tuitionTeacherSessionLabel">Preparing session...</h2>
-                  </div>
-                  <div id="tuitionTeacherSessionMeta" class="tuition-chip-row"></div>
-                </div>
-                <div class="tuition-teacher-stage-note">
-                  This teaching area keeps the current subject and topic visible while the conversation and board notes stay aligned.
-                </div>
-              </div>
-
-              <div class="tuition-teacher-session-card">
-                <div id="tuitionTeacherMessages" class="tuition-chat-thread"></div>
-                <p id="tuitionTeacherStatus" class="form-message">Creating or resuming tuition session...</p>
-                <form id="tuitionTeacherForm" class="tuition-chat-form">
-                  <textarea
-                    id="tuitionTeacherInput"
-                    rows="4"
-                    maxlength="8000"
-                    placeholder="Ask about the topic concept, example, or practice question."
-                    required
-                  ></textarea>
-                  <div class="tuition-flow-actions tuition-chat-submit-row">
-                    <button type="submit" class="btn-primary">Send Message</button>
-                    <button id="tuitionTeacherTeachBtn" type="button" class="btn-secondary">
-                      Teach This Topic
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <aside class="tuition-teacher-action-rail">
-              <div class="tuition-teacher-actions">
-                <button id="tuitionTeacherResumeBtn" type="button" class="btn-secondary">Refresh Session</button>
-                <button id="tuitionTeacherVoiceBtn" type="button" class="btn-secondary">Start Voice Tutor</button>
-                <button id="tuitionTeacherVoiceEndBtn" type="button" class="btn-ghost hidden">End Voice Tutor</button>
-                <button id="tuitionTeacherHomeworkBtn" type="button" class="btn-primary">Generate Homework</button>
-                <a class="btn-secondary" href="./tuition-chapters.html">Back To Chapters</a>
-              </div>
-
-              <div class="tuition-voice-card">
-                <div class="tuition-voice-card-head">
-                  <strong>Voice Tutor</strong>
-                  <span id="tuitionTeacherVoiceState" class="tuition-chip is-muted">Idle</span>
-                </div>
-                <p id="tuitionTeacherVoiceMeta" class="tuition-voice-meta">
-                  Start voice mode to speak with the tutor using the current language, speed, and difficulty.
-                </p>
-                <audio id="tuitionTeacherVoiceAudio" class="hidden" autoplay playsinline></audio>
-              </div>
-            </aside>
-          </div>
           <article class="tuition-teacher-board-card">
             <div class="tuition-card-header">
               <div>
-                <p class="eyebrow">Board Notes</p>
+                <p class="eyebrow">Live Teaching Board</p>
                 <h2 id="tuitionTeacherBoardTitle">Teaching Board</h2>
               </div>
               <div id="tuitionTeacherBoardMeta" class="tuition-chip-row"></div>
             </div>
             <div class="tuition-board-lesson-head">
               <div class="tuition-board-lesson-copy">
-                <p class="eyebrow">Guided Board Lesson</p>
+                <p class="eyebrow">Board Teaching Flow</p>
                 <p id="tuitionTeacherBoardTeachingStatus" class="tuition-board-teaching-status">
-                  The board lesson will write itself step by step after each teacher reply.
+                  Start teaching to watch the board explain the topic step by step.
                 </p>
               </div>
               <div class="tuition-board-toolbar-actions">
@@ -218,10 +180,10 @@
                 </button>
               </div>
             </div>
-            <div class="tuition-whiteboard-surface">
+            <div id="tuitionTeacherWhiteboardSurface" class="tuition-whiteboard-surface">
               <div class="tuition-whiteboard-canvas-head">
                 <div>
-                  <p class="eyebrow">Interactive Teaching Canvas</p>
+                  <p class="eyebrow">Main Board</p>
                   <h3 id="tuitionTeacherBoardCanvasTitle">Waiting for a teacher reply...</h3>
                 </div>
                 <p id="tuitionTeacherBoardCanvasHint" class="tuition-whiteboard-canvas-hint">
@@ -236,18 +198,29 @@
               </div>
               <section id="tuitionTeacherLiveBoardScene" class="tuition-live-board-scene hidden">
                 <div class="tuition-live-board-scene-head">
-                  <div>
+                  <div class="tuition-live-board-scene-title">
                     <p class="eyebrow">Live Board Teacher Mode</p>
                     <h4 id="tuitionTeacherLiveBoardStepTitle">Waiting for a teaching step...</h4>
                   </div>
-                  <p id="tuitionTeacherLiveBoardSpeech" class="tuition-live-board-speech">
-                    The teacher narration will appear here while the board writes step by step.
-                  </p>
+                  <div class="tuition-live-board-sync-strip">
+                    <div class="tuition-live-board-sync-card is-speech">
+                      <p class="tuition-live-sync-label">Speaking Now</p>
+                      <p id="tuitionTeacherLiveBoardSpeech" class="tuition-live-board-speech">
+                        The teacher narration will appear here while the board writes step by step.
+                      </p>
+                    </div>
+                    <div class="tuition-live-board-sync-card is-writing">
+                      <p class="tuition-live-sync-label">Writing Now</p>
+                      <p id="tuitionTeacherLiveBoardWrite" class="tuition-live-board-write">
+                        The current board note will appear here in sync with the teaching step.
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <div id="tuitionTeacherLiveBoardCanvas" class="tuition-live-board-canvas"></div>
               </section>
               <div id="tuitionTeacherBoardEmpty" class="tuition-chat-empty tuition-whiteboard-empty">
-                Ask the tuition teacher a topic question to generate structured board notes, formulas, steps, and examples.
+                Choose the topic settings above and start teaching to see the tutor explain on the board.
               </div>
               <div id="tuitionTeacherBoardPanel" class="tuition-board-panel hidden">
                 <section id="tuitionTeacherBoardLinesSection" class="tuition-board-section tuition-board-section-lines">
@@ -273,11 +246,52 @@
               </div>
             </div>
           </article>
+
+          <details class="tuition-teacher-support-panel">
+            <summary>Follow-Up And Tools</summary>
+            <div class="tuition-teacher-support-grid">
+              <div class="tuition-teacher-session-card">
+                <form id="tuitionTeacherForm" class="tuition-chat-form">
+                  <textarea
+                    id="tuitionTeacherInput"
+                    rows="3"
+                    maxlength="8000"
+                    placeholder="Ask a follow-up question about the same topic."
+                    required
+                  ></textarea>
+                  <div class="tuition-flow-actions tuition-chat-submit-row">
+                    <button type="submit" class="btn-secondary">Send Follow-Up</button>
+                  </div>
+                </form>
+                <div id="tuitionTeacherMessages" class="tuition-chat-thread"></div>
+              </div>
+
+              <aside class="tuition-teacher-action-rail">
+                <div class="tuition-teacher-actions">
+                  <button id="tuitionTeacherVoiceBtn" type="button" class="btn-secondary">Start Voice Tutor</button>
+                  <button id="tuitionTeacherVoiceEndBtn" type="button" class="btn-ghost hidden">End Voice Tutor</button>
+                  <button id="tuitionTeacherHomeworkBtn" type="button" class="btn-secondary">Generate Homework</button>
+                  <a class="btn-ghost" href="./tuition-chapters.html">Back To Chapters</a>
+                </div>
+
+                <div class="tuition-voice-card">
+                  <div class="tuition-voice-card-head">
+                    <strong>Voice Tutor</strong>
+                    <span id="tuitionTeacherVoiceState" class="tuition-chip is-muted">Idle</span>
+                  </div>
+                  <p id="tuitionTeacherVoiceMeta" class="tuition-voice-meta">
+                    Voice tutor is optional. For board teaching, use the main lesson above.
+                  </p>
+                  <audio id="tuitionTeacherVoiceAudio" class="hidden" autoplay playsinline></audio>
+                </div>
+              </aside>
+            </div>
+          </details>
         </article>
       </section>
     </main>
 
-    <script type="module" src="./src/tuition-teacher.js?v=13"></script>
+    <script type="module" src="./src/tuition-teacher.js?v=19"></script>
     <script src="./src/global-nav.js?v=17"></script>
   </body>
 </html>

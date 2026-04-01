@@ -7,6 +7,12 @@ const defaultFrontendPublicDir = path.resolve(backendRoot, "..", "frontend", "pu
 const normalizeEnvPath = (value: string | undefined): string | null => {
   const normalized = String(value || "").trim();
   if (!normalized) return null;
+  if (process.platform === "win32") {
+    const looksLikePosixAbsolute = normalized.startsWith("/") && !normalized.startsWith("//");
+    if (looksLikePosixAbsolute) {
+      return null;
+    }
+  }
   return path.resolve(normalized);
 };
 

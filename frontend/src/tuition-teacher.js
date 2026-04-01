@@ -36,9 +36,17 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#39;");
 
 const BOARD_PLAYBACK_STATE_PREFIX = "cc_tuition_board_playback:";
+const LESSON_SETTINGS_STORAGE_KEY = "cc_tuition_teacher_settings";
 
 const getBoardPlaybackStateKey = (sessionId) =>
   `${BOARD_PLAYBACK_STATE_PREFIX}${String(sessionId || "").trim()}`;
+
+const normalizeTeacherSetting = (value) =>
+  String(value || "")
+    .normalize("NFC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 
 document.addEventListener("DOMContentLoaded", async () => {
   initHeaderBehavior();
@@ -98,6 +106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const liveBoardSceneEl = document.querySelector("#tuitionTeacherLiveBoardScene");
   const liveBoardStepTitleEl = document.querySelector("#tuitionTeacherLiveBoardStepTitle");
   const liveBoardSpeechEl = document.querySelector("#tuitionTeacherLiveBoardSpeech");
+  const liveBoardWriteEl = document.querySelector("#tuitionTeacherLiveBoardWrite");
   const liveBoardCanvasEl = document.querySelector("#tuitionTeacherLiveBoardCanvas");
   const boardEmptyEl = document.querySelector("#tuitionTeacherBoardEmpty");
   const boardPanelEl = document.querySelector("#tuitionTeacherBoardPanel");
@@ -110,6 +119,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const boardExampleEl = document.querySelector("#tuitionTeacherBoardExample");
   const boardExampleTitleEl = document.querySelector("#tuitionTeacherBoardExampleTitle");
   const boardExampleStepsEl = document.querySelector("#tuitionTeacherBoardExampleSteps");
+  const whiteboardSurfaceEl = document.querySelector("#tuitionTeacherWhiteboardSurface");
 
   let activeSessionId = sessionIdFromQuery;
   let chapterContext = null;
@@ -151,6 +161,54 @@ document.addEventListener("DOMContentLoaded", async () => {
       return parsed;
     } catch {
       return null;
+    }
+  };
+
+  const readSavedLessonSettings = () => {
+    try {
+      const raw = window.localStorage.getItem(LESSON_SETTINGS_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const persistLessonSettings = () => {
+    try {
+      window.localStorage.setItem(
+        LESSON_SETTINGS_STORAGE_KEY,
+        JSON.stringify({
+          explanationLanguage:
+            explanationLanguageEl instanceof HTMLSelectElement ? explanationLanguageEl.value : "ENGLISH",
+          boardLanguage: boardLanguageEl instanceof HTMLSelectElement ? boardLanguageEl.value : "ENGLISH",
+          voiceLanguage: voiceLanguageEl instanceof HTMLSelectElement ? voiceLanguageEl.value : "ENGLISH",
+          speedMode: speedEl instanceof HTMLSelectElement ? speedEl.value : "NORMAL",
+          difficultyMode: difficultyEl instanceof HTMLSelectElement ? difficultyEl.value : "MEDIUM",
+        })
+      );
+    } catch {
+      // Ignore storage failures.
+    }
+  };
+
+  const applySavedLessonSettings = () => {
+    const saved = readSavedLessonSettings();
+    if (explanationLanguageEl instanceof HTMLSelectElement && saved.explanationLanguage) {
+      explanationLanguageEl.value = String(saved.explanationLanguage).toUpperCase();
+    }
+    if (boardLanguageEl instanceof HTMLSelectElement && saved.boardLanguage) {
+      boardLanguageEl.value = String(saved.boardLanguage).toUpperCase();
+    }
+    if (voiceLanguageEl instanceof HTMLSelectElement && saved.voiceLanguage) {
+      voiceLanguageEl.value = String(saved.voiceLanguage).toUpperCase();
+    }
+    if (speedEl instanceof HTMLSelectElement && saved.speedMode) {
+      speedEl.value = String(saved.speedMode).toUpperCase();
+    }
+    if (difficultyEl instanceof HTMLSelectElement && saved.difficultyMode) {
+      difficultyEl.value = String(saved.difficultyMode).toUpperCase();
     }
   };
 
@@ -242,6 +300,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     difficultyMode: difficultyEl instanceof HTMLSelectElement ? difficultyEl.value : "MEDIUM",
     resume: true,
   });
+
+  const hasActiveTeacherContextDrift = () => {
+    const sessionContext = boardLesson.session?.teacherContext || {};
+    const currentContext = currentTeacherContext();
+    return (
+      normalizeTeacherSetting(sessionContext.subject) !== normalizeTeacherSetting(currentContext.subject) ||
+      normalizeTeacherSetting(sessionContext.topic) !== normalizeTeacherSetting(currentContext.topic) ||
+      normalizeTeacherSetting(sessionContext.explanationLanguage) !== normalizeTeacherSetting(currentContext.explanationLanguage) ||
+      normalizeTeacherSetting(sessionContext.boardLanguage) !== normalizeTeacherSetting(currentContext.boardLanguage) ||
+      normalizeTeacherSetting(sessionContext.voiceLanguage) !== normalizeTeacherSetting(currentContext.voiceLanguage) ||
+      normalizeTeacherSetting(sessionContext.curriculumBoard) !== normalizeTeacherSetting(currentContext.curriculumBoard)
+    );
+  };
 
   const setVoiceState = (state, message = "") => {
     voiceSession.status = state;
@@ -452,6 +523,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const showLiveBoardScene = (visible) => {
     if (!(liveBoardSceneEl instanceof HTMLElement)) return;
     liveBoardSceneEl.classList.toggle("hidden", !visible);
+    if (whiteboardSurfaceEl instanceof HTMLElement) {
+      whiteboardSurfaceEl.classList.toggle("is-live-mode", Boolean(visible));
+    }
+  };
+
+  const focusBoardViewport = () => {
+    if (liveBoardSceneEl instanceof HTMLElement && !liveBoardSceneEl.classList.contains("hidden")) {
+      liveBoardSceneEl.scrollIntoView({ block: "start", behavior: "smooth" });
+      return;
+    }
+    if (!(whiteboardSurfaceEl instanceof HTMLElement)) return;
+    whiteboardSurfaceEl.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
   const setLiveBoardNarration = (stepTitle, speechText) => {
@@ -462,6 +545,164 @@ document.addEventListener("DOMContentLoaded", async () => {
       liveBoardSpeechEl.textContent =
         speechText || "The teacher narration will appear here while the board writes step by step.";
     }
+    if (liveBoardWriteEl instanceof HTMLElement) {
+      liveBoardWriteEl.textContent = "The current board note will appear here in sync with the teaching step.";
+    }
+  };
+
+  const getBoardActionDisplayText = (action) => {
+    if (!action || typeof action !== "object") return "";
+    if (action.type === "DRAW_ARROW") {
+      const from = String(action.fromLabel || "").trim();
+      const to = String(action.toLabel || "").trim();
+      const text = String(action.text || "").trim();
+      return [from && to ? `${from} -> ${to}` : "", text].filter(Boolean).join(" - ");
+    }
+    if (action.type === "DRAW_BOX" || action.type === "DRAW_LABEL") {
+      const label = String(action.label || "").trim();
+      const text = String(action.text || "").trim();
+      return [label, text].filter(Boolean).join(": ");
+    }
+    return String(action.text || action.label || "").trim();
+  };
+
+  const getStepBoardPreview = (structured, step) => {
+    if (!step || !Array.isArray(step.actionIds)) return "";
+    const lines = step.actionIds
+      .map((actionId) => structured?.boardActions?.find((item) => item.id === actionId))
+      .filter(Boolean)
+      .map((action) => getBoardActionDisplayText(action))
+      .filter(Boolean);
+    if (!lines.length) return "";
+    return lines.slice(0, 2).join(" ");
+  };
+
+  const setLiveBoardSyncCard = (structured, step) => {
+    if (!(liveBoardWriteEl instanceof HTMLElement)) return;
+    const preview = getStepBoardPreview(structured, step);
+    liveBoardWriteEl.textContent =
+      preview || "The current board note will appear here in sync with the teaching step.";
+  };
+
+  const emitLiveBoardHook = (name, detail = {}) => {
+    window.dispatchEvent(
+      new CustomEvent(`tuitionliveboard:${name}`, {
+        detail: {
+          sessionId: boardLesson.session?.id || activeSessionId || "",
+          timestamp: Date.now(),
+          ...detail,
+        },
+      })
+    );
+  };
+
+  const buildInkSpan = (text, extraClass = "") =>
+    `<span class="tuition-live-ink${extraClass ? ` ${extraClass}` : ""}">${escapeHtml(text || "")}</span>`;
+
+  const getLiveBoardLaneMeta = (lane, actions = []) => {
+    const hasDiagram = actions.some((action) => String(action?.type || "").startsWith("DRAW_"));
+    if (lane === "title") {
+      return {
+        section: "concept",
+        layout: "headline",
+        kicker: "Topic Title",
+        note: "The teacher anchors the lesson with the main concept.",
+      };
+    }
+    if (lane === "notes") {
+      return {
+        section: "concept",
+        layout: hasDiagram ? "concept-map" : "key-points",
+        kicker: "Teaching Notes",
+        note: "Key classroom points stay visible for revision.",
+      };
+    }
+    if (lane === "formula") {
+      return {
+        section: "concept",
+        layout: "rule-strip",
+        kicker: "Rules And Formulae",
+        note: "Important rules remain separated for quick recall.",
+      };
+    }
+    if (lane === "diagram") {
+      return {
+        section: "example",
+        layout: "diagram-board",
+        kicker: "Board Diagram",
+        note: "Visual links show how the teacher is connecting ideas.",
+      };
+    }
+    if (lane === "steps") {
+      return {
+        section: "example",
+        layout: "worked-steps",
+        kicker: "Worked Method",
+        note: "Each move is grouped like a classroom solution on the board.",
+      };
+    }
+    if (lane === "example") {
+      return {
+        section: "example",
+        layout: "guided-example",
+        kicker: "Worked Example",
+        note: "Examples are grouped separately from concept notes.",
+      };
+    }
+    if (lane === "recap") {
+      return {
+        section: "recap",
+        layout: "recap-strip",
+        kicker: "Recap And Check",
+        note: "The board closes with revision cues and the next check.",
+      };
+    }
+    return {
+      section: "concept",
+      layout: "default",
+      kicker: boardLaneTitles[lane] || lane,
+      note: "Teacher board section.",
+    };
+  };
+
+  const ensureLiveBoardPointer = () => {
+    if (!(liveBoardCanvasEl instanceof HTMLElement)) return null;
+    let pointerEl = liveBoardCanvasEl.querySelector(".tuition-live-board-pointer");
+    if (pointerEl instanceof HTMLElement) return pointerEl;
+    pointerEl = document.createElement("div");
+    pointerEl.className = "tuition-live-board-pointer is-hidden";
+    pointerEl.setAttribute("aria-hidden", "true");
+    pointerEl.innerHTML = `
+      <span class="tuition-live-board-pointer-glow"></span>
+      <span class="tuition-live-board-pointer-dot"></span>
+      <span class="tuition-live-board-pointer-stem"></span>
+    `;
+    liveBoardCanvasEl.appendChild(pointerEl);
+    return pointerEl;
+  };
+
+  const moveLiveBoardPointer = (targetEl, options = {}) => {
+    const pointerEl = ensureLiveBoardPointer();
+    if (!(pointerEl instanceof HTMLElement) || !(liveBoardCanvasEl instanceof HTMLElement)) return;
+    if (!(targetEl instanceof HTMLElement)) {
+      pointerEl.classList.add("is-hidden");
+      pointerEl.classList.remove("is-pointer-pulse");
+      return;
+    }
+    const canvasRect = liveBoardCanvasEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    const top = targetRect.top - canvasRect.top + liveBoardCanvasEl.scrollTop + targetRect.height / 2;
+    const left = Math.max(18, targetRect.left - canvasRect.left + liveBoardCanvasEl.scrollLeft - 22);
+    pointerEl.style.setProperty("--pointer-top", `${Math.round(top)}px`);
+    pointerEl.style.setProperty("--pointer-left", `${Math.round(left)}px`);
+    pointerEl.classList.remove("is-hidden");
+    if (options.pulse) {
+      pointerEl.classList.remove("is-pointer-pulse");
+      void pointerEl.offsetWidth;
+      pointerEl.classList.add("is-pointer-pulse");
+    } else {
+      pointerEl.classList.remove("is-pointer-pulse");
+    }
   };
 
   const buildBoardActionElement = (action, indexInLane = 0) => {
@@ -469,6 +710,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     element.className = `tuition-live-action type-${String(action.type || "").toLowerCase()} is-item-pending`;
     element.dataset.actionId = action.id;
     element.dataset.actionType = action.type;
+    element.dataset.lane = action.lane || "";
     if (action.targetId) {
       element.dataset.targetId = action.targetId;
     }
@@ -481,10 +723,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const safeLabel = escapeHtml(action.label || "");
     const safeFrom = escapeHtml(action.fromLabel || "");
     const safeTo = escapeHtml(action.toLabel || "");
+    const inkLength = Math.max(
+      1,
+      Math.min(
+        28,
+        Math.ceil(
+          String(action.text || action.label || action.fromLabel || action.toLabel || action.type || "").trim().length / 8
+        )
+      )
+    );
+    element.style.setProperty("--ink-length", String(inkLength));
 
     if (action.type === "WRITE_TEXT") {
       element.classList.add("tuition-live-title-line");
-      element.innerHTML = `<span>${safeText}</span>`;
+      element.innerHTML = buildInkSpan(action.text || "", "ink-title");
       return element;
     }
 
@@ -496,7 +748,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (action.type === "WRITE_FORMULA") {
       element.classList.add("tuition-live-formula");
-      element.innerHTML = `<span>${safeText}</span>`;
+      element.innerHTML = buildInkSpan(action.text || "", "ink-formula");
       return element;
     }
 
@@ -504,7 +756,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       element.classList.add("tuition-live-step");
       element.innerHTML = `
         <span class="tuition-live-step-index">${indexInLane + 1}</span>
-        <span class="tuition-live-step-text">${safeText}</span>
+        <span class="tuition-live-step-text">${buildInkSpan(action.text || "")}</span>
       `;
       return element;
     }
@@ -512,8 +764,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (action.type === "DRAW_BOX") {
       element.classList.add("tuition-live-diagram-box");
       element.innerHTML = `
-        <strong>${safeLabel || "Box"}</strong>
-        <span>${safeText}</span>
+        <strong>${buildInkSpan(action.label || "Box")}</strong>
+        <span>${buildInkSpan(action.text || "")}</span>
       `;
       return element;
     }
@@ -532,26 +784,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (action.type === "DRAW_LABEL") {
       element.classList.add("tuition-live-diagram-label");
       element.innerHTML = `
-        <strong>${safeLabel || "Label"}</strong>
-        <span>${safeText}</span>
+        <strong>${buildInkSpan(action.label || "Label")}</strong>
+        <span>${buildInkSpan(action.text || "")}</span>
       `;
       return element;
     }
 
     if (action.type === "SHOW_RECAP") {
       element.classList.add("tuition-live-recap");
-      element.innerHTML = `<span>${safeText}</span>`;
+      element.innerHTML = buildInkSpan(action.text || "");
       return element;
     }
 
     if (action.type === "ASK_STUDENT") {
       element.classList.add("tuition-live-question");
-      element.innerHTML = `<span>${safeText}</span>`;
+      element.innerHTML = buildInkSpan(action.text || "");
       return element;
     }
 
     element.classList.add("tuition-live-generic");
-    element.innerHTML = `<span>${safeText || safeLabel || escapeHtml(action.type)}</span>`;
+    element.innerHTML = buildInkSpan(action.text || action.label || action.type || "");
     return element;
   };
 
@@ -572,11 +824,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     laneOrder.forEach((lane) => {
       const laneActions = actions.filter((action) => action.lane === lane && action.type !== "HIGHLIGHT");
       if (!laneActions.length) return;
+      const laneMeta = getLiveBoardLaneMeta(lane, laneActions);
       const laneEl = document.createElement("section");
-      laneEl.className = `tuition-live-lane lane-${lane}`;
+      laneEl.className = `tuition-live-lane lane-${lane} is-lane-awaiting`;
       laneEl.dataset.lane = lane;
+      laneEl.dataset.section = laneMeta.section;
+      laneEl.dataset.layout = laneMeta.layout;
+      if (lane === "diagram") laneEl.classList.add("tuition-live-lane-diagram");
+      if (lane === "formula") laneEl.classList.add("tuition-live-lane-formula");
+      if (lane === "steps" || lane === "example") laneEl.classList.add("tuition-live-lane-worked");
       laneEl.innerHTML = `
-        <p class="tuition-live-lane-tag">${escapeHtml(boardLaneTitles[lane] || lane)}</p>
+        <div class="tuition-live-lane-head">
+          <p class="tuition-live-lane-tag">${escapeHtml(laneMeta.kicker)}</p>
+        </div>
         <div class="tuition-live-lane-items"></div>
       `;
       const itemsEl = laneEl.querySelector(".tuition-live-lane-items");
@@ -597,10 +857,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           laneMap.get("recap") ||
           (() => {
             const laneEl = document.createElement("section");
-            laneEl.className = "tuition-live-lane lane-recap";
+            laneEl.className = "tuition-live-lane lane-recap is-lane-awaiting";
             laneEl.dataset.lane = "recap";
+            laneEl.dataset.section = "recap";
+            laneEl.dataset.layout = "recap-strip";
             laneEl.innerHTML = `
-              <p class="tuition-live-lane-tag">${escapeHtml(boardLaneTitles.recap)}</p>
+              <div class="tuition-live-lane-head">
+                <p class="tuition-live-lane-tag">Recap And Check</p>
+              </div>
               <div class="tuition-live-lane-items"></div>
             `;
             liveBoardCanvasEl.appendChild(laneEl);
@@ -623,6 +887,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
     showLiveBoardScene(true);
+    ensureLiveBoardPointer();
+  };
+
+  const ensureLiveBoardSceneReady = () => {
+    if (!boardLesson.structured) return;
+    if (boardPanelEl instanceof HTMLElement) {
+      boardPanelEl.classList.remove("hidden");
+    }
+    if (boardEmptyEl instanceof HTMLElement) {
+      boardEmptyEl.classList.add("hidden");
+    }
+    if (!(liveBoardCanvasEl instanceof HTMLElement) || !liveBoardCanvasEl.children.length || !boardLesson.actionElements.size) {
+      buildLiveBoardScene(boardLesson.structured);
+    } else {
+      showLiveBoardScene(true);
+    }
   };
 
   const revealLiveBoardAction = (action) => {
@@ -630,6 +910,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (actionEl instanceof HTMLElement) {
       actionEl.classList.remove("is-item-pending");
       actionEl.classList.add("is-item-revealed");
+      const laneEl = actionEl.closest(".tuition-live-lane");
+      if (laneEl instanceof HTMLElement) {
+        laneEl.classList.remove("is-lane-awaiting");
+        laneEl.classList.add("is-lane-visible");
+      }
     }
     if (action.type === "HIGHLIGHT" && action.targetId) {
       const targetEl = boardLesson.actionElements.get(action.targetId);
@@ -637,6 +922,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         targetEl.classList.add("is-live-highlight");
       }
     }
+    emitLiveBoardHook("action-revealed", {
+      actionId: action.id || "",
+      actionType: action.type || "",
+      lane: action.lane || "",
+      targetId: action.targetId || "",
+    });
   };
 
   const pulseLiveBoardAction = (action) => {
@@ -645,6 +936,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     actionEl.classList.remove("is-item-replayed");
     void actionEl.offsetWidth;
     actionEl.classList.add("is-item-replayed");
+    moveLiveBoardPointer(actionEl, { pulse: true });
+  };
+
+  const resetReplayActionVisuals = (structured, step) => {
+    if (!step || !Array.isArray(step.actionIds)) return;
+    step.actionIds.forEach((actionId) => {
+      const action = structured?.boardActions?.find((item) => item.id === actionId);
+      const actionEl = boardLesson.actionElements.get(actionId);
+      if (actionEl instanceof HTMLElement) {
+        actionEl.classList.remove("is-item-revealed", "is-item-replayed", "is-step-current", "is-step-complete");
+        actionEl.classList.add("is-item-pending");
+        void actionEl.offsetWidth;
+      }
+      if (action?.type === "HIGHLIGHT" && action.targetId) {
+        const targetEl = boardLesson.actionElements.get(action.targetId);
+        if (targetEl instanceof HTMLElement) {
+          targetEl.classList.remove("is-live-highlight");
+        }
+      }
+    });
   };
 
   const getTeachingSteps = (structured) =>
@@ -661,6 +972,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     return 4 + Math.round((((boardLesson.currentStepIndex + 1) || 0) / boardLesson.teachingSteps.length) * 96);
   };
 
+  const setActiveTeachingStepVisuals = (step) => {
+    boardLesson.actionElements.forEach((actionEl) => {
+      actionEl.classList.remove("is-step-current", "is-step-complete");
+    });
+    document.querySelectorAll(".tuition-live-lane.is-lane-active, .tuition-live-lane.is-lane-history").forEach((laneEl) => {
+      laneEl.classList.remove("is-lane-active", "is-lane-history");
+    });
+    if (!step) {
+      moveLiveBoardPointer(null);
+      return;
+    }
+
+    const currentActionIds = new Set(step.actionIds || []);
+    boardLesson.actionElements.forEach((actionEl, actionId) => {
+      if (!actionEl.classList.contains("is-item-revealed")) return;
+      if (currentActionIds.has(actionId)) {
+        actionEl.classList.add("is-step-current");
+        const laneEl = actionEl.closest(".tuition-live-lane");
+        if (laneEl instanceof HTMLElement) {
+          laneEl.classList.add("is-lane-active");
+        }
+      } else {
+        actionEl.classList.add("is-step-complete");
+        const laneEl = actionEl.closest(".tuition-live-lane");
+        if (laneEl instanceof HTMLElement && !laneEl.classList.contains("is-lane-active")) {
+          laneEl.classList.add("is-lane-history");
+        }
+      }
+    });
+
+    const firstCurrentEl = Array.from(currentActionIds)
+      .map((actionId) => boardLesson.actionElements.get(actionId))
+      .find((actionEl) => actionEl instanceof HTMLElement);
+    if (firstCurrentEl instanceof HTMLElement) {
+      moveLiveBoardPointer(firstCurrentEl, { pulse: true });
+      window.setTimeout(() => {
+        moveLiveBoardPointer(firstCurrentEl, { pulse: false });
+      }, 180);
+    } else {
+      moveLiveBoardPointer(null);
+    }
+  };
+
   const applyTeachingStep = (structured, stepIndex, options = {}) => {
     const teachingSteps = getTeachingSteps(structured);
     const step = teachingSteps[stepIndex];
@@ -669,10 +1023,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const speechText = getSpeechChunkText(structured, step.speechChunkId);
     boardLesson.currentStepIndex = stepIndex;
     boardLesson.completed = stepIndex >= teachingSteps.length - 1;
+    if (shouldReplay) {
+      resetReplayActionVisuals(structured, step);
+    }
     setBoardTeachingStatus(`Teacher is teaching: ${step.title}`, "writing");
-    setBoardTeacherCue(speechText || "Teacher is writing the next point on the board.");
+    setBoardTeacherCue(speechText || "Teacher is writing on the board.");
     setLiveBoardNarration(step.title, speechText);
+    setLiveBoardSyncCard(structured, step);
     speakBoardChunk(speechText);
+    emitLiveBoardHook("step-start", {
+      stepId: step.id || "",
+      stepTitle: step.title || "",
+      stepIndex,
+      speechChunkId: step.speechChunkId || "",
+      replay: shouldReplay,
+      actionIds: Array.isArray(step.actionIds) ? [...step.actionIds] : [],
+    });
     step.actionIds.forEach((actionId) => {
       const action = structured?.boardActions?.find((item) => item.id === actionId);
       if (!action) return;
@@ -681,6 +1047,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         pulseLiveBoardAction(action);
       }
     });
+    setActiveTeachingStepVisuals(step);
     setBoardProgress(getBoardProgressValue());
     setBoardControlState();
     persistBoardPlaybackSnapshot();
@@ -690,17 +1057,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   const finishTeachingPlayback = (structured, session) => {
     boardLesson.completed = true;
     boardLesson.paused = false;
+    showLiveBoardScene(true);
     setBoardTeachingStatus("Live board lesson complete. Replay it any time.", "complete");
     setBoardTeacherCue("Ask a follow-up question, replay the current step, or rebuild the full lesson.");
     setLiveBoardNarration(
       "Lesson complete",
       "You can replay the current step, rebuild the full board lesson, or continue with practice."
     );
+    setLiveBoardSyncCard(structured, boardLesson.teachingSteps[boardLesson.teachingSteps.length - 1] || null);
     setBoardCanvasTitle(
       structured?.boardTitle || session?.chapter?.title || "Teaching canvas",
       "Use Clear Board to blank the canvas or Rebuild Board to replay the latest live teacher layout."
     );
     setBoardProgress(100);
+    setActiveTeachingStepVisuals(boardLesson.teachingSteps[boardLesson.teachingSteps.length - 1] || null);
     setBoardControlState();
     persistBoardPlaybackSnapshot();
   };
@@ -728,6 +1098,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const step = teachingSteps[nextIndex];
     const playback = getBoardPlaybackConfig();
     const delayMs = nextIndex === 0 ? playback.introDelay : Number(step.autoDelayMs || playback.itemDelay * 2);
+    emitLiveBoardHook("step-queued", {
+      stepId: step.id || "",
+      stepTitle: step.title || "",
+      stepIndex: nextIndex,
+      speechChunkId: step.speechChunkId || "",
+      delayMs,
+      autoplay: boardLesson.autoplay,
+    });
     const token = boardLesson.token;
     const timerId = window.setTimeout(() => {
       if (token !== boardLesson.token || boardLesson.paused) return;
@@ -771,15 +1149,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     setBoardTeacherCue(
       boardLesson.autoplay
-        ? "The teacher is about to write the first idea on the board."
-        : "Autoplay is off. Click Next Step to reveal the first teaching move."
+        ? "The teacher is about to start the board explanation."
+        : "Autoplay is off. Click Next Step to begin."
     );
     setLiveBoardNarration(
       boardLesson.autoplay ? "Opening lesson" : "Manual board lesson ready",
       boardLesson.autoplay
         ? "The teacher narration will stay aligned with each board step."
-        : "Use Next Step, Pause, Resume, or Replay Step while the board writes."
+        : "Use Next Step to reveal one teaching move at a time."
     );
+    setLiveBoardSyncCard(null, null);
     setBoardProgress(0);
     setBoardControlState();
     persistBoardPlaybackSnapshot();
@@ -842,6 +1221,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!boardLesson.structured || boardLesson.currentStepIndex < 0) return;
     clearBoardLessonPlayback({ resetPause: false });
     boardLesson.paused = true;
+    ensureLiveBoardSceneReady();
+    focusBoardViewport();
     const applied = applyTeachingStep(boardLesson.structured, boardLesson.currentStepIndex, { replay: true });
     if (!applied) return;
     setBoardTeachingStatus("Current step replayed.", "complete");
@@ -900,16 +1281,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderMessages = (messages) => {
     if (!(messagesEl instanceof HTMLElement)) return;
     if (!messages.length) {
-      messagesEl.innerHTML = `<div class="tuition-chat-empty">Start by asking about the current topic.</div>`;
+      messagesEl.innerHTML = `<div class="tuition-chat-empty">Follow-up questions will appear here.</div>`;
       return;
     }
 
     messagesEl.innerHTML = messages
+      .slice(-4)
       .map((message) => {
         const structured = message?.structured;
         return `
           <article class="tuition-chat-message ${message.role === "USER" ? "is-user" : "is-assistant"}">
-            <strong>${message.role === "USER" ? "You" : "AI Tuition Teacher"}</strong>
+            <strong>${message.role === "USER" ? "You" : "Tutor"}</strong>
             <p>${escapeHtml(structured?.replyText || message.content || "").replace(/\n/g, "<br />")}</p>
             ${
               structured?.recapPoints?.length
@@ -941,7 +1323,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderSessionMeta = (session, progress) => {
     if (sessionLabelEl instanceof HTMLElement) {
-      sessionLabelEl.textContent = session?.status ? `Session ${session.status}` : "Session Ready";
+      sessionLabelEl.textContent =
+        session?.teacherContext?.topic || session?.title || (session?.status ? `Session ${session.status}` : "Lesson Ready");
     }
     if (!(sessionMetaEl instanceof HTMLElement)) return;
     sessionMetaEl.innerHTML = [
@@ -973,6 +1356,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   topicEl?.addEventListener("input", () => {
     if (!(titleEl instanceof HTMLElement) || !(topicEl instanceof HTMLInputElement)) return;
     titleEl.textContent = topicEl.value.trim() || chapterContext?.chapter?.title || "Tuition Session";
+  });
+
+  explanationLanguageEl?.addEventListener("change", () => {
+    const currentValue = explanationLanguageEl instanceof HTMLSelectElement ? explanationLanguageEl.value : "ENGLISH";
+    if (boardLanguageEl instanceof HTMLSelectElement) {
+      boardLanguageEl.value = currentValue;
+    }
+    if (voiceLanguageEl instanceof HTMLSelectElement) {
+      voiceLanguageEl.value = currentValue;
+    }
+    persistLessonSettings();
+  });
+
+  [boardLanguageEl, voiceLanguageEl, speedEl, difficultyEl].forEach((element) => {
+    element?.addEventListener("change", () => {
+      persistLessonSettings();
+    });
   });
 
   document.addEventListener("keydown", (event) => {
@@ -1087,6 +1487,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       const lastStep = teachingSteps[teachingSteps.length - 1];
       setLiveBoardNarration(lastStep?.title || "Board lesson ready", getSpeechChunkText(structured, lastStep?.speechChunkId));
+      setLiveBoardSyncCard(structured, lastStep);
+      setActiveTeachingStepVisuals(lastStep);
+      showLiveBoardScene(true);
     } else {
       showLiveBoardScene(false);
       setLiveBoardNarration("", "");
@@ -1173,17 +1576,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       const currentStep = teachingSteps[boardLesson.currentStepIndex];
       const speechText = getSpeechChunkText(structured, currentStep?.speechChunkId);
       setLiveBoardNarration(currentStep?.title || "Teaching step", speechText);
+      setLiveBoardSyncCard(structured, currentStep);
       setBoardTeacherCue(
         speechText ||
           "The live board lesson was restored to the exact step you were viewing."
       );
+      setActiveTeachingStepVisuals(currentStep);
     } else {
       setLiveBoardNarration(
         boardLesson.autoplay ? "Opening lesson" : "Manual board lesson ready",
         boardLesson.autoplay
           ? "The teacher narration will stay aligned with each board step."
-          : "Use Next Step, Pause, Resume, or Replay Step while the board writes."
+          : "Use Next Step to reveal one teaching move at a time."
       );
+      setLiveBoardSyncCard(null, null);
       setBoardTeacherCue(
         boardLesson.autoplay
           ? "The teacher is about to write the first idea on the board."
@@ -1235,6 +1641,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (teachingSteps.length) {
+      ensureLiveBoardSceneReady();
       runTeachingPlayback(structured, session);
       return;
     }
@@ -1394,6 +1801,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const clearBoardView = () => {
     clearBoardLessonPlayback({ resetPause: true });
     boardLesson.cleared = true;
+    stopVoiceSession("ended", "Board cleared. Voice tutor stopped so the board and audio stay aligned.");
     if (boardPanelEl instanceof HTMLElement) {
       boardPanelEl.classList.add("hidden");
     }
@@ -1413,6 +1821,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setBoardProgress(0);
     setBoardControlState();
     persistBoardPlaybackSnapshot();
+    focusBoardViewport();
   };
 
   const applySessionState = (payload, options = {}) => {
@@ -1450,6 +1859,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (difficultyEl instanceof HTMLSelectElement && payload?.session?.difficultyMode) {
       difficultyEl.value = payload.session.difficultyMode;
     }
+    persistLessonSettings();
     const playbackSnapshot =
       !options.animate && activeSessionId ? readBoardPlaybackSnapshot(activeSessionId) : null;
     renderMessages(payload?.session?.messages || []);
@@ -1482,6 +1892,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (voiceLanguageEl instanceof HTMLSelectElement && explanationLanguageEl instanceof HTMLSelectElement) {
       voiceLanguageEl.value = explanationLanguageEl.value;
     }
+    applySavedLessonSettings();
     renderSummaryRow(payload?.chapter, payload?.progress);
   };
 
@@ -1515,7 +1926,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (!activeSessionId) {
+    if (!activeSessionId || hasActiveTeacherContextDrift()) {
       await createOrResumeSession(true);
     }
 
@@ -1739,7 +2150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const prompt =
         inputEl instanceof HTMLTextAreaElement && inputEl.value.trim()
           ? inputEl.value.trim()
-          : `Teach me ${currentTeacherContext().topic || chapterContext?.chapter?.title || "this topic"} in ${currentTeacherContext().subject || chapterContext?.profile?.subjectName || "this subject"} like a real board teacher. Start with the title, explain the definition or core idea, write the main points step by step, solve one example, recap the idea, and ask me one practice question.`;
+          : `Teach me ${currentTeacherContext().topic || chapterContext?.chapter?.title || "this topic"} in ${currentTeacherContext().subject || chapterContext?.profile?.subjectName || "this subject"} like a real board teacher. Speak and write the same idea step by step on the board, add a diagram or chart if needed, solve one example, recap the lesson, and ask one short practice question.`;
       await sendTeacherMessage(prompt, "Live board lesson generated for the current topic.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to start the live board lesson.", "error");
@@ -1760,6 +2171,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       setBoardTeachingStatus("Ask a topic question first to create a board lesson.", "idle");
       return;
     }
+    ensureLiveBoardSceneReady();
+    focusBoardViewport();
     playBoardLesson(boardLesson.structured, boardLesson.session);
   });
 

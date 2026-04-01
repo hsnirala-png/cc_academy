@@ -115,6 +115,42 @@ const includesAny = (text: string, values: string[]): boolean => {
   return values.some((value) => normalized.includes(value.toUpperCase()));
 };
 
+const normalizeTopicKey = (value: string | null | undefined): string =>
+  String(value || "")
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const requiresExactTopicFidelity = (topic: string): boolean => /[\u0900-\u097F\u0A00-\u0A7F]/u.test(topic);
+
+const plannerMatchesRequestedTopic = (context: LiveBoardContext, planned: PlannerLesson): boolean => {
+  if (!requiresExactTopicFidelity(context.topicTitle)) {
+    return true;
+  }
+
+  const requestedTopic = normalizeTopicKey(context.topicTitle);
+  if (!requestedTopic) {
+    return true;
+  }
+
+  const candidateText = normalizeTopicKey(
+    [
+      planned.boardTitle,
+      planned.boardLines?.[0],
+      planned.boardLines?.[1],
+      planned.exampleTitle,
+      planned.practiceQuestion,
+      planned.recapBoardText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return candidateText.includes(requestedTopic);
+};
+
 const boardTitle = (topic: string, language: LiveBoardLanguage): string =>
   pickLanguage(language, `${topic} Teaching Board`, `${topic} शिक्षण बोर्ड`, `${topic} ਸਿਖਲਾਈ ਬੋਰਡ`);
 
@@ -1393,6 +1429,62 @@ const numberChangeLesson = (context: LiveBoardContext): LiveBoardLessonContent =
   };
 };
 
+const relationWordsLesson = (context: LiveBoardContext): LiveBoardLessonContent => {
+  const boardLanguage = context.boardLanguage;
+  const explanationLanguage = context.explanationLanguage;
+  return {
+    boardPayload: {
+      boardTitle: shortBoardTitle("ਸੰਬੰਧੀ ਸ਼ਬਦ", boardLanguage),
+      boardLines: [
+        "ਸੰਬੰਧੀ ਸ਼ਬਦ ਉਹ ਸ਼ਬਦ ਹੁੰਦੇ ਹਨ ਜੋ ਦੋ ਨਾਮਾਂ ਜਾਂ ਵਿਚਾਰਾਂ ਵਿਚਕਾਰ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।",
+        "ਇਹ ਸ਼ਬਦ ਵਾਕ ਵਿੱਚ ਜਗ੍ਹਾ, ਸਮਾਂ, ਦਿਸ਼ਾ ਜਾਂ ਸਬੰਧ ਨੂੰ ਸਾਫ਼ ਕਰਦੇ ਹਨ।",
+        "ਉਦਾਹਰਨ: ਦੇ ਨਾਲ, ਦੇ ਕੋਲ, ਦੇ ਅੱਗੇ, ਦੇ ਪਿੱਛੇ।"
+      ],
+      formulas: ["ਨਾਮ + ਸੰਬੰਧੀ ਸ਼ਬਦ + ਨਾਮ", "ਸਹੀ ਸੰਬੰਧੀ ਸ਼ਬਦ ਨਾਲ ਵਾਕ ਦਾ ਅਰਥ ਸਪਸ਼ਟ ਹੁੰਦਾ ਹੈ"],
+      steps: [
+        "ਪਹਿਲਾਂ ਵੇਖੋ ਕਿ ਵਾਕ ਵਿੱਚ ਕਿਹੜੇ ਦੋ ਸ਼ਬਦਾਂ ਦਾ ਰਿਸ਼ਤਾ ਦੱਸਣਾ ਹੈ।",
+        "ਹੁਣ ਢੰਗ ਦਾ ਸੰਬੰਧੀ ਸ਼ਬਦ ਚੁਣੋ।",
+        "ਅੰਤ ਵਿੱਚ ਪੂਰਾ ਵਾਕ ਪੜ੍ਹ ਕੇ ਜਾਂਚੋ ਕਿ ਅਰਥ ਸਹੀ ਬਣ ਰਿਹਾ ਹੈ ਜਾਂ ਨਹੀਂ।"
+      ],
+      exampleTitle: "ਸੰਬੰਧੀ ਸ਼ਬਦ ਦੀ ਉਦਾਹਰਨ",
+      exampleSteps: [
+        "ਕਿਤਾਬ ਮੇਜ਼ ਤੇ ਪਈ ਹੈ।",
+        "ਬੱਚਾ ਘਰ ਦੇ ਅੰਦਰ ਬੈਠਾ ਹੈ।",
+        "ਸਕੂਲ ਦੇ ਸਾਹਮਣੇ ਬਾਗ ਹੈ।"
+      ]
+    },
+    noteSpeech: [
+      pickLanguage(explanationLanguage, "Relational words show the connection between two words in a sentence.", "संबंधी शब्द वाक्य में दो शब्दों के बीच का संबंध बताते हैं।", "ਸੰਬੰਧੀ ਸ਼ਬਦ ਵਾਕ ਵਿੱਚ ਦੋ ਸ਼ਬਦਾਂ ਦੇ ਵਿਚਕਾਰਲਾ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "They help us understand place, direction, time, or position more clearly.", "इनकी मदद से हमें स्थान, दिशा, समय या स्थिति का पता साफ़ लगता है।", "ਇਨ੍ਹਾਂ ਦੀ ਮਦਦ ਨਾਲ ਸਾਨੂੰ ਜਗ੍ਹਾ, ਦਿਸ਼ਾ, ਸਮਾਂ ਜਾਂ ਸਥਿਤੀ ਬਾਰੇ ਸਪਸ਼ਟ ਜਾਣਕਾਰੀ ਮਿਲਦੀ ਹੈ।"),
+      pickLanguage(explanationLanguage, "So while reading a sentence, pay attention to how one noun is linked with another.", "इसलिए वाक्य पढ़ते समय देखो कि एक नाम दूसरे नाम से कैसे जुड़ रहा है।", "ਇਸ ਲਈ ਵਾਕ ਪੜ੍ਹਦੇ ਸਮੇਂ ਵੇਖੋ ਕਿ ਇੱਕ ਨਾਮ ਦੂਜੇ ਨਾਮ ਨਾਲ ਕਿਵੇਂ ਜੁੜ ਰਿਹਾ ਹੈ।")
+    ],
+    formulaSpeech: [
+      pickLanguage(explanationLanguage, "A relational word usually sits between two parts of a sentence and makes their relation clear.", "संबंधी शब्द अक्सर वाक्य के दो भागों के बीच आकर उनका संबंध स्पष्ट करता है।", "ਸੰਬੰਧੀ ਸ਼ਬਦ ਅਕਸਰ ਵਾਕ ਦੇ ਦੋ ਹਿੱਸਿਆਂ ਦੇ ਵਿਚਕਾਰ ਆ ਕੇ ਉਨ੍ਹਾਂ ਦਾ ਸੰਬੰਧ ਸਪਸ਼ਟ ਕਰਦਾ ਹੈ।"),
+      pickLanguage(explanationLanguage, "Choose the word that matches the exact relation shown in the sentence.", "वही शब्द चुनो जो वाक्य में सही संबंध दिखाए।", "ਉਹੀ ਸ਼ਬਦ ਚੁਣੋ ਜੋ ਵਾਕ ਵਿੱਚ ਸਹੀ ਸੰਬੰਧ ਦਿਖਾਏ।")
+    ],
+    stepSpeech: [
+      pickLanguage(explanationLanguage, "First identify which two words or ideas are being connected.", "सबसे पहले पहचानो कि कौन-से दो शब्द या विचार जुड़े हुए हैं।", "ਸਭ ਤੋਂ ਪਹਿਲਾਂ ਪਛਾਣੋ ਕਿ ਕਿਹੜੇ ਦੋ ਸ਼ਬਦ ਜਾਂ ਵਿਚਾਰ ਆਪਸ ਵਿੱਚ ਜੁੜੇ ਹੋਏ ਹਨ।"),
+      pickLanguage(explanationLanguage, "Then choose the relational word that best fits that connection.", "फिर उस संबंध के अनुसार सही संबंधी शब्द चुनो।", "ਫਿਰ ਉਸ ਰਿਸ਼ਤੇ ਦੇ ਅਨੁਸਾਰ ਸਹੀ ਸੰਬੰਧੀ ਸ਼ਬਦ ਚੁਣੋ।"),
+      pickLanguage(explanationLanguage, "Finally read the full sentence to confirm that the meaning sounds natural and correct.", "अंत में पूरा वाक्य पढ़कर देखो कि अर्थ स्वाभाविक और सही बन रहा है या नहीं।", "ਅੰਤ ਵਿੱਚ ਪੂਰਾ ਵਾਕ ਪੜ੍ਹ ਕੇ ਵੇਖੋ ਕਿ ਅਰਥ ਸੁਭਾਵਿਕ ਅਤੇ ਸਹੀ ਬਣ ਰਿਹਾ ਹੈ ਜਾਂ ਨਹੀਂ।")
+    ],
+    exampleSpeech: pickLanguage(explanationLanguage, "These short examples show how relational words make sentence meaning more precise.", "ये छोटे उदाहरण दिखाते हैं कि संबंधी शब्द वाक्य का अर्थ कैसे अधिक स्पष्ट बनाते हैं।", "ਇਹ ਛੋਟੀਆਂ ਉਦਾਹਰਨਾਂ ਦਿਖਾਉਂਦੀਆਂ ਹਨ ਕਿ ਸੰਬੰਧੀ ਸ਼ਬਦ ਵਾਕ ਦਾ ਅਰਥ ਕਿਵੇਂ ਹੋਰ ਸਪਸ਼ਟ ਬਣਾਉਂਦੇ ਹਨ।"),
+    recapSpeech: pickLanguage(explanationLanguage, "Recap: relational words tell us the connection between words, especially place, position, or direction.", "पुनरावृत्ति: संबंधी शब्द हमें शब्दों के बीच का संबंध बताते हैं, खासकर स्थान, स्थिति या दिशा।", "ਦੁਹਰਾਈ: ਸੰਬੰਧੀ ਸ਼ਬਦ ਸਾਨੂੰ ਸ਼ਬਦਾਂ ਦੇ ਵਿਚਕਾਰਲਾ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ, ਖ਼ਾਸ ਕਰਕੇ ਜਗ੍ਹਾ, ਸਥਿਤੀ ਜਾਂ ਦਿਸ਼ਾ।"),
+    recapBoardText: pickLanguage(boardLanguage, "ਯਾਦ ਰੱਖੋ: ਸਹੀ ਸੰਬੰਧੀ ਸ਼ਬਦ ਨਾਲ ਅਰਥ ਸਪਸ਼ਟ ਹੁੰਦਾ ਹੈ।", "याद रखो: सही संबंधी शब्द से अर्थ स्पष्ट होता है।", "ਯਾਦ ਰੱਖੋ: ਸਹੀ ਸੰਬੰਧੀ ਸ਼ਬਦ ਨਾਲ ਅਰਥ ਸਪਸ਼ਟ ਹੁੰਦਾ ਹੈ।"),
+    recapPoints: [
+      pickLanguage(explanationLanguage, "Relational words show how two words are connected.", "संबंधी शब्द दो शब्दों का संबंध बताते हैं।", "ਸੰਬੰਧੀ ਸ਼ਬਦ ਦੋ ਸ਼ਬਦਾਂ ਦਾ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "They are useful for place, direction, and position.", "ये स्थान, दिशा और स्थिति बताने में उपयोगी होते हैं।", "ਇਹ ਜਗ੍ਹਾ, ਦਿਸ਼ਾ ਅਤੇ ਸਥਿਤੀ ਦੱਸਣ ਵਿੱਚ ਮਦਦਗਾਰ ਹੁੰਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "Use the word that makes the sentence meaning exact and natural.", "उसी शब्द का प्रयोग करो जो वाक्य का अर्थ सही और स्वाभाविक बनाए।", "ਉਸੇ ਸ਼ਬਦ ਦੀ ਵਰਤੋਂ ਕਰੋ ਜੋ ਵਾਕ ਦਾ ਅਰਥ ਸਹੀ ਅਤੇ ਸੁਭਾਵਿਕ ਬਣਾਏ।")
+    ],
+    practiceQuestion: pickLanguage(explanationLanguage, "Practice question: Fill in suitable relational words in these sentences and read them aloud.", "अभ्यास प्रश्न: दिए गए वाक्यों में उचित संबंधी शब्द भरो और उन्हें पढ़ो।", "ਅਭਿਆਸ ਪ੍ਰਸ਼ਨ: ਦਿੱਤੇ ਵਾਕਾਂ ਵਿੱਚ ਢੰਗ ਦੇ ਸੰਬੰਧੀ ਸ਼ਬਦ ਭਰੋ ਅਤੇ ਉਨ੍ਹਾਂ ਨੂੰ ਪੜ੍ਹੋ।"),
+    diagramInstructions: [],
+    diagramActions: [
+      { id: "diagram-box-first-noun", type: "DRAW_BOX", lane: "diagram", label: "ਪਹਿਲਾ ਨਾਮ", text: "ਜਿਵੇਂ ਕਿਤਾਬ", accent: "important" },
+      { id: "diagram-arrow-relation", type: "DRAW_ARROW", lane: "diagram", fromLabel: "ਪਹਿਲਾ ਨਾਮ", toLabel: "ਦੂਜਾ ਨਾਮ", text: "ਸੰਬੰਧੀ ਸ਼ਬਦ" },
+      { id: "diagram-box-second-noun", type: "DRAW_BOX", lane: "diagram", label: "ਦੂਜਾ ਨਾਮ", text: "ਜਿਵੇਂ ਮੇਜ਼", accent: "example" }
+    ]
+  };
+};
+
 const democracyFeaturesLesson = (context: LiveBoardContext): LiveBoardLessonContent => {
   const boardLanguage = context.boardLanguage;
   const explanationLanguage = context.explanationLanguage;
@@ -1557,6 +1649,9 @@ const buildAiPlannedLesson = async (
   if (!planned) {
     throw new Error("Planner returned an empty lesson.");
   }
+  if (!plannerMatchesRequestedTopic(context, planned)) {
+    throw new Error("Planner returned off-topic lesson content.");
+  }
 
   return plannerToLessonContent(context, family, planned);
 };
@@ -1597,6 +1692,10 @@ export const buildTopicLessonContent = async (
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਵਚਨ ਬਦਲੋ", "वचन बदलो", "change number"])) {
     return numberChangeLesson(context);
+  }
+
+  if (family === "LANGUAGE" && includesAny(topic, ["ਸੰਬੰਧੀ ਸ਼ਬਦ", "संबंधी शब्द", "relational words", "related words"])) {
+    return relationWordsLesson(context);
   }
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਵਚਨ", "number", "numbers in grammar", "वचन"])) {
