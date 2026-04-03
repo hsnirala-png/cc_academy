@@ -1,4 +1,4 @@
-import {
+﻿import {
   Prisma,
   TuitionDifficultyMode,
   TuitionSessionStatus,
@@ -10,6 +10,11 @@ import {
   buildTuitionTeacherAssistantPayload,
   tuitionAiProvider,
 } from "./tuition-ai.provider";
+import {
+  generateSpeechMp3Buffer,
+  transcribeMp3WithTimestamps,
+  type TimedTranscriptItem,
+} from "../../services/openaiTts";
 import { tuitionProfileService } from "./tuition-profile.service";
 import { tuitionProgressService } from "./tuition-progress.service";
 import { tuitionSyllabusService } from "./tuition-syllabus.service";
@@ -44,6 +49,7 @@ type AssistantPayload = {
   explanationLanguage?: string | null;
   boardLanguage?: string | null;
   voiceLanguage?: string | null;
+  teachingDepth?: string | null;
   curriculumBoard?: string | null;
   recapPoints?: string[];
   nextSuggestedAction?: string | null;
@@ -57,6 +63,30 @@ type AssistantPayload = {
   exampleTitle?: string | null;
   exampleSteps?: string[];
   teacherMode?: string | null;
+  teacherIntro?: string | null;
+  teacherExplanation?: string | null;
+  teacherCheckQuestion?: string | null;
+  boardState?: {
+    title?: string | null;
+    currentConcept?: string | null;
+    anchors?: string[];
+    formula?: string | null;
+    example?: string | null;
+    diagramLabels?: string[];
+    recapKeywords?: string[];
+    highlight?: string | null;
+  } | null;
+  teacherState?: {
+    currentTeachingPhase?: string | null;
+    currentConcept?: string | null;
+    currentConceptIndex?: number | null;
+    pausedForStudentQuestion?: boolean;
+    resumePoint?: number | null;
+    currentConversationTurn?: number | null;
+    selectedLanguage?: string | null;
+    teachingDepth?: string | null;
+  } | null;
+  interactionHints?: string[];
   speechChunks?: Array<{
     id: string;
     kind: string;
@@ -107,6 +137,18 @@ type HomeworkPayload = {
   submissionTip?: string | null;
 };
 
+type TuitionTeacherSpeechTrack = {
+  engine: "openai_tts_whisper_word_timestamps";
+  syncType: "exact_timestamp_words";
+  mimeType: "audio/mpeg";
+  audioBase64: string;
+  sourceText: string;
+  words: TimedTranscriptItem[];
+  segments: TimedTranscriptItem[];
+  language: "ENGLISH" | "HINDI" | "PUNJABI";
+  messageId: string;
+};
+
 const normalizeOptionalText = (value: string | null | undefined): string | null => {
   const normalized = String(value || "").normalize("NFC").trim();
   return normalized || null;
@@ -136,6 +178,13 @@ const normalizeDifficultyMode = (value: string | null | undefined): TuitionDiffi
   return TuitionDifficultyMode.MEDIUM;
 };
 
+const normalizeTeachingDepth = (value: string | null | undefined): "BASIC" | "MODERATE" | "ADVANCED" => {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "BASIC") return "BASIC";
+  if (normalized === "ADVANCED") return "ADVANCED";
+  return "MODERATE";
+};
+
 const toAssistantPayload = (value: unknown): AssistantPayload | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
@@ -144,6 +193,38 @@ const toAssistantPayload = (value: unknown): AssistantPayload | null => {
   if (!replyText || !chapterTitle) return null;
   const toStringArray = (input: unknown): string[] =>
     Array.isArray(input) ? input.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const toBoardState = (input: unknown): AssistantPayload["boardState"] => {
+    if (!input || typeof input !== "object") return null;
+    const candidateState = input as Record<string, unknown>;
+    return {
+      title: String(candidateState.title || "").trim() || null,
+      currentConcept: String(candidateState.currentConcept || "").trim() || null,
+      anchors: toStringArray(candidateState.anchors),
+      formula: String(candidateState.formula || "").trim() || null,
+      example: String(candidateState.example || "").trim() || null,
+      diagramLabels: toStringArray(candidateState.diagramLabels),
+      recapKeywords: toStringArray(candidateState.recapKeywords),
+      highlight: String(candidateState.highlight || "").trim() || null,
+    };
+  };
+  const toTeacherState = (input: unknown): AssistantPayload["teacherState"] => {
+    if (!input || typeof input !== "object") return null;
+    const candidateState = input as Record<string, unknown>;
+    const toFinite = (value: unknown): number | null => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    return {
+      currentTeachingPhase: String(candidateState.currentTeachingPhase || "").trim() || null,
+      currentConcept: String(candidateState.currentConcept || "").trim() || null,
+      currentConceptIndex: toFinite(candidateState.currentConceptIndex),
+      pausedForStudentQuestion: Boolean(candidateState.pausedForStudentQuestion),
+      resumePoint: toFinite(candidateState.resumePoint),
+      currentConversationTurn: toFinite(candidateState.currentConversationTurn),
+      selectedLanguage: String(candidateState.selectedLanguage || "").trim() || null,
+      teachingDepth: String(candidateState.teachingDepth || "").trim() || null,
+    };
+  };
   const toSpeechChunks = (
     input: unknown
   ): AssistantSpeechChunk[] =>
@@ -218,6 +299,7 @@ const toAssistantPayload = (value: unknown): AssistantPayload | null => {
     explanationLanguage: String(candidate.explanationLanguage || "").trim() || null,
     boardLanguage: String(candidate.boardLanguage || "").trim() || null,
     voiceLanguage: String(candidate.voiceLanguage || "").trim() || null,
+    teachingDepth: String(candidate.teachingDepth || "").trim() || null,
     curriculumBoard: String(candidate.curriculumBoard || "").trim() || null,
     recapPoints: toStringArray(candidate.recapPoints),
     nextSuggestedAction: String(candidate.nextSuggestedAction || "").trim() || null,
@@ -231,11 +313,32 @@ const toAssistantPayload = (value: unknown): AssistantPayload | null => {
     exampleTitle: String(candidate.exampleTitle || "").trim() || null,
     exampleSteps: toStringArray(candidate.exampleSteps),
     teacherMode: String(candidate.teacherMode || "").trim() || null,
+    teacherIntro: String(candidate.teacherIntro || "").trim() || null,
+    teacherExplanation: String(candidate.teacherExplanation || "").trim() || null,
+    teacherCheckQuestion: String(candidate.teacherCheckQuestion || "").trim() || null,
+    boardState: toBoardState(candidate.boardState),
+    teacherState: toTeacherState(candidate.teacherState),
+    interactionHints: toStringArray(candidate.interactionHints),
     speechChunks: toSpeechChunks(candidate.speechChunks),
     boardActions: toBoardActions(candidate.boardActions),
     teachingSteps: toTeachingSteps(candidate.teachingSteps),
   };
 };
+
+const toOpenAiLanguageHint = (value: string | null | undefined): "en" | "hi" | "pa" => {
+  const normalized = normalizeTeachingLanguageCode(value);
+  if (normalized === "HINDI") return "hi";
+  if (normalized === "PUNJABI") return "pa";
+  return "en";
+};
+
+const buildTeacherSpeechSourceText = (assistant: AssistantPayload): string =>
+  [assistant.teacherIntro, assistant.teacherExplanation, assistant.teacherCheckQuestion]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+const tuitionSpeechTrackCache = new Map<string, TuitionTeacherSpeechTrack>();
 
 const serializeMessage = (message: {
   id: string;
@@ -275,6 +378,7 @@ const serializeSession = (session: TuitionSessionRecord) => {
   const voiceLanguage = normalizeTeachingLanguageCode(
     latestAssistant?.voiceLanguage || latestAssistant?.explanationLanguage || explanationLanguage
   );
+  const teachingDepth = normalizeTeachingDepth(latestAssistant?.teachingDepth || "MODERATE");
   return {
     id: session.id,
     title: session.title,
@@ -304,6 +408,7 @@ const serializeSession = (session: TuitionSessionRecord) => {
       explanationLanguage,
       boardLanguage,
       voiceLanguage,
+      teachingDepth,
       curriculumBoard: latestAssistant?.curriculumBoard || session.profile.board?.name || null,
     },
     messages: session.messages.map(serializeMessage),
@@ -326,6 +431,7 @@ const resolveTeacherContext = (input: {
   explanationLanguage?: string | null;
   boardLanguage?: string | null;
   voiceLanguage?: string | null;
+  teachingDepth?: string | null;
   subject?: string | null;
   topic?: string | null;
   curriculumBoard?: string | null;
@@ -335,12 +441,14 @@ const resolveTeacherContext = (input: {
   );
   const boardLanguage = normalizeTeachingLanguageCode(input.boardLanguage || explanationLanguage);
   const voiceLanguage = normalizeTeachingLanguageCode(input.voiceLanguage || explanationLanguage);
+  const teachingDepth = normalizeTeachingDepth(input.teachingDepth);
   return {
     subjectName: normalizeOptionalText(input.subject || input.subjectName),
     topicTitle: normalizeOptionalText(input.topic) || input.chapterTitle,
     explanationLanguage,
     boardLanguage,
     voiceLanguage,
+    teachingDepth,
     curriculumBoard: normalizeOptionalText(input.curriculumBoard || input.boardName),
   };
 };
@@ -572,6 +680,7 @@ export const tuitionAiService = {
       subject?: string | null;
       topic?: string | null;
       curriculumBoard?: string | null;
+      teachingDepth?: string | null;
       resume?: boolean;
     }
   ) {
@@ -684,6 +793,7 @@ export const tuitionAiService = {
       subject?: string | null;
       topic?: string | null;
       curriculumBoard?: string | null;
+      teachingDepth?: string | null;
       speedMode?: string | null;
       difficultyMode?: string | null;
     }
@@ -726,6 +836,12 @@ export const tuitionAiService = {
     });
 
     const refreshed = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
+    const previousAssistant =
+      [...refreshed.messages]
+        .reverse()
+        .filter((message) => message.role === "ASSISTANT")
+        .map((message) => serializeMessage(message).structured)
+        .find(Boolean) || null;
     const assistantPayload = await buildTuitionTeacherAssistantPayload({
       boardName: refreshed.profile.board?.name || null,
       classLevel: refreshed.profile.classLevel,
@@ -734,10 +850,12 @@ export const tuitionAiService = {
       explanationLanguage: teacherContext.explanationLanguage,
       boardLanguage: teacherContext.boardLanguage,
       voiceLanguage: teacherContext.voiceLanguage,
+      teachingDepth: teacherContext.teachingDepth,
       speedMode,
       difficultyMode,
       studentPrompt: content,
       messageNumber: refreshed.messages.length + 1,
+      previousAssistant: previousAssistant as any,
     });
 
     const progress = await tuitionProgressService.bumpForMessage(userId, syllabusChapterId, sessionId);
@@ -781,6 +899,7 @@ export const tuitionAiService = {
       subject?: string | null;
       topic?: string | null;
       curriculumBoard?: string | null;
+      teachingDepth?: string | null;
       speedMode?: string | null;
       difficultyMode?: string | null;
     }
@@ -820,6 +939,7 @@ export const tuitionAiService = {
         voiceLanguage: teacherContext.voiceLanguage,
       },
       voiceLanguage: teacherContext.voiceLanguage,
+      teachingDepth: teacherContext.teachingDepth,
       speedMode,
       difficultyMode,
     });
@@ -839,4 +959,83 @@ export const tuitionAiService = {
       provider: await this.getBootstrapMeta(),
     };
   },
+
+  async createTeacherSpeechTrack(
+    userId: string,
+    syllabusChapterId: string,
+    sessionId: string,
+    input: {
+      messageId?: string | null;
+    } = {}
+  ) {
+    const session = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
+    const assistantMessages = [...session.messages].filter((message) => message.role === "ASSISTANT");
+    const targetMessage =
+      (input.messageId
+        ? assistantMessages.find((message) => message.id === input.messageId)
+        : null) || assistantMessages.at(-1);
+
+    if (!targetMessage) {
+      throw new AppError("No teacher explanation is available for speech sync.", 404);
+    }
+
+    const structuredAssistant = serializeMessage(targetMessage).structured;
+    if (!structuredAssistant) {
+      throw new AppError("Teacher speech track is unavailable for this message.", 422);
+    }
+
+    const sourceText = buildTeacherSpeechSourceText(structuredAssistant);
+    if (!sourceText) {
+      throw new AppError("Teacher speech text is empty for this message.", 422);
+    }
+
+    const voiceLanguage = normalizeTeachingLanguageCode(
+      structuredAssistant.voiceLanguage ||
+        structuredAssistant.explanationLanguage ||
+        session.responseLanguage ||
+        session.profile.preferredLanguage ||
+        "ENGLISH"
+    );
+    const cacheKey = `${targetMessage.id}:${voiceLanguage}:${sourceText}`;
+    const cached = tuitionSpeechTrackCache.get(cacheKey);
+    if (cached) {
+      return { speechTrack: cached };
+    }
+
+    const audioBuffer = await generateSpeechMp3Buffer(sourceText, {
+      model: process.env.OPENAI_TUITION_SYNC_TTS_MODEL || process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+      voice: process.env.OPENAI_TUITION_SYNC_TTS_VOICE || process.env.OPENAI_REALTIME_VOICE || "marin",
+      languageHint: toOpenAiLanguageHint(voiceLanguage),
+    });
+
+    const timing = await transcribeMp3WithTimestamps(audioBuffer, sourceText, {
+      mimeType: "audio/mpeg",
+      fileName: `tuition-teacher-${targetMessage.id}.mp3`,
+      languageHint: toOpenAiLanguageHint(voiceLanguage),
+    });
+
+    if (!timing.words.length) {
+      throw new AppError(
+        "Exact speech sync is blocked because word timestamps were not returned for this teacher explanation.",
+        422,
+        "TUITION_TEACHER_WORD_TIMESTAMPS_MISSING"
+      );
+    }
+
+    const speechTrack: TuitionTeacherSpeechTrack = {
+      engine: "openai_tts_whisper_word_timestamps",
+      syncType: "exact_timestamp_words",
+      mimeType: "audio/mpeg",
+      audioBase64: audioBuffer.toString("base64"),
+      sourceText,
+      words: timing.words,
+      segments: timing.segments,
+      language: voiceLanguage,
+      messageId: targetMessage.id,
+    };
+
+    tuitionSpeechTrackCache.set(cacheKey, speechTrack);
+    return { speechTrack };
+  },
 };
+

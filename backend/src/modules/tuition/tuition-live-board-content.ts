@@ -12,6 +12,8 @@ export type LiveBoardSubjectFamily =
   | "COMPUTER"
   | "GENERAL";
 
+export type LiveBoardTeachingDepth = "BASIC" | "MODERATE" | "ADVANCED";
+
 export type LiveBoardAction = {
   id: string;
   type:
@@ -62,6 +64,7 @@ export type LiveBoardContext = {
   topicTitle: string;
   explanationLanguage: LiveBoardLanguage;
   boardLanguage: LiveBoardLanguage;
+  teachingDepth: LiveBoardTeachingDepth;
 };
 
 const plannerDiagramSchema = z
@@ -76,18 +79,18 @@ const plannerDiagramSchema = z
 
 const plannerLessonSchema = z.object({
   boardTitle: z.string().trim().min(1).max(200),
-  boardLines: z.array(z.string().trim().min(1).max(500)).min(3).max(4),
+  boardLines: z.array(z.string().trim().min(1).max(500)).min(1).max(4),
   formulas: z.array(z.string().trim().min(1).max(250)).max(3),
-  steps: z.array(z.string().trim().min(1).max(320)).min(3).max(4),
+  steps: z.array(z.string().trim().min(1).max(320)).min(1).max(4),
   exampleTitle: z.string().trim().min(1).max(200).nullable(),
   exampleSteps: z.array(z.string().trim().min(1).max(320)).min(1).max(3),
-  noteSpeech: z.array(z.string().trim().min(1).max(500)).min(3).max(4),
+  noteSpeech: z.array(z.string().trim().min(1).max(500)).min(1).max(4),
   formulaSpeech: z.array(z.string().trim().min(1).max(400)).max(3),
-  stepSpeech: z.array(z.string().trim().min(1).max(400)).min(3).max(4),
+  stepSpeech: z.array(z.string().trim().min(1).max(400)).min(1).max(4),
   exampleSpeech: z.string().trim().min(1).max(500),
   recapSpeech: z.string().trim().min(1).max(500),
   recapBoardText: z.string().trim().min(1).max(300),
-  recapPoints: z.array(z.string().trim().min(1).max(220)).min(2).max(4),
+  recapPoints: z.array(z.string().trim().min(1).max(220)).min(1).max(4),
   practiceQuestion: z.string().trim().min(1).max(400),
   diagramPlan: plannerDiagramSchema,
 });
@@ -152,7 +155,7 @@ const plannerMatchesRequestedTopic = (context: LiveBoardContext, planned: Planne
 };
 
 const boardTitle = (topic: string, language: LiveBoardLanguage): string =>
-  pickLanguage(language, `${topic} Teaching Board`, `${topic} शिक्षण बोर्ड`, `${topic} ਸਿਖਲਾਈ ਬੋਰਡ`);
+  pickLanguage(language, topic, topic, topic);
 
 const shortBoardTitle = (topic: string, language: LiveBoardLanguage): string =>
   pickLanguage(language, topic, topic, topic);
@@ -242,6 +245,135 @@ const languageClassroomGuidance = (language: LiveBoardLanguage): string =>
     "Use clean, standard school-level Hindi in Devanagari. Avoid translationese, awkward literal phrasing, and broken grammar.",
     "Use natural, standard educational Punjabi in Gurmukhi. Avoid Hindi sentence structure copied into Punjabi, broken grammar, and mixed-script wording."
   );
+
+const normalizeTeachingDepth = (value: string | null | undefined): LiveBoardTeachingDepth => {
+  const normalized = normalize(value).toUpperCase();
+  if (normalized === "BASIC") return "BASIC";
+  if (normalized === "ADVANCED") return "ADVANCED";
+  return "MODERATE";
+};
+
+const getTeachingDepthPolicy = (depth: LiveBoardTeachingDepth) => {
+  if (depth === "BASIC") {
+    return {
+      boardLines: 1,
+      formulas: 1,
+      steps: 1,
+      exampleSteps: 1,
+      recapPoints: 2,
+      diagramActions: 1,
+      explanationGuidance:
+        "Keep the explanation beginner-friendly with simple sentences, one direct example, and one easy check question.",
+      boardGuidance:
+        "Keep the board minimal: title, one key point, one simple example or formula, and a short recap. Avoid note dumps.",
+    };
+  }
+  if (depth === "ADVANCED") {
+    return {
+      boardLines: 4,
+      formulas: 2,
+      steps: 3,
+      exampleSteps: 2,
+      recapPoints: 3,
+      diagramActions: 3,
+      explanationGuidance:
+        "Teach with deeper conceptual links, school-appropriate terminology, and one analytical follow-up.",
+      boardGuidance:
+        "Keep the board structured and teacher-like: concept points, one or two examples, rule or formula where relevant, and a meaningful recap without long paragraphs.",
+    };
+  }
+  return {
+    boardLines: 3,
+    formulas: 1,
+    steps: 2,
+    exampleSteps: 1,
+    recapPoints: 3,
+    diagramActions: 3,
+    explanationGuidance:
+      "Teach in standard classroom depth with clear language, one useful example, and one understanding check.",
+    boardGuidance:
+      "Keep the board balanced: title, two to four key points, one example, one rule if relevant, and a short recap.",
+  };
+};
+
+const splitIntoSentences = (text: string): string[] =>
+  normalize(text)
+    .split(/(?<=[.!?।])\s+/u)
+    .map((item) => normalize(item))
+    .filter(Boolean);
+
+const compressTextByDepth = (text: string, depth: LiveBoardTeachingDepth): string => {
+  const normalized = normalize(text);
+  if (!normalized) return "";
+  const sentences = splitIntoSentences(normalized);
+  if (!sentences.length) return normalized;
+  if (depth === "BASIC") {
+    return sentences.slice(0, 1).join(" ").slice(0, 180).trim();
+  }
+  if (depth === "ADVANCED") {
+    return sentences.slice(0, 2).join(" ").slice(0, 320).trim();
+  }
+  return sentences.slice(0, 2).join(" ").slice(0, 240).trim();
+};
+
+const simplifyPracticeQuestion = (
+  text: string,
+  language: LiveBoardLanguage,
+  depth: LiveBoardTeachingDepth
+): string => {
+  if (depth === "BASIC") {
+    return pickLanguage(
+      language,
+      `Quick check: ${compressTextByDepth(text, "BASIC")}`,
+      `छोटा जाँच-प्रश्न: ${compressTextByDepth(text, "BASIC")}`,
+      `ਛੋਟਾ ਜਾਂਚ-ਪ੍ਰਸ਼ਨ: ${compressTextByDepth(text, "BASIC")}`
+    );
+  }
+  if (depth === "ADVANCED") {
+    return pickLanguage(
+      language,
+      `Think deeper: ${compressTextByDepth(text, "ADVANCED")}`,
+      `ज़रा गहराई से सोचो: ${compressTextByDepth(text, "ADVANCED")}`,
+      `ਹੁਣ ਥੋੜ੍ਹੀ ਗਹਿਰਾਈ ਨਾਲ ਸੋਚੋ: ${compressTextByDepth(text, "ADVANCED")}`
+    );
+  }
+  return compressTextByDepth(text, "MODERATE");
+};
+
+const applyTeachingDepthPolicy = (
+  lesson: LiveBoardLessonContent,
+  context: LiveBoardContext
+): LiveBoardLessonContent => {
+  const depth = normalizeTeachingDepth(context.teachingDepth);
+  const policy = getTeachingDepthPolicy(depth);
+  const boardLines = lesson.boardPayload.boardLines.slice(0, policy.boardLines).map((item) => compressTextByDepth(item, depth));
+  const formulas = lesson.boardPayload.formulas.slice(0, policy.formulas).map((item) => compressTextByDepth(item, depth));
+  const steps = lesson.boardPayload.steps.slice(0, policy.steps).map((item) => compressTextByDepth(item, depth));
+  const exampleSteps = lesson.boardPayload.exampleSteps
+    .slice(0, policy.exampleSteps)
+    .map((item) => compressTextByDepth(item, depth));
+
+  return {
+    boardPayload: {
+      boardTitle: lesson.boardPayload.boardTitle,
+      boardLines,
+      formulas,
+      steps,
+      exampleTitle: exampleSteps.length ? lesson.boardPayload.exampleTitle : null,
+      exampleSteps,
+    },
+    noteSpeech: lesson.noteSpeech.slice(0, boardLines.length).map((item) => compressTextByDepth(item, depth)),
+    formulaSpeech: lesson.formulaSpeech.slice(0, formulas.length).map((item) => compressTextByDepth(item, depth)),
+    stepSpeech: lesson.stepSpeech.slice(0, steps.length).map((item) => compressTextByDepth(item, depth)),
+    exampleSpeech: compressTextByDepth(lesson.exampleSpeech, depth),
+    recapSpeech: compressTextByDepth(lesson.recapSpeech, depth),
+    recapBoardText: compressTextByDepth(lesson.recapBoardText, depth),
+    recapPoints: lesson.recapPoints.slice(0, policy.recapPoints).map((item) => compressTextByDepth(item, depth)),
+    practiceQuestion: simplifyPracticeQuestion(lesson.practiceQuestion, context.explanationLanguage, depth),
+    diagramInstructions: lesson.diagramInstructions.slice(0, policy.diagramActions).map((item) => compressTextByDepth(item, depth)),
+    diagramActions: lesson.diagramActions.slice(0, policy.diagramActions),
+  };
+};
 
 const localizedTopicLabel = (
   english: string,
@@ -1613,6 +1745,7 @@ const buildPlannerInstructions = (context: LiveBoardContext, family: LiveBoardSu
   [
     "You are generating a live board teacher lesson in structured JSON for a school tutoring system.",
     buildFamilyPrompt(family, context.topicTitle),
+    `Teaching depth: ${context.teachingDepth}.`,
     `Subject family: ${familyLabel(family)}.`,
     `Subject: ${localizeLiveBoardSubjectLabel(context.subjectName, context.explanationLanguage)}.`,
     `Topic: ${context.topicTitle}.`,
@@ -1623,6 +1756,8 @@ const buildPlannerInstructions = (context: LiveBoardContext, family: LiveBoardSu
     "Return actual teaching content only. Do not write meta-instructions such as 'write the definition' or 'add one example'.",
     "Do not produce placeholder wording, robotic transitions, or teacher instructions written as lesson content.",
     "Use classroom-ready definitions, natural explanation, correct examples, and revision-friendly board notes.",
+    getTeachingDepthPolicy(context.teachingDepth).explanationGuidance,
+    getTeachingDepthPolicy(context.teachingDepth).boardGuidance,
     "Recap points must match the actual lesson content. Practice questions must test the exact taught idea.",
     "The boardTitle, boardLines, formulas, steps, exampleTitle, exampleSteps, recapBoardText, and diagramPlan must be in the board language.",
     "The noteSpeech, formulaSpeech, stepSpeech, exampleSpeech, recapSpeech, recapPoints, and practiceQuestion must be in the explanation language.",
@@ -1661,62 +1796,78 @@ export const buildTopicLessonContent = async (
   family: LiveBoardSubjectFamily
 ): Promise<LiveBoardLessonContent> => {
   const topic = normalize(context.topicTitle);
+  let lesson: LiveBoardLessonContent;
 
   if (family === "SCIENCE" && includesAny(topic, ["respiration", "श्वसन", "ਸ਼ਵਾਸ"])) {
-    return respirationLesson(context);
+    lesson = respirationLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "SCIENCE" && includesAny(topic, ["chemical reaction", "chemical reactions"])) {
-    return chemicalReactionLesson(context);
+    lesson = chemicalReactionLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "SCIENCE" && includesAny(topic, ["photosynthesis", "प्रकाश-संश्लेषण", "ਪ੍ਰਕਾਸ਼ ਸੰਸ਼ਲੇਸ਼ਣ"])) {
-    return photosynthesisLesson(context);
+    lesson = photosynthesisLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "MATHS" && includesAny(topic, ["linear equation", "linear equations"])) {
-    return linearEquationLesson(context);
+    lesson = linearEquationLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "MATHS" && includesAny(topic, ["decimals", "decimal", "दशमलव", "ਦਸ਼ਮਲਵ"])) {
-    return decimalsLesson(context);
+    lesson = decimalsLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "MATHS" && includesAny(topic, ["fractions", "fraction", "भिन्न", "ਭਿੰਨ"])) {
-    return fractionLesson(context);
+    lesson = fractionLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਲਿੰਗ", "ling", "gender"])) {
-    return genderLesson(context);
+    lesson = genderLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਵਚਨ ਬਦਲੋ", "वचन बदलो", "change number"])) {
-    return numberChangeLesson(context);
+    lesson = numberChangeLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਸੰਬੰਧੀ ਸ਼ਬਦ", "संबंधी शब्द", "relational words", "related words"])) {
-    return relationWordsLesson(context);
+    lesson = relationWordsLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "LANGUAGE" && includesAny(topic, ["ਵਚਨ", "number", "numbers in grammar", "वचन"])) {
-    return numberLesson(context);
+    lesson = numberLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "SST" && includesAny(topic, ["federalism", "संघवाद", "ਸੰਘਵਾਦ"])) {
-    return federalismLesson(context);
+    lesson = federalismLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "SST" && includesAny(topic, ["लोकतंत्र की विशेषताएँ", "ਲੋਕਤੰਤਰ ਦੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", "features of democracy"])) {
-    return democracyFeaturesLesson(context);
+    lesson = democracyFeaturesLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   if (family === "SST" && includesAny(topic, ["democracy", "लोकतंत्र", "ਲੋਕਤੰਤਰ"])) {
-    return democracyLesson(context);
+    lesson = democracyLesson(context);
+    return applyTeachingDepthPolicy(lesson, context);
   }
 
   try {
-    return await buildAiPlannedLesson(context, family);
+    lesson = await buildAiPlannedLesson(context, family);
   } catch {
-    return buildFallbackLesson(context, family);
+    lesson = buildFallbackLesson(context, family);
   }
+
+  return applyTeachingDepthPolicy(lesson, context);
 };

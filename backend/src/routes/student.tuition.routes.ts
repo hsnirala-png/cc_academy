@@ -73,6 +73,7 @@ const sessionSchema = z.object({
   explanationLanguage: trimmedOptionalString(40).optional(),
   boardLanguage: trimmedOptionalString(40).optional(),
   voiceLanguage: trimmedOptionalString(40).optional(),
+  teachingDepth: trimmedOptionalString(20).optional(),
   subject: trimmedOptionalString(120).optional(),
   topic: trimmedOptionalString(191).optional(),
   curriculumBoard: trimmedOptionalString(120).optional(),
@@ -85,6 +86,7 @@ const messageSchema = z.object({
   explanationLanguage: trimmedOptionalString(40).optional(),
   boardLanguage: trimmedOptionalString(40).optional(),
   voiceLanguage: trimmedOptionalString(40).optional(),
+  teachingDepth: trimmedOptionalString(20).optional(),
   subject: trimmedOptionalString(120).optional(),
   topic: trimmedOptionalString(191).optional(),
   curriculumBoard: trimmedOptionalString(120).optional(),
@@ -100,8 +102,13 @@ const voiceSessionSchema = z.object({
   subject: trimmedOptionalString(120).optional(),
   topic: trimmedOptionalString(191).optional(),
   curriculumBoard: trimmedOptionalString(120).optional(),
+  teachingDepth: trimmedOptionalString(20).optional(),
   speedMode: trimmedOptionalString(20).optional(),
   difficultyMode: trimmedOptionalString(20).optional(),
+});
+
+const speechTrackSchema = z.object({
+  messageId: trimmedOptionalString(191).optional(),
 });
 
 const homeworkGenerateSchema = z.object({
@@ -354,6 +361,25 @@ studentTuitionRouter.post(
 );
 
 studentTuitionRouter.post(
+  "/tuition/chapters/:chapterId/sessions/:sessionId/speech-track",
+  ...ensureStudent,
+  async (req, res, next) => {
+    try {
+      const input = speechTrackSchema.parse(req.body || {});
+      const payload = await tuitionAiService.createTeacherSpeechTrack(
+        req.user!.userId,
+        req.params.chapterId,
+        req.params.sessionId,
+        input
+      );
+      res.status(201).json({ ok: true, ...payload });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+studentTuitionRouter.post(
   "/tuition/chapters/:chapterId/sessions/:sessionId/messages",
   ...ensureStudent,
   async (req, res, next) => {
@@ -371,3 +397,6 @@ studentTuitionRouter.post(
     }
   }
 );
+
+
+

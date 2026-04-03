@@ -1,0 +1,5 @@
+2026/04/03-11:33:10.706 684 Creating DB D:\cc_academy\.tmp-edge-case-pa7\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/04/03-11:33:10.713 684 Reusing MANIFEST D:\cc_academy\.tmp-edge-case-pa7\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/03-11:33:19.213 5dc Level-0 table #5: started
+2026/04/03-11:33:19.223 5dc Level-0 table #5: 681977 bytes OK
+2026/04/03-11:33:19.225 5dc Delete type=0 #3

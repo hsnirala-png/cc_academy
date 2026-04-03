@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tuition Teacher | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=98" />
+    <link rel="stylesheet" href="./src/styles.css?v=101" />
   </head>
   <body class="tuition-flow-page">
     <header class="site-header">
@@ -39,10 +39,10 @@
         <article class="card tuition-teacher-main-card">
           <div class="tuition-teacher-main-head">
             <div class="tuition-teacher-main-copy">
-              <p class="eyebrow">Board-First Tutor</p>
+              <p class="eyebrow">AI Teacher</p>
               <h1 id="tuitionTeacherTitle">Loading topic...</h1>
               <p class="tuition-teacher-main-note">
-                Choose a topic and let the tutor explain it step by step on the board.
+                Choose a topic and learn with a live AI tutor step by step.
               </p>
             </div>
             <div class="tuition-teacher-setup-card">
@@ -92,6 +92,14 @@
                   </select>
                 </label>
                 <label>
+                  <span class="sr-only">Teaching depth</span>
+                  <select id="tuitionTeacherTeachingDepth" aria-label="Teaching depth">
+                    <option value="BASIC">Depth: Basic</option>
+                    <option value="MODERATE" selected>Depth: Moderate</option>
+                    <option value="ADVANCED">Depth: Advanced</option>
+                  </select>
+                </label>
+                <label>
                   <span class="sr-only">Speed</span>
                   <select id="tuitionTeacherSpeed" aria-label="Speed">
                     <option value="SLOW">Speed: Slow</option>
@@ -110,7 +118,7 @@
               </div>
               <div class="tuition-teacher-primary-actions">
                 <button id="tuitionTeacherTeachBtn" type="button" class="btn-primary">
-                  Start Teaching On Board
+                  Start AI Teacher
                 </button>
                 <button id="tuitionTeacherResumeBtn" type="button" class="btn-secondary">Refresh Lesson</button>
               </div>
@@ -144,126 +152,111 @@
             </div>
           </div>
 
-          <article class="tuition-teacher-board-card">
-            <div class="tuition-card-header">
-              <div>
-                <p class="eyebrow">Live Teaching Board</p>
-                <h2 id="tuitionTeacherBoardTitle">Teaching Board</h2>
-              </div>
-              <div id="tuitionTeacherBoardMeta" class="tuition-chip-row"></div>
-            </div>
-            <div class="tuition-board-lesson-head">
-              <div class="tuition-board-lesson-copy">
-                <p class="eyebrow">Board Teaching Flow</p>
-                <p id="tuitionTeacherBoardTeachingStatus" class="tuition-board-teaching-status">
-                  Start teaching to watch the board explain the topic step by step.
-                </p>
-              </div>
-              <div class="tuition-board-toolbar-actions">
-                <button id="tuitionTeacherBoardAutoplayBtn" type="button" class="btn-secondary">
-                  Autoplay: On
-                </button>
-                <button id="tuitionTeacherBoardPauseBtn" type="button" class="btn-ghost" disabled>
-                  Pause
-                </button>
-                <button id="tuitionTeacherBoardNextBtn" type="button" class="btn-secondary" disabled>
-                  Next Step
-                </button>
-                <button id="tuitionTeacherBoardReplayStepBtn" type="button" class="btn-ghost" disabled>
-                  Replay Step
-                </button>
-                <button id="tuitionTeacherBoardClearBtn" type="button" class="btn-ghost" disabled>
-                  Clear Board
-                </button>
-                <button id="tuitionTeacherBoardReplayBtn" type="button" class="btn-secondary" disabled>
-                  Rebuild Board
-                </button>
-              </div>
-            </div>
-            <div id="tuitionTeacherWhiteboardSurface" class="tuition-whiteboard-surface">
-              <div class="tuition-whiteboard-canvas-head">
+          <div id="tuitionTeacherBoardModal" class="tuition-board-modal hidden" aria-hidden="true">
+            <div id="tuitionTeacherBoardModalOverlay" class="tuition-board-modal-overlay"></div>
+            <article class="tuition-teacher-board-card tuition-teacher-board-card-modal" role="dialog" aria-modal="true" aria-labelledby="tuitionTeacherBoardTitle">
+              <div class="tuition-card-header tuition-board-modal-head">
                 <div>
-                  <p class="eyebrow">Main Board</p>
-                  <h3 id="tuitionTeacherBoardCanvasTitle">Waiting for a teacher reply...</h3>
+                  <p class="eyebrow">AI Teacher Mode</p>
+                  <h2 id="tuitionTeacherBoardTitle">Teaching Session</h2>
                 </div>
-                <p id="tuitionTeacherBoardCanvasHint" class="tuition-whiteboard-canvas-hint">
-                  The latest teacher reply can rebuild this board any time.
-                </p>
-              </div>
-              <div class="tuition-board-progress-track" aria-hidden="true">
-                <div id="tuitionTeacherBoardProgressBar" class="tuition-board-progress-bar"></div>
-              </div>
-              <div id="tuitionTeacherBoardTeacherCue" class="tuition-board-teacher-cue">
-                Ask the tuition teacher a topic question to start the board-writing flow.
-              </div>
-              <section id="tuitionTeacherLiveBoardScene" class="tuition-live-board-scene hidden">
-                <div class="tuition-live-board-scene-head">
-                  <div class="tuition-live-board-scene-title">
-                    <p class="eyebrow">Live Board Teacher Mode</p>
-                    <h4 id="tuitionTeacherLiveBoardStepTitle">Waiting for a teaching step...</h4>
-                  </div>
-                  <div class="tuition-live-board-sync-strip">
-                    <div class="tuition-live-board-sync-card is-speech">
-                      <p class="tuition-live-sync-label">Speaking Now</p>
-                      <p id="tuitionTeacherLiveBoardSpeech" class="tuition-live-board-speech">
-                        The teacher narration will appear here while the board writes step by step.
-                      </p>
-                    </div>
-                    <div class="tuition-live-board-sync-card is-writing">
-                      <p class="tuition-live-sync-label">Writing Now</p>
-                      <p id="tuitionTeacherLiveBoardWrite" class="tuition-live-board-write">
-                        The current board note will appear here in sync with the teaching step.
-                      </p>
-                    </div>
-                  </div>
+                <div class="tuition-board-modal-actions">
+                  <div id="tuitionTeacherBoardMeta" class="tuition-chip-row"></div>
+                  <button id="tuitionTeacherBoardModalCloseBtn" type="button" class="tuition-plan-close" aria-label="Close board popup">
+                    x
+                  </button>
                 </div>
-                <div id="tuitionTeacherLiveBoardCanvas" class="tuition-live-board-canvas"></div>
-              </section>
-              <div id="tuitionTeacherBoardEmpty" class="tuition-chat-empty tuition-whiteboard-empty">
-                Choose the topic settings above and start teaching to see the tutor explain on the board.
               </div>
-              <div id="tuitionTeacherBoardPanel" class="tuition-board-panel hidden">
-                <section id="tuitionTeacherBoardLinesSection" class="tuition-board-section tuition-board-section-lines">
-                  <p class="tuition-board-stage-tag">Topic Notes</p>
-                  <h3>Board Lines</h3>
-                  <ul id="tuitionTeacherBoardLines" class="tuition-board-list"></ul>
+              <div class="tuition-ai-teacher-shell">
+                <section class="tuition-ai-teacher-conversation">
+                  <div class="tuition-ai-teacher-session-head">
+                    <div>
+                      <p class="eyebrow">Teacher Conversation</p>
+                      <h3 id="tuitionTeacherLiveBoardStepTitle">Start the topic to meet the AI teacher.</h3>
+                    </div>
+                    <p id="tuitionTeacherBoardTeachingStatus" class="tuition-board-teaching-status">
+                      The teacher explains out loud and writes only anchor points on the board.
+                    </p>
+                  </div>
+                  <div id="tuitionTeacherTeacherTurns" class="tuition-ai-teacher-thread">
+                    <div class="tuition-chat-empty">Start teaching to see the teacher explanation here.</div>
+                  </div>
+                  <div class="tuition-ai-teacher-quick-actions">
+                    <button id="tuitionTeacherQuickSimplerBtn" type="button" class="btn-ghost">Explain Simpler</button>
+                    <button id="tuitionTeacherQuickExampleBtn" type="button" class="btn-ghost">Give Example</button>
+                    <button id="tuitionTeacherQuickRepeatBtn" type="button" class="btn-ghost">Repeat</button>
+                    <button id="tuitionTeacherQuickCheckBtn" type="button" class="btn-ghost">Ask Check</button>
+                    <button id="tuitionTeacherQuickContinueBtn" type="button" class="btn-secondary">Continue</button>
+                  </div>
+                  <form id="tuitionTeacherQuestionForm" class="tuition-ai-teacher-question-form">
+                    <textarea
+                      id="tuitionTeacherQuestionInput"
+                      rows="3"
+                      maxlength="4000"
+                      placeholder="Ask a doubt during the lesson. The teacher will answer and then continue from the same point."
+                    ></textarea>
+                    <div class="tuition-ai-teacher-question-actions">
+                      <button id="tuitionTeacherAskBtn" type="submit" class="btn-primary">Ask Doubt</button>
+                      <button id="tuitionTeacherReplayLastBtn" type="button" class="btn-ghost">Replay Last Explanation</button>
+                      <button id="tuitionTeacherRestartTopicBtn" type="button" class="btn-secondary">Restart Topic</button>
+                    </div>
+                  </form>
                 </section>
-                <section id="tuitionTeacherBoardFormulasSection" class="tuition-board-section tuition-board-section-formulas">
-                  <p class="tuition-board-stage-tag">Formula Strip</p>
-                  <h3>Formulas / Key Rules</h3>
-                  <ul id="tuitionTeacherBoardFormulas" class="tuition-board-list"></ul>
-                </section>
-                <section id="tuitionTeacherBoardStepsSection" class="tuition-board-section tuition-board-section-steps">
-                  <p class="tuition-board-stage-tag">Worked Method</p>
-                  <h3>Worked Steps</h3>
-                  <ol id="tuitionTeacherBoardSteps" class="tuition-board-steps"></ol>
-                </section>
-                <section id="tuitionTeacherBoardExample" class="tuition-board-example tuition-board-example-stage hidden">
-                  <p class="tuition-board-stage-tag">Classwork Example</p>
-                  <h3 id="tuitionTeacherBoardExampleTitle">Worked Example</h3>
-                  <ol id="tuitionTeacherBoardExampleSteps" class="tuition-board-steps"></ol>
+
+                <section id="tuitionTeacherWhiteboardSurface" class="tuition-ai-teacher-board">
+                  <div class="tuition-ai-teacher-board-head">
+                    <div>
+                      <p class="eyebrow">Board Support</p>
+                      <h3 id="tuitionTeacherBoardCanvasTitle">Waiting for a teacher reply...</h3>
+                    </div>
+                    <p id="tuitionTeacherBoardCanvasHint" class="tuition-whiteboard-canvas-hint">
+                      The board only keeps short support points while the teacher explains.
+                    </p>
+                  </div>
+                  <div id="tuitionTeacherBoardTeacherCue" class="tuition-board-teacher-cue">
+                    The AI teacher writes only short support points here.
+                  </div>
+                  <audio id="tuitionTeacherStageAudio" class="hidden" preload="auto"></audio>
+                  <div class="tuition-ai-teacher-board-focus">
+                    <p class="tuition-live-sync-label">Current Concept</p>
+                    <p id="tuitionTeacherBoardCurrentConcept" class="tuition-ai-teacher-current-concept">
+                      Waiting for the first concept...
+                    </p>
+                  </div>
+                  <div id="tuitionTeacherLiveBoardScene" class="tuition-ai-teacher-board-stack">
+                    <section class="tuition-ai-board-block">
+                      <p class="tuition-board-stage-tag">Key Board Notes</p>
+                      <ul id="tuitionTeacherBoardAnchors" class="tuition-board-list"></ul>
+                    </section>
+                    <section id="tuitionTeacherBoardFormulaBlock" class="tuition-ai-board-block hidden">
+                      <p class="tuition-board-stage-tag">Formula / Rule</p>
+                      <p id="tuitionTeacherBoardFormula" class="tuition-ai-board-inline"></p>
+                    </section>
+                    <section id="tuitionTeacherBoardExampleBlock" class="tuition-ai-board-block hidden">
+                      <p class="tuition-board-stage-tag">Example</p>
+                      <p id="tuitionTeacherBoardExampleLine" class="tuition-ai-board-inline"></p>
+                    </section>
+                    <section id="tuitionTeacherBoardDiagramBlock" class="tuition-ai-board-block hidden">
+                      <p class="tuition-board-stage-tag">Diagram Labels</p>
+                      <ul id="tuitionTeacherBoardDiagramLabels" class="tuition-board-list"></ul>
+                    </section>
+                    <section id="tuitionTeacherBoardRecapBlock" class="tuition-ai-board-block hidden">
+                      <p class="tuition-board-stage-tag">Recap Keywords</p>
+                      <ul id="tuitionTeacherBoardRecapKeywords" class="tuition-board-list"></ul>
+                    </section>
+                  </div>
                 </section>
               </div>
-            </div>
-          </article>
+            </article>
+          </div>
 
           <details class="tuition-teacher-support-panel">
             <summary>Follow-Up And Tools</summary>
             <div class="tuition-teacher-support-grid">
               <div class="tuition-teacher-session-card">
-                <form id="tuitionTeacherForm" class="tuition-chat-form">
-                  <textarea
-                    id="tuitionTeacherInput"
-                    rows="3"
-                    maxlength="8000"
-                    placeholder="Ask a follow-up question about the same topic."
-                    required
-                  ></textarea>
-                  <div class="tuition-flow-actions tuition-chat-submit-row">
-                    <button type="submit" class="btn-secondary">Send Follow-Up</button>
-                  </div>
-                </form>
-                <div id="tuitionTeacherMessages" class="tuition-chat-thread"></div>
+                <p class="tuition-teacher-main-note">
+                  Use AI Teacher Mode for live teaching. Voice tutor and homework remain available here as separate tools.
+                </p>
               </div>
 
               <aside class="tuition-teacher-action-rail">
@@ -291,7 +284,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/tuition-teacher.js?v=19"></script>
+    <script type="module" src="./src/tuition-teacher.js?v=31"></script>
     <script src="./src/global-nav.js?v=17"></script>
   </body>
 </html>

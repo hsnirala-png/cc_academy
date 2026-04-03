@@ -1,0 +1,5 @@
+2026/04/03-10:16:21.978 5110 Reusing MANIFEST D:\cc_academy\.tmp-edge-case-hi\Default\Asset Store\assets.db/MANIFEST-000001
+2026/04/03-10:16:21.996 5110 Recovering log #3
+2026/04/03-10:16:22.001 5110 Level-0 table #3: started
+2026/04/03-10:16:22.024 5110 Level-0 table #3: 338945 bytes OK
+2026/04/03-10:16:22.031 5110 Delete type=0 #3

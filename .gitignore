@@ -3,3 +3,4 @@ node_modules
 .qa*.log
 .qa-tools/
 backend/public/uploads/
+.tmp-edge-exact-sync-proof/

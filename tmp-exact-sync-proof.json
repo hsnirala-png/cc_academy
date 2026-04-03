@@ -1,0 +1,376 @@
+[
+  {
+    "case": {
+      "name": "chem-en",
+      "settings": {
+        "subject": "Science",
+        "topic": "Chemical Reaction",
+        "explain": "ENGLISH",
+        "board": "ENGLISH",
+        "voice": "ENGLISH",
+        "depth": "BASIC"
+      },
+      "doubt": "Why do we call reactants and products different?"
+    },
+    "sessionId": "cmniyrqv1006655fsdg2mdfk8",
+    "screenshot": "D:\\cc_academy\\exact-sync-chem-en.png",
+    "startAssistant": {
+      "id": "cmniyrt7p006e55fso40nig73",
+      "intro": "Today we are learning Chemical Reaction in Science. I will explain it in very simple steps and keep the written support short and clear.",
+      "explanation": "A chemical reaction changes old substances into new substances with new properties.",
+      "check": null,
+      "boardTitle": "Chemical Reaction"
+    },
+    "speechTrack": {
+      "engine": "openai_tts_whisper_word_timestamps",
+      "syncType": "exact_timestamp_words",
+      "mimeType": "audio/mpeg",
+      "language": "ENGLISH",
+      "messageId": "cmniyrt7p006e55fso40nig73",
+      "sourceText": "Today we are learning Chemical Reaction in Science. I will explain it in very simple steps and keep the written support short and clear. A chemical reaction changes old substances into new substances with new properties.",
+      "sampleWords": [
+        {
+          "startMs": 0,
+          "endMs": 820,
+          "text": "Today"
+        },
+        {
+          "startMs": 820,
+          "endMs": 980,
+          "text": "we"
+        },
+        {
+          "startMs": 980,
+          "endMs": 1160,
+          "text": "are"
+        },
+        {
+          "startMs": 1160,
+          "endMs": 1400,
+          "text": "learning"
+        },
+        {
+          "startMs": 1400,
+          "endMs": 1880,
+          "text": "Chemical"
+        },
+        {
+          "startMs": 1880,
+          "endMs": 2280,
+          "text": "Reaction"
+        },
+        {
+          "startMs": 2280,
+          "endMs": 2640,
+          "text": "in"
+        },
+        {
+          "startMs": 2640,
+          "endMs": 3000,
+          "text": "Science"
+        },
+        {
+          "startMs": 3540,
+          "endMs": 3660,
+          "text": "I"
+        },
+        {
+          "startMs": 3660,
+          "endMs": 3860,
+          "text": "will"
+        }
+      ],
+      "sampleSegments": [
+        {
+          "startMs": 0,
+          "endMs": 3000,
+          "text": "Today we are learning Chemical Reaction in Science."
+        },
+        {
+          "startMs": 3540,
+          "endMs": 7940,
+          "text": "I will explain it in very simple steps and keep the written support short and clear."
+        },
+        {
+          "startMs": 8560,
+          "endMs": 13420,
+          "text": "A chemical reaction changes old substances into new substances with new properties."
+        }
+      ],
+      "wordCount": 36,
+      "segmentCount": 3
+    },
+    "browser": {
+      "playbackSampleA": {
+        "audioCurrentTimeMs": 0,
+        "audioPaused": true,
+        "audioSrcPresent": false,
+        "teacherStatus": "A chemical reaction changes old substances into new substances with new properties.",
+        "currentConcept": "A chemical reaction is a process in which one or more substances change into new substances.",
+        "anchors": [
+          "Chemical reactions form new substances"
+        ],
+        "boardTitle": "Chemical Reaction",
+        "chips": [
+          "ENGLISH",
+          "ENGLISH",
+          "CONTINUE_LESSON"
+        ],
+        "speechTrackCalls": []
+      },
+      "playbackSampleB": {
+        "audioCurrentTimeMs": 0,
+        "audioPaused": true,
+        "audioSrcPresent": false,
+        "teacherStatus": "A chemical reaction changes old substances into new substances with new properties.",
+        "currentConcept": "A chemical reaction is a process in which one or more substances change into new substances.",
+        "anchors": [
+          "Chemical reactions form new substances"
+        ],
+        "boardTitle": "Chemical Reaction",
+        "chips": [
+          "ENGLISH",
+          "ENGLISH",
+          "CONTINUE_LESSON"
+        ],
+        "speechTrackCalls": []
+      },
+      "expectedAnchorsFromTimestampsA": [],
+      "expectedAnchorsFromTimestampsB": [],
+      "boardMatchesExactTimestampsA": false,
+      "boardMatchesExactTimestampsB": false,
+      "doubtUi": null,
+      "doubtLastState": {
+        "audioCurrentTimeMs": 0,
+        "speechTrackCalls": [
+          {
+            "url": "http://localhost:5000/student/tuition/chapters/cmmthte2y0019ts7g4hmypaly/sessions/cmniyrqv1006655fsdg2mdfk8/speech-track",
+            "status": 201,
+            "at": 1775224460737,
+            "method": "POST"
+          }
+        ],
+        "status": "Teacher answered your doubt.",
+        "thread": [
+          {
+            "role": "student",
+            "text": "Student\n\n__START_TUITION_AI_TEACHER__"
+          },
+          {
+            "role": "teacher",
+            "text": "Teacher\n\nToday we are learning Chemical Reaction in Science. I will explain it in very simple steps and keep the written support short and clear.\n\nA chemical reaction changes old substances into new substances with new properties."
+          },
+          {
+            "role": "student",
+            "text": "Student\n\nWhy do we call reactants and products different?"
+          },
+          {
+            "role": "teacher",
+            "text": "Teacher\n\nWe will stay with Chemical Reaction and continue from the same point.\n\nGood question. Let us pause here and clear that doubt. A chemical reaction changes old substances into new substances with new properties. Your question was: Why do we call reactants and products different?. We will continue from this same point after that."
+          }
+        ],
+        "anchors": [
+          "Good question."
+        ],
+        "currentConcept": "Good question."
+      },
+      "continueUi": null,
+      "continueLastState": null
+    }
+  },
+  {
+    "case": {
+      "name": "chem-hi",
+      "settings": {
+        "subject": "Science",
+        "topic": "Chemical Reaction",
+        "explain": "HINDI",
+        "board": "HINDI",
+        "voice": "HINDI",
+        "depth": "MODERATE"
+      },
+      "doubt": "अभिकारक और उत्पाद अलग क्यों कहे जाते हैं?"
+    },
+    "sessionId": "cmniytw7a007f55fsxrft9dg3",
+    "screenshot": "D:\\cc_academy\\exact-sync-chem-hi.png",
+    "startAssistant": {
+      "id": "cmniyty3q007n55fs3teb1z3w",
+      "intro": "आज हम विज्ञान में रासायनिक अभिक्रिया पढ़ेंगे। मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा।",
+      "explanation": "रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।",
+      "check": null,
+      "boardTitle": "रासायनिक अभिक्रिया"
+    },
+    "speechTrack": {
+      "engine": "openai_tts_whisper_word_timestamps",
+      "syncType": "exact_timestamp_words",
+      "mimeType": "audio/mpeg",
+      "language": "HINDI",
+      "messageId": "cmniyty3q007n55fs3teb1z3w",
+      "sourceText": "आज हम विज्ञान में रासायनिक अभिक्रिया पढ़ेंगे। मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा। रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।",
+      "sampleWords": [
+        {
+          "startMs": 0,
+          "endMs": 400,
+          "text": "आज"
+        },
+        {
+          "startMs": 400,
+          "endMs": 700,
+          "text": "हम"
+        },
+        {
+          "startMs": 700,
+          "endMs": 1400,
+          "text": "विज्ञान"
+        },
+        {
+          "startMs": 1400,
+          "endMs": 1740,
+          "text": "में"
+        },
+        {
+          "startMs": 1740,
+          "endMs": 2440,
+          "text": "रासायनिक"
+        },
+        {
+          "startMs": 2440,
+          "endMs": 3020,
+          "text": "अभिक्रिया"
+        },
+        {
+          "startMs": 3020,
+          "endMs": 4160,
+          "text": "पढ़ेंगे।"
+        },
+        {
+          "startMs": 4160,
+          "endMs": 4280,
+          "text": "मैं"
+        },
+        {
+          "startMs": 4280,
+          "endMs": 4560,
+          "text": "इसे"
+        },
+        {
+          "startMs": 4560,
+          "endMs": 4820,
+          "text": "एक"
+        }
+      ],
+      "sampleSegments": [
+        {
+          "startMs": 0,
+          "endMs": 4160,
+          "text": "आज हम विज्ञान में रासायनिक अभिक्रिया पढ़ेंगे।"
+        },
+        {
+          "startMs": 4160,
+          "endMs": 8800,
+          "text": "मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा।"
+        },
+        {
+          "startMs": 8800,
+          "endMs": 14220,
+          "text": "रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।"
+        }
+      ],
+      "wordCount": 30,
+      "segmentCount": 3
+    },
+    "browser": {
+      "playbackSampleA": {
+        "audioCurrentTimeMs": 0,
+        "audioPaused": true,
+        "audioSrcPresent": false,
+        "teacherStatus": "रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।",
+        "currentConcept": "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें एक या अधिक पदार्थ बदलकर नए पदार्थ बनाते हैं।",
+        "anchors": [
+          "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें एक या अधिक पदार्थ बदलकर नए पदार्थ बनाते हैं"
+        ],
+        "boardTitle": "रासायनिक अभिक्रिया",
+        "chips": [
+          "HINDI",
+          "HINDI",
+          "CONTINUE_LESSON"
+        ],
+        "speechTrackCalls": []
+      },
+      "playbackSampleB": {
+        "audioCurrentTimeMs": 0,
+        "audioPaused": true,
+        "audioSrcPresent": false,
+        "teacherStatus": "रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।",
+        "currentConcept": "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें एक या अधिक पदार्थ बदलकर नए पदार्थ बनाते हैं।",
+        "anchors": [
+          "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें एक या अधिक पदार्थ बदलकर नए पदार्थ बनाते हैं"
+        ],
+        "boardTitle": "रासायनिक अभिक्रिया",
+        "chips": [
+          "HINDI",
+          "HINDI",
+          "CONTINUE_LESSON"
+        ],
+        "speechTrackCalls": []
+      },
+      "expectedAnchorsFromTimestampsA": [],
+      "expectedAnchorsFromTimestampsB": [],
+      "boardMatchesExactTimestampsA": false,
+      "boardMatchesExactTimestampsB": false,
+      "doubtUi": null,
+      "doubtLastState": {
+        "audioCurrentTimeMs": 0,
+        "speechTrackCalls": [
+          {
+            "url": "http://localhost:5000/student/tuition/chapters/cmmthte2y0019ts7g4hmypaly/sessions/cmniytw7a007f55fsxrft9dg3/speech-track",
+            "status": 201,
+            "at": 1775224564057,
+            "method": "POST"
+          }
+        ],
+        "status": "Teacher answered your doubt.",
+        "thread": [
+          {
+            "role": "student",
+            "text": "Student\n\n__START_TUITION_AI_TEACHER__"
+          },
+          {
+            "role": "teacher",
+            "text": "Teacher\n\nआज हम विज्ञान में रासायनिक अभिक्रिया पढ़ेंगे। मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा।\n\nरासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।"
+          },
+          {
+            "role": "student",
+            "text": "Student\n\nअभिकारक और उत्पाद अलग क्यों कहे जाते हैं?"
+          },
+          {
+            "role": "teacher",
+            "text": "Teacher\n\nहम रासायनिक अभिक्रिया पर ही रहेंगे और इसी बिंदु से आगे बढ़ेंगे।\n\nअच्छा प्रश्न है। हम यहीं रुककर इस शंका को साफ़ करते हैं। रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं। आपका प्रश्न था: अभिकारक और उत्पाद अलग क्यों कहे जाते हैं?. इसके बाद हम इसी बिंदु से आगे बढ़ेंगे।"
+          }
+        ],
+        "anchors": [
+          "अच्छा प्रश्न है।",
+          "हम यहीं रुककर इस शंका को साफ़ करते"
+        ],
+        "currentConcept": "हम यहीं रुककर इस शंका को साफ़ करते"
+      },
+      "continueUi": null,
+      "continueLastState": null
+    }
+  },
+  {
+    "case": {
+      "name": "vachan-pa",
+      "settings": {
+        "subject": "Punjabi Grammar",
+        "topic": "ਵਚਨ",
+        "explain": "PUNJABI",
+        "board": "PUNJABI",
+        "voice": "PUNJABI",
+        "depth": "BASIC"
+      },
+      "doubt": "ਇਕਵਚਨ ਤੇ ਬਹੁਵਚਨ ਵਿੱਚ ਫਰਕ ਕੀ ਹੈ?"
+    },
+    "error": "Language 'pa' is not supported."
+  }
+]

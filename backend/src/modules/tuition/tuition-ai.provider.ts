@@ -1,4 +1,4 @@
-import { TuitionDifficultyMode, TuitionSpeedMode } from "@prisma/client";
+﻿import { TuitionDifficultyMode, TuitionSpeedMode } from "@prisma/client";
 import { AppError } from "../../utils/appError";
 import {
   buildTopicLessonContent,
@@ -9,6 +9,7 @@ import {
   type LiveBoardLessonContent,
   type LiveBoardPayload,
   type LiveBoardSubjectFamily,
+  type LiveBoardTeachingDepth,
 } from "./tuition-live-board-content";
 
 export const tuitionAiVoiceUnavailableMessage =
@@ -31,15 +32,18 @@ type TuitionTeacherContext = {
   explanationLanguage?: string | null;
   boardLanguage?: string | null;
   voiceLanguage?: string | null;
+  teachingDepth: LiveBoardTeachingDepth;
   speedMode: TuitionSpeedMode;
   difficultyMode: TuitionDifficultyMode;
   studentPrompt: string;
   messageNumber: number;
+  previousAssistant?: Partial<TuitionTeacherAssistantPayload> | null;
 };
 
 type TuitionVoiceSessionInput = {
   context: TuitionVoiceContext;
   voiceLanguage?: string | null;
+  teachingDepth: LiveBoardTeachingDepth;
   speedMode: TuitionSpeedMode;
   difficultyMode: TuitionDifficultyMode;
 };
@@ -65,11 +69,26 @@ const normalizeText = (value: string | null | undefined): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+const normalizeTopicKey = (value: string | null | undefined): string =>
+  String(value || "")
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
 const normalizeTeachingLanguage = (value: string | null | undefined): "English" | "Hindi" | "Punjabi" => {
   const normalized = normalizeText(value).toUpperCase();
   if (normalized === "HINDI") return "Hindi";
   if (normalized === "PUNJABI") return "Punjabi";
   return "English";
+};
+
+const normalizeTeachingDepth = (value: string | null | undefined): LiveBoardTeachingDepth => {
+  const normalized = normalizeText(value).toUpperCase();
+  if (normalized === "BASIC") return "BASIC";
+  if (normalized === "ADVANCED") return "ADVANCED";
+  return "MODERATE";
 };
 
 const pickLanguage = (
@@ -119,6 +138,73 @@ const toLiveBoardLanguage = (
 ): LiveBoardLanguage => language;
 
 const toLiveBoardSubjectFamily = (family: SubjectFamily): LiveBoardSubjectFamily => family;
+
+const topicTitleOverrides: Array<{
+  keys: string[];
+  english: string;
+  hindi: string;
+  punjabi: string;
+}> = [
+  {
+    keys: ["chemical reaction", "chemical reactions"],
+    english: "Chemical Reaction",
+    hindi: "रासायनिक अभिक्रिया",
+    punjabi: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ",
+  },
+  {
+    keys: ["photosynthesis"],
+    english: "Photosynthesis",
+    hindi: "प्रकाश-संश्लेषण",
+    punjabi: "ਪ੍ਰਕਾਸ਼ ਸੰਸ਼ਲੇਸ਼ਣ",
+  },
+  {
+    keys: ["fractions", "fraction"],
+    english: "Fractions",
+    hindi: "भिन्न",
+    punjabi: "ਭਿੰਨ",
+  },
+  {
+    keys: ["decimals", "decimal"],
+    english: "Decimals",
+    hindi: "दशमलव",
+    punjabi: "ਦਸ਼ਮਲਵ",
+  },
+  {
+    keys: ["respiration"],
+    english: "Respiration",
+    hindi: "श्वसन",
+    punjabi: "ਸ਼ਵਾਸ",
+  },
+  {
+    keys: ["federalism"],
+    english: "Federalism",
+    hindi: "संघवाद",
+    punjabi: "ਸੰਘਵਾਦ",
+  },
+  {
+    keys: ["democracy"],
+    english: "Democracy",
+    hindi: "लोकतंत्र",
+    punjabi: "ਲੋਕਤੰਤਰ",
+  },
+  {
+    keys: ["matter"],
+    english: "Matter",
+    hindi: "पदार्थ",
+    punjabi: "ਪਦਾਰਥ",
+  },
+];
+
+const displayTopicTitle = (topicTitle: string, language: "English" | "Hindi" | "Punjabi"): string => {
+  const normalized = normalizeText(topicTitle);
+  if (!normalized) return "";
+  const topicKey = normalizeTopicKey(normalized);
+  const exactOverride = topicTitleOverrides.find((entry) => entry.keys.includes(topicKey));
+  if (exactOverride) {
+    return pickLanguage(language, exactOverride.english, exactOverride.hindi, exactOverride.punjabi);
+  }
+  return pickLanguage(language, normalized, normalized, normalized);
+};
 
 const toIsoString = (value: string | number | null | undefined): string | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -200,6 +286,40 @@ export type TuitionTeachingStep = {
   autoDelayMs: number;
 };
 
+export type TuitionTeacherPhase =
+  | "INTRO"
+  | "EXPLAIN_CONCEPT"
+  | "WRITE_ANCHOR"
+  | "GIVE_EXAMPLE"
+  | "ASK_CHECK"
+  | "HANDLE_STUDENT_DOUBT"
+  | "CONTINUE_LESSON"
+  | "RECAP"
+  | "PRACTICE_CHECK"
+  | "COMPLETE";
+
+export type TuitionTeacherBoardState = {
+  title: string;
+  currentConcept: string | null;
+  anchors: string[];
+  formula: string | null;
+  example: string | null;
+  diagramLabels: string[];
+  recapKeywords: string[];
+  highlight: string | null;
+};
+
+export type TuitionTeacherState = {
+  currentTeachingPhase: TuitionTeacherPhase;
+  currentConcept: string | null;
+  currentConceptIndex: number;
+  pausedForStudentQuestion: boolean;
+  resumePoint: number;
+  currentConversationTurn: number;
+  selectedLanguage: string;
+  teachingDepth: LiveBoardTeachingDepth;
+};
+
 export type TuitionTeacherAssistantPayload = {
   replyText: string;
   title: string;
@@ -209,6 +329,7 @@ export type TuitionTeacherAssistantPayload = {
   explanationLanguage: string;
   boardLanguage: string;
   voiceLanguage: string;
+  teachingDepth: LiveBoardTeachingDepth;
   curriculumBoard: string | null;
   recapPoints: string[];
   nextSuggestedAction: string | null;
@@ -221,7 +342,13 @@ export type TuitionTeacherAssistantPayload = {
   steps: string[];
   exampleTitle: string | null;
   exampleSteps: string[];
-  teacherMode: "LIVE_BOARD";
+  teacherMode: "AI_TEACHER_V2" | "LIVE_BOARD";
+  teacherIntro?: string | null;
+  teacherExplanation?: string | null;
+  teacherCheckQuestion?: string | null;
+  boardState?: TuitionTeacherBoardState | null;
+  teacherState?: TuitionTeacherState | null;
+  interactionHints?: string[];
   speechChunks: TuitionTeachingSpeechChunk[];
   boardActions: TuitionTeachingBoardAction[];
   teachingSteps: TuitionTeachingStep[];
@@ -587,7 +714,8 @@ const buildLiveTeachingModel = (
   const boardLanguage = normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage);
   const classLine = input.classLevel ? `Class ${input.classLevel}` : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
   const subjectLine = localizeLiveBoardSubjectLabel(input.subjectName, explanationLanguage);
-  const displayTopicTitle = normalizeText(boardPayload.boardTitle) || normalizeText(input.topicTitle);
+  const resolvedTopicTitle =
+    displayTopicTitle(boardPayload.boardTitle || input.topicTitle, boardLanguage) || normalizeText(input.topicTitle);
   const family = inferSubjectFamily(subjectLine);
   const speechChunks: TuitionTeachingSpeechChunk[] = [];
   const boardActions: TuitionTeachingBoardAction[] = [];
@@ -619,9 +747,9 @@ const buildLiveTeachingModel = (
     "INTRO",
     pickLanguage(
       explanationLanguage,
-      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
-      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
+      `Today we are learning ${resolvedTopicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
+      `आज हम ${subjectLine} में ${resolvedTopicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
+      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${resolvedTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
     ),
     [
       {
@@ -903,7 +1031,7 @@ export const buildTuitionBoardPayload = (input: TuitionTeacherContext): TuitionB
         ];
 
   return {
-    boardTitle: `${input.topicTitle} Teaching Board`,
+    boardTitle: displayTopicTitle(input.topicTitle, boardLanguage),
     boardLines: boardLineTemplates.slice(0, lineCount),
     formulas: buildSubjectFormulas(subjectName, input.topicTitle, boardLanguage),
     steps,
@@ -915,120 +1043,881 @@ export const buildTuitionBoardPayload = (input: TuitionTeacherContext): TuitionB
   };
 };
 
-const buildLiveTeachingModelV2 = (
+const shapeSpeechForDepth = (
+  language: "English" | "Hindi" | "Punjabi",
+  teachingDepth: LiveBoardTeachingDepth,
+  text: string
+): string => {
+  const normalized = normalizeText(text);
+  if (!normalized) return "";
+  if (teachingDepth === "BASIC") {
+    return normalized.split(/(?<=[.!?।॥])\s+/u).slice(0, 1).join(" ");
+  }
+  if (teachingDepth === "ADVANCED") {
+    const cue = pickLanguage(
+      language,
+      "Notice the deeper idea behind this point.",
+      "इस बिंदु के पीछे का गहरा विचार भी समझो।",
+      "ਇਸ ਬਿੰਦੂ ਦੇ ਪਿੱਛੇ ਵਾਲਾ ਗਹਿਰਾ ਵਿਚਾਰ ਵੀ ਸਮਝੋ।"
+    );
+    return normalized.includes(cue) ? normalized : `${normalized} ${cue}`;
+  }
+  return normalized;
+};
+
+const buildDepthAwareIntroSpeech = (
+  language: "English" | "Hindi" | "Punjabi",
+  teachingDepth: LiveBoardTeachingDepth,
+  displayTopicTitle: string,
+  subjectLine: string,
+  classLine: string
+): string => {
+  if (teachingDepth === "BASIC") {
+    return pickLanguage(
+      language,
+      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will explain it in very simple steps and keep the written support short and clear.`,
+      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे बहुत सरल चरणों में समझाऊँगा और लिखित सहारा छोटा व साफ रखूँगा।`,
+      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਬਹੁਤ ਸੌਖੇ ਕਦਮਾਂ ਨਾਲ ਸਮਝਾਵਾਂਗਾ ਅਤੇ ਲਿਖਤੀ ਸਹਾਇਤਾ ਛੋਟੀ ਤੇ ਸਾਫ਼ ਰੱਖਾਂਗਾ।`
+    );
+  }
+  if (teachingDepth === "ADVANCED") {
+    return pickLanguage(
+      language,
+      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will explain it step by step, connect the core idea, and use short support notes where needed.`,
+      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे चरणबद्ध तरीके से समझाऊँगा, मुख्य विचार जोड़ूँगा और जहाँ ज़रूरत होगी वहाँ छोटे सहायक बिंदु लिखूँगा।`,
+      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ, ਮੁੱਖ ਵਿਚਾਰ ਜੋੜਾਂਗਾ ਅਤੇ ਜਿੱਥੇ ਲੋੜ ਹੋਵੇ ਉੱਥੇ ਛੋਟੇ ਸਹਾਇਕ ਬਿੰਦੂ ਲਿਖਾਂਗਾ।`
+    );
+  }
+  return pickLanguage(
+    language,
+    `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a live tutor for ${classLine}.`,
+    `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा।`,
+    `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਇੱਕ ਲਾਈਵ ਟਿਊਟਰ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
+  );
+};
+
+const buildSafeLessonContentOverride = (
+  subjectName: string,
+  topicTitle: string,
+  explanationLanguage: "English" | "Hindi" | "Punjabi",
+  boardLanguage: "English" | "Hindi" | "Punjabi"
+): LiveBoardLessonContent | null => {
+  const normalizedTopic = normalizeText(topicTitle).toUpperCase();
+  const normalizedTopicKey = normalizeTopicKey(topicTitle);
+  const normalizedSubject = normalizeText(subjectName).toUpperCase();
+  const isPunjabiGrammar =
+    normalizedSubject.includes("PUNJABI") &&
+    (normalizedSubject.includes("GRAMMAR") || normalizedSubject.includes("LANGUAGE"));
+
+  if (isPunjabiGrammar && normalizedTopicKey === "ਵਚਨ") {
+    return {
+      boardPayload: {
+        boardTitle: "ਵਚਨ",
+        boardLines: [
+          "ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।",
+          "ਇਕਵਚਨ ਇੱਕ ਲਈ, ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ।",
+        ],
+        formulas: ["ਇੱਕ -> ਇਕਵਚਨ | ਕਈ -> ਬਹੁਵਚਨ"],
+        steps: [],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੁੰਡਾ -> ਮੁੰਡੇ"],
+      },
+      noteSpeech: [
+        "ਵਚਨ ਸਾਨੂੰ ਦੱਸਦਾ ਹੈ ਕਿ ਗੱਲ ਇੱਕ ਦੀ ਹੋ ਰਹੀ ਹੈ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ ਦੀ।",
+        "ਇੱਕ ਲਈ ਇਕਵਚਨ ਅਤੇ ਕਈਆਂ ਲਈ ਬਹੁਵਚਨ ਵਰਤਿਆ ਜਾਂਦਾ ਹੈ।",
+      ],
+      formulaSpeech: ["ਯਾਦ ਰੱਖੋ: ਇੱਕ ਲਈ ਇਕਵਚਨ ਅਤੇ ਕਈਆਂ ਲਈ ਬਹੁਵਚਨ।"],
+      stepSpeech: [],
+      exampleSpeech: "ਉਦਾਹਰਨ ਵੇਖੋ: ਮੁੰਡਾ ਇਕਵਚਨ ਹੈ ਅਤੇ ਮੁੰਡੇ ਬਹੁਵਚਨ ਹੈ।",
+      recapSpeech: "ਦੁਹਰਾਈ: ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ। ਇਕਵਚਨ ਇੱਕ ਲਈ ਅਤੇ ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ ਹੁੰਦਾ ਹੈ।",
+      recapBoardText: "ਵਚਨ | ਇਕਵਚਨ | ਬਹੁਵਚਨ",
+      recapPoints: ["ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।", "ਇਕਵਚਨ ਇੱਕ ਲਈ ਹੈ।", "ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ ਹੈ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਮੁੰਡਾ, ਕੁੜੀ, ਕਿਤਾਬ ਦੇ ਬਹੁਵਚਨ ਬਣਾਓ।",
+      diagramInstructions: [],
+      diagramActions: [],
+    };
+  }
+
+  if (isPunjabiGrammar && normalizedTopicKey === "ਲਿੰਗ") {
+    return {
+      boardPayload: {
+        boardTitle: "ਲਿੰਗ",
+        boardLines: [
+          "ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।",
+          "ਪੁਲਿੰਗ ਅਤੇ ਇਸਤ੍ਰੀਲਿੰਗ ਦੋ ਮੁੱਖ ਰੂਪ ਹਨ।",
+        ],
+        formulas: ["ਪੁਲਿੰਗ -> ਮੁੰਡਾ | ਇਸਤ੍ਰੀਲਿੰਗ -> ਕੁੜੀ"],
+        steps: [],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੁੰਡਾ / ਕੁੜੀ"],
+      },
+      noteSpeech: [
+        "ਲਿੰਗ ਨਾਲ ਅਸੀਂ ਜਾਣਦੇ ਹਾਂ ਕਿ ਕੋਈ ਨਾਮ ਪੁਲਿੰਗ ਹੈ ਜਾਂ ਇਸਤ੍ਰੀਲਿੰਗ।",
+        "ਸਹੀ ਲਿੰਗ ਵਰਤਣ ਨਾਲ ਵਾਕ ਠੀਕ ਬਣਦਾ ਹੈ।",
+      ],
+      formulaSpeech: ["ਪੁਲਿੰਗ ਅਤੇ ਇਸਤ੍ਰੀਲਿੰਗ ਦੇ ਰੂਪ ਯਾਦ ਰੱਖੋ।"],
+      stepSpeech: [],
+      exampleSpeech: "ਉਦਾਹਰਨ ਵੇਖੋ: ਮੁੰਡਾ ਪੁਲਿੰਗ ਹੈ ਅਤੇ ਕੁੜੀ ਇਸਤ੍ਰੀਲਿੰਗ ਹੈ।",
+      recapSpeech: "ਦੁਹਰਾਈ: ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ ਅਤੇ ਪੁਲਿੰਗ ਜਾਂ ਇਸਤ੍ਰੀਲਿੰਗ ਪਛਾਣਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।",
+      recapBoardText: "ਲਿੰਗ | ਪੁਲਿੰਗ | ਇਸਤ੍ਰੀਲਿੰਗ",
+      recapPoints: ["ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।", "ਪੁਲਿੰਗ ਇੱਕ ਰੂਪ ਹੈ।", "ਇਸਤ੍ਰੀਲਿੰਗ ਦੂਜਾ ਰੂਪ ਹੈ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਅਧਿਆਪਕ ਅਤੇ ਅਧਿਆਪਿਕਾ ਦਾ ਲਿੰਗ ਦੱਸੋ।",
+      diagramInstructions: [],
+      diagramActions: [],
+    };
+  }
+
+  if (isPunjabiGrammar && normalizedTopicKey === "ਸੰਬੰਧੀ ਸ਼ਬਦ") {
+    return {
+      boardPayload: {
+        boardTitle: "ਸੰਬੰਧੀ ਸ਼ਬਦ",
+        boardLines: [
+          "ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।",
+          "ਇਹ ਦੋ ਨਾਮਾਂ ਜਾਂ ਹਿੱਸਿਆਂ ਨੂੰ ਜੋੜਦੇ ਹਨ।",
+        ],
+        formulas: ["ਨਾਮ + ਸੰਬੰਧੀ ਸ਼ਬਦ + ਨਾਮ"],
+        steps: [],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੇਜ਼ ਉੱਤੇ ਕਿਤਾਬ ਹੈ।"],
+      },
+      noteSpeech: [
+        "ਸੰਬੰਧੀ ਸ਼ਬਦ ਵਾਕ ਵਿੱਚ ਦੋ ਸ਼ਬਦਾਂ ਦੇ ਵਿਚਕਾਰਲਾ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।",
+        "ਇਹ ਜਗ੍ਹਾ, ਸਥਿਤੀ ਜਾਂ ਦਿਸ਼ਾ ਸਪਸ਼ਟ ਕਰਦੇ ਹਨ।",
+      ],
+      formulaSpeech: ["ਰਚਨਾ ਵੇਖੋ: ਨਾਮ, ਸੰਬੰਧੀ ਸ਼ਬਦ, ਫਿਰ ਦੂਜਾ ਨਾਮ।"],
+      stepSpeech: [],
+      exampleSpeech: "ਉਦਾਹਰਨ ਵੇਖੋ: ਮੇਜ਼ ਉੱਤੇ ਕਿਤਾਬ ਹੈ। ਇੱਥੇ 'ਉੱਤੇ' ਸੰਬੰਧੀ ਸ਼ਬਦ ਹੈ।",
+      recapSpeech: "ਦੁਹਰਾਈ: ਸੰਬੰਧੀ ਸ਼ਬਦ ਦੋ ਹਿੱਸਿਆਂ ਦਾ ਰਿਸ਼ਤਾ ਸਪਸ਼ਟ ਕਰਦੇ ਹਨ।",
+      recapBoardText: "ਰਿਸ਼ਤਾ | ਜਗ੍ਹਾ | ਦਿਸ਼ਾ",
+      recapPoints: ["ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।", "ਇਹ ਅਰਥ ਸਪਸ਼ਟ ਕਰਦੇ ਹਨ।", "ਉਦਾਹਰਨ ਨਾਲ ਇਨ੍ਹਾਂ ਨੂੰ ਪਛਾਣੋ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਖਾਲੀ ਥਾਵਾਂ ਵਿੱਚ ਢੰਗ ਦੇ ਸੰਬੰਧੀ ਸ਼ਬਦ ਭਰੋ।",
+      diagramInstructions: [],
+      diagramActions: [],
+    };
+  }
+
+  if (
+    isPunjabiGrammar &&
+    (normalizedTopic.includes("ਵਚਨ") || normalizedTopic.includes("वचन") || normalizedTopic.includes("SINGULAR"))
+  ) {
+    return {
+      boardPayload: {
+        boardTitle: pickLanguage(boardLanguage, "Singular And Plural", "वचन", "ਵਚਨ"),
+        boardLines: [
+          pickLanguage(
+            boardLanguage,
+            "Vachan tells whether the noun means one or many.",
+            "वचन बताता है कि गिनती एक है या एक से अधिक।",
+            "ਵਚਨ ਦੱਸਦਾ ਹੈ ਕਿ ਗਿਣਤੀ ਇੱਕ ਹੈ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ।"
+          ),
+          pickLanguage(
+            boardLanguage,
+            "Singular means one person or thing.",
+            "एकवचन एक व्यक्ति या वस्तु के लिए होता है।",
+            "ਇਕਵਚਨ ਇੱਕ ਵਿਅਕਤੀ ਜਾਂ ਚੀਜ਼ ਲਈ ਹੁੰਦਾ ਹੈ।"
+          ),
+          pickLanguage(
+            boardLanguage,
+            "Plural means more than one person or thing.",
+            "बहुवचन एक से अधिक के लिए होता है।",
+            "ਬਹੁਵਚਨ ਇੱਕ ਤੋਂ ਵੱਧ ਲਈ ਹੁੰਦਾ ਹੈ।"
+          ),
+        ],
+        formulas: [],
+        steps: [],
+        exampleTitle: pickLanguage(boardLanguage, "Example", "उदाहरण", "ਉਦਾਹਰਨ"),
+        exampleSteps: [
+          pickLanguage(
+            boardLanguage,
+            "boy -> boys, book -> books",
+            "लड़का -> लड़के, किताब -> किताबें",
+            "ਮੁੰਡਾ -> ਮੁੰਡੇ, ਕਿਤਾਬ -> ਕਿਤਾਬਾਂ"
+          ),
+        ],
+      },
+      noteSpeech: [
+        pickLanguage(
+          explanationLanguage,
+          "Vachan tells us whether we are talking about one or more than one.",
+          "वचन हमें बताता है कि बात एक की हो रही है या एक से अधिक की।",
+          "ਵਚਨ ਸਾਨੂੰ ਦੱਸਦਾ ਹੈ ਕਿ ਗੱਲ ਇੱਕ ਦੀ ਹੋ ਰਹੀ ਹੈ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ ਦੀ।"
+        ),
+        pickLanguage(
+          explanationLanguage,
+          "When the noun is one, we use singular.",
+          "जब संज्ञा एक हो, तो हम एकवचन लिखते हैं।",
+          "ਜਦੋਂ ਨਾਮ ਇੱਕ ਹੋਵੇ, ਅਸੀਂ ਇਕਵਚਨ ਵਰਤਦੇ ਹਾਂ।"
+        ),
+        pickLanguage(
+          explanationLanguage,
+          "When the noun is more than one, we use plural.",
+          "जब संज्ञा एक से अधिक हो, तो हम बहुवचन लिखते हैं।",
+          "ਜਦੋਂ ਨਾਮ ਇੱਕ ਤੋਂ ਵੱਧ ਹੋਵੇ, ਅਸੀਂ ਬਹੁਵਚਨ ਵਰਤਦੇ ਹਾਂ।"
+        ),
+      ],
+      formulaSpeech: [],
+      stepSpeech: [],
+      exampleSpeech: pickLanguage(
+        explanationLanguage,
+        "Look at the example carefully: boy becomes boys and book becomes books.",
+        "उदाहरण ध्यान से देखो: लड़का का रूप लड़के और किताब का रूप किताबें बन जाता है।",
+        "ਉਦਾਹਰਨ ਧਿਆਨ ਨਾਲ ਵੇਖੋ: ਮੁੰਡਾ ਦਾ ਰੂਪ ਮੁੰਡੇ ਅਤੇ ਕਿਤਾਬ ਦਾ ਰੂਪ ਕਿਤਾਬਾਂ ਬਣ ਜਾਂਦਾ ਹੈ।"
+      ),
+      recapSpeech: pickLanguage(
+        explanationLanguage,
+        "Today we learned that singular is used for one and plural is used for more than one.",
+        "आज हमने सीखा कि एकवचन एक के लिए और बहुवचन एक से अधिक के लिए होता है।",
+        "ਅੱਜ ਅਸੀਂ ਸਿੱਖਿਆ ਕਿ ਇਕਵਚਨ ਇੱਕ ਲਈ ਅਤੇ ਬਹੁਵਚਨ ਇੱਕ ਤੋਂ ਵੱਧ ਲਈ ਹੁੰਦਾ ਹੈ।"
+      ),
+      recapBoardText: pickLanguage(
+        boardLanguage,
+        "one = singular | many = plural",
+        "एक = एकवचन | कई = बहुवचन",
+        "ਇੱਕ = ਇਕਵਚਨ | ਕਈ = ਬਹੁਵਚਨ"
+      ),
+      recapPoints: [
+        pickLanguage(boardLanguage, "Vachan shows number.", "वचन गिनती दिखाता है।", "ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।"),
+        pickLanguage(boardLanguage, "Singular is for one.", "एकवचन एक के लिए है।", "ਇਕਵਚਨ ਇੱਕ ਲਈ ਹੈ।"),
+        pickLanguage(boardLanguage, "Plural is for many.", "बहुवचन कई के लिए है।", "ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ ਹੈ।"),
+      ],
+      practiceQuestion: pickLanguage(
+        explanationLanguage,
+        "Change these into plural: boy, girl, book.",
+        "इनके बहुवचन बनाओ: लड़का, लड़की, किताब।",
+        "ਇਨ੍ਹਾਂ ਦੇ ਬਹੁਵਚਨ ਬਣਾਓ: ਮੁੰਡਾ, ਕੁੜੀ, ਕਿਤਾਬ।"
+      ),
+      diagramInstructions: [],
+      diagramActions: [],
+    };
+  }
+
+  return null;
+};
+
+const applyStrictPunjabiGrammarTopicOverride = (
+  lessonContent: LiveBoardLessonContent,
+  subjectName: string,
+  topicTitle: string
+): LiveBoardLessonContent => {
+  const subjectKey = normalizeTopicKey(subjectName);
+  const topicKey = normalizeTopicKey(topicTitle);
+  const isPunjabiGrammar = subjectKey.includes("punjabi") && subjectKey.includes("grammar");
+
+  if (!isPunjabiGrammar) {
+    return lessonContent;
+  }
+
+  if (topicKey === "ਵਚਨ") {
+    return {
+      ...lessonContent,
+      boardPayload: {
+        ...lessonContent.boardPayload,
+        boardTitle: "ਵਚਨ",
+        boardLines: ["ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।", "ਇਕਵਚਨ ਇੱਕ ਲਈ, ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ।"],
+        formulas: ["ਇੱਕ -> ਇਕਵਚਨ | ਕਈ -> ਬਹੁਵਚਨ"],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੁੰਡਾ -> ਮੁੰਡੇ"],
+      },
+      noteSpeech: [
+        "ਵਚਨ ਸਾਨੂੰ ਦੱਸਦਾ ਹੈ ਕਿ ਗੱਲ ਇੱਕ ਦੀ ਹੋ ਰਹੀ ਹੈ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ ਦੀ।",
+        "ਇੱਕ ਲਈ ਇਕਵਚਨ ਅਤੇ ਕਈਆਂ ਲਈ ਬਹੁਵਚਨ ਵਰਤਿਆ ਜਾਂਦਾ ਹੈ।",
+      ],
+      recapBoardText: "ਵਚਨ | ਇਕਵਚਨ | ਬਹੁਵਚਨ",
+      recapPoints: ["ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।", "ਇਕਵਚਨ ਇੱਕ ਲਈ ਹੈ।", "ਬਹੁਵਚਨ ਕਈਆਂ ਲਈ ਹੈ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਮੁੰਡਾ, ਕੁੜੀ, ਕਿਤਾਬ ਦੇ ਬਹੁਵਚਨ ਬਣਾਓ।",
+    };
+  }
+
+  if (topicKey === "ਲਿੰਗ") {
+    return {
+      ...lessonContent,
+      boardPayload: {
+        ...lessonContent.boardPayload,
+        boardTitle: "ਲਿੰਗ",
+        boardLines: ["ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।", "ਪੁਲਿੰਗ ਅਤੇ ਇਸਤ੍ਰੀਲਿੰਗ ਦੋ ਰੂਪ ਹਨ।"],
+        formulas: ["ਪੁਲਿੰਗ -> ਮੁੰਡਾ | ਇਸਤ੍ਰੀਲਿੰਗ -> ਕੁੜੀ"],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੁੰਡਾ / ਕੁੜੀ"],
+      },
+      noteSpeech: [
+        "ਲਿੰਗ ਨਾਲ ਅਸੀਂ ਜਾਣਦੇ ਹਾਂ ਕਿ ਕੋਈ ਨਾਮ ਪੁਲਿੰਗ ਹੈ ਜਾਂ ਇਸਤ੍ਰੀਲਿੰਗ।",
+        "ਸਹੀ ਲਿੰਗ ਵਰਤਣ ਨਾਲ ਵਾਕ ਠੀਕ ਬਣਦਾ ਹੈ।",
+      ],
+      recapBoardText: "ਲਿੰਗ | ਪੁਲਿੰਗ | ਇਸਤ੍ਰੀਲਿੰਗ",
+      recapPoints: ["ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।", "ਪੁਲਿੰਗ ਇੱਕ ਰੂਪ ਹੈ।", "ਇਸਤ੍ਰੀਲਿੰਗ ਦੂਜਾ ਰੂਪ ਹੈ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਅਧਿਆਪਕ ਅਤੇ ਅਧਿਆਪਿਕਾ ਦਾ ਲਿੰਗ ਦੱਸੋ।",
+    };
+  }
+
+  if (topicKey === "ਸੰਬੰਧੀ ਸ਼ਬਦ") {
+    return {
+      ...lessonContent,
+      boardPayload: {
+        ...lessonContent.boardPayload,
+        boardTitle: "ਸੰਬੰਧੀ ਸ਼ਬਦ",
+        boardLines: ["ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।", "ਇਹ ਦੋ ਹਿੱਸਿਆਂ ਨੂੰ ਜੋੜਦੇ ਹਨ।"],
+        formulas: ["ਨਾਮ + ਸੰਬੰਧੀ ਸ਼ਬਦ + ਨਾਮ"],
+        exampleTitle: "ਉਦਾਹਰਨ",
+        exampleSteps: ["ਮੇਜ਼ ਉੱਤੇ ਕਿਤਾਬ ਹੈ।"],
+      },
+      noteSpeech: [
+        "ਸੰਬੰਧੀ ਸ਼ਬਦ ਵਾਕ ਵਿੱਚ ਦੋ ਸ਼ਬਦਾਂ ਦੇ ਵਿਚਕਾਰਲਾ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।",
+        "ਇਹ ਜਗ੍ਹਾ, ਸਥਿਤੀ ਜਾਂ ਦਿਸ਼ਾ ਸਪਸ਼ਟ ਕਰਦੇ ਹਨ।",
+      ],
+      recapBoardText: "ਰਿਸ਼ਤਾ | ਜਗ੍ਹਾ | ਦਿਸ਼ਾ",
+      recapPoints: ["ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।", "ਇਹ ਅਰਥ ਸਪਸ਼ਟ ਕਰਦੇ ਹਨ।", "ਉਦਾਹਰਨ ਨਾਲ ਇਨ੍ਹਾਂ ਨੂੰ ਪਛਾਣੋ।"],
+      practiceQuestion: "ਛੋਟੀ ਜਾਂਚ: ਖਾਲੀ ਥਾਵਾਂ ਵਿੱਚ ਢੰਗ ਦੇ ਸੰਬੰਧੀ ਸ਼ਬਦ ਭਰੋ।",
+    };
+  }
+
+  return lessonContent;
+};
+
+type TeacherIntent =
+  | "START"
+  | "CONTINUE"
+  | "DOUBT"
+  | "REPEAT"
+  | "SIMPLER"
+  | "ADVANCED"
+  | "EXAMPLE"
+  | "CHECK";
+
+type TeacherLessonPoint = {
+  anchor: string;
+  explanation: string;
+};
+
+const START_COMMAND = "__START_TUITION_AI_TEACHER__";
+const CONTINUE_COMMAND = "__CONTINUE_TUITION_AI_TEACHER__";
+const REPEAT_COMMAND = "__REPEAT_TUITION_AI_TEACHER__";
+const SIMPLER_COMMAND = "__SIMPLER_TUITION_AI_TEACHER__";
+const ADVANCED_COMMAND = "__ADVANCED_TUITION_AI_TEACHER__";
+const EXAMPLE_COMMAND = "__EXAMPLE_TUITION_AI_TEACHER__";
+const CHECK_COMMAND = "__CHECK_TUITION_AI_TEACHER__";
+
+const parseTeacherIntent = (prompt: string, messageNumber: number): TeacherIntent => {
+  const normalized = normalizeText(prompt).toUpperCase();
+  if (!normalized && messageNumber <= 1) return "START";
+  if (normalized.startsWith(START_COMMAND)) return "START";
+  if (normalized.startsWith(CONTINUE_COMMAND)) return "CONTINUE";
+  if (normalized.startsWith(REPEAT_COMMAND)) return "REPEAT";
+  if (normalized.startsWith(SIMPLER_COMMAND)) return "SIMPLER";
+  if (normalized.startsWith(ADVANCED_COMMAND)) return "ADVANCED";
+  if (normalized.startsWith(EXAMPLE_COMMAND)) return "EXAMPLE";
+  if (normalized.startsWith(CHECK_COMMAND)) return "CHECK";
+  if (/[?]|WHY|HOW|WHAT|DOUBT|DO NOT UNDERSTAND|UNDERSTAND|समझ|क्यों|कैसे|ਕੀ|ਕਿਉਂ|ਕਿਵੇਂ/u.test(normalized)) {
+    return "DOUBT";
+  }
+  return messageNumber <= 1 ? "START" : "DOUBT";
+};
+
+const stripTeacherCommand = (prompt: string): string =>
+  normalizeText(prompt)
+    .replace(START_COMMAND, "")
+    .replace(CONTINUE_COMMAND, "")
+    .replace(REPEAT_COMMAND, "")
+    .replace(SIMPLER_COMMAND, "")
+    .replace(ADVANCED_COMMAND, "")
+    .replace(EXAMPLE_COMMAND, "")
+    .replace(CHECK_COMMAND, "")
+    .trim();
+
+const getDepthAnchorLimit = (teachingDepth: LiveBoardTeachingDepth): number => {
+  if (teachingDepth === "BASIC") return 1;
+  if (teachingDepth === "ADVANCED") return 3;
+  return 2;
+};
+
+const getTrailingStopwords = (language: "English" | "Hindi" | "Punjabi"): Set<string> => {
+  if (language === "Hindi") {
+    return new Set(["और", "या", "का", "की", "के", "है", "हैं", "में", "से", "पर", "को", "एक"]);
+  }
+  if (language === "Punjabi") {
+    return new Set(["ਅਤੇ", "ਜਾਂ", "ਦਾ", "ਦੀ", "ਦੇ", "ਹੈ", "ਹਨ", "ਵਿੱਚ", "ਤੋਂ", "ਤੇ", "ਨੂੰ", "ਕਿ", "ਇੱਕ"]);
+  }
+  return new Set(["and", "or", "the", "a", "an", "to", "of", "for", "with", "into", "in"]);
+};
+
+const conciseBoardAnchorOverride = (
+  text: string,
+  language: "English" | "Hindi" | "Punjabi"
+): string | null => {
+  const normalized = normalizeText(text);
+  const textKey = normalizeTopicKey(normalized);
+
+  if (
+    textKey.includes("chemical reaction") ||
+    textKey.includes("रासायनिक अभिक्रिया") ||
+    textKey.includes("ਰਸਾਇਣਕ ਕ੍ਰਿਆ") ||
+    textKey.includes("ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਉਹ ਪ੍ਰਕਿਰਿਆ") ||
+    textKey.includes("रासायनिक अभिक्रिया वह प्रक्रिया") ||
+    textKey.includes("chemical reaction is a process") ||
+    ((textKey.includes("reaction") || textKey.includes("अभिक्रिया") || textKey.includes("ਕ੍ਰਿਆ")) &&
+      (textKey.includes("new substances") || textKey.includes("नए पदार्थ") || textKey.includes("ਨਵੇਂ ਪਦਾਰਥ")))
+  ) {
+    return pickLanguage(
+      language,
+      "Chemical reactions form new substances.",
+      "रासायनिक अभिक्रिया में नए पदार्थ बनते हैं।",
+      "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।"
+    );
+  }
+
+  if (textKey.includes("fraction") || textKey.includes("भिन्न") || textKey.includes("ਭਿੰਨ")) {
+    return pickLanguage(
+      language,
+      "Fractions show equal parts of a whole.",
+      "भिन्न पूरे के बराबर भाग दिखाती है।",
+      "ਭਿੰਨ ਪੂਰੇ ਦੇ ਬਰਾਬਰ ਭਾਗ ਦਿਖਾਂਦੀ ਹੈ।"
+    );
+  }
+
+  if (textKey.includes("ਵਚਨ")) {
+    return "ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।";
+  }
+
+  if (textKey.includes("ਲਿੰਗ")) {
+    return "ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।";
+  }
+
+  if (textKey.includes("ਸੰਬੰਧੀ ਸ਼ਬਦ")) {
+    return "ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।";
+  }
+
+  return null;
+};
+
+const compactBoardText = (
+  text: string,
+  maxWords: number,
+  language: "English" | "Hindi" | "Punjabi" = "English"
+): string => {
+  const normalized = normalizeText(text)
+    .split(/(?<=[.!?।॥])\s+/u)[0]
+    .split(/[;:]/u)[0]
+    .trim();
+  if (!normalized) return "";
+
+  const conciseOverride = conciseBoardAnchorOverride(normalized, language);
+  if (conciseOverride) {
+    return conciseOverride.replace(/[.,;:!?।॥]+$/u, "").trim();
+  }
+
+  const words = normalized.split(/\s+/u).filter(Boolean);
+  if (words.length <= maxWords) {
+    return normalized.replace(/[.,;:!?।॥]+$/u, "").trim();
+  }
+
+  const trailingStopwords = getTrailingStopwords(language);
+  const overflowLimit = Math.min(words.length, maxWords + 4);
+  let compactWords = words.slice(0, overflowLimit);
+
+  while (
+    compactWords.length > Math.max(4, maxWords - 1) &&
+    trailingStopwords.has(compactWords[compactWords.length - 1].toLowerCase())
+  ) {
+    compactWords = compactWords.slice(0, -1);
+  }
+
+  return compactWords.join(" ").replace(/[.,;:!?।॥]+$/u, "").trim();
+};
+
+const compactKeywordList = (
+  recapBoardText: string,
+  recapPoints: string[],
+  language: "English" | "Hindi" | "Punjabi"
+): string[] => {
+  const explicitKeywords = normalizeText(recapBoardText)
+    .split("|")
+    .map((item) => normalizeText(item))
+    .filter(Boolean);
+  if (explicitKeywords.length) {
+    return explicitKeywords.slice(0, 3);
+  }
+  return recapPoints.map((point) => compactBoardText(point, 5, language)).slice(0, 3);
+};
+
+const buildLessonPoints = (lessonContent: LiveBoardLessonContent): TeacherLessonPoint[] =>
+  lessonContent.boardPayload.boardLines.map((anchor, index) => ({
+    anchor,
+    explanation: lessonContent.noteSpeech[index] || anchor,
+  }));
+
+const buildMinimalBoardState = (input: {
+  lessonContent: LiveBoardLessonContent;
+  conceptIndex: number;
+  phase: TuitionTeacherPhase;
+  teachingDepth: LiveBoardTeachingDepth;
+  boardLanguage: "English" | "Hindi" | "Punjabi";
+  includeExample?: boolean;
+  includeRecap?: boolean;
+}): TuitionTeacherBoardState => {
+  const points = buildLessonPoints(input.lessonContent);
+  const safeConceptIndex = Math.max(0, Math.min(input.conceptIndex, Math.max(points.length - 1, 0)));
+  const anchorLimit = getDepthAnchorLimit(input.teachingDepth);
+  const introAnchorCount =
+    input.teachingDepth === "BASIC" ? 1 : input.teachingDepth === "ADVANCED" ? 2 : 2;
+  const visibleCount =
+    input.phase === "INTRO"
+      ? Math.min(introAnchorCount, points.length, anchorLimit)
+      : Math.min(safeConceptIndex + 1, anchorLimit);
+  const anchorWordLimit =
+    input.teachingDepth === "BASIC" ? 8 : input.teachingDepth === "ADVANCED" ? 14 : 12;
+  const localizedTitle = displayTopicTitle(input.lessonContent.boardPayload.boardTitle, input.boardLanguage);
+  const anchors = points
+    .slice(0, visibleCount)
+    .map((point) => compactBoardText(point.anchor, anchorWordLimit, input.boardLanguage));
+  const formula = input.lessonContent.boardPayload.formulas[0] || null;
+  const example =
+    input.includeExample || (input.phase === "INTRO" && input.teachingDepth === "ADVANCED")
+      ? compactBoardText(input.lessonContent.boardPayload.exampleSteps[0] || "", 12, input.boardLanguage) || null
+      : null;
+  const diagramLabels = input.lessonContent.diagramActions
+    .map((action) => action.label || action.text || "")
+    .filter(Boolean)
+    .map((label) => compactBoardText(label, 5, input.boardLanguage))
+    .slice(0, 1);
+  const recapKeywords = input.includeRecap
+    ? compactKeywordList(input.lessonContent.recapBoardText, input.lessonContent.recapPoints, input.boardLanguage)
+    : [];
+
+  return {
+    title: localizedTitle,
+    currentConcept: points[safeConceptIndex]?.anchor || null,
+    anchors,
+    formula:
+      input.phase === "INTRO"
+        ? input.teachingDepth === "ADVANCED"
+          ? compactBoardText(formula || "", 10, input.boardLanguage) || null
+          : null
+        : input.phase === "EXPLAIN_CONCEPT" ||
+      input.phase === "WRITE_ANCHOR" ||
+      input.phase === "GIVE_EXAMPLE" ||
+      input.phase === "RECAP"
+        ? compactBoardText(formula || "", 10, input.boardLanguage) || null
+        : null,
+    example,
+    diagramLabels,
+    recapKeywords,
+    highlight: points[safeConceptIndex]?.anchor || localizedTitle,
+  };
+};
+
+const buildTeacherDoubtResponse = (
+  language: "English" | "Hindi" | "Punjabi",
+  studentQuestion: string,
+  conceptSpeech: string
+): string => {
+  const cleanQuestion = stripTeacherCommand(studentQuestion);
+  return pickLanguage(
+    language,
+    `Good question. Let us pause here and clear that doubt. ${conceptSpeech}${cleanQuestion ? ` Your question was: ${cleanQuestion}.` : ""} We will continue from this same point after that.`,
+    `अच्छा प्रश्न है। हम यहीं रुककर इस शंका को साफ़ करते हैं। ${conceptSpeech}${cleanQuestion ? ` आपका प्रश्न था: ${cleanQuestion}.` : ""} इसके बाद हम इसी बिंदु से आगे बढ़ेंगे।`,
+    `ਵਧੀਆ ਸਵਾਲ ਹੈ। ਅਸੀਂ ਇੱਥੇ ਰੁਕ ਕੇ ਇਹ ਸ਼ੱਕ ਸਾਫ਼ ਕਰਦੇ ਹਾਂ। ${conceptSpeech}${cleanQuestion ? ` ਤੁਹਾਡਾ ਸਵਾਲ ਸੀ: ${cleanQuestion}.` : ""} ਇਸ ਤੋਂ ਬਾਅਦ ਅਸੀਂ ਇੱਥੋਂ ਹੀ ਅੱਗੇ ਚੱਲਾਂਗੇ।`
+  );
+};
+
+const buildTeacherCheckQuestion = (
+  language: "English" | "Hindi" | "Punjabi",
+  teachingDepth: LiveBoardTeachingDepth,
+  question: string
+): string => {
+  const normalizedQuestion = normalizeText(question)
+    .replace(/^Quick check:\s*/i, "")
+    .replace(/^Think deeper:\s*/i, "")
+    .replace(/^Think a little deeper and answer this:\s*/i, "")
+    .replace(/^छोटा जाँच-प्रश्न:\s*/u, "")
+    .replace(/^जरा गहराई से सोचो:\s*/u, "")
+    .replace(/^थोड़ा गहराई से सोचकर इसका उत्तर दो:\s*/u, "")
+    .replace(/^ਛੋਟਾ ਜਾਂਚ-ਪ੍ਰਸ਼ਨ:\s*/u, "")
+    .replace(/^ਹੁਣ ਥੋੜ੍ਹੀ ਗਹਿਰਾਈ ਨਾਲ ਸੋਚੋ:\s*/u, "")
+    .replace(/^ਥੋੜ੍ਹਾ ਹੋਰ ਗਹਿਰਾਈ ਨਾਲ ਸੋਚੋ ਅਤੇ ਇਸਦਾ ਜਵਾਬ ਦਿਓ:\s*/u, "")
+    .trim();
+  if (teachingDepth === "BASIC") {
+    return pickLanguage(
+      language,
+      `Quick check: ${normalizedQuestion}`,
+      `छोटी जाँच: ${normalizedQuestion}`,
+      `ਛੋਟੀ ਜਾਂਚ: ${normalizedQuestion}`
+    );
+  }
+  if (teachingDepth === "ADVANCED") {
+    return pickLanguage(
+      language,
+      `Think a little deeper and answer this: ${normalizedQuestion}`,
+      `थोड़ा गहराई से सोचकर इसका उत्तर दो: ${normalizedQuestion}`,
+      `ਥੋੜ੍ਹਾ ਹੋਰ ਗਹਿਰਾਈ ਨਾਲ ਸੋਚੋ ਅਤੇ ਇਸਦਾ ਜਵਾਬ ਦਿਓ: ${normalizedQuestion}`
+    );
+  }
+  return normalizedQuestion;
+};
+
+const buildConversationHints = (language: "English" | "Hindi" | "Punjabi"): string[] => [
+  pickLanguage(language, "Ask for a simpler explanation", "सरल समझाओ", "ਸੌਖੇ ਤਰੀਕੇ ਨਾਲ ਸਮਝਾਓ"),
+  pickLanguage(language, "Ask for one example", "एक उदाहरण दो", "ਇੱਕ ਉਦਾਹਰਨ ਦਿਓ"),
+  pickLanguage(language, "Ask to repeat the last point", "पिछला बिंदु दोहराओ", "ਪਿਛਲਾ ਬਿੰਦੂ ਦੁਹਰਾਓ"),
+  pickLanguage(language, "Ask to continue", "आगे बढ़ो", "ਅੱਗੇ ਚੱਲੋ"),
+];
+
+const applyStrictTeacherStateOverride = (
+  model: {
+    teacherIntro: string;
+    teacherExplanation: string;
+    teacherCheckQuestion: string | null;
+    teacherState: TuitionTeacherState;
+    boardState: TuitionTeacherBoardState;
+    speechChunks: TuitionTeachingSpeechChunk[];
+    boardActions: TuitionTeachingBoardAction[];
+    teachingSteps: TuitionTeachingStep[];
+    interactionHints: string[];
+  },
+  input: TuitionTeacherContext
+) => {
+  const topicText = String(input.topicTitle || "").normalize("NFC");
+  const isPunjabiMode =
+    normalizeTeachingLanguage(input.explanationLanguage) === "Punjabi" ||
+    normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage) === "Punjabi";
+
+  if (!isPunjabiMode) {
+    return model;
+  }
+
+  const patchBoardState = (title: string, currentConcept: string, anchors: string[], formula: string | null) => {
+    model.boardState = {
+      ...model.boardState,
+      title,
+      currentConcept,
+      anchors,
+      formula,
+      example: model.teacherState.currentTeachingPhase === "GIVE_EXAMPLE" ? model.boardState.example : null,
+      recapKeywords: model.teacherState.currentTeachingPhase === "RECAP" ? model.boardState.recapKeywords : [],
+      highlight: currentConcept,
+    };
+  };
+
+  if (topicText.includes("chemical reaction") || topicText.includes("ਰਸਾਇਣਕ ਕ੍ਰਿਆ")) {
+    patchBoardState("ਰਸਾਇਣਕ ਕ੍ਰਿਆ", "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।", ["ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ"], "ਅਭਿਕਾਰਕ -> ਉਤਪਾਦ");
+  } else if (topicText.includes("ਵਚਨ")) {
+    patchBoardState("ਵਚਨ", "ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ।", ["ਵਚਨ ਗਿਣਤੀ ਦੱਸਦਾ ਹੈ"], "ਇੱਕ -> ਇਕਵਚਨ | ਕਈ -> ਬਹੁਵਚਨ");
+  } else if (topicText.includes("ਲਿੰਗ")) {
+    patchBoardState("ਲਿੰਗ", "ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ।", ["ਲਿੰਗ ਨਾਮ ਦਾ ਰੂਪ ਦੱਸਦਾ ਹੈ"], "ਪੁਲਿੰਗ | ਇਸਤ੍ਰੀਲਿੰਗ");
+  } else if (topicText.includes("ਸੰਬੰਧੀ ਸ਼ਬਦ")) {
+    patchBoardState("ਸੰਬੰਧੀ ਸ਼ਬਦ", "ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ।", ["ਸੰਬੰਧੀ ਸ਼ਬਦ ਰਿਸ਼ਤਾ ਦੱਸਦੇ ਹਨ"], "ਨਾਮ + ਸੰਬੰਧੀ ਸ਼ਬਦ + ਨਾਮ");
+  }
+
+  return model;
+};
+
+const buildTeacherSessionModel = (
   input: TuitionTeacherContext,
   lessonContent: LiveBoardLessonContent
 ): {
+  teacherIntro: string;
+  teacherExplanation: string;
+  teacherCheckQuestion: string | null;
+  teacherState: TuitionTeacherState;
+  boardState: TuitionTeacherBoardState;
   speechChunks: TuitionTeachingSpeechChunk[];
   boardActions: TuitionTeachingBoardAction[];
   teachingSteps: TuitionTeachingStep[];
-  practiceQuestion: string;
-  diagramInstructions: string[];
+  interactionHints: string[];
 } => {
   const explanationLanguage = normalizeTeachingLanguage(input.explanationLanguage);
   const boardLanguage = normalizeTeachingLanguage(input.boardLanguage || input.explanationLanguage);
-  const classLine = input.classLevel ? `Class ${input.classLevel}` : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
+  const teachingDepth = normalizeTeachingDepth(input.teachingDepth);
+  const intent = parseTeacherIntent(input.studentPrompt, input.messageNumber);
+  const previousState = input.previousAssistant?.teacherState || null;
+  const points = buildLessonPoints(lessonContent);
+  const classLine = input.classLevel
+    ? `Class ${input.classLevel}`
+    : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
   const subjectLine = localizeLiveBoardSubjectLabel(input.subjectName, explanationLanguage);
-  const displayTopicTitle = normalizeText(lessonContent.boardPayload.boardTitle) || normalizeText(input.topicTitle);
-  const speechChunks: TuitionTeachingSpeechChunk[] = [];
-  const boardActions: TuitionTeachingBoardAction[] = [];
-  const teachingSteps: TuitionTeachingStep[] = [];
+  const resolvedTopicTitle =
+    displayTopicTitle(
+      lessonContent.boardPayload.boardTitle || input.topicTitle,
+      boardLanguage
+    ) || normalizeText(input.topicTitle);
 
-  const pushStep = (
-    id: string,
-    title: string,
-    kind: TuitionTeachingSpeechChunk["kind"],
-    speechText: string,
-    actions: LiveBoardAction[],
-    autoDelayMs: number
-  ) => {
-    const speechChunkId = `${id}-speech`;
-    speechChunks.push({ id: speechChunkId, kind, text: speechText });
-    boardActions.push(...(actions as TuitionTeachingBoardAction[]));
-    teachingSteps.push({
-      id,
-      title,
-      speechChunkId,
-      actionIds: actions.map((action) => action.id),
-      autoDelayMs,
-    });
-  };
+  let conceptIndex = Math.max(0, Number(previousState?.resumePoint ?? previousState?.currentConceptIndex ?? 0));
+  let phase: TuitionTeacherPhase = "INTRO";
+  let depthForResponse = teachingDepth;
 
-  pushStep(
-    "step-intro",
-    pickLanguage(explanationLanguage, "Topic Intro", "विषय परिचय", "ਵਿਸ਼ਾ ਜਾਣ-ਪਛਾਣ"),
-    "INTRO",
-    pickLanguage(
+  if (intent === "CONTINUE") {
+    conceptIndex = Math.min(conceptIndex + 1, Math.max(points.length - 1, 0));
+    phase = conceptIndex >= points.length - 1 ? "RECAP" : "CONTINUE_LESSON";
+  } else if (intent === "REPEAT") {
+    phase = "EXPLAIN_CONCEPT";
+  } else if (intent === "SIMPLER") {
+    phase = "HANDLE_STUDENT_DOUBT";
+    depthForResponse = "BASIC";
+  } else if (intent === "ADVANCED") {
+    phase = "HANDLE_STUDENT_DOUBT";
+    depthForResponse = "ADVANCED";
+  } else if (intent === "EXAMPLE") {
+    phase = "GIVE_EXAMPLE";
+  } else if (intent === "CHECK") {
+    phase = "ASK_CHECK";
+  } else if (intent === "DOUBT") {
+    phase = "HANDLE_STUDENT_DOUBT";
+  } else if (input.messageNumber > 1) {
+    phase = "CONTINUE_LESSON";
+  }
+
+  let teacherIntro =
+    intent === "START"
+      ? buildDepthAwareIntroSpeech(explanationLanguage, teachingDepth, resolvedTopicTitle, subjectLine, classLine)
+      : pickLanguage(
+          explanationLanguage,
+          `We will stay with ${resolvedTopicTitle} and continue from the same point.`,
+          `हम ${resolvedTopicTitle} पर ही रहेंगे और इसी बिंदु से आगे बढ़ेंगे।`,
+          `ਅਸੀਂ ${resolvedTopicTitle} 'ਤੇ ਹੀ ਰਹਾਂਗੇ ਅਤੇ ਇਸੇ ਬਿੰਦੂ ਤੋਂ ਅੱਗੇ ਵੱਧਾਂਗੇ।`
+        );
+
+  const currentPoint = points[Math.max(0, Math.min(conceptIndex, Math.max(points.length - 1, 0)))];
+  let teacherExplanation = shapeSpeechForDepth(
+    explanationLanguage,
+    depthForResponse,
+    currentPoint?.explanation || lessonContent.recapSpeech
+  );
+  let teacherCheckQuestion: string | null = null;
+  let includeExample = false;
+  let includeRecap = false;
+
+  if (phase === "HANDLE_STUDENT_DOUBT") {
+    teacherExplanation = buildTeacherDoubtResponse(
       explanationLanguage,
-      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a classroom board teacher for ${classLine}.`,
-      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे कक्षा के बोर्ड शिक्षक की तरह चरणबद्ध तरीके से समझाऊँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਲਾਸਰੂਮ ਬੋਰਡ ਅਧਿਆਪਕ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
-    ),
-    [
-      { id: "action-title", type: "WRITE_TEXT", lane: "title", text: lessonContent.boardPayload.boardTitle, accent: "important" },
-      {
-        id: "action-highlight-title",
-        type: "HIGHLIGHT",
-        lane: "title",
-        targetId: "action-title",
-        text: pickLanguage(boardLanguage, "Start with the topic title and class focus.", "विषय शीर्षक और कक्षा फोकस से शुरू करो।", "ਵਿਸ਼ੇ ਦੇ ਸਿਰਲੇਖ ਅਤੇ ਕਲਾਸ ਫੋਕਸ ਨਾਲ ਸ਼ੁਰੂ ਕਰੋ।"),
-      },
-    ],
-    900
-  );
-
-  lessonContent.boardPayload.boardLines.forEach((line, index) => {
-    pushStep(`step-note-${index + 1}`, pickLanguage(explanationLanguage, `Teaching Point ${index + 1}`, `शिक्षण बिंदु ${index + 1}`, `ਸਿੱਖਣ ਬਿੰਦੂ ${index + 1}`), "EXPLAIN", lessonContent.noteSpeech[index] || line, [{ id: `action-note-${index + 1}`, type: "WRITE_BULLET", lane: "notes", text: line, accent: index === 0 ? "important" : undefined }], 850);
-  });
-
-  lessonContent.boardPayload.formulas.forEach((formula, index) => {
-    pushStep(`step-formula-${index + 1}`, pickLanguage(explanationLanguage, `Rule ${index + 1}`, `नियम ${index + 1}`, `ਨਿਯਮ ${index + 1}`), "FORMULA", lessonContent.formulaSpeech[index] || formula, [{ id: `action-formula-${index + 1}`, type: "WRITE_FORMULA", lane: "formula", text: formula, accent: "formula" }], 820);
-  });
-
-  if (lessonContent.diagramActions.length) {
-    pushStep(
-      "step-diagram",
-      pickLanguage(explanationLanguage, "Board Sketch", "बोर्ड चित्र", "ਬੋਰਡ ਚਿੱਤਰ"),
-      "DIAGRAM",
-      pickLanguage(explanationLanguage, `Now let us make a simple board sketch for ${displayTopicTitle}.`, `अब ${displayTopicTitle} के लिए एक सरल बोर्ड चित्र बनाते हैं।`, `ਹੁਣ ${displayTopicTitle} ਲਈ ਇੱਕ ਸਧਾਰਣ ਬੋਰਡ ਚਿੱਤਰ ਬਣਾਈਏ।`),
-      lessonContent.diagramActions,
-      950
+      input.studentPrompt,
+      shapeSpeechForDepth(explanationLanguage, depthForResponse, currentPoint?.explanation || lessonContent.recapSpeech)
     );
+  } else if (phase === "GIVE_EXAMPLE") {
+    teacherExplanation = shapeSpeechForDepth(explanationLanguage, depthForResponse, lessonContent.exampleSpeech);
+    includeExample = true;
+  } else if (phase === "ASK_CHECK") {
+    teacherExplanation = pickLanguage(
+      explanationLanguage,
+      `Let me quickly check your understanding of ${resolvedTopicTitle}.`,
+      `अब मैं ${resolvedTopicTitle} की आपकी समझ जल्दी से जाँचता हूँ।`,
+      `ਹੁਣ ਮੈਂ ${resolvedTopicTitle} ਬਾਰੇ ਤੁਹਾਡੀ ਸਮਝ ਛੇਤੀ ਨਾਲ ਜਾਂਚਦਾ ਹਾਂ।`
+    );
+    teacherCheckQuestion = buildTeacherCheckQuestion(explanationLanguage, teachingDepth, lessonContent.practiceQuestion);
+  } else if (phase === "RECAP") {
+    teacherExplanation = shapeSpeechForDepth(explanationLanguage, depthForResponse, lessonContent.recapSpeech);
+    teacherCheckQuestion = buildTeacherCheckQuestion(explanationLanguage, teachingDepth, lessonContent.practiceQuestion);
+    includeRecap = true;
   }
 
-  lessonContent.boardPayload.steps.forEach((step, index) => {
-    pushStep(`step-solve-${index + 1}`, pickLanguage(explanationLanguage, `Worked Step ${index + 1}`, `हल चरण ${index + 1}`, `ਹੱਲ ਕਦਮ ${index + 1}`), "EXPLAIN", lessonContent.stepSpeech[index] || step, [{ id: `action-step-${index + 1}`, type: "WRITE_STEP", lane: "steps", text: step }], 880);
+  const boardState = buildMinimalBoardState({
+    lessonContent,
+    conceptIndex,
+    phase,
+    teachingDepth,
+    boardLanguage,
+    includeExample,
+    includeRecap,
   });
 
-  if (lessonContent.boardPayload.exampleSteps.length) {
-    pushStep(
-      "step-example",
-      pickLanguage(explanationLanguage, "Solved Example", "हल किया उदाहरण", "ਹੱਲ ਕੀਤਾ ਉਦਾਹਰਨ"),
-      "EXAMPLE",
-      lessonContent.exampleSpeech,
-      lessonContent.boardPayload.exampleSteps.map((exampleStep, index) => ({ id: `action-example-${index + 1}`, type: "WRITE_STEP", lane: "example", text: exampleStep, accent: "example" })),
-      1000
-    );
-  }
+  const boardActions: TuitionTeachingBoardAction[] = [
+    {
+      id: "teacher-board-title",
+      type: "WRITE_TEXT",
+      lane: "title",
+      text: boardState.title,
+      accent: "important",
+    },
+    ...boardState.anchors.map((anchor, index) => ({
+      id: `teacher-board-anchor-${index + 1}`,
+      type: "WRITE_BULLET" as const,
+      lane: "notes" as const,
+      text: anchor,
+      accent: index === boardState.anchors.length - 1 ? ("important" as const) : undefined,
+    })),
+    ...(boardState.formula
+      ? [
+          {
+            id: "teacher-board-formula",
+            type: "WRITE_FORMULA" as const,
+            lane: "formula" as const,
+            text: boardState.formula,
+            accent: "formula" as const,
+          },
+        ]
+      : []),
+    ...(boardState.example
+      ? [
+          {
+            id: "teacher-board-example",
+            type: "WRITE_STEP" as const,
+            lane: "example" as const,
+            text: boardState.example,
+            accent: "example" as const,
+          },
+        ]
+      : []),
+    ...boardState.diagramLabels.map((label, index) => ({
+      id: `teacher-board-diagram-${index + 1}`,
+      type: "DRAW_LABEL" as const,
+      lane: "diagram" as const,
+      text: label,
+    })),
+    ...(boardState.recapKeywords.length
+      ? [
+          {
+            id: "teacher-board-recap",
+            type: "SHOW_RECAP" as const,
+            lane: "recap" as const,
+            text: boardState.recapKeywords.join(" | "),
+          },
+        ]
+      : []),
+    ...(teacherCheckQuestion
+      ? [
+          {
+            id: "teacher-board-question",
+            type: "ASK_STUDENT" as const,
+            lane: "recap" as const,
+            text: teacherCheckQuestion,
+            accent: "question" as const,
+          },
+        ]
+      : []),
+  ];
 
-  pushStep(
-    "step-recap",
-    pickLanguage(explanationLanguage, "Recap", "पुनरावृत्ति", "ਦੁਹਰਾਈ"),
-    "RECAP",
-    lessonContent.recapSpeech,
-    [
-      { id: "action-recap", type: "SHOW_RECAP", lane: "recap", text: lessonContent.recapBoardText },
-      { id: "action-ask-student", type: "ASK_STUDENT", lane: "recap", text: lessonContent.practiceQuestion, accent: "question" },
-    ],
-    900
-  );
+  const speechChunks: TuitionTeachingSpeechChunk[] = [
+    { id: "teacher-intro", kind: "INTRO", text: teacherIntro },
+    { id: "teacher-explain", kind: "EXPLAIN", text: teacherExplanation },
+    ...(teacherCheckQuestion ? [{ id: "teacher-check", kind: "QUESTION" as const, text: teacherCheckQuestion }] : []),
+  ];
+
+  const teachingSteps: TuitionTeachingStep[] = [
+    {
+      id: "teacher-live-step",
+      title: phase,
+      speechChunkId: "teacher-explain",
+      actionIds: boardActions.map((action) => action.id),
+      autoDelayMs: 0,
+    },
+  ];
 
   return {
+    teacherIntro,
+    teacherExplanation,
+    teacherCheckQuestion,
+    teacherState: {
+      currentTeachingPhase: phase,
+      currentConcept: currentPoint?.anchor || null,
+      currentConceptIndex: conceptIndex,
+      pausedForStudentQuestion: phase === "HANDLE_STUDENT_DOUBT",
+      resumePoint: conceptIndex,
+      currentConversationTurn: input.messageNumber,
+      selectedLanguage: explanationLanguage,
+      teachingDepth,
+    },
+    boardState,
     speechChunks,
     boardActions,
     teachingSteps,
-    practiceQuestion: lessonContent.practiceQuestion,
-    diagramInstructions: lessonContent.diagramInstructions,
+    interactionHints: buildConversationHints(explanationLanguage),
   };
 };
 
@@ -1040,17 +1929,53 @@ export const buildTuitionTeacherAssistantPayload = async (
   const voiceLanguage = normalizeTeachingLanguage(input.voiceLanguage || input.explanationLanguage);
   const subjectName = normalizeText(input.subjectName) || "General Studies";
   const boardName = normalizeText(input.boardName) || null;
-  const lessonContent = await buildTopicLessonContent(
-    {
-      subjectName,
-      topicTitle: input.topicTitle,
-      explanationLanguage: toLiveBoardLanguage(explanationLanguage),
-      boardLanguage: toLiveBoardLanguage(boardLanguage),
-    } satisfies LiveBoardContext,
-    toLiveBoardSubjectFamily(inferSubjectFamily(subjectName))
-  );
+  const baseLessonContent =
+    buildSafeLessonContentOverride(subjectName, input.topicTitle, explanationLanguage, boardLanguage) ||
+    (await buildTopicLessonContent(
+      {
+        subjectName,
+        topicTitle: input.topicTitle,
+        explanationLanguage: toLiveBoardLanguage(explanationLanguage),
+        boardLanguage: toLiveBoardLanguage(boardLanguage),
+        teachingDepth: input.teachingDepth,
+      } satisfies LiveBoardContext,
+      toLiveBoardSubjectFamily(inferSubjectFamily(subjectName))
+    ));
+  const lessonContent = applyStrictPunjabiGrammarTopicOverride(baseLessonContent, subjectName, input.topicTitle);
   const boardPayload: LiveBoardPayload = lessonContent.boardPayload;
-  const liveTeachingModel = buildLiveTeachingModelV2(input, lessonContent);
+  const teacherModel = applyStrictTeacherStateOverride(buildTeacherSessionModel(input, lessonContent), input);
+  if (
+    normalizeTeachingLanguage(boardLanguage) === "Punjabi" &&
+    normalizeTopicKey(input.topicTitle).includes("chemical reaction")
+  ) {
+    teacherModel.boardState = {
+      ...teacherModel.boardState,
+      title: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ",
+      currentConcept: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।",
+      anchors: ["ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।"],
+      formula: teacherModel.boardState.formula || "ਅਭਿਕਾਰਕ -> ਉਤਪਾਦ",
+      highlight: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।",
+    };
+    teacherModel.boardActions = teacherModel.boardActions.map((action) =>
+      action.id === "teacher-board-title"
+        ? { ...action, text: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ" }
+        : action.id === "teacher-board-anchor-1"
+        ? { ...action, text: "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਨਵੇਂ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।" }
+        : action.id === "teacher-board-formula"
+        ? { ...action, text: "ਅਭਿਕਾਰਕ -> ਉਤਪਾਦ" }
+        : action
+    );
+  }
+  const sparseBoardLines = teacherModel.boardState.anchors;
+  const sparseFormulas = teacherModel.boardState.formula ? [teacherModel.boardState.formula] : [];
+  const sparseExampleSteps = teacherModel.boardState.example ? [teacherModel.boardState.example] : [];
+  const sparseRecapPoints = teacherModel.boardState.recapKeywords.length
+    ? teacherModel.boardState.recapKeywords
+    : lessonContent.recapPoints.slice(0, teacherModel.teacherState.teachingDepth === "ADVANCED" ? 4 : 3);
+  const practiceQuestion =
+    teacherModel.teacherCheckQuestion ||
+    buildTeacherCheckQuestion(explanationLanguage, teacherModel.teacherState.teachingDepth, lessonContent.practiceQuestion);
+
   return {
     title: input.topicTitle,
     chapterTitle: input.topicTitle,
@@ -1059,37 +1984,45 @@ export const buildTuitionTeacherAssistantPayload = async (
     explanationLanguage,
     boardLanguage,
     voiceLanguage,
+    teachingDepth: input.teachingDepth,
     curriculumBoard: boardName,
-    replyText:
-      liveTeachingModel.speechChunks.map((chunk) => chunk.text).join(" "),
-    recapPoints: lessonContent.recapPoints,
-    practiceQuestion: liveTeachingModel.practiceQuestion,
-    diagramInstructions: liveTeachingModel.diagramInstructions,
+    replyText: [teacherModel.teacherIntro, teacherModel.teacherExplanation, teacherModel.teacherCheckQuestion]
+      .filter(Boolean)
+      .join(" "),
+    recapPoints: sparseRecapPoints,
+    practiceQuestion,
+    diagramInstructions: teacherModel.boardState.diagramLabels,
     nextSuggestedAction:
-      input.messageNumber > 3
+      teacherModel.teacherState.currentTeachingPhase === "HANDLE_STUDENT_DOUBT"
         ? pickLanguage(
             explanationLanguage,
-            "Ask the student to explain the board summary in one sentence.",
-            "विद्यार्थी से बोर्ड सार को एक वाक्य में समझाने को कहो।",
-            "ਵਿਦਿਆਰਥੀ ਨੂੰ ਬੋਰਡ ਸਾਰ ਇੱਕ ਵਾਕ ਵਿੱਚ ਸਮਝਾਉਣ ਲਈ ਕਹੋ।"
+            "Continue from the same point after the doubt is clear.",
+            "शंका साफ होने के बाद इसी बिंदु से आगे बढ़ो।",
+            "ਸ਼ੱਕ ਸਾਫ਼ ਹੋਣ ਤੋਂ ਬਾਅਦ ਇਸੇ ਬਿੰਦੂ ਤੋਂ ਅੱਗੇ ਵਧੋ।"
           )
         : pickLanguage(
             explanationLanguage,
-            "Ask one short follow-up about the same topic point.",
-            "उसी विषय-बिंदु पर एक छोटा अनुवर्ती प्रश्न पूछो।",
-            "ਉਸੇ ਵਿਸ਼ੇ-ਬਿੰਦੂ 'ਤੇ ਇੱਕ ਛੋਟਾ ਅਗਲਾ ਪ੍ਰਸ਼ਨ ਪੁੱਛੋ।"
+            "Use Continue, Give Example, or Ask Doubt to guide the lesson.",
+            "पाठ को आगे बढ़ाने के लिए Continue, Give Example या Ask Doubt का उपयोग करो।",
+            "ਪਾਠ ਨੂੰ ਅੱਗੇ ਵਧਾਉਣ ਲਈ Continue, Give Example ਜਾਂ Ask Doubt ਵਰਤੋ।"
           ),
     progressUpdate: null,
-    boardTitle: boardPayload.boardTitle,
-    boardLines: boardPayload.boardLines,
-    formulas: boardPayload.formulas,
-    steps: boardPayload.steps,
-    exampleTitle: boardPayload.exampleTitle,
-    exampleSteps: boardPayload.exampleSteps,
-    teacherMode: "LIVE_BOARD",
-    speechChunks: liveTeachingModel.speechChunks,
-    boardActions: liveTeachingModel.boardActions,
-    teachingSteps: liveTeachingModel.teachingSteps,
+    boardTitle: teacherModel.boardState.title,
+    boardLines: sparseBoardLines,
+    formulas: sparseFormulas,
+    steps: [],
+    exampleTitle: sparseExampleSteps.length ? boardPayload.exampleTitle : null,
+    exampleSteps: sparseExampleSteps,
+    teacherMode: "AI_TEACHER_V2",
+    teacherIntro: teacherModel.teacherIntro,
+    teacherExplanation: teacherModel.teacherExplanation,
+    teacherCheckQuestion: teacherModel.teacherCheckQuestion,
+    boardState: teacherModel.boardState,
+    teacherState: teacherModel.teacherState,
+    interactionHints: teacherModel.interactionHints,
+    speechChunks: teacherModel.speechChunks,
+    boardActions: teacherModel.boardActions,
+    teachingSteps: teacherModel.teachingSteps,
   };
 };
 
@@ -1228,3 +2161,6 @@ export const createTuitionAiProvider = ({
 });
 
 export const tuitionAiProvider = createTuitionAiProvider();
+
+
+
