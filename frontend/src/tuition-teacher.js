@@ -16,6 +16,14 @@ const CHECK_COMMAND = "__CHECK_TUITION_AI_TEACHER__";
 const SETTINGS_STORAGE_KEY = "cc_tuition_teacher_settings_v2";
 const AUTO_FOCUS_COOLDOWN_MS = 1400;
 const EXACT_SPEECH_ENGINE = "openai_tts_whisper_word_timestamps";
+const TEACHER_COMMANDS = new Set([
+  START_COMMAND,
+  CONTINUE_COMMAND,
+  REPEAT_COMMAND,
+  SIMPLER_COMMAND,
+  EXAMPLE_COMMAND,
+  CHECK_COMMAND,
+]);
 
 const normalizeRole = (user) =>
   String(user?.role || user?.userRole || user?.user_type || user?.accountType || "")
@@ -183,6 +191,32 @@ const alignTimedWordsSequentially = (timedWords, texts) => {
   });
 };
 
+const alignTimedWordsBySegments = (timedWords, segments) => {
+  const safeWords = Array.isArray(timedWords) ? timedWords : [];
+  const safeSegments = Array.isArray(segments) ? segments : [];
+  return safeSegments.map((segment) =>
+    safeWords.filter((word) => {
+      const startMs = Number(word?.startMs || 0);
+      const endMs = Number(word?.endMs || 0);
+      return (
+        endMs > startMs &&
+        startMs >= Number(segment?.startMs || 0) &&
+        endMs <= Number(segment?.endMs || 0)
+      );
+    })
+  );
+};
+
+const buildExactTimelineWords = (timedWords, sourceText) => {
+  return (Array.isArray(timedWords) ? timedWords : [])
+    .map((word) => ({
+      startMs: Number(word?.startMs || 0),
+      endMs: Number(word?.endMs || 0),
+      text: String(word?.text || "").trim(),
+    }))
+    .filter((word) => word.endMs > word.startMs && word.text);
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   initHeaderBehavior();
 
@@ -216,11 +250,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const boardModalEl = document.querySelector("#tuitionTeacherBoardModal");
   const boardModalOverlayEl = document.querySelector("#tuitionTeacherBoardModalOverlay");
   const boardModalCloseBtn = document.querySelector("#tuitionTeacherBoardModalCloseBtn");
+  const openBoardBtn = document.querySelector("#tuitionTeacherOpenBoardBtn");
   const boardTitleEl = document.querySelector("#tuitionTeacherBoardTitle");
   const boardMetaEl = document.querySelector("#tuitionTeacherBoardMeta");
   const teacherStageTitleEl = document.querySelector("#tuitionTeacherLiveBoardStepTitle");
   const teacherStatusEl = document.querySelector("#tuitionTeacherBoardTeachingStatus");
-  const teacherTurnsEl = document.querySelector("#tuitionTeacherTeacherTurns");
+  const narrationTextEl = document.querySelector("#tuitionTeacherNarrationText");
   const boardCanvasTitleEl = document.querySelector("#tuitionTeacherBoardCanvasTitle");
   const boardCanvasHintEl = document.querySelector("#tuitionTeacherBoardCanvasHint");
   const boardTeacherCueEl = document.querySelector("#tuitionTeacherBoardTeacherCue");
@@ -238,13 +273,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   const boardRecapKeywordsEl = document.querySelector("#tuitionTeacherBoardRecapKeywords");
   const questionForm = document.querySelector("#tuitionTeacherQuestionForm");
   const questionInputEl = document.querySelector("#tuitionTeacherQuestionInput");
+  const holdToTalkBtn = document.querySelector("#tuitionTeacherHoldToTalkBtn");
+  const boardHoldToTalkBtn = document.querySelector("#tuitionTeacherBoardHoldToTalkBtn");
+  const micStatusEl = document.querySelector("#tuitionTeacherMicStatus");
   const quickSimplerBtn = document.querySelector("#tuitionTeacherQuickSimplerBtn");
   const quickExampleBtn = document.querySelector("#tuitionTeacherQuickExampleBtn");
   const quickRepeatBtn = document.querySelector("#tuitionTeacherQuickRepeatBtn");
   const quickCheckBtn = document.querySelector("#tuitionTeacherQuickCheckBtn");
   const quickContinueBtn = document.querySelector("#tuitionTeacherQuickContinueBtn");
   const replayLastBtn = document.querySelector("#tuitionTeacherReplayLastBtn");
+  const boardPrevBtn = document.querySelector("#tuitionTeacherBoardPrevBtn");
+  const boardRepeatBtn = document.querySelector("#tuitionTeacherBoardRepeatBtn");
+  const boardStopBtn = document.querySelector("#tuitionTeacherBoardStopBtn");
+  const boardContinueBtn = document.querySelector("#tuitionTeacherBoardContinueBtn");
+  const boardReplayBtn = document.querySelector("#tuitionTeacherBoardReplayBtn");
+  const boardNextBtn = document.querySelector("#tuitionTeacherBoardNextBtn");
   const restartTopicBtn = document.querySelector("#tuitionTeacherRestartTopicBtn");
+  const doubtPanelEl = document.querySelector("#tuitionTeacherDoubtPanel");
+  const doubtTitleEl = document.querySelector("#tuitionTeacherDoubtTitle");
+  const doubtQuestionEl = document.querySelector("#tuitionTeacherDoubtQuestion");
+  const doubtAnswerEl = document.querySelector("#tuitionTeacherDoubtAnswer");
+  const doubtContinueBtn = document.querySelector("#tuitionTeacherDoubtContinueBtn");
   const voiceBtn = document.querySelector("#tuitionTeacherVoiceBtn");
   const voiceEndBtn = document.querySelector("#tuitionTeacherVoiceEndBtn");
   const voiceStateEl = document.querySelector("#tuitionTeacherVoiceState");
@@ -257,9 +306,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentSession = null;
   let currentAssistant = null;
   let currentAssistantMessageId = "";
+  let activeBoardMessageId = "";
   let activeBoardOverride = null;
   let lastAutoFocusAt = 0;
+  let activeInteractionMode = "teaching";
   const exactSpeechTrackCache = new Map();
+  const SpeechRecognitionCtor =
+    window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  let doubtSpeechRecognition = null;
+  let isHoldingTalk = false;
   let voiceSession = {
     peerConnection: null,
     localStream: null,
@@ -274,18 +329,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     statusEl.className = `form-message${type ? ` ${type}` : ""}`;
   };
 
+  const showSpeechFailureState = (message) => {
+    const fallback =
+      message || "Teacher audio is unavailable right now, so the board cannot play voice-synced teaching.";
+    if (teacherStatusEl instanceof HTMLElement) {
+      teacherStatusEl.textContent = fallback;
+      teacherStatusEl.className = "tuition-board-teaching-status";
+    }
+    if (narrationTextEl instanceof HTMLElement) {
+      narrationTextEl.textContent = fallback;
+    }
+  };
+
+  const syncMicButtons = (isRecording = false) => {
+    [holdToTalkBtn, boardHoldToTalkBtn].forEach((button) => {
+      if (!(button instanceof HTMLElement)) return;
+      button.classList.toggle("is-recording", isRecording);
+    });
+    if (holdToTalkBtn instanceof HTMLElement) {
+      holdToTalkBtn.textContent = isRecording ? "Release To Stop" : "Hold To Talk";
+    }
+    if (boardHoldToTalkBtn instanceof HTMLElement) {
+      boardHoldToTalkBtn.setAttribute(
+        "aria-label",
+        isRecording ? "Release to stop speaking your doubt from the live board" : "Hold to speak your doubt from the live board"
+      );
+      boardHoldToTalkBtn.setAttribute("title", isRecording ? "Release To Stop" : "Hold To Talk");
+    }
+  };
+
   const openBoardModal = () => {
     if (!(boardModalEl instanceof HTMLElement)) return;
     boardModalEl.classList.remove("hidden");
     boardModalEl.setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
+    document.body.classList.add("tuition-live-board-open");
+  };
+
+  const setMicStatus = (message, isRecording = false) => {
+    if (micStatusEl instanceof HTMLElement) {
+      micStatusEl.textContent = message;
+    }
+    syncMicButtons(isRecording);
   };
 
   const closeBoardModal = () => {
     if (!(boardModalEl instanceof HTMLElement)) return;
     boardModalEl.classList.add("hidden");
     boardModalEl.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
+    document.body.classList.remove("tuition-live-board-open");
   };
 
   const currentTeacherContext = () => {
@@ -329,6 +420,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     apply(difficultyEl, saved.difficultyMode);
   };
 
+  const appendDoubtText = (text) => {
+    if (!(questionInputEl instanceof HTMLTextAreaElement)) return;
+    const nextText = normalizeSpeechText(
+      [questionInputEl.value, text].filter(Boolean).join(" ")
+    );
+    questionInputEl.value = nextText;
+    questionInputEl.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  const applyTeacherSettingsToControls = (context = {}) => {
+    if (subjectEl instanceof HTMLInputElement && typeof context.subject === "string") {
+      subjectEl.value = context.subject;
+    }
+    if (topicEl instanceof HTMLInputElement && typeof context.topic === "string") {
+      topicEl.value = context.topic;
+    }
+    if (explanationLanguageEl instanceof HTMLSelectElement && context.explanationLanguage) {
+      explanationLanguageEl.value = String(context.explanationLanguage).toUpperCase();
+    }
+    if (boardLanguageEl instanceof HTMLSelectElement && context.boardLanguage) {
+      boardLanguageEl.value = String(context.boardLanguage).toUpperCase();
+    }
+    if (voiceLanguageEl instanceof HTMLSelectElement && context.voiceLanguage) {
+      voiceLanguageEl.value = String(context.voiceLanguage).toUpperCase();
+    }
+    if (teachingDepthEl instanceof HTMLSelectElement && context.teachingDepth) {
+      teachingDepthEl.value = String(context.teachingDepth).toUpperCase();
+    }
+    if (speedEl instanceof HTMLSelectElement && context.speedMode) {
+      speedEl.value = String(context.speedMode).toUpperCase();
+    }
+    if (difficultyEl instanceof HTMLSelectElement && context.difficultyMode) {
+      difficultyEl.value = String(context.difficultyMode).toUpperCase();
+    }
+  };
+
   const hasTeacherContextDrift = () => {
     const sessionContext = currentSession?.teacherContext || {};
     const nextContext = currentTeacherContext();
@@ -347,11 +474,67 @@ document.addEventListener("DOMContentLoaded", async () => {
       .reverse()
       .find((message) => message?.role === "ASSISTANT" && message?.structured) || null;
 
+  const getAssistantMessages = (messages) =>
+    (Array.isArray(messages) ? messages : []).filter(
+      (message) => message?.role === "ASSISTANT" && message?.structured
+    );
+
+  const getAssistantMessageIndex = (messages, messageId) =>
+    getAssistantMessages(messages).findIndex((message) => message?.id === messageId);
+
+  const getAssistantMessageByOffset = (messages, messageId, offset) => {
+    const assistantMessages = getAssistantMessages(messages);
+    if (!assistantMessages.length) return null;
+    const currentIndex = getAssistantMessageIndex(messages, messageId);
+    const safeIndex = currentIndex >= 0 ? currentIndex : assistantMessages.length - 1;
+    const targetIndex = safeIndex + offset;
+    if (targetIndex < 0 || targetIndex >= assistantMessages.length) {
+      return null;
+    }
+    return assistantMessages[targetIndex] || null;
+  };
+
   const extractLatestStructured = (messages) => extractLatestAssistantMessage(messages)?.structured || null;
 
-  const getLastTeacherMessageEl = () =>
-    teacherTurnsEl instanceof HTMLElement
-      ? teacherTurnsEl.querySelector(".tuition-chat-message.is-assistant:last-of-type")
+  const isTeacherCommandMessage = (content) => TEACHER_COMMANDS.has(String(content || "").trim());
+
+  const extractLatestDoubtExchange = (messages) => {
+    const safeMessages = Array.isArray(messages) ? messages : [];
+    for (let index = safeMessages.length - 1; index >= 0; index -= 1) {
+      const message = safeMessages[index];
+      if (message?.role !== "USER" || isTeacherCommandMessage(message?.content)) {
+        continue;
+      }
+      const answer = safeMessages
+        .slice(index + 1)
+        .find((candidate) => candidate?.role === "ASSISTANT" && candidate?.structured);
+      if (!answer?.structured) {
+        continue;
+      }
+      return {
+        question: String(message?.content || "").trim(),
+        answer:
+          [
+            answer.structured.teacherIntro,
+            answer.structured.teacherExplanation,
+            answer.structured.teacherCheckQuestion,
+          ]
+            .filter(Boolean)
+            .join("\n\n")
+            .trim() || "The teacher answered the doubt.",
+      };
+    }
+    return null;
+  };
+
+  const getStageFocusTarget = () =>
+    boardModalEl instanceof HTMLElement
+      ? boardModalEl.querySelector(".tuition-teacher-narration-panel")
+      : null;
+
+  const getNarrationFocusTarget = () =>
+    narrationTextEl instanceof HTMLElement
+      ? narrationTextEl.closest(".tuition-teacher-narration-strip") || narrationTextEl
       : null;
 
   const getBoardFocusTarget = () =>
@@ -360,9 +543,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       : null;
 
   const getModalScrollContainer = () =>
-    boardModalEl instanceof HTMLElement
-      ? boardModalEl.querySelector(".tuition-teacher-board-card-modal")
-      : null;
+    boardModalEl instanceof HTMLElement && !boardModalEl.classList.contains("hidden")
+      ? boardModalEl
+      : document.scrollingElement instanceof HTMLElement
+      ? document.scrollingElement
+      : document.documentElement instanceof HTMLElement
+        ? document.documentElement
+        : null;
 
   const isMostlyVisible = (element, container = null) => {
     if (!(element instanceof HTMLElement)) return false;
@@ -402,41 +589,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (now - lastAutoFocusAt < AUTO_FOCUS_COOLDOWN_MS && reason !== "new-step") {
       return;
     }
-    const teacherTarget = getLastTeacherMessageEl();
+    const stageTarget = getStageFocusTarget();
+    const narrationTarget = getNarrationFocusTarget();
     const boardTarget = getBoardFocusTarget();
     const modalContainer = getModalScrollContainer();
     const boardVisible = isMostlyVisible(boardTarget, modalContainer);
+    const stageVisible = isMostlyVisible(stageTarget, modalContainer);
+    const narrationVisible = isMostlyVisible(narrationTarget, modalContainer);
     const cueVisible = isMostlyVisible(boardTeacherCueEl, modalContainer);
-    const teacherVisible = isMostlyVisible(teacherTarget, modalContainer);
-    if (boardVisible && cueVisible && teacherVisible) {
+    if (boardVisible && cueVisible && stageVisible && narrationVisible) {
       return;
     }
-    const target = !teacherVisible
-      ? teacherTarget
+    const target = !stageVisible
+      ? stageTarget
+      : !narrationVisible
+        ? narrationTarget
       : !boardVisible
         ? boardTarget
         : !cueVisible
           ? boardTeacherCueEl
-          : teacherTarget;
+          : stageTarget;
     lastAutoFocusAt = now;
     if (boardModalEl instanceof HTMLElement) {
-      boardModalEl.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      scrollTargetIntoContainer(boardModalEl, "start");
     }
-    if (teacherTurnsEl instanceof HTMLElement && teacherTarget instanceof HTMLElement) {
-      teacherTurnsEl.scrollTo({
-        top: teacherTurnsEl.scrollHeight,
-        behavior: "smooth",
-      });
-      window.setTimeout(() => scrollWithinContainer(teacherTurnsEl, teacherTarget, 24, 24), 40);
+    if (modalContainer instanceof HTMLElement && stageTarget instanceof HTMLElement) {
+      scrollWithinContainer(modalContainer, stageTarget, 92, 72);
+      window.setTimeout(() => scrollWithinContainer(modalContainer, stageTarget, 92, 72), 180);
     }
     if (modalContainer instanceof HTMLElement && boardTarget instanceof HTMLElement) {
-      scrollWithinContainer(modalContainer, boardTarget, 180, 90);
-      window.setTimeout(() => scrollWithinContainer(modalContainer, boardTarget, 180, 90), 220);
+      scrollWithinContainer(modalContainer, boardTarget, 120, 90);
+      window.setTimeout(() => scrollWithinContainer(modalContainer, boardTarget, 120, 90), 260);
     }
-    if (teacherTarget instanceof HTMLElement) {
-      scrollTargetIntoContainer(teacherTarget, "nearest");
-    }
-    if (target instanceof HTMLElement && target !== teacherTarget) {
+    if (target instanceof HTMLElement) {
       window.setTimeout(() => scrollTargetIntoContainer(target, "center"), 120);
     }
     if (boardTarget instanceof HTMLElement && target !== boardTarget) {
@@ -469,42 +654,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     return speechTrack;
   };
 
-  const trimAlignedWordsForBoardLine = (words, languageCode, teachingDepth) => {
-    const safeWords = Array.isArray(words) ? words.filter(Boolean) : [];
-    if (!safeWords.length) return [];
-    const maxWords = teachingDepth === "BASIC" ? 6 : teachingDepth === "ADVANCED" ? 10 : 8;
-    const stopwords = getSpeechStopwords(languageCode);
-    let trimmed = safeWords.slice(0, Math.min(safeWords.length, maxWords));
-    while (
-      trimmed.length > Math.max(3, maxWords - 2) &&
-      stopwords.has(String(trimmed[trimmed.length - 1]?.text || "").toLowerCase())
-    ) {
-      trimmed = trimmed.slice(0, -1);
+  const updateBoardNavigationControls = () => {
+    const assistantMessages = getAssistantMessages(currentSession?.messages || []);
+    const currentIndex = getAssistantMessageIndex(
+      currentSession?.messages || [],
+      activeBoardMessageId || currentAssistantMessageId
+    );
+    const safeIndex = currentIndex >= 0 ? currentIndex : assistantMessages.length - 1;
+    if (boardPrevBtn instanceof HTMLButtonElement) {
+      boardPrevBtn.disabled = assistantMessages.length < 2 || safeIndex <= 0;
     }
-    return trimmed.length ? trimmed : safeWords.slice(0, Math.min(safeWords.length, maxWords));
+    if (boardNextBtn instanceof HTMLButtonElement) {
+      boardNextBtn.disabled = assistantMessages.length < 2 || safeIndex >= assistantMessages.length - 1;
+    }
+    if (boardReplayBtn instanceof HTMLButtonElement) {
+      boardReplayBtn.disabled = assistantMessages.length < 1;
+    }
+    if (boardStopBtn instanceof HTMLButtonElement) {
+      boardStopBtn.disabled = !(window.__ccTuitionTeacherStageAudio instanceof HTMLAudioElement);
+    }
   };
 
   const buildExactBoardPlan = (assistant, speechTrack, languageCode) => {
-    const teachingDepth = String(assistant?.teacherState?.teachingDepth || "MODERATE").toUpperCase();
-    const explanationText = normalizeSpeechText(assistant?.teacherExplanation || "");
-    const sourceSegments = splitSpeechUnits(explanationText);
-    const exactSegmentWords = alignTimedWordsSequentially(speechTrack?.words || [], sourceSegments);
-    const maxLines = teachingDepth === "BASIC" ? 1 : teachingDepth === "ADVANCED" ? 3 : 2;
-    const lines = exactSegmentWords
-      .map((segmentWords) => trimAlignedWordsForBoardLine(segmentWords, languageCode, teachingDepth))
-      .filter((segmentWords) => segmentWords.length)
-      .slice(0, maxLines)
-      .map((segmentWords, index) => ({
-        id: `line-${index}`,
-        words: segmentWords,
-        startMs: Number(segmentWords[0]?.startMs || 0),
-        endMs: Number(segmentWords[segmentWords.length - 1]?.endMs || 0),
-      }))
-      .filter((line) => line.endMs > line.startMs);
+    const sourceText = normalizeSpeechText(
+      speechTrack?.sourceText || assistant?.teacherExplanation || assistant?.teacherIntro || ""
+    );
+    const timelineWords = buildExactTimelineWords(speechTrack?.words || [], sourceText);
 
     return {
-      lines,
-      teachingDepth,
+      timelineWords,
+      fullText: sourceText,
+      languageCode,
     };
   };
 
@@ -516,8 +696,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const getExactSpeechDrivenBoardState = (assistant, boardPlan, currentMs) => {
     const boardState = assistant?.boardState || {};
-    const lines = Array.isArray(boardPlan?.lines) ? boardPlan.lines : [];
-    if (!lines.length) {
+    const timelineWords = Array.isArray(boardPlan?.timelineWords) ? boardPlan.timelineWords : [];
+    const visibleTranscript = renderTextFromExactWords(timelineWords, currentMs);
+    if (!timelineWords.length) {
       return {
         ...boardState,
         currentConcept: normalizeSpeechText(assistant?.teacherExplanation || assistant?.teacherIntro || ""),
@@ -527,31 +708,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         recapKeywords: [],
       };
     }
-
-    const renderedLines = lines
-      .map((line) => ({
-        ...line,
-        visibleText: renderTextFromExactWords(line.words, currentMs),
-      }))
-      .filter((line) => Boolean(line.visibleText));
-
-    const activeLine =
-      renderedLines.find((line) => currentMs >= line.startMs && currentMs <= line.endMs) ||
-      renderedLines[renderedLines.length - 1] ||
-      lines[0];
-
-    const visibleAnchors = renderedLines.map((line) => line.visibleText).filter(Boolean);
-
     return {
       ...boardState,
-      currentConcept: activeLine?.visibleText || normalizeSpeechText(assistant?.teacherExplanation || ""),
-      anchors: visibleAnchors,
+      currentConcept: visibleTranscript,
+      anchors: [],
       formula: null,
       example: null,
       diagramLabels: [],
       recapKeywords: [],
-      teacherCue: activeLine?.visibleText || normalizeSpeechText(assistant?.teacherExplanation || assistant?.teacherIntro || ""),
-      highlight: activeLine?.visibleText || visibleAnchors[visibleAnchors.length - 1] || "",
+      teacherCue: visibleTranscript,
+      highlight: visibleTranscript,
     };
   };
 
@@ -566,6 +732,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     stopSpeech();
+    activeBoardMessageId = messageId;
+    updateBoardNavigationControls();
 
     const speechTrack = await fetchExactSpeechTrack(messageId);
     const boardLanguage = currentSession?.teacherContext?.boardLanguage || speechTrack.language || languageCode;
@@ -577,6 +745,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       const currentMs = Math.max(0, Math.round(stageAudioEl.currentTime * 1000));
       activeBoardOverride = getExactSpeechDrivenBoardState(assistant, boardPlan, currentMs);
       renderMinimalBoard(assistant, activeBoardOverride);
+      if (narrationTextEl instanceof HTMLElement) {
+        narrationTextEl.textContent = getExactSpeechDrivenNarration(assistant, boardPlan, currentMs);
+      }
       if (!stageAudioEl.paused && !stageAudioEl.ended) {
         frameId = window.requestAnimationFrame(syncBoardToAudio);
       }
@@ -584,6 +755,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     activeBoardOverride = getExactSpeechDrivenBoardState(assistant, boardPlan, 0);
     renderMinimalBoard(assistant, activeBoardOverride);
+    if (narrationTextEl instanceof HTMLElement) {
+      narrationTextEl.textContent = getExactSpeechDrivenNarration(assistant, boardPlan, 0);
+    }
     focusActiveTeachingRegion(focusReason);
 
     stageAudioEl.src = objectUrl;
@@ -606,9 +780,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       URL.revokeObjectURL(objectUrl);
       window.__ccTuitionTeacherSpeechController = null;
       window.__ccTuitionTeacherStageAudio = null;
+      updateBoardNavigationControls();
     };
 
     stageAudioEl.onplay = () => {
+      if (teacherStatusEl instanceof HTMLElement) {
+        teacherStatusEl.className = "tuition-board-teaching-status state-writing";
+      }
       if (frameId) {
         window.cancelAnimationFrame(frameId);
       }
@@ -618,12 +796,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       activeBoardOverride = getExactSpeechDrivenBoardState(
         assistant,
         boardPlan,
-        Number(boardPlan?.lines?.at?.(-1)?.endMs || speechTrack.words.at(-1)?.endMs || 0)
+        Number(boardPlan?.timelineWords?.at?.(-1)?.endMs || speechTrack.words.at(-1)?.endMs || 0)
       );
       renderMinimalBoard(assistant, activeBoardOverride);
+      if (narrationTextEl instanceof HTMLElement) {
+        narrationTextEl.textContent = normalizeSpeechText(
+          assistant?.teacherExplanation || assistant?.teacherIntro || narrationTextEl.textContent || ""
+        );
+      }
+      if (teacherStatusEl instanceof HTMLElement) {
+        teacherStatusEl.className = "tuition-board-teaching-status state-complete";
+      }
       cleanup();
     };
     stageAudioEl.onerror = () => {
+      if (teacherStatusEl instanceof HTMLElement) {
+        teacherStatusEl.className = "tuition-board-teaching-status";
+      }
       cleanup();
     };
 
@@ -633,6 +822,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       },
     };
     window.__ccTuitionTeacherStageAudio = stageAudioEl;
+    updateBoardNavigationControls();
 
     try {
       await stageAudioEl.play();
@@ -676,47 +866,103 @@ document.addEventListener("DOMContentLoaded", async () => {
     boardMetaEl.innerHTML = chips.map((chip) => `<span class=\"tuition-chip\">${escapeHtml(chip)}</span>`).join("");
   };
 
-  const renderTeacherTurns = (messages, assistant) => {
-    if (!(teacherTurnsEl instanceof HTMLElement)) return;
-    const recentMessages = Array.isArray(messages) ? messages.slice(-6) : [];
-    if (!recentMessages.length && !assistant) {
-      teacherTurnsEl.innerHTML =
-        '<div class="tuition-chat-empty">Start teaching to see the teacher explanation here.</div>';
+  const renderFocusedDoubtPanel = (messages) => {
+    if (!(doubtPanelEl instanceof HTMLElement)) return;
+    const latestDoubt = extractLatestDoubtExchange(messages);
+    const shouldShow = activeInteractionMode === "doubt" && Boolean(latestDoubt);
+    doubtPanelEl.classList.toggle("hidden", !shouldShow);
+    if (!shouldShow) {
       return;
     }
-    const lastAssistantIndex = recentMessages.reduce(
-      (latest, message, index) => (message.role === "ASSISTANT" ? index : latest),
-      -1
-    );
-    teacherTurnsEl.innerHTML = recentMessages
-      .map((message, index) => {
-        const isAssistant = message.role === "ASSISTANT";
-        const structured = message.structured || null;
-        const heading = isAssistant ? "Teacher" : "Student";
-        const body =
-          isAssistant && structured
-            ? [structured.teacherIntro, structured.teacherExplanation, structured.teacherCheckQuestion]
-                .filter(Boolean)
-                .join("\n\n")
-            : message.content;
-        return `
-          <article class="tuition-chat-message ${isAssistant ? "is-assistant" : "is-user"} ${index === lastAssistantIndex ? "is-active-turn" : ""}">
-            <strong>${escapeHtml(heading)}</strong>
-            <p>${escapeHtml(body).replaceAll("\n", "<br />")}</p>
-          </article>
-        `;
-      })
-      .join("");
+    if (doubtTitleEl instanceof HTMLElement) {
+      doubtTitleEl.textContent = "Teacher is clarifying your current doubt";
+    }
+    if (doubtQuestionEl instanceof HTMLElement) {
+      doubtQuestionEl.textContent =
+        latestDoubt?.question || "Ask a doubt to see the focused answer here.";
+    }
+    if (doubtAnswerEl instanceof HTMLElement) {
+      doubtAnswerEl.textContent =
+        latestDoubt?.answer || "The teacher answer will stay here only for the current doubt.";
+    }
   };
 
-  const renderBoardList = (element, items) => {
+  const getExactSpeechDrivenNarration = (assistant, boardPlan, currentMs) => {
+    const timelineWords = Array.isArray(boardPlan?.timelineWords) ? boardPlan.timelineWords : [];
+    const visibleText = renderTextFromExactWords(timelineWords, currentMs);
+    return visibleText || "";
+  };
+
+  const renderTeacherStage = (messages, assistant) => {
+    if (teacherStageTitleEl instanceof HTMLElement) {
+      teacherStageTitleEl.textContent =
+        assistant?.teacherState?.currentTeachingPhase || "Start the topic to meet the AI teacher.";
+    }
+    if (teacherStatusEl instanceof HTMLElement) {
+      teacherStatusEl.textContent =
+        assistant?.teacherState?.currentTeachingPhase === "COMPLETE"
+          ? "The teacher has completed this pass and the board is holding the final learning point."
+          : activeInteractionMode === "doubt"
+            ? "Class is paused for a focused doubt. Continue when you are ready to resume the teaching flow."
+            : "The teacher is speaking live here while the board writes in exact sync.";
+      teacherStatusEl.className = "tuition-board-teaching-status";
+    }
+    if (narrationTextEl instanceof HTMLElement) {
+      narrationTextEl.textContent =
+        activeInteractionMode === "teaching"
+          ? "Voice-synced text will appear here when playback starts."
+          : "The teacher will answer here in sync when playback starts.";
+    }
+    renderFocusedDoubtPanel(messages);
+  };
+
+  const focusQuestionComposer = () => {
+    if (questionInputEl instanceof HTMLTextAreaElement) {
+      questionInputEl.focus({ preventScroll: false });
+      questionInputEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    }
+  };
+
+  const playBoardMessage = async (assistantMessage, focusReason = "replay") => {
+    if (!assistantMessage?.structured) {
+      setStatus("No teacher turn is available for the live board.", "error");
+      return;
+    }
+    activeInteractionMode = "teaching";
+    openBoardModal();
+    renderBoardMeta(currentSession, assistantMessage.structured);
+    renderTeacherStage(currentSession?.messages || [], assistantMessage.structured);
+    renderMinimalBoard(assistantMessage.structured, null);
+    try {
+      await startSpeechDrivenBoardSync(
+        assistantMessage,
+        currentSession?.teacherContext?.voiceLanguage || currentTeacherContext().voiceLanguage,
+        focusReason
+      );
+      window.setTimeout(() => focusActiveTeachingRegion(focusReason), 180);
+      window.setTimeout(() => focusActiveTeachingRegion(focusReason), 1100);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Teacher audio is unavailable right now.";
+      showSpeechFailureState(message);
+      throw error;
+    }
+  };
+
+  const renderBoardList = (element, items, highlight = "") => {
     if (!(element instanceof HTMLElement)) return;
     const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
     if (!safeItems.length) {
       element.innerHTML = '<li class="tuition-empty-note">No board writing yet.</li>';
       return;
     }
-    element.innerHTML = safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    const normalizedHighlight = normalizeSpeechText(highlight);
+    element.innerHTML = safeItems
+      .map((item) => {
+        const isActive = normalizedHighlight && normalizeSpeechText(item) === normalizedHighlight;
+        return `<li class="${isActive ? "is-active-board-line" : ""}">${escapeHtml(item)}</li>`;
+      })
+      .join("");
   };
 
   const renderMinimalBoard = (assistant, overrideBoardState = null) => {
@@ -728,20 +974,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       boardCanvasTitleEl.textContent = boardState?.title || "Waiting for a teacher reply...";
     }
     if (boardCanvasHintEl instanceof HTMLElement) {
-      boardCanvasHintEl.textContent =
-        "The teacher keeps only short support points, one rule, and one example when needed.";
+      boardCanvasHintEl.textContent = "";
     }
     if (boardTeacherCueEl instanceof HTMLElement) {
-      boardTeacherCueEl.textContent =
-        boardState?.teacherCue ||
-        assistant?.nextSuggestedAction ||
-        "Ask a doubt, ask for an example, or continue the lesson.";
+      boardTeacherCueEl.textContent = "";
     }
     if (boardCurrentConceptEl instanceof HTMLElement) {
       boardCurrentConceptEl.textContent = boardState?.currentConcept || "Waiting for the first concept...";
       boardCurrentConceptEl.classList.toggle("is-live", Boolean(boardState?.currentConcept));
     }
-    renderBoardList(boardAnchorsEl, boardState?.anchors || []);
+    renderBoardList(boardAnchorsEl, boardState?.anchors || [], boardState?.highlight || boardState?.currentConcept || "");
+    if (boardAnchorsEl instanceof HTMLElement) {
+      boardAnchorsEl.classList.add("hidden");
+    }
     if (boardFormulaBlockEl instanceof HTMLElement) {
       const hasFormula = Boolean(boardState?.formula);
       boardFormulaBlockEl.classList.toggle("hidden", !hasFormula);
@@ -773,6 +1018,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const latestAssistantMessage = extractLatestAssistantMessage(session?.messages || []);
     currentAssistant = latestAssistantMessage?.structured || null;
     currentAssistantMessageId = latestAssistantMessage?.id || "";
+    const activeBoardMessageStillExists = getAssistantMessages(session?.messages || []).some(
+      (message) => message?.id === activeBoardMessageId
+    );
+    if (!activeBoardMessageId || !activeBoardMessageStillExists) {
+      activeBoardMessageId = currentAssistantMessageId;
+    }
     if (titleEl instanceof HTMLElement) {
       titleEl.textContent = session?.teacherContext?.topic || session?.title || chapterContext?.chapter?.title || "Tuition Teacher";
     }
@@ -786,17 +1037,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     renderSessionMeta(session, chapterContext?.progress);
     renderBoardMeta(session, currentAssistant);
-    renderTeacherTurns(session?.messages || [], currentAssistant);
+    renderTeacherStage(session?.messages || [], currentAssistant);
     renderMinimalBoard(currentAssistant, activeBoardOverride);
-
-    if (teacherStageTitleEl instanceof HTMLElement) {
-      teacherStageTitleEl.textContent = currentAssistant?.teacherState?.currentTeachingPhase || "Waiting for the teacher";
-    }
-    if (teacherStatusEl instanceof HTMLElement) {
-      teacherStatusEl.textContent =
-        currentAssistant?.teacherExplanation ||
-        "Start teaching to hear the teacher explanation and see the short support notes.";
-    }
+    updateBoardNavigationControls();
   };
 
   const applySessionState = (payload) => {
@@ -900,18 +1143,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const ensureActiveSession = async () => {
-    if (!activeSessionId || hasTeacherContextDrift()) {
+    if (!activeSessionId) {
       await createOrResumeSession(true);
+      return;
+    }
+    if (hasTeacherContextDrift()) {
+      await createOrResumeSession(false);
     }
   };
 
-  const sendTeacherMessage = async (content, successMessage = "Teacher replied.") => {
+  const sendTeacherMessage = async (
+    content,
+    successMessage = "Teacher replied.",
+    nextInteractionMode = "teaching"
+  ) => {
     const safeContent = String(content || "").trim();
     if (!safeContent) {
       setStatus("Enter a question first.", "error");
       return null;
     }
+    const requestedSettings = readSessionSettings();
     await ensureActiveSession();
+    applyTeacherSettingsToControls(requestedSettings);
     setStatus("Teacher is thinking...");
     const payload = await apiRequest({
       path: `/student/tuition/chapters/${chapterId}/sessions/${activeSessionId}/messages`,
@@ -919,20 +1172,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       token,
       body: {
         content: safeContent,
-        ...readSessionSettings(),
+        ...requestedSettings,
       },
     });
+    activeInteractionMode = nextInteractionMode;
     applySessionState(payload);
     openBoardModal();
     const latestAssistantMessage = extractLatestAssistantMessage(payload?.session?.messages || []);
     if (latestAssistantMessage?.structured) {
-      await startSpeechDrivenBoardSync(
-        latestAssistantMessage,
-        payload?.session?.teacherContext?.voiceLanguage || currentTeacherContext().voiceLanguage,
-        "new-step"
-      );
-      window.setTimeout(() => focusActiveTeachingRegion("resume"), 180);
-      window.setTimeout(() => focusActiveTeachingRegion("resume"), 1100);
+      await playBoardMessage(latestAssistantMessage, "new-step");
     }
     setStatus(successMessage, "success");
     return payload;
@@ -940,6 +1188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const renderIdle = () => {
     activeBoardOverride = null;
+    activeInteractionMode = "teaching";
     if (titleEl instanceof HTMLElement) {
       titleEl.textContent = chapterContext?.chapter?.title || "Loading topic...";
     }
@@ -947,6 +1196,74 @@ document.addEventListener("DOMContentLoaded", async () => {
       sessionLabelEl.textContent = "Preparing session...";
     }
     renderAssistant(currentSession);
+  };
+
+  const stopHoldToTalk = () => {
+    isHoldingTalk = false;
+    if (doubtSpeechRecognition) {
+      try {
+        doubtSpeechRecognition.stop();
+      } catch {
+        // Ignore recognition stop errors.
+      }
+    }
+    setMicStatus("Press and hold the mic button to speak. Release to stop recording.", false);
+  };
+
+  const startHoldToTalk = () => {
+    if (!SpeechRecognitionCtor) {
+      setMicStatus("Voice input is not supported in this browser. You can still type your doubt.", false);
+      return;
+    }
+    if (isHoldingTalk) {
+      return;
+    }
+    isHoldingTalk = true;
+    if (!doubtSpeechRecognition) {
+      doubtSpeechRecognition = new SpeechRecognitionCtor();
+      doubtSpeechRecognition.continuous = true;
+      doubtSpeechRecognition.interimResults = true;
+      doubtSpeechRecognition.maxAlternatives = 1;
+      doubtSpeechRecognition.onresult = (event) => {
+        const transcripts = [];
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = String(event.results[index]?.[0]?.transcript || "").trim();
+          if (transcript && event.results[index].isFinal) {
+            transcripts.push(transcript);
+          }
+        }
+        if (transcripts.length) {
+          appendDoubtText(transcripts.join(" "));
+        }
+      };
+      doubtSpeechRecognition.onerror = () => {
+        setMicStatus("Mic input could not continue. Release and press again to retry.", false);
+      };
+      doubtSpeechRecognition.onend = () => {
+        if (isHoldingTalk) {
+          setMicStatus("Listening... keep holding the mic button.", true);
+          try {
+            doubtSpeechRecognition.start();
+          } catch {
+            setMicStatus("Mic input could not continue. Release and press again to retry.", false);
+            isHoldingTalk = false;
+          }
+          return;
+        }
+        setMicStatus("Press and hold the mic button to speak. Release to stop recording.", false);
+      };
+    }
+    const explainLanguage =
+      explanationLanguageEl instanceof HTMLSelectElement ? explanationLanguageEl.value : "ENGLISH";
+    doubtSpeechRecognition.lang =
+      explainLanguage === "HINDI" ? "hi-IN" : explainLanguage === "PUNJABI" ? "pa-IN" : "en-IN";
+    setMicStatus("Listening... keep holding the mic button.", true);
+    try {
+      doubtSpeechRecognition.start();
+    } catch {
+      setMicStatus("Mic input could not start. Release and press again to retry.", false);
+      isHoldingTalk = false;
+    }
   };
 
   const parseVoiceRealtimeError = async (response) => {
@@ -1140,10 +1457,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     difficultyEl,
   ].forEach(wirePersist);
 
+  if (holdToTalkBtn instanceof HTMLButtonElement) {
+    if (!SpeechRecognitionCtor) {
+      setMicStatus("Voice input is not supported in this browser. You can still type your doubt.", false);
+      holdToTalkBtn.disabled = true;
+      if (boardHoldToTalkBtn instanceof HTMLButtonElement) {
+        boardHoldToTalkBtn.disabled = true;
+      }
+    } else {
+      const startPress = (event) => {
+        event.preventDefault();
+        focusQuestionComposer();
+        startHoldToTalk();
+      };
+      const endPress = (event) => {
+        event.preventDefault();
+        stopHoldToTalk();
+      };
+      [holdToTalkBtn, boardHoldToTalkBtn].forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        button.addEventListener("mousedown", startPress);
+        button.addEventListener("touchstart", startPress, { passive: false });
+        button.addEventListener("mouseup", endPress);
+        button.addEventListener("mouseleave", endPress);
+        button.addEventListener("touchend", endPress, { passive: false });
+        button.addEventListener("touchcancel", endPress, { passive: false });
+      });
+    }
+  }
+  window.addEventListener("mouseup", () => {
+    if (isHoldingTalk) {
+      stopHoldToTalk();
+    }
+  });
+  window.addEventListener("touchend", () => {
+    if (isHoldingTalk) {
+      stopHoldToTalk();
+    }
+  });
+  window.addEventListener("blur", () => {
+    if (isHoldingTalk) {
+      stopHoldToTalk();
+    }
+  });
+
   teachBtn?.addEventListener("click", async () => {
     try {
+      activeInteractionMode = "teaching";
       openBoardModal();
-      await sendTeacherMessage(START_COMMAND, "AI teacher started the topic.");
+      await sendTeacherMessage(START_COMMAND, "AI teacher started the topic.", "teaching");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to start teaching.", "error");
     }
@@ -1157,6 +1519,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         await createOrResumeSession(true);
       }
+      activeInteractionMode = "teaching";
       focusActiveTeachingRegion("resume");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to refresh the lesson.", "error");
@@ -1171,7 +1534,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setStatus("Type a doubt first.", "error");
         return;
       }
-      await sendTeacherMessage(question, "Teacher answered your doubt.");
+      await sendTeacherMessage(question, "Teacher answered your doubt.", "doubt");
       if (questionInputEl instanceof HTMLTextAreaElement) {
         questionInputEl.value = "";
       }
@@ -1181,45 +1544,121 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   quickContinueBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(CONTINUE_COMMAND, "Teacher continued the lesson.");
+    activeInteractionMode = "teaching";
+    await sendTeacherMessage(CONTINUE_COMMAND, "Teacher continued the lesson.", "teaching");
+  });
+  boardContinueBtn?.addEventListener("click", async () => {
+    activeInteractionMode = "teaching";
+    await sendTeacherMessage(CONTINUE_COMMAND, "Teacher continued the lesson.", "teaching");
   });
   quickRepeatBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(REPEAT_COMMAND, "Teacher repeated the point.");
+    await sendTeacherMessage(REPEAT_COMMAND, "Teacher repeated the point.", activeInteractionMode);
+  });
+  boardRepeatBtn?.addEventListener("click", async () => {
+    await sendTeacherMessage(REPEAT_COMMAND, "Teacher repeated the point.", activeInteractionMode);
   });
   quickSimplerBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(SIMPLER_COMMAND, "Teacher explained it more simply.");
+    await sendTeacherMessage(SIMPLER_COMMAND, "Teacher explained it more simply.", activeInteractionMode);
   });
   quickExampleBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(EXAMPLE_COMMAND, "Teacher gave an example.");
+    await sendTeacherMessage(EXAMPLE_COMMAND, "Teacher gave an example.", activeInteractionMode);
   });
   quickCheckBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(CHECK_COMMAND, "Teacher asked a check question.");
+    await sendTeacherMessage(CHECK_COMMAND, "Teacher asked a check question.", activeInteractionMode);
   });
   replayLastBtn?.addEventListener("click", async () => {
     try {
-      const latestAssistantMessage = extractLatestAssistantMessage(currentSession?.messages || []);
+      activeInteractionMode = "teaching";
+      const latestAssistantMessage =
+        getAssistantMessages(currentSession?.messages || []).find(
+          (message) => message?.id === activeBoardMessageId
+        ) || extractLatestAssistantMessage(currentSession?.messages || []);
       if (!latestAssistantMessage?.structured) {
         setStatus("No teacher explanation is available yet.", "error");
         return;
       }
-      openBoardModal();
-      await startSpeechDrivenBoardSync(
-        latestAssistantMessage,
-        currentSession?.teacherContext?.voiceLanguage || currentTeacherContext().voiceLanguage,
-        "replay"
-      );
-      window.setTimeout(() => focusActiveTeachingRegion("replay"), 180);
-      window.setTimeout(() => focusActiveTeachingRegion("replay"), 1100);
+      await playBoardMessage(latestAssistantMessage, "replay");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to replay the exact teacher speech track.", "error");
     }
   });
   restartTopicBtn?.addEventListener("click", async () => {
-    await sendTeacherMessage(START_COMMAND, "Teacher restarted the topic from the beginning.");
+    activeInteractionMode = "teaching";
+    await sendTeacherMessage(START_COMMAND, "Teacher restarted the topic from the beginning.", "teaching");
+  });
+  boardReplayBtn?.addEventListener("click", async () => {
+    try {
+      activeInteractionMode = "teaching";
+      const latestAssistantMessage =
+        getAssistantMessages(currentSession?.messages || []).find(
+          (message) => message?.id === activeBoardMessageId
+        ) || extractLatestAssistantMessage(currentSession?.messages || []);
+      if (!latestAssistantMessage?.structured) {
+        setStatus("No teacher explanation is available yet.", "error");
+        return;
+      }
+      await playBoardMessage(latestAssistantMessage, "replay");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to replay the exact teacher speech track.", "error");
+    }
+  });
+  boardPrevBtn?.addEventListener("click", async () => {
+    try {
+      const targetMessage = getAssistantMessageByOffset(
+        currentSession?.messages || [],
+        activeBoardMessageId || currentAssistantMessageId,
+        -1
+      );
+      if (!targetMessage?.structured) {
+        setStatus("No previous teacher turn is available.", "error");
+        return;
+      }
+      await playBoardMessage(targetMessage, "resume");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to open the previous teacher turn.", "error");
+    }
+  });
+  boardNextBtn?.addEventListener("click", async () => {
+    try {
+      const targetMessage = getAssistantMessageByOffset(
+        currentSession?.messages || [],
+        activeBoardMessageId || currentAssistantMessageId,
+        1
+      );
+      if (!targetMessage?.structured) {
+        setStatus("No next teacher turn is available.", "error");
+        return;
+      }
+      await playBoardMessage(targetMessage, "resume");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to open the next teacher turn.", "error");
+    }
+  });
+  boardStopBtn?.addEventListener("click", () => {
+    stopSpeech();
+    if (teacherStatusEl instanceof HTMLElement) {
+      teacherStatusEl.textContent = "Playback stopped. Use replay, previous, next, or continue when you are ready.";
+      teacherStatusEl.className = "tuition-board-teaching-status";
+    }
+    updateBoardNavigationControls();
   });
 
+  doubtContinueBtn?.addEventListener("click", async () => {
+    activeInteractionMode = "teaching";
+    await sendTeacherMessage(CONTINUE_COMMAND, "Teacher continued the lesson.", "teaching");
+  });
+
+  openBoardBtn?.addEventListener("click", () => {
+    openBoardModal();
+    focusActiveTeachingRegion("resume");
+  });
   boardModalCloseBtn?.addEventListener("click", closeBoardModal);
   boardModalOverlayEl?.addEventListener("click", closeBoardModal);
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && boardModalEl instanceof HTMLElement && !boardModalEl.classList.contains("hidden")) {
+      closeBoardModal();
+    }
+  });
 
   voiceBtn?.addEventListener("click", async () => {
     await startVoiceTutor();
@@ -1256,5 +1695,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("beforeunload", () => {
     stopSpeech();
     stopVoiceSession();
+    document.body.classList.remove("tuition-live-board-open");
   });
 });

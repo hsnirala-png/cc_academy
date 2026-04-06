@@ -149,6 +149,23 @@ const inferLanguageFromReferenceText = (value: string): string => {
   return "";
 };
 
+const resolveExplicitTranscriptionLanguage = (value: string): string => {
+  const normalized = normalizeLanguageHint(value);
+  // Punjabi speech can be transcribed, but this provider currently rejects
+  // an explicit "pa" language parameter. Let the model auto-detect instead.
+  if (normalized === "pa") return "";
+  return normalized;
+};
+
+const resolveTranscriptionLanguage = (preferredHint: string, referenceText: string): string => {
+  const explicitLanguage = resolveExplicitTranscriptionLanguage(preferredHint);
+  if (explicitLanguage) return explicitLanguage;
+
+  const inferredLanguage = inferLanguageFromReferenceText(referenceText);
+  if (inferredLanguage === "pa") return "";
+  return inferredLanguage;
+};
+
 export const generateSpeechMp3Buffer = async (
   text: string,
   options: GenerateSpeechOptions = {}
@@ -191,8 +208,7 @@ export const transcribeMp3WithTimestamps = async (
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
   form.append("temperature", "0");
-  const transcriptionLanguage =
-    normalizeLanguageHint(options.languageHint || "") || inferLanguageFromReferenceText(referenceText || "");
+  const transcriptionLanguage = resolveTranscriptionLanguage(options.languageHint || "", referenceText || "");
   if (transcriptionLanguage) {
     form.append("language", transcriptionLanguage);
   }

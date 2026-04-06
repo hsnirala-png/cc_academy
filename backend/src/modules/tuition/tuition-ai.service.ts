@@ -422,6 +422,32 @@ const serializeSession = (session: TuitionSessionRecord) => {
   };
 };
 
+const sessionMatchesTeacherContext = (
+  session: TuitionSessionRecord,
+  teacherContext: {
+    subjectName: string;
+    topicTitle: string;
+    explanationLanguage: "ENGLISH" | "HINDI" | "PUNJABI";
+    boardLanguage: "ENGLISH" | "HINDI" | "PUNJABI";
+    voiceLanguage: "ENGLISH" | "HINDI" | "PUNJABI";
+    teachingDepth: "BASIC" | "MODERATE" | "ADVANCED";
+  }
+): boolean => {
+  const serialized = serializeSession(session);
+  return (
+    normalizeSessionTitle(serialized.teacherContext.topic) === normalizeSessionTitle(teacherContext.topicTitle) &&
+    normalizeSessionTitle(serialized.teacherContext.subject) === normalizeSessionTitle(teacherContext.subjectName) &&
+    normalizeTeachingLanguageCode(serialized.teacherContext.explanationLanguage) ===
+      normalizeTeachingLanguageCode(teacherContext.explanationLanguage) &&
+    normalizeTeachingLanguageCode(serialized.teacherContext.boardLanguage) ===
+      normalizeTeachingLanguageCode(teacherContext.boardLanguage) &&
+    normalizeTeachingLanguageCode(serialized.teacherContext.voiceLanguage) ===
+      normalizeTeachingLanguageCode(teacherContext.voiceLanguage) &&
+    normalizeTeachingDepth(serialized.teacherContext.teachingDepth) ===
+      normalizeTeachingDepth(teacherContext.teachingDepth)
+  );
+};
+
 const resolveTeacherContext = (input: {
   boardName?: string | null;
   preferredLanguage?: string | null;
@@ -730,6 +756,10 @@ export const tuitionAiService = {
       if (session && normalizeSessionTitle(session.title) !== normalizeSessionTitle(teacherContext.topicTitle)) {
         session = null;
       }
+    }
+
+    if (session && !sessionMatchesTeacherContext(session, teacherContext)) {
+      session = null;
     }
 
     if (session) {

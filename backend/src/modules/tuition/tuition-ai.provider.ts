@@ -1065,6 +1065,119 @@ const shapeSpeechForDepth = (
   return normalized;
 };
 
+const splitSpeechSentences = (text: string): string[] =>
+  normalizeText(text)
+    .split(/(?<=[.!?।॥])\s+/u)
+    .map((sentence) => normalizeText(sentence))
+    .filter(Boolean);
+
+const ensureSentenceClosure = (
+  language: "English" | "Hindi" | "Punjabi",
+  sentence: string
+): string => {
+  const normalized = normalizeText(sentence);
+  if (!normalized) return "";
+  if (/[.!?।॥]$/u.test(normalized)) {
+    return normalized;
+  }
+  return normalized + (language === "English" ? "." : "।");
+};
+
+const buildContinueSpeechPadding = (
+  language: "English" | "Hindi" | "Punjabi",
+  topicTitle: string,
+  currentAnchor: string
+): string[] => [
+  pickLanguage(
+    language,
+    `Keep your attention on the core idea of ${topicTitle}.`,
+    `${topicTitle} के मुख्य विचार पर ध्यान बनाए रखो।`,
+    `${topicTitle} ਦੇ ਮੁੱਖ ਵਿਚਾਰ 'ਤੇ ਧਿਆਨ ਬਣਾਈ ਰੱਖੋ।`
+  ),
+  pickLanguage(
+    language,
+    `The board is showing only the key support point: ${currentAnchor}.`,
+    `बोर्ड अभी केवल यही मुख्य सहायक बिंदु दिखा रहा है: ${currentAnchor}।`,
+    `ਬੋਰਡ ਇਸ ਵੇਲੇ ਸਿਰਫ਼ ਇਹ ਮੁੱਖ ਸਹਾਇਕ ਬਿੰਦੂ ਦਿਖਾ ਰਿਹਾ ਹੈ: ${currentAnchor}।`
+  ),
+  pickLanguage(
+    language,
+    "Try to connect this idea with what you already know from class.",
+    "इस विचार को अपनी कक्षा की पहले से जानी हुई बातों से जोड़कर देखो।",
+    "ਇਸ ਵਿਚਾਰ ਨੂੰ ਕਲਾਸ ਵਿੱਚ ਪਹਿਲਾਂ ਸਿੱਖੀਆਂ ਗੱਲਾਂ ਨਾਲ ਜੋੜ ਕੇ ਵੇਖੋ।"
+  ),
+  pickLanguage(
+    language,
+    "This step matters because it helps you explain the topic clearly in your own words.",
+    "यह चरण इसलिए महत्वपूर्ण है क्योंकि इससे तुम इस विषय को अपने शब्दों में साफ़ समझा सकते हो।",
+    "ਇਹ ਕਦਮ ਇਸ ਲਈ ਮਹੱਤਵਪੂਰਣ ਹੈ ਕਿਉਂਕਿ ਇਸ ਨਾਲ ਤੁਸੀਂ ਵਿਸ਼ੇ ਨੂੰ ਆਪਣੇ ਸ਼ਬਦਾਂ ਵਿੱਚ ਸਾਫ਼ ਸਮਝਾ ਸਕਦੇ ਹੋ।"
+  ),
+  pickLanguage(
+    language,
+    "Hold this point in mind before we move to the next classroom detail.",
+    "अगले बिंदु पर जाने से पहले इस बात को मन में पक्का कर लो।",
+    "ਅਗਲੇ ਬਿੰਦੂ ਤੇ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਇਸ ਗੱਲ ਨੂੰ ਮਨ ਵਿੱਚ ਪੱਕਾ ਕਰ ਲਵੋ।"
+  ),
+];
+
+const buildLongContinueSpeech = (input: {
+  language: "English" | "Hindi" | "Punjabi";
+  teachingDepth: LiveBoardTeachingDepth;
+  topicTitle: string;
+  currentPoint: TeacherLessonPoint | null;
+  lessonContent: LiveBoardLessonContent;
+  conceptIndex: number;
+}): string => {
+  const targetSentenceCount =
+    input.teachingDepth === "BASIC" ? 8 : input.teachingDepth === "ADVANCED" ? 10 : 9;
+  const points = buildLessonPoints(input.lessonContent);
+  const nearbyPointSentences = points
+    .slice(Math.max(0, input.conceptIndex), Math.min(points.length, input.conceptIndex + 4))
+    .flatMap((point) => splitSpeechSentences(point.explanation || point.anchor));
+  const sourceSentences = [
+    ...nearbyPointSentences,
+    ...splitSpeechSentences(input.lessonContent.exampleSpeech),
+    ...splitSpeechSentences(input.lessonContent.recapSpeech),
+    ...splitSpeechSentences(input.lessonContent.formulaSpeech[0] || ""),
+    ...splitSpeechSentences(input.lessonContent.practiceQuestion || ""),
+  ];
+  const deduped = [];
+  const seen = new Set<string>();
+  sourceSentences.forEach((sentence) => {
+    const closedSentence = ensureSentenceClosure(input.language, sentence);
+    const key = normalizeTopicKey(closedSentence);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    deduped.push(closedSentence);
+  });
+  const anchor =
+    normalizeText(input.currentPoint?.anchor) ||
+    normalizeText(points[input.conceptIndex]?.anchor) ||
+    normalizeText(input.topicTitle);
+  const padding = buildContinueSpeechPadding(input.language, input.topicTitle, anchor);
+  while (deduped.length < targetSentenceCount && padding.length) {
+    deduped.push(ensureSentenceClosure(input.language, padding[(deduped.length - 1) % padding.length]));
+  }
+  return deduped.slice(0, targetSentenceCount).join(" ");
+};
+
+const buildLongTopicIntroSpeech = (input: {
+  language: "English" | "Hindi" | "Punjabi";
+  teachingDepth: LiveBoardTeachingDepth;
+  topicTitle: string;
+  lessonContent: LiveBoardLessonContent;
+}): string => {
+  const points = buildLessonPoints(input.lessonContent);
+  return buildLongContinueSpeech({
+    language: input.language,
+    teachingDepth: input.teachingDepth,
+    topicTitle: input.topicTitle,
+    currentPoint: points[0] || null,
+    lessonContent: input.lessonContent,
+    conceptIndex: 0,
+  });
+};
+
 const buildDepthAwareIntroSpeech = (
   language: "English" | "Hindi" | "Punjabi",
   teachingDepth: LiveBoardTeachingDepth,
@@ -1743,7 +1856,11 @@ const buildTeacherSessionModel = (
   let phase: TuitionTeacherPhase = "INTRO";
   let depthForResponse = teachingDepth;
 
-  if (intent === "CONTINUE") {
+  if (intent === "START") {
+    conceptIndex = 0;
+    phase = "INTRO";
+    depthForResponse = teachingDepth;
+  } else if (intent === "CONTINUE") {
     conceptIndex = Math.min(conceptIndex + 1, Math.max(points.length - 1, 0));
     phase = conceptIndex >= points.length - 1 ? "RECAP" : "CONTINUE_LESSON";
   } else if (intent === "REPEAT") {
@@ -1775,11 +1892,19 @@ const buildTeacherSessionModel = (
         );
 
   const currentPoint = points[Math.max(0, Math.min(conceptIndex, Math.max(points.length - 1, 0)))];
-  let teacherExplanation = shapeSpeechForDepth(
-    explanationLanguage,
-    depthForResponse,
-    currentPoint?.explanation || lessonContent.recapSpeech
-  );
+  let teacherExplanation =
+    intent === "START"
+      ? buildLongTopicIntroSpeech({
+          language: explanationLanguage,
+          teachingDepth: depthForResponse,
+          topicTitle: resolvedTopicTitle,
+          lessonContent,
+        })
+      : shapeSpeechForDepth(
+          explanationLanguage,
+          depthForResponse,
+          currentPoint?.explanation || lessonContent.recapSpeech
+        );
   let teacherCheckQuestion: string | null = null;
   let includeExample = false;
   let includeRecap = false;
@@ -1790,6 +1915,15 @@ const buildTeacherSessionModel = (
       input.studentPrompt,
       shapeSpeechForDepth(explanationLanguage, depthForResponse, currentPoint?.explanation || lessonContent.recapSpeech)
     );
+  } else if (phase === "CONTINUE_LESSON") {
+    teacherExplanation = buildLongContinueSpeech({
+      language: explanationLanguage,
+      teachingDepth: depthForResponse,
+      topicTitle: resolvedTopicTitle,
+      currentPoint,
+      lessonContent,
+      conceptIndex,
+    });
   } else if (phase === "GIVE_EXAMPLE") {
     teacherExplanation = shapeSpeechForDepth(explanationLanguage, depthForResponse, lessonContent.exampleSpeech);
     includeExample = true;
