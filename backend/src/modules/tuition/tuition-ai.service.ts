@@ -425,7 +425,7 @@ const serializeSession = (session: TuitionSessionRecord) => {
 const sessionMatchesTeacherContext = (
   session: TuitionSessionRecord,
   teacherContext: {
-    subjectName: string;
+    subjectName: string | null;
     topicTitle: string;
     explanationLanguage: "ENGLISH" | "HINDI" | "PUNJABI";
     boardLanguage: "ENGLISH" | "HINDI" | "PUNJABI";
