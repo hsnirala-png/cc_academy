@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Teacher Cache Inspector</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <style>
+      .tuition-cache-wrap {
+        width: min(1220px, 94%);
+        margin: 0.8rem auto 2rem;
+      }
+
+      .tuition-cache-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .tuition-cache-header h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 3vw, 2.35rem);
+      }
+
+      .tuition-cache-subtitle {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+      }
+
+      .tuition-cache-actions,
+      .tuition-cache-filters,
+      .tuition-cache-stats {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .tuition-cache-panel {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: #fff;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .tuition-cache-panel h2 {
+        margin: 0 0 0.8rem;
+        font-size: clamp(1.15rem, 2vw, 1.45rem);
+      }
+
+      .tuition-cache-filters input,
+      .tuition-cache-filters select {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.7rem 0.85rem;
+        min-width: 180px;
+        font: inherit;
+      }
+
+      .tuition-cache-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .tuition-stat {
+        flex: 1 1 180px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      }
+
+      .tuition-stat p {
+        margin: 0;
+      }
+
+      .tuition-stat-k {
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .tuition-stat-v {
+        margin-top: 0.2rem !important;
+        font-size: 1.45rem;
+        font-weight: 800;
+      }
+
+      .tuition-cache-table-wrap {
+        max-height: 62vh;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+
+      .tuition-cache-table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+      }
+
+      .tuition-cache-table th,
+      .tuition-cache-table td {
+        padding: 0.7rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+        text-align: left;
+      }
+
+      .tuition-cache-table th {
+        position: sticky;
+        top: 0;
+        background: #f2f7ff;
+        z-index: 1;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .tuition-cache-meta {
+        display: grid;
+        gap: 0.2rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .tuition-cache-text {
+        max-width: 360px;
+        line-height: 1.45;
+      }
+
+      .tuition-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .tuition-chip.cache-hit {
+        background: #eaf7ee;
+        color: #247a42;
+      }
+
+      .tuition-chip.cache-prompt {
+        background: #eef4ff;
+        color: #205cc9;
+      }
+
+      .tuition-chip.promoted {
+        background: #fff4e5;
+        color: #a76100;
+      }
+
+      .tuition-chip.neutral {
+        background: #f2f4f7;
+        color: #556274;
+      }
+
+      .tuition-cache-empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 1.5rem 1rem;
+      }
+
+      @media (max-width: 980px) {
+        .tuition-cache-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .tuition-cache-header {
+          flex-direction: column;
+        }
+
+        .tuition-cache-actions,
+        .tuition-cache-filters,
+        .tuition-cache-stats {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .tuition-cache-filters input,
+        .tuition-cache-filters select,
+        .tuition-cache-actions a,
+        .tuition-cache-actions button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link active" href="./admin-tuition-cache.html">AI Teacher Cache</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-mock-registrations.html">Mock Registration</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link" href="./admin-contact-queries.html">Contact Queries</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="tuition-cache-wrap">
+          <section class="tuition-cache-header">
+            <div>
+              <h1>AI Teacher Cache Inspector</h1>
+              <p class="tuition-cache-subtitle">
+                Review saved lesson responses, repeated doubts, and promoted clarification patterns.
+              </p>
+            </div>
+            <div class="tuition-cache-actions">
+              <a class="btn-secondary" href="./admin.html">Back to Dashboard</a>
+              <button id="tuitionCacheRefreshBtn" class="btn-primary" type="button">Refresh Data</button>
+            </div>
+          </section>
+
+          <p id="tuitionCacheMessage" class="form-message"></p>
+
+          <section class="tuition-cache-panel">
+            <div class="tuition-cache-filters">
+              <input id="tuitionCacheTopicInput" type="search" placeholder="Search by topic or subject" />
+              <select id="tuitionCacheLimitInput">
+                <option value="20">Show 20</option>
+                <option value="50">Show 50</option>
+                <option value="100">Show 100</option>
+              </select>
+              <button id="tuitionCacheApplyBtn" class="btn-primary" type="button">Apply Filter</button>
+            </div>
+          </section>
+
+          <section class="tuition-cache-panel">
+            <h2>Overview</h2>
+            <div class="tuition-cache-stats">
+              <article class="tuition-stat">
+                <p class="tuition-stat-k">Saved Lesson Caches</p>
+                <p id="tuitionCacheCount" class="tuition-stat-v">0</p>
+              </article>
+              <article class="tuition-stat">
+                <p class="tuition-stat-k">Recorded Doubts</p>
+                <p id="tuitionDoubtCount" class="tuition-stat-v">0</p>
+              </article>
+              <article class="tuition-stat">
+                <p class="tuition-stat-k">Promoted Doubts in View</p>
+                <p id="tuitionPromotedCount" class="tuition-stat-v">0</p>
+              </article>
+              <article class="tuition-stat">
+                <p class="tuition-stat-k">Average Cache Hit Count</p>
+                <p id="tuitionAverageHitCount" class="tuition-stat-v">0</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="tuition-cache-grid">
+            <section class="tuition-cache-panel">
+              <h2>Saved Lesson Caches</h2>
+              <div class="tuition-cache-table-wrap">
+                <table class="tuition-cache-table">
+                  <thead>
+                    <tr>
+                      <th>Topic</th>
+                      <th>Context</th>
+                      <th>Prompt</th>
+                      <th>Usage</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tuitionCacheTableBody">
+                    <tr><td colspan="4" class="tuition-cache-empty">Loading saved lesson cache...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="tuition-cache-panel">
+              <h2>Repeated Doubts</h2>
+              <div class="tuition-cache-table-wrap">
+                <table class="tuition-cache-table">
+                  <thead>
+                    <tr>
+                      <th>Doubt</th>
+                      <th>Importance</th>
+                      <th>Context</th>
+                      <th>Answer Signal</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tuitionDoubtTableBody">
+                    <tr><td colspan="4" class="tuition-cache-empty">Loading repeated doubts...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-tuition-cache.js?v=1"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

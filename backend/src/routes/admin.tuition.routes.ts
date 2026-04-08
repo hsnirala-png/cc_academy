@@ -56,3 +56,46 @@ adminTuitionRouter.get("/tuition/subjects", ...ensureAdmin, async (_req, res, ne
     next(error);
   }
 });
+
+adminTuitionRouter.get("/tuition/lesson-cache", ...ensureAdmin, async (req, res, next) => {
+  try {
+    const topic = String(req.query.topic || "").trim();
+    const limitRaw = Number(req.query.limit || 20);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.round(limitRaw), 1), 100) : 20;
+    const topicFilter = topic
+      ? {
+          OR: [
+            { topicTitle: { contains: topic } },
+            { subjectName: { contains: topic } },
+          ],
+        }
+      : {};
+
+    const [caches, doubts, cacheCount, doubtCount] = await Promise.all([
+      prisma.tuitionLessonCache.findMany({
+        where: topicFilter,
+        orderBy: [{ updatedAt: "desc" }],
+        take: limit,
+      }),
+      prisma.tuitionLessonDoubt.findMany({
+        where: topicFilter,
+        orderBy: [{ importanceScore: "desc" }, { updatedAt: "desc" }],
+        take: limit,
+      }),
+      prisma.tuitionLessonCache.count({ where: topicFilter }),
+      prisma.tuitionLessonDoubt.count({ where: topicFilter }),
+    ]);
+
+    res.json({
+      ok: true,
+      counts: {
+        caches: cacheCount,
+        doubts: doubtCount,
+      },
+      caches,
+      doubts,
+    });
+  } catch (error) {
+    next(error);
+  }
+});

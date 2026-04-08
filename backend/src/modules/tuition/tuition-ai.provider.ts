@@ -1180,32 +1180,29 @@ const buildLongTopicIntroSpeech = (input: {
 
 const buildDepthAwareIntroSpeech = (
   language: "English" | "Hindi" | "Punjabi",
-  teachingDepth: LiveBoardTeachingDepth,
-  displayTopicTitle: string,
-  subjectLine: string,
-  classLine: string
+  teachingDepth: LiveBoardTeachingDepth
 ): string => {
   if (teachingDepth === "BASIC") {
     return pickLanguage(
       language,
-      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will explain it in very simple steps and keep the written support short and clear.`,
-      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे बहुत सरल चरणों में समझाऊँगा और लिखित सहारा छोटा व साफ रखूँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਬਹੁਤ ਸੌਖੇ ਕਦਮਾਂ ਨਾਲ ਸਮਝਾਵਾਂਗਾ ਅਤੇ ਲਿਖਤੀ ਸਹਾਇਤਾ ਛੋਟੀ ਤੇ ਸਾਫ਼ ਰੱਖਾਂਗਾ।`
+      `Listen carefully and stay with the main idea.`,
+      `ध्यान से सुनो और मुख्य विचार पर टिके रहो।`,
+      `ਧਿਆਨ ਨਾਲ ਸੁਣੋ ਅਤੇ ਮੁੱਖ ਵਿਚਾਰ 'ਤੇ ਟਿਕੇ ਰਹੋ।`
     );
   }
   if (teachingDepth === "ADVANCED") {
     return pickLanguage(
       language,
-      `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will explain it step by step, connect the core idea, and use short support notes where needed.`,
-      `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे चरणबद्ध तरीके से समझाऊँगा, मुख्य विचार जोड़ूँगा और जहाँ ज़रूरत होगी वहाँ छोटे सहायक बिंदु लिखूँगा।`,
-      `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ, ਮੁੱਖ ਵਿਚਾਰ ਜੋੜਾਂਗਾ ਅਤੇ ਜਿੱਥੇ ਲੋੜ ਹੋਵੇ ਉੱਥੇ ਛੋਟੇ ਸਹਾਇਕ ਬਿੰਦੂ ਲਿਖਾਂਗਾ।`
+      `Stay with the concept and notice how each step connects.`,
+      `विचार पर बने रहो और देखो कि हर चरण कैसे जुड़ता है।`,
+      `ਵਿਚਾਰ ਨਾਲ ਜੁੜੇ ਰਹੋ ਅਤੇ ਵੇਖੋ ਕਿ ਹਰ ਕਦਮ ਕਿਵੇਂ ਜੁੜਦਾ ਹੈ।`
     );
   }
   return pickLanguage(
     language,
-    `Today we are learning ${displayTopicTitle} in ${subjectLine}. I will teach it step by step like a live tutor for ${classLine}.`,
-    `आज हम ${subjectLine} में ${displayTopicTitle} पढ़ेंगे। मैं इसे एक लाइव ट्यूटर की तरह चरणबद्ध तरीके से समझाऊँगा।`,
-    `ਅੱਜ ਅਸੀਂ ${subjectLine} ਵਿੱਚ ${displayTopicTitle} ਪੜ੍ਹਾਂਗੇ। ਮੈਂ ਇਸਨੂੰ ਇੱਕ ਲਾਈਵ ਟਿਊਟਰ ਵਾਂਗ ਕਦਮ ਦਰ ਕਦਮ ਸਮਝਾਵਾਂਗਾ।`
+    `Stay with me and focus on the main classroom point.`,
+    `मेरे साथ बने रहो और मुख्य कक्षा-बिंदु पर ध्यान दो।`,
+    `ਮੇਰੇ ਨਾਲ ਬਣੇ ਰਹੋ ਅਤੇ ਮੁੱਖ ਕਲਾਸ-ਬਿੰਦੂ 'ਤੇ ਧਿਆਨ ਦਿਓ।`
   );
 };
 
@@ -1842,10 +1839,6 @@ const buildTeacherSessionModel = (
   const intent = parseTeacherIntent(input.studentPrompt, input.messageNumber);
   const previousState = input.previousAssistant?.teacherState || null;
   const points = buildLessonPoints(lessonContent);
-  const classLine = input.classLevel
-    ? `Class ${input.classLevel}`
-    : pickLanguage(explanationLanguage, "school", "कक्षा", "ਕਲਾਸ");
-  const subjectLine = localizeLiveBoardSubjectLabel(input.subjectName, explanationLanguage);
   const resolvedTopicTitle =
     displayTopicTitle(
       lessonContent.boardPayload.boardTitle || input.topicTitle,
@@ -1883,7 +1876,7 @@ const buildTeacherSessionModel = (
 
   let teacherIntro =
     intent === "START"
-      ? buildDepthAwareIntroSpeech(explanationLanguage, teachingDepth, resolvedTopicTitle, subjectLine, classLine)
+      ? buildDepthAwareIntroSpeech(explanationLanguage, teachingDepth)
       : pickLanguage(
           explanationLanguage,
           `We will stay with ${resolvedTopicTitle} and continue from the same point.`,

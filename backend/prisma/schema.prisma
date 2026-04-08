@@ -166,6 +166,7 @@ model User {
   tuitionProgress TuitionProgress[]
   tuitionHomework TuitionHomework[]
   tuitionHomeworkSubmissions TuitionHomeworkSubmission[]
+  tuitionLessonDoubts TuitionLessonDoubt[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -600,6 +601,7 @@ model TuitionProfile {
   chapterPlans      TuitionChapterPlan[]
   sessions          TuitionSession[]
   homework          TuitionHomework[]
+  lessonCaches      TuitionLessonCache[]
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
@@ -669,6 +671,8 @@ model TuitionSyllabusChapter {
   sessions        TuitionSession[]
   progressRecords TuitionProgress[]
   homework        TuitionHomework[]
+  lessonCaches    TuitionLessonCache[]
+  lessonDoubts    TuitionLessonDoubt[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -707,6 +711,7 @@ model TuitionSession {
   syllabusChapter   TuitionSyllabusChapter @relation(fields: [syllabusChapterId], references: [id], onDelete: Cascade)
   messages          TuitionMessage[]
   homework          TuitionHomework[]
+  lessonDoubts      TuitionLessonDoubt[]
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
@@ -788,4 +793,76 @@ model TuitionHomeworkSubmission {
 
   @@index([homeworkId, createdAt])
   @@index([userId, createdAt])
+}
+
+model TuitionLessonCache {
+  id                   String                  @id @default(cuid())
+  profileId            String?
+  syllabusChapterId    String?
+  boardName            String?                 @db.VarChar(120)
+  classLevel           Int?
+  subjectName          String                  @db.VarChar(191)
+  topicTitle           String                  @db.VarChar(191)
+  explanationLanguage  String                  @db.VarChar(20)
+  boardLanguage        String                  @db.VarChar(20)
+  voiceLanguage        String                  @db.VarChar(20)
+  teachingDepth        String                  @db.VarChar(20)
+  speedMode            TuitionSpeedMode
+  difficultyMode       TuitionDifficultyMode
+  promptType           String                  @db.VarChar(40)
+  promptText           String                  @db.Text
+  normalizedCacheKey   String                  @unique @db.VarChar(255)
+  previousTeachingPhase String?                @db.VarChar(40)
+  previousConceptIndex Int?
+  assistantPayloadJson Json
+  boardPayloadJson     Json?
+  generatedAt          DateTime                @default(now())
+  lastUsedAt           DateTime?
+  hitCount             Int                     @default(0)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  profile              TuitionProfile?         @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  syllabusChapter      TuitionSyllabusChapter? @relation(fields: [syllabusChapterId], references: [id], onDelete: SetNull)
+  lessonDoubts         TuitionLessonDoubt[]
+
+  @@index([syllabusChapterId, updatedAt])
+  @@index([profileId, updatedAt])
+  @@index([topicTitle, subjectName, updatedAt])
+  @@index([promptType, updatedAt])
+}
+
+model TuitionLessonDoubt {
+  id                    String                  @id @default(cuid())
+  userId                String
+  sessionId             String?
+  syllabusChapterId     String?
+  lessonCacheId         String?
+  subjectName           String                  @db.VarChar(191)
+  topicTitle            String                  @db.VarChar(191)
+  explanationLanguage   String                  @db.VarChar(20)
+  boardLanguage         String                  @db.VarChar(20)
+  voiceLanguage         String                  @db.VarChar(20)
+  teachingDepth         String                  @db.VarChar(20)
+  speedMode             TuitionSpeedMode
+  difficultyMode        TuitionDifficultyMode
+  questionText          String                  @db.LongText
+  normalizedQuestionKey String                  @unique @db.VarChar(255)
+  answerPayloadJson     Json?
+  previousTeachingPhase String?                 @db.VarChar(40)
+  previousConceptIndex  Int?
+  occurrenceCount       Int                     @default(1)
+  importanceScore       Int                     @default(1)
+  lastAskedAt           DateTime                @default(now())
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session               TuitionSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  syllabusChapter       TuitionSyllabusChapter? @relation(fields: [syllabusChapterId], references: [id], onDelete: SetNull)
+  lessonCache           TuitionLessonCache?     @relation(fields: [lessonCacheId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([sessionId, updatedAt])
+  @@index([syllabusChapterId, updatedAt])
+  @@index([lessonCacheId, updatedAt])
+  @@index([topicTitle, subjectName, updatedAt])
 }

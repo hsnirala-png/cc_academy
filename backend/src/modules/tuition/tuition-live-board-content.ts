@@ -861,62 +861,62 @@ const chemicalReactionLesson = (context: LiveBoardContext): LiveBoardLessonConte
       boardLines: [
         pickLanguage(
           boardLanguage,
-          "A chemical reaction is a process in which one or more substances change into new substances.",
-          "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें एक या अधिक पदार्थ बदलकर नए पदार्थ बनाते हैं।",
-          "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਉਹ ਪ੍ਰਕਿਰਿਆ ਹੈ ਜਿਸ ਵਿੱਚ ਇੱਕ ਜਾਂ ਵੱਧ ਪਦਾਰਥ ਬਦਲ ਕੇ ਨਵੇਂ ਪਦਾਰਥ ਬਣਾਉਂਦੇ ਹਨ।"
+          "A chemical reaction is a process in which reactants change into products with new properties.",
+          "रासायनिक अभिक्रिया वह प्रक्रिया है जिसमें अभिकारक बदलकर नए गुणों वाले उत्पाद बनाते हैं।",
+          "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਉਹ ਪ੍ਰਕਿਰਿਆ ਹੈ ਜਿਸ ਵਿੱਚ ਅਭਿਕਾਰਕ ਬਦਲ ਕੇ ਨਵੇਂ ਗੁਣਾਂ ਵਾਲੇ ਉਤਪਾਦ ਬਣਾਉਂਦੇ ਹਨ।"
         ),
         pickLanguage(
           boardLanguage,
-          "Common signs are change in colour, change in temperature, gas formation, and formation of a precipitate.",
-          "सामान्य संकेत हैं रंग में परिवर्तन, तापमान में परिवर्तन, गैस बनना और अवक्षेप बनना।",
-          "ਆਮ ਸੰਕੇਤ ਹਨ ਰੰਗ ਵਿੱਚ ਬਦਲਾਅ, ਤਾਪਮਾਨ ਵਿੱਚ ਬਦਲਾਅ, ਗੈਸ ਬਣਨਾ ਅਤੇ ਤਲਛਟ ਬਣਨਾ।"
+          "Scientific signs: colour change, temperature change, gas evolution, or precipitate formation.",
+          "वैज्ञानिक संकेत हैं रंग परिवर्तन, ताप परिवर्तन, गैस का निकलना या अवक्षेप का बनना।",
+          "ਵਿਗਿਆਨਕ ਸੰਕੇਤ ਹਨ ਰੰਗ ਬਦਲਾਅ, ਤਾਪ ਬਦਲਾਅ, ਗੈਸ ਨਿਕਲਣਾ ਜਾਂ ਤਲਛਟ ਬਣਨਾ।"
         ),
         pickLanguage(
           boardLanguage,
-          "Reactants are the starting substances and products are the new substances formed after the reaction.",
-          "अभिकारक प्रारम्भिक पदार्थ होते हैं और उत्पाद वे नए पदार्थ होते हैं जो अभिक्रिया के बाद बनते हैं।",
-          "ਅਭਿਕਾਰਕ ਸ਼ੁਰੂਆਤੀ ਪਦਾਰਥ ਹੁੰਦੇ ਹਨ ਅਤੇ ਉਤਪਾਦ ਉਹ ਨਵੇਂ ਪਦਾਰਥ ਹਨ ਜੋ ਕ੍ਰਿਆ ਤੋਂ ਬਾਅਦ ਬਣਦੇ ਹਨ।"
+          "Example symbols: Mg = magnesium, O2 = oxygen, MgO = magnesium oxide.",
+          "प्रतीक उदाहरण: Mg = मैग्नीशियम, O2 = ऑक्सीजन, MgO = मैग्नीशियम ऑक्साइड।",
+          "ਪ੍ਰਤੀਕ ਉਦਾਹਰਨ: Mg = ਮੈਗਨੀਸ਼ੀਅਮ, O2 = ਆਕਸੀਜਨ, MgO = ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ।"
         )
       ],
       formulas: [
         pickLanguage(boardLanguage, "Reactants -> Products", "अभिकारक -> उत्पाद", "ਅਭਿਕਾਰਕ -> ਉਤਪਾਦ"),
-        "Mg + O2 -> MgO"
+        "2Mg + O2 -> 2MgO"
       ],
       steps: [
-        pickLanguage(boardLanguage, "Read the equation: magnesium reacts with oxygen.", "समीकरण पढ़ो: मैग्नीशियम ऑक्सीजन के साथ अभिक्रिया करता है।", "ਸਮੀਕਰਨ ਪੜ੍ਹੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸੀਜਨ ਨਾਲ ਕ੍ਰਿਆ ਕਰਦਾ ਹੈ।"),
-        pickLanguage(boardLanguage, "Identify the reactants: magnesium and oxygen.", "अभिकारकों की पहचान करो: मैग्नीशियम और ऑक्सीजन।", "ਅਭਿਕਾਰਕ ਪਛਾਣੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਅਤੇ ਆਕਸੀਜਨ।"),
-        pickLanguage(boardLanguage, "Identify the product: magnesium oxide is formed.", "उत्पाद की पहचान करो: मैग्नीशियम ऑक्साइड बनता है।", "ਉਤਪਾਦ ਪਛਾਣੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਬਣਦਾ ਹੈ।")
+        pickLanguage(boardLanguage, "Read the balanced equation: 2Mg + O2 -> 2MgO.", "संतुलित समीकरण पढ़ो: 2Mg + O2 -> 2MgO.", "ਸੰਤੁਲਿਤ ਸਮੀਕਰਨ ਪੜ੍ਹੋ: 2Mg + O2 -> 2MgO."),
+        pickLanguage(boardLanguage, "Identify the reactants on the left: magnesium metal and oxygen gas.", "बाईं ओर के अभिकारकों की पहचान करो: मैग्नीशियम धातु और ऑक्सीजन गैस।", "ਖੱਬੇ ਪਾਸੇ ਦੇ ਅਭਿਕਾਰਕ ਪਛਾਣੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਧਾਤੁ ਅਤੇ ਆਕਸੀਜਨ ਗੈਸ।"),
+        pickLanguage(boardLanguage, "Identify the product on the right: magnesium oxide, a new white solid.", "दाईं ओर के उत्पाद की पहचान करो: मैग्नीशियम ऑक्साइड, एक नया सफेद ठोस।", "ਸੱਜੇ ਪਾਸੇ ਦੇ ਉਤਪਾਦ ਦੀ ਪਛਾਣ ਕਰੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ, ਇੱਕ ਨਵਾਂ ਸਫ਼ੈਦ ਠੋਸ।")
       ],
       exampleTitle: pickLanguage(boardLanguage, "Burning Magnesium Ribbon", "मैग्नीशियम रिबन का जलना", "ਮੈਗਨੀਸ਼ੀਅਮ ਰਿਬਨ ਦਾ ਸੜਨਾ"),
       exampleSteps: [
         pickLanguage(boardLanguage, "Magnesium ribbon burns with a bright white flame.", "मैग्नीशियम रिबन चमकदार सफेद लौ के साथ जलता है।", "ਮੈਗਨੀਸ਼ੀਅਮ ਰਿਬਨ ਤੇਜ਼ ਸਫ਼ੈਦ ਲੌ ਨਾਲ ਸੜਦਾ ਹੈ।"),
-        pickLanguage(boardLanguage, "A new white powder called magnesium oxide is formed.", "एक नया सफेद पाउडर बनता है जिसे मैग्नीशियम ऑक्साइड कहते हैं।", "ਇੱਕ ਨਵਾਂ ਸਫ਼ੈਦ ਚੂਰਾ ਬਣਦਾ ਹੈ ਜਿਸਨੂੰ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਕਹਿੰਦੇ ਹਨ।"),
-        pickLanguage(boardLanguage, "This proves that a new substance is formed, so it is a chemical reaction.", "यह सिद्ध करता है कि नया पदार्थ बना है, इसलिए यह रासायनिक अभिक्रिया है।", "ਇਹ ਸਾਬਤ ਕਰਦਾ ਹੈ ਕਿ ਨਵਾਂ ਪਦਾਰਥ ਬਣਿਆ ਹੈ, ਇਸ ਲਈ ਇਹ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਹੈ।")
+        pickLanguage(boardLanguage, "A new white solid called magnesium oxide forms; its formula is MgO.", "एक नया सफेद ठोस बनता है जिसे मैग्नीशियम ऑक्साइड कहते हैं; इसका सूत्र MgO है।", "ਇੱਕ ਨਵਾਂ ਸਫ਼ੈਦ ਠੋਸ ਬਣਦਾ ਹੈ ਜਿਸਨੂੰ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਕਹਿੰਦੇ ਹਨ; ਇਸਦਾ ਸੂਤਰ MgO ਹੈ।"),
+        pickLanguage(boardLanguage, "Because a new substance with new properties forms, this is a chemical reaction called oxidation.", "क्योंकि नए गुणों वाला नया पदार्थ बनता है, यह ऑक्सीकरण नाम की रासायनिक अभिक्रिया है।", "ਕਿਉਂਕਿ ਨਵੇਂ ਗੁਣਾਂ ਵਾਲਾ ਨਵਾਂ ਪਦਾਰਥ ਬਣਦਾ ਹੈ, ਇਹ ਆਕਸੀਕਰਨ ਨਾਮ ਦੀ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਹੈ।")
       ]
     },
     noteSpeech: [
-      pickLanguage(explanationLanguage, "A chemical reaction changes old substances into new substances with new properties.", "रासायनिक अभिक्रिया में पुराने पदार्थ बदलकर नए गुणों वाले पदार्थ बनाते हैं।", "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਪੁਰਾਣੇ ਪਦਾਰਥ ਬਦਲ ਕੇ ਨਵੇਂ ਗੁਣਾਂ ਵਾਲੇ ਪਦਾਰਥ ਬਣਦੇ ਹਨ।"),
-      pickLanguage(explanationLanguage, "We identify a chemical reaction through visible signs such as heat, colour change, gas, or precipitate.", "हम रासायनिक अभिक्रिया को ऊष्मा, रंग परिवर्तन, गैस या अवक्षेप जैसे संकेतों से पहचानते हैं।", "ਅਸੀਂ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਨੂੰ ਤਾਪ, ਰੰਗ ਬਦਲਾਅ, ਗੈਸ ਜਾਂ ਤਲਛਟ ਵਰਗੇ ਸੰਕੇਤਾਂ ਨਾਲ ਪਛਾਣਦੇ ਹਾਂ।"),
-      pickLanguage(explanationLanguage, "The substances before reaction are reactants and the new substances after reaction are products.", "अभिक्रिया से पहले के पदार्थ अभिकारक होते हैं और बाद में बनने वाले नए पदार्थ उत्पाद होते हैं।", "ਕ੍ਰਿਆ ਤੋਂ ਪਹਿਲਾਂ ਦੇ ਪਦਾਰਥ ਅਭਿਕਾਰਕ ਹੁੰਦੇ ਹਨ ਅਤੇ ਬਾਅਦ ਵਿੱਚ ਬਣੇ ਨਵੇਂ ਪਦਾਰਥ ਉਤਪਾਦ ਹੁੰਦੇ ਹਨ।")
+      pickLanguage(explanationLanguage, "A chemical reaction converts reactants into products, and the products have properties different from the starting substances.", "रासायनिक अभिक्रिया में अभिकारक उत्पादों में बदलते हैं, और उत्पादों के गुण प्रारम्भिक पदार्थों से भिन्न होते हैं।", "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਵਿੱਚ ਅਭਿਕਾਰਕ ਉਤਪਾਦਾਂ ਵਿੱਚ ਬਦਲ ਜਾਂਦੇ ਹਨ, ਅਤੇ ਉਤਪਾਦਾਂ ਦੇ ਗੁਣ ਸ਼ੁਰੂਆਤੀ ਪਦਾਰਥਾਂ ਤੋਂ ਵੱਖਰੇ ਹੁੰਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "In the reaction 2Mg + O2 -> 2MgO, magnesium, written as Mg, reacts with oxygen gas, written as O2, to form magnesium oxide, written as MgO.", "समीकरण 2Mg + O2 -> 2MgO में Mg से लिखे मैग्नीशियम की O2 से लिखी ऑक्सीजन गैस के साथ अभिक्रिया होकर MgO से लिखा मैग्नीशियम ऑक्साइड बनता है।", "ਸਮੀਕਰਨ 2Mg + O2 -> 2MgO ਵਿੱਚ Mg ਨਾਲ ਲਿਖਿਆ ਮੈਗਨੀਸ਼ੀਅਮ, O2 ਨਾਲ ਲਿਖੀ ਆਕਸੀਜਨ ਗੈਸ ਨਾਲ ਕ੍ਰਿਆ ਕਰਕੇ MgO ਨਾਲ ਲਿਖਿਆ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਬਣਾਉਂਦਾ ਹੈ।"),
+      pickLanguage(explanationLanguage, "A bright white flame and the formation of white magnesium oxide show that oxidation has taken place and a new substance has formed.", "तेज सफेद लौ और सफेद मैग्नीशियम ऑक्साइड का बनना यह दिखाता है कि ऑक्सीकरण हुआ है और नया पदार्थ बना है।", "ਤੇਜ਼ ਸਫ਼ੈਦ ਲੌ ਅਤੇ ਸਫ਼ੈਦ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਦਾ ਬਣਨਾ ਦਿਖਾਉਂਦਾ ਹੈ ਕਿ ਆਕਸੀਕਰਨ ਹੋਇਆ ਹੈ ਅਤੇ ਨਵਾਂ ਪਦਾਰਥ ਬਣਿਆ ਹੈ।")
     ],
     formulaSpeech: [
-      pickLanguage(explanationLanguage, "This short form helps us remember that reactants change into products.", "यह संक्षिप्त रूप याद दिलाता है कि अभिकारक बदलकर उत्पाद बनते हैं।", "ਇਹ ਛੋਟਾ ਰੂਪ ਯਾਦ ਦਿਵਾਉਂਦਾ ਹੈ ਕਿ ਅਭਿਕਾਰਕ ਬਦਲ ਕੇ ਉਤਪਾਦ ਬਣਦੇ ਹਨ।"),
-      pickLanguage(explanationLanguage, "This equation shows magnesium reacting with oxygen to form magnesium oxide.", "यह समीकरण दिखाता है कि मैग्नीशियम ऑक्सीजन के साथ अभिक्रिया करके मैग्नीशियम ऑक्साइड बनाता है।", "ਇਹ ਸਮੀਕਰਨ ਦਿਖਾਉਂਦਾ ਹੈ ਕਿ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸੀਜਨ ਨਾਲ ਕ੍ਰਿਆ ਕਰਕੇ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਬਣਾਉਂਦਾ ਹੈ।")
+      pickLanguage(explanationLanguage, "This short rule reminds us that reactants on the left change into products on the right.", "यह छोटा नियम याद दिलाता है कि बाईं ओर के अभिकारक दाईं ओर के उत्पादों में बदलते हैं।", "ਇਹ ਛੋਟਾ ਨਿਯਮ ਯਾਦ ਦਿਵਾਉਂਦਾ ਹੈ ਕਿ ਖੱਬੇ ਪਾਸੇ ਦੇ ਅਭਿਕਾਰਕ ਸੱਜੇ ਪਾਸੇ ਦੇ ਉਤਪਾਦਾਂ ਵਿੱਚ ਬਦਲ ਜਾਂਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "The balanced equation 2Mg + O2 -> 2MgO conserves the number of magnesium and oxygen atoms on both sides.", "संतुलित समीकरण 2Mg + O2 -> 2MgO दोनों पक्षों पर मैग्नीशियम और ऑक्सीजन परमाणुओं की संख्या बराबर रखता है।", "ਸੰਤੁਲਿਤ ਸਮੀਕਰਨ 2Mg + O2 -> 2MgO ਦੋਵੇਂ ਪਾਸਿਆਂ ਤੇ ਮੈਗਨੀਸ਼ੀਅਮ ਅਤੇ ਆਕਸੀਜਨ ਪਰਮਾਣੂਆਂ ਦੀ ਗਿਣਤੀ ਬਰਾਬਰ ਰੱਖਦਾ ਹੈ।")
     ],
     stepSpeech: [
-      pickLanguage(explanationLanguage, "First read the reaction carefully so you know which substances are taking part.", "पहले अभिक्रिया को ध्यान से पढ़ो ताकि पता चले कौन-कौन से पदार्थ भाग ले रहे हैं।", "ਸਭ ਤੋਂ ਪਹਿਲਾਂ ਕ੍ਰਿਆ ਧਿਆਨ ਨਾਲ ਪੜ੍ਹੋ ਤਾਂ ਕਿ ਪਤਾ ਲੱਗੇ ਕਿਹੜੇ ਪਦਾਰਥ ਹਿੱਸਾ ਲੈ ਰਹੇ ਹਨ।"),
-      pickLanguage(explanationLanguage, "Now pick out the reactants written on the left side.", "अब बाईं ओर लिखे अभिकारकों की पहचान करो।", "ਹੁਣ ਖੱਬੇ ਪਾਸੇ ਲਿਖੇ ਅਭਿਕਾਰਕ ਪਛਾਣੋ।"),
-      pickLanguage(explanationLanguage, "Finally identify the product on the right side and connect it to the observed change.", "अंत में दाईं ओर बने उत्पाद की पहचान करो और उसे देखे गए परिवर्तन से जोड़ो।", "ਅੰਤ ਵਿੱਚ ਸੱਜੇ ਪਾਸੇ ਬਣੇ ਉਤਪਾਦ ਦੀ ਪਛਾਣ ਕਰੋ ਅਤੇ ਉਸਨੂੰ ਦੇਖੇ ਗਏ ਬਦਲਾਅ ਨਾਲ ਜੋੜੋ।")
+      pickLanguage(explanationLanguage, "First read the balanced reaction carefully so you know the exact scientific symbols taking part.", "पहले संतुलित अभिक्रिया को ध्यान से पढ़ो ताकि शामिल वैज्ञानिक प्रतीकों को ठीक से पहचान सको।", "ਸਭ ਤੋਂ ਪਹਿਲਾਂ ਸੰਤੁਲਿਤ ਕ੍ਰਿਆ ਧਿਆਨ ਨਾਲ ਪੜ੍ਹੋ ਤਾਂ ਕਿ ਸ਼ਾਮਲ ਵਿਗਿਆਨਕ ਪ੍ਰਤੀਕ ਸਹੀ ਤਰ੍ਹਾਂ ਪਛਾਣ ਸਕੋ।"),
+      pickLanguage(explanationLanguage, "Now identify the reactants on the left side: magnesium metal and oxygen gas.", "अब बाईं ओर के अभिकारकों की पहचान करो: मैग्नीशियम धातु और ऑक्सीजन गैस।", "ਹੁਣ ਖੱਬੇ ਪਾਸੇ ਦੇ ਅਭਿਕਾਰਕ ਪਛਾਣੋ: ਮੈਗਨੀਸ਼ੀਅਮ ਧਾਤੁ ਅਤੇ ਆਕਸੀਜਨ ਗੈਸ।"),
+      pickLanguage(explanationLanguage, "Finally identify magnesium oxide on the right side and connect it to the white ash formed in the experiment.", "अंत में दाईं ओर मैग्नीशियम ऑक्साइड की पहचान करो और उसे प्रयोग में बने सफेद राख जैसे पदार्थ से जोड़ो।", "ਅੰਤ ਵਿੱਚ ਸੱਜੇ ਪਾਸੇ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਦੀ ਪਛਾਣ ਕਰੋ ਅਤੇ ਇਸਨੂੰ ਪ੍ਰਯੋਗ ਵਿੱਚ ਬਣੀ ਸਫ਼ੈਦ ਰਾਖ ਵਰਗੀ ਪਦਾਰਥ ਨਾਲ ਜੋੜੋ।")
     ],
-    exampleSpeech: pickLanguage(explanationLanguage, "Let us take the burning of magnesium ribbon as a real classroom example of a chemical reaction.", "आओ मैग्नीशियम रिबन के जलने को रासायनिक अभिक्रिया के वास्तविक कक्षा-उदाहरण के रूप में समझें।", "ਆਓ ਮੈਗਨੀਸ਼ੀਅਮ ਰਿਬਨ ਦੇ ਸੜਨ ਨੂੰ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਦੇ ਅਸਲੀ ਕਲਾਸਰੂਮ ਉਦਾਹਰਨ ਵਜੋਂ ਸਮਝੀਏ।"),
-    recapSpeech: pickLanguage(explanationLanguage, "Recap: a chemical reaction forms new substances, shows clear signs, and can be represented by an equation.", "पुनरावृत्ति: रासायनिक अभिक्रिया नए पदार्थ बनाती है, स्पष्ट संकेत दिखाती है और समीकरण से दर्शाई जा सकती है।", "ਦੁਹਰਾਈ: ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਨਵੇਂ ਪਦਾਰਥ ਬਣਾਉਂਦੀ ਹੈ, ਸਾਫ਼ ਸੰਕੇਤ ਦਿਖਾਉਂਦੀ ਹੈ ਅਤੇ ਸਮੀਕਰਨ ਨਾਲ ਦਰਸਾਈ ਜਾ ਸਕਦੀ ਹੈ।"),
-    recapBoardText: pickLanguage(boardLanguage, "Remember: new substance formation is the key idea of a chemical reaction.", "याद रखो: नया पदार्थ बनना रासायनिक अभिक्रिया का मुख्य विचार है।", "ਯਾਦ ਰੱਖੋ: ਨਵਾਂ ਪਦਾਰਥ ਬਣਨਾ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਦਾ ਮੁੱਖ ਵਿਚਾਰ ਹੈ।"),
+    exampleSpeech: pickLanguage(explanationLanguage, "Let us take the burning of magnesium ribbon as a real classroom example of oxidation, where magnesium combines with oxygen to form magnesium oxide.", "आओ मैग्नीशियम रिबन के जलने को ऑक्सीकरण के वास्तविक कक्षा-उदाहरण के रूप में समझें, जहाँ मैग्नीशियम ऑक्सीजन से मिलकर मैग्नीशियम ऑक्साइड बनाता है।", "ਆਓ ਮੈਗਨੀਸ਼ੀਅਮ ਰਿਬਨ ਦੇ ਸੜਨ ਨੂੰ ਆਕਸੀਕਰਨ ਦੇ ਅਸਲੀ ਕਲਾਸਰੂਮ ਉਦਾਹਰਨ ਵਜੋਂ ਸਮਝੀਏ, ਜਿੱਥੇ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸੀਜਨ ਨਾਲ ਮਿਲ ਕੇ ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਬਣਾਉਂਦਾ ਹੈ।"),
+    recapSpeech: pickLanguage(explanationLanguage, "Recap: a chemical reaction forms new substances, uses scientific symbols such as Mg, O2, and MgO, and can be represented by a balanced equation.", "पुनरावृत्ति: रासायनिक अभिक्रिया नए पदार्थ बनाती है, Mg, O2 और MgO जैसे वैज्ञानिक प्रतीकों का उपयोग करती है और संतुलित समीकरण से दर्शाई जा सकती है।", "ਦੁਹਰਾਈ: ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਨਵੇਂ ਪਦਾਰਥ ਬਣਾਉਂਦੀ ਹੈ, Mg, O2 ਅਤੇ MgO ਵਰਗੇ ਵਿਗਿਆਨਕ ਪ੍ਰਤੀਕ ਵਰਤਦੀ ਹੈ ਅਤੇ ਸੰਤੁਲਿਤ ਸਮੀਕਰਨ ਨਾਲ ਦਰਸਾਈ ਜਾ ਸਕਦੀ ਹੈ।"),
+    recapBoardText: pickLanguage(boardLanguage, "Remember: 2Mg + O2 -> 2MgO shows new substance formation.", "याद रखो: 2Mg + O2 -> 2MgO नया पदार्थ बनने को दिखाता है।", "ਯਾਦ ਰੱਖੋ: 2Mg + O2 -> 2MgO ਨਵੇਂ ਪਦਾਰਥ ਬਣਨ ਨੂੰ ਦਿਖਾਉਂਦਾ ਹੈ।"),
     recapPoints: [
-      pickLanguage(explanationLanguage, "A chemical reaction makes new substances.", "रासायनिक अभिक्रिया नए पदार्थ बनाती है।", "ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਨਵੇਂ ਪਦਾਰਥ ਬਣਾਉਂਦੀ ਹੈ।"),
-      pickLanguage(explanationLanguage, "Signs include colour change, temperature change, gas, or precipitate.", "संकेतों में रंग परिवर्तन, ताप परिवर्तन, गैस या अवक्षेप शामिल हैं।", "ਸੰਕੇਤਾਂ ਵਿੱਚ ਰੰਗ ਬਦਲਾਅ, ਤਾਪ ਬਦਲਾਅ, ਗੈਸ ਜਾਂ ਤਲਛਟ ਸ਼ਾਮਲ ਹਨ।"),
-      pickLanguage(explanationLanguage, "Reactants change into products.", "अभिकारक बदलकर उत्पाद बनते हैं।", "ਅਭਿਕਾਰਕ ਬਦਲ ਕੇ ਉਤਪਾਦ ਬਣਦੇ ਹਨ।")
+      pickLanguage(explanationLanguage, "Reactants change into products with new properties.", "अभिकारक बदलकर नए गुणों वाले उत्पाद बनाते हैं।", "ਅਭਿਕਾਰਕ ਬਦਲ ਕੇ ਨਵੇਂ ਗੁਣਾਂ ਵਾਲੇ ਉਤਪਾਦ ਬਣਾਉਂਦੇ ਹਨ।"),
+      pickLanguage(explanationLanguage, "Mg stands for magnesium, O2 for oxygen, and MgO for magnesium oxide.", "Mg मैग्नीशियम, O2 ऑक्सीजन और MgO मैग्नीशियम ऑक्साइड को दर्शाता है।", "Mg ਮੈਗਨੀਸ਼ੀਅਮ, O2 ਆਕਸੀਜਨ ਅਤੇ MgO ਮੈਗਨੀਸ਼ੀਅਮ ਆਕਸਾਈਡ ਨੂੰ ਦਰਸਾਉਂਦਾ ਹੈ।"),
+      pickLanguage(explanationLanguage, "Balanced equations conserve the number of atoms on both sides.", "संतुलित समीकरण दोनों पक्षों पर परमाणुओं की संख्या बराबर रखते हैं।", "ਸੰਤੁਲਿਤ ਸਮੀਕਰਨ ਦੋਵੇਂ ਪਾਸਿਆਂ ਤੇ ਪਰਮਾਣੂਆਂ ਦੀ ਗਿਣਤੀ ਬਰਾਬਰ ਰੱਖਦੇ ਹਨ।")
     ],
-    practiceQuestion: pickLanguage(explanationLanguage, "Practice question: Why is burning magnesium considered a chemical reaction?", "अभ्यास प्रश्न: मैग्नीशियम का जलना रासायनिक अभिक्रिया क्यों माना जाता है?", "ਅਭਿਆਸ ਪ੍ਰਸ਼ਨ: ਮੈਗਨੀਸ਼ੀਅਮ ਦਾ ਸੜਨਾ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਕਿਉਂ ਮੰਨਿਆ ਜਾਂਦਾ ਹੈ?"),
+    practiceQuestion: pickLanguage(explanationLanguage, "Practice question: Why is 2Mg + O2 -> 2MgO considered a chemical reaction and not a physical change?", "अभ्यास प्रश्न: 2Mg + O2 -> 2MgO को रासायनिक अभिक्रिया क्यों माना जाता है, भौतिक परिवर्तन क्यों नहीं?", "ਅਭਿਆਸ ਪ੍ਰਸ਼ਨ: 2Mg + O2 -> 2MgO ਨੂੰ ਰਸਾਇਣਕ ਕ੍ਰਿਆ ਕਿਉਂ ਮੰਨਿਆ ਜਾਂਦਾ ਹੈ, ਭੌਤਿਕ ਬਦਲਾਅ ਕਿਉਂ ਨਹੀਂ?"),
     diagramInstructions: [
       pickLanguage(boardLanguage, "Starting substances", "प्रारम्भिक पदार्थ", "ਸ਼ੁਰੂਆਤੀ ਪਦਾਰਥ"),
       pickLanguage(boardLanguage, "Reaction / change", "अभिक्रिया / परिवर्तन", "ਕ੍ਰਿਆ / ਬਦਲਾਅ"),

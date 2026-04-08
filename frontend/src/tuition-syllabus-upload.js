@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     summaryEl.innerHTML = items
       .map(
         ([label, value]) => `
-          <div class="tuition-summary-item">
+          <div class="tuition-summary-item compact">
             <strong>${label}</strong>
             <span>${value}</span>
           </div>

@@ -171,6 +171,35 @@
         </div>
       </section>
 
+      <section id="homeExploreSection" class="section home-explore-section" aria-labelledby="homeExploreTitle">
+        <div class="home-explore-header">
+          <div>
+            <h3 id="homeExploreTitle">Explore By Exam</h3>
+          </div>
+          <form class="home-explore-search" role="search" aria-label="Search explore cards">
+            <input
+              id="homeExploreSearch"
+              type="search"
+              placeholder="Find your exam or course"
+              aria-label="Find your exam or course"
+            />
+          </form>
+        </div>
+        <div class="home-explore-layout">
+          <aside class="home-explore-types">
+            <div id="homeExploreTypes" class="home-explore-type-list" aria-live="polite">
+              <button class="home-explore-type-btn is-active" type="button">Loading types...</button>
+            </div>
+          </aside>
+          <div class="home-explore-results">
+            <div id="homeExploreMeta" class="home-explore-meta"></div>
+            <div id="homeExploreCards" class="home-explore-card-grid" aria-live="polite">
+              <div class="home-explore-empty">Loading explore section...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="latestCourses" class="section home-latest-products">
         <div class="home-latest-head">
           <h2>Latest Courses</h2>

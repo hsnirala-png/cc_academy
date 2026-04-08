@@ -239,6 +239,12 @@
           >
             <div id="tuitionTeacherBoardModalOverlay" class="tuition-teacher-stage-overlay"></div>
             <article class="tuition-teacher-stage-card" role="dialog" aria-modal="true">
+              <div id="tuitionTeacherBoardLoadingOverlay" class="tuition-teacher-board-loading hidden" aria-hidden="true">
+                <div class="tuition-teacher-board-loading-card" role="status" aria-live="polite">
+                  <div class="tuition-teacher-board-loading-spinner" aria-hidden="true"></div>
+                  <p class="tuition-teacher-board-loading-text">Please wait while the lesson is being prepared.</p>
+                </div>
+              </div>
               <button
                 id="tuitionTeacherBoardModalCloseBtn"
                 type="button"
@@ -257,30 +263,19 @@
                 </div>
               </div>
 
-              <section class="tuition-teacher-narration-panel tuition-teacher-popup-narration" aria-live="polite">
-                <div class="tuition-teacher-narration-head">
-                  <div>
-                    <p class="eyebrow">Teacher Narration</p>
-                    <h3 id="tuitionTeacherLiveBoardStepTitle">Start the topic to meet the AI teacher.</h3>
-                  </div>
-                  <p id="tuitionTeacherBoardTeachingStatus" class="tuition-board-teaching-status">
-                    The teacher explains live here while the board writes in exact sync.
-                  </p>
-                </div>
-                <div class="tuition-teacher-narration-strip">
-                  <p class="tuition-teacher-narration-label">Live Explanation</p>
-                  <p id="tuitionTeacherNarrationText" class="tuition-teacher-narration-text">
-                    Start teaching to hear the teacher explanation and see the short support notes.
-                  </p>
-                </div>
-              </section>
-
               <div class="tuition-teacher-stage-layout">
                 <section id="tuitionTeacherWhiteboardSurface" class="tuition-ai-teacher-board tuition-ai-teacher-board-primary">
                   <div class="tuition-ai-teacher-board-head">
                     <div>
                       <p class="eyebrow">Main Teaching Board</p>
                       <h3 id="tuitionTeacherBoardCanvasTitle">Waiting for a teacher reply...</h3>
+                      <p id="tuitionTeacherBoardTeachingStatus" class="tuition-board-teaching-status">
+                        The teacher explanation will appear here in sync with the board.
+                      </p>
+                      <p id="tuitionTeacherLiveBoardStepTitle" class="sr-only">Start the topic to meet the AI teacher.</p>
+                      <p id="tuitionTeacherNarrationText" class="sr-only">
+                        Start teaching to hear the teacher explanation and see the board writing.
+                      </p>
                     </div>
                   </div>
                   <audio id="tuitionTeacherStageAudio" class="hidden" preload="auto"></audio>
@@ -317,12 +312,16 @@
                     type="button"
                     class="btn-ghost tuition-teacher-board-icon-btn"
                     aria-label="Hold to speak your doubt from the live board"
+                    title="Hold To Talk"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                       <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a1 1 0 0 1 2 0 7 7 0 0 1-6 6.93V21h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 12a1 1 0 1 1 2 0 5 5 0 1 0 10 0z"></path>
                     </svg>
                     <span class="sr-only">Mic</span>
                   </button>
+                  <p id="tuitionTeacherBoardMicStatus" class="tuition-teacher-board-mic-status" aria-live="polite">
+                    Hold mic to ask a doubt
+                  </p>
                   <button
                     id="tuitionTeacherBoardPrevBtn"
                     type="button"
@@ -359,9 +358,14 @@
                   <button
                     id="tuitionTeacherBoardContinueBtn"
                     type="button"
-                    class="btn-secondary tuition-teacher-board-pill"
+                    class="btn-secondary tuition-teacher-board-pill tuition-teacher-board-continue-btn"
+                    aria-label="Continue class"
+                    title="Continue"
                   >
-                    Continue
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M8.7 5.4a1 1 0 0 1 1.09.08l7 5.5a1 1 0 0 1 0 1.58l-7 5.5A1 1 0 0 1 8 17.3V6.2a1 1 0 0 1 .7-.8z"></path>
+                    </svg>
+                    <span class="tuition-teacher-board-btn-label">Continue</span>
                   </button>
                   <button
                     id="tuitionTeacherBoardNextBtn"

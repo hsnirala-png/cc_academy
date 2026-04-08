@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Explore Section</title>
+    <link rel="stylesheet" href="./src/styles.css?v=95" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="admin-sidebar-brand" href="./admin.html" aria-label="CC Academy Admin">
+          <img src="./public/logo_B1.png" alt="CC Academy logo" />
+        </a>
+        <p class="admin-sidebar-title">Admin Menu</p>
+        <nav class="admin-sidebar-nav" aria-label="Admin sidebar">
+          <a class="admin-sidebar-link" href="./admin.html">Dashboard</a>
+          <a class="admin-sidebar-link" href="./admin-students.html">Students</a>
+          <a class="admin-sidebar-link" href="./admin-mock-tests.html">Mock Test</a>
+          <a class="admin-sidebar-link" href="./admin-mock-registrations.html">Mock Registration</a>
+          <a class="admin-sidebar-link" href="./admin-lessons.html">Digital Lessons</a>
+          <a class="admin-sidebar-link" href="./admin-products.html">Products</a>
+          <a class="admin-sidebar-link active" href="./admin-explore.html">Explore Section</a>
+          <a class="admin-sidebar-link" href="./admin-contact-queries.html">Contact Queries</a>
+          <a class="admin-sidebar-link" href="./admin-referrals.html">Referrals</a>
+          <a class="admin-sidebar-link" href="./admin-sliders.html">Sliders</a>
+          <a class="admin-sidebar-link" href="./admin.html#payments">Payments</a>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="site-header admin-top-header">
+          <div class="header-actions">
+            <button id="adminLogoutBtn" class="btn-primary top-login-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <main class="admin-wrap">
+          <section class="admin-header-row">
+            <div>
+              <h1>Explore Section</h1>
+              <p class="admin-subtitle">
+                Manage landing-page explore types and the cards shown inside each type.
+              </p>
+            </div>
+          </section>
+
+          <p id="adminExploreMessage" class="form-message"></p>
+
+          <section class="admin-panel">
+            <h2>Type Details</h2>
+            <form id="exploreTypeForm" class="admin-form">
+              <input id="exploreTypeId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="exploreTypePageKey">Page Key</label>
+                  <input id="exploreTypePageKey" value="landing-home" required />
+                </div>
+                <div class="admin-field">
+                  <label for="exploreTypeName">Type Name</label>
+                  <input id="exploreTypeName" placeholder="Government Job Exams" required />
+                </div>
+                <div class="admin-field">
+                  <label for="exploreTypeSortOrder">Order</label>
+                  <input id="exploreTypeSortOrder" type="number" min="0" step="1" value="0" />
+                </div>
+                <label class="admin-field inline-check" style="align-self:end">
+                  <input id="exploreTypeIsActive" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+              </div>
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="exploreTypeDescription">Description</label>
+                  <input id="exploreTypeDescription" placeholder="Optional short note for this type" />
+                </div>
+                <div class="admin-field">
+                  <label for="exploreTypeIconUrl">Icon / Logo URL</label>
+                  <input id="exploreTypeIconUrl" placeholder="./public/my-icon.png or /public/uploads/explore/..." />
+                  <div class="thumbnail-upload-row">
+                    <input id="exploreTypeIconFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                    <button id="uploadExploreTypeIconBtn" class="btn-secondary" type="button">Upload Icon</button>
+                  </div>
+                </div>
+              </div>
+              <img id="exploreTypeIconPreview" class="admin-thumb-preview hidden" alt="Type icon preview" />
+              <div class="admin-actions">
+                <button id="exploreTypeSubmitBtn" class="btn-primary" type="submit">Create Type</button>
+                <button id="exploreTypeCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <h2>Card Details</h2>
+            <form id="exploreItemForm" class="admin-form">
+              <input id="exploreItemId" type="hidden" />
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="exploreItemTypeId">Type</label>
+                  <select id="exploreItemTypeId" required></select>
+                </div>
+                <div class="admin-field">
+                  <label for="exploreItemCategoryName">Category</label>
+                  <input id="exploreItemCategoryName" placeholder="Banking" />
+                </div>
+                <div class="admin-field">
+                  <label for="exploreItemTitle">Card Title</label>
+                  <input id="exploreItemTitle" placeholder="WBPSC" required />
+                </div>
+              </div>
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="exploreItemSortOrder">Order</label>
+                  <input id="exploreItemSortOrder" type="number" min="0" step="1" value="0" />
+                </div>
+                <label class="admin-field inline-check" style="align-self:end">
+                  <input id="exploreItemIsActive" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+              </div>
+              <div class="admin-form-row">
+                <div class="admin-field">
+                  <label for="exploreItemSubtitle">Subtitle</label>
+                  <input id="exploreItemSubtitle" placeholder="Optional small supporting text" />
+                </div>
+                <div class="admin-field">
+                  <label for="exploreItemLinkUrl">Link</label>
+                  <input id="exploreItemLinkUrl" placeholder="./products.html or https://..." />
+                </div>
+              </div>
+              <div class="admin-field">
+                <label for="exploreItemImageUrl">Card Image URL</label>
+                <input id="exploreItemImageUrl" placeholder="./public/PSTET_1.png or /public/uploads/explore/..." />
+                <div class="thumbnail-upload-row">
+                  <input id="exploreItemImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                  <button id="uploadExploreItemImageBtn" class="btn-secondary" type="button">Upload Image</button>
+                </div>
+              </div>
+              <img id="exploreItemImagePreview" class="admin-thumb-preview hidden" alt="Item image preview" />
+              <div class="admin-actions">
+                <button id="exploreItemSubmitBtn" class="btn-primary" type="submit">Create Card</button>
+                <button id="exploreItemCancelBtn" class="btn-ghost hidden" type="button">Cancel Edit</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Types</h2>
+              <div class="admin-actions" style="margin-left: auto">
+                <input id="explorePageFilter" placeholder="Filter by page key" value="landing-home" />
+                <button id="reloadExploreBtn" class="btn-secondary" type="button">Reload</button>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Page</th>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="exploreTypesTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-header-row" style="margin-bottom: 0.8rem">
+              <h2 style="margin: 0">Cards</h2>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Preview</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Title</th>
+                    <th>Link</th>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="exploreItemsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./src/admin-explore.js?v=1"></script>
+    <script src="./src/global-nav.js?v=1"></script>
+  </body>
+</html>

@@ -149,6 +149,18 @@ type TuitionTeacherSpeechTrack = {
   messageId: string;
 };
 
+type TeacherContextSnapshot = ReturnType<typeof resolveTeacherContext>;
+type PromotedLessonDoubtInsight = {
+  questionText: string;
+  clarificationText: string;
+  occurrenceCount: number;
+  importanceScore: number;
+};
+
+const PROMOTED_DOUBT_MIN_OCCURRENCES = 2;
+const PROMOTED_DOUBT_MIN_IMPORTANCE = 4;
+const PROMOTED_DOUBT_LIMIT = 3;
+
 const normalizeOptionalText = (value: string | null | undefined): string | null => {
   const normalized = String(value || "").normalize("NFC").trim();
   return normalized || null;
@@ -156,6 +168,14 @@ const normalizeOptionalText = (value: string | null | undefined): string | null 
 
 const normalizeSessionTitle = (value: string | null | undefined): string =>
   String(value || "").normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+
+const normalizeCacheKeyPart = (value: string | number | null | undefined): string =>
+  String(value ?? "")
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
 
 const normalizeTeachingLanguageCode = (value: string | null | undefined): "ENGLISH" | "HINDI" | "PUNJABI" => {
   const normalized = String(value || "").trim().toUpperCase();
@@ -185,14 +205,111 @@ const normalizeTeachingDepth = (value: string | null | undefined): "BASIC" | "MO
   return "MODERATE";
 };
 
+const isTeacherCommandPrompt = (value: string | null | undefined): boolean =>
+  /^__.*TUITION_AI_TEACHER__$/i.test(String(value || "").trim());
+
+const getPromptType = (value: string | null | undefined): string => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "EMPTY";
+  if (normalized === "__START_TUITION_AI_TEACHER__") return "START";
+  if (normalized === "__CONTINUE_TUITION_AI_TEACHER__") return "CONTINUE";
+  if (normalized === "__REPEAT_TUITION_AI_TEACHER__") return "REPEAT";
+  if (normalized === "__SIMPLER_TUITION_AI_TEACHER__") return "SIMPLER";
+  if (normalized === "__EXAMPLE_TUITION_AI_TEACHER__") return "EXAMPLE";
+  if (normalized === "__CHECK_TUITION_AI_TEACHER__") return "CHECK";
+  return "DOUBT";
+};
+
+const buildLessonCacheKey = (input: {
+  syllabusChapterId?: string | null;
+  boardName?: string | null;
+  classLevel?: number | null;
+  subjectName?: string | null;
+  topicTitle: string;
+  explanationLanguage: string;
+  boardLanguage: string;
+  voiceLanguage: string;
+  teachingDepth: string;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+  promptType: string;
+  promptText: string;
+  previousTeachingPhase?: string | null;
+  previousConceptIndex?: number | null;
+}) =>
+  [
+    normalizeCacheKeyPart(input.syllabusChapterId),
+    normalizeCacheKeyPart(input.boardName),
+    normalizeCacheKeyPart(input.classLevel),
+    normalizeCacheKeyPart(input.subjectName),
+    normalizeCacheKeyPart(input.topicTitle),
+    normalizeCacheKeyPart(input.explanationLanguage),
+    normalizeCacheKeyPart(input.boardLanguage),
+    normalizeCacheKeyPart(input.voiceLanguage),
+    normalizeCacheKeyPart(input.teachingDepth),
+    normalizeCacheKeyPart(input.speedMode),
+    normalizeCacheKeyPart(input.difficultyMode),
+    normalizeCacheKeyPart(input.promptType),
+    normalizeCacheKeyPart(input.previousTeachingPhase),
+    normalizeCacheKeyPart(input.previousConceptIndex),
+    normalizeCacheKeyPart(input.promptText),
+  ].join("|");
+
+const buildDoubtInsightKey = (input: {
+  syllabusChapterId?: string | null;
+  subjectName?: string | null;
+  topicTitle: string;
+  explanationLanguage: string;
+  boardLanguage: string;
+  voiceLanguage: string;
+  teachingDepth: string;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+  questionText: string;
+  previousTeachingPhase?: string | null;
+  previousConceptIndex?: number | null;
+}) =>
+  [
+    normalizeCacheKeyPart(input.syllabusChapterId),
+    normalizeCacheKeyPart(input.subjectName),
+    normalizeCacheKeyPart(input.topicTitle),
+    normalizeCacheKeyPart(input.explanationLanguage),
+    normalizeCacheKeyPart(input.boardLanguage),
+    normalizeCacheKeyPart(input.voiceLanguage),
+    normalizeCacheKeyPart(input.teachingDepth),
+    normalizeCacheKeyPart(input.speedMode),
+    normalizeCacheKeyPart(input.difficultyMode),
+    normalizeCacheKeyPart(input.previousTeachingPhase),
+    normalizeCacheKeyPart(input.previousConceptIndex),
+    normalizeCacheKeyPart(input.questionText),
+  ].join("|");
+
+const buildImportanceScore = (questionText: string, occurrenceCount: number): number => {
+  const normalized = String(questionText || "").toLowerCase();
+  let score = Math.max(1, occurrenceCount);
+  if (/[?]|why|how|difference|compare|reason|concept|explain|doubt|क्यों|कैसे|अंतर|समझ|ਫਰਕ|ਕਿਉਂ|ਕਿਵੇਂ/u.test(normalized)) {
+    score += 2;
+  }
+  if (normalized.length > 80) {
+    score += 1;
+  }
+  return score;
+};
+
+const toStringArray = (input: unknown): string[] =>
+  Array.isArray(input) ? input.map((item) => String(item || "").trim()).filter(Boolean) : [];
+
+const toFiniteNumber = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const toAssistantPayload = (value: unknown): AssistantPayload | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
   const replyText = String(candidate.replyText || "").trim();
   const chapterTitle = String(candidate.chapterTitle || "").trim();
   if (!replyText || !chapterTitle) return null;
-  const toStringArray = (input: unknown): string[] =>
-    Array.isArray(input) ? input.map((item) => String(item || "").trim()).filter(Boolean) : [];
   const toBoardState = (input: unknown): AssistantPayload["boardState"] => {
     if (!input || typeof input !== "object") return null;
     const candidateState = input as Record<string, unknown>;
@@ -210,17 +327,13 @@ const toAssistantPayload = (value: unknown): AssistantPayload | null => {
   const toTeacherState = (input: unknown): AssistantPayload["teacherState"] => {
     if (!input || typeof input !== "object") return null;
     const candidateState = input as Record<string, unknown>;
-    const toFinite = (value: unknown): number | null => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    };
     return {
       currentTeachingPhase: String(candidateState.currentTeachingPhase || "").trim() || null,
       currentConcept: String(candidateState.currentConcept || "").trim() || null,
-      currentConceptIndex: toFinite(candidateState.currentConceptIndex),
+      currentConceptIndex: toFiniteNumber(candidateState.currentConceptIndex),
       pausedForStudentQuestion: Boolean(candidateState.pausedForStudentQuestion),
-      resumePoint: toFinite(candidateState.resumePoint),
-      currentConversationTurn: toFinite(candidateState.currentConversationTurn),
+      resumePoint: toFiniteNumber(candidateState.resumePoint),
+      currentConversationTurn: toFiniteNumber(candidateState.currentConversationTurn),
       selectedLanguage: String(candidateState.selectedLanguage || "").trim() || null,
       teachingDepth: String(candidateState.teachingDepth || "").trim() || null,
     };
@@ -339,6 +452,99 @@ const buildTeacherSpeechSourceText = (assistant: AssistantPayload): string =>
     .join(" ");
 
 const tuitionSpeechTrackCache = new Map<string, TuitionTeacherSpeechTrack>();
+const tuitionSpeechTrackPendingCache = new Map<string, Promise<TuitionTeacherSpeechTrack>>();
+
+const buildSpeechTrackCacheKey = (
+  messageId: string,
+  voiceLanguage: TuitionTeacherSpeechTrack["language"],
+  sourceText: string
+) => `${messageId}:${voiceLanguage}:${sourceText}`;
+
+const createSpeechTrack = async (input: {
+  messageId: string;
+  sourceText: string;
+  voiceLanguage: TuitionTeacherSpeechTrack["language"];
+}): Promise<TuitionTeacherSpeechTrack> => {
+  const audioBuffer = await generateSpeechMp3Buffer(input.sourceText, {
+    model: process.env.OPENAI_TUITION_SYNC_TTS_MODEL || process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+    voice: process.env.OPENAI_TUITION_SYNC_TTS_VOICE || process.env.OPENAI_REALTIME_VOICE || "marin",
+    languageHint: toOpenAiLanguageHint(input.voiceLanguage),
+  });
+
+  const timing = await transcribeMp3WithTimestamps(audioBuffer, input.sourceText, {
+    mimeType: "audio/mpeg",
+    fileName: `tuition-teacher-${input.messageId}.mp3`,
+    languageHint: toOpenAiLanguageHint(input.voiceLanguage),
+  });
+
+  if (!timing.words.length) {
+    throw new AppError(
+      "Exact speech sync is blocked because word timestamps were not returned for this teacher explanation.",
+      422,
+      "TUITION_TEACHER_WORD_TIMESTAMPS_MISSING"
+    );
+  }
+
+  return {
+    engine: "openai_tts_whisper_word_timestamps",
+    syncType: "exact_timestamp_words",
+    mimeType: "audio/mpeg",
+    audioBase64: audioBuffer.toString("base64"),
+    sourceText: input.sourceText,
+    words: timing.words,
+    segments: timing.segments,
+    language: input.voiceLanguage,
+    messageId: input.messageId,
+  };
+};
+
+const getOrCreateSpeechTrack = async (input: {
+  messageId: string;
+  sourceText: string;
+  voiceLanguage: TuitionTeacherSpeechTrack["language"];
+}) => {
+  const cacheKey = buildSpeechTrackCacheKey(input.messageId, input.voiceLanguage, input.sourceText);
+  const cached = tuitionSpeechTrackCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const pending =
+    tuitionSpeechTrackPendingCache.get(cacheKey) ||
+    createSpeechTrack(input)
+      .then((speechTrack) => {
+        tuitionSpeechTrackCache.set(cacheKey, speechTrack);
+        tuitionSpeechTrackPendingCache.delete(cacheKey);
+        return speechTrack;
+      })
+      .catch((error) => {
+        tuitionSpeechTrackPendingCache.delete(cacheKey);
+        throw error;
+      });
+  tuitionSpeechTrackPendingCache.set(cacheKey, pending);
+  return pending;
+};
+
+const prewarmSpeechTrackForAssistant = (input: {
+  messageId: string;
+  assistantPayload: AssistantPayload;
+  fallbackLanguage?: string | null;
+}) => {
+  const sourceText = buildTeacherSpeechSourceText(input.assistantPayload);
+  if (!sourceText) return;
+  const voiceLanguage = normalizeTeachingLanguageCode(
+    input.assistantPayload.voiceLanguage ||
+      input.assistantPayload.explanationLanguage ||
+      input.fallbackLanguage ||
+      "ENGLISH"
+  );
+  void getOrCreateSpeechTrack({
+    messageId: input.messageId,
+    sourceText,
+    voiceLanguage,
+  }).catch(() => {
+    // Warmup should never fail the main teacher response path.
+  });
+};
 
 const serializeMessage = (message: {
   id: string;
@@ -361,12 +567,371 @@ const serializeMessage = (message: {
   };
 };
 
+const firstNonEmptySentence = (value: string | null | undefined): string => {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  const parts = normalized.split(/(?<=[.!?।॥])\s+/u).filter(Boolean);
+  const first = String(parts[0] || normalized).trim();
+  if (first.length <= 220) return first;
+  return `${first.slice(0, 217).trim()}...`;
+};
+
+const buildPromotedDoubtExplanation = (
+  languageCode: string | null | undefined,
+  questionText: string,
+  clarificationText: string
+): string => {
+  const safeQuestion = String(questionText || "").replace(/\s+/g, " ").trim();
+  const safeClarification = String(clarificationText || "").replace(/\s+/g, " ").trim();
+  const normalizedLanguage = normalizeTeachingLanguageCode(languageCode);
+  if (normalizedLanguage === "HINDI") {
+    return `यहाँ एक आम शंका यह होती है: ${safeQuestion} ${safeClarification}`.trim();
+  }
+  if (normalizedLanguage === "PUNJABI") {
+    return `ਇੱਥੇ ਵਿਦਿਆਰਥੀਆਂ ਦਾ ਇੱਕ ਆਮ ਸ਼ੱਕ ਇਹ ਹੁੰਦਾ ਹੈ: ${safeQuestion} ${safeClarification}`.trim();
+  }
+  return `A common student doubt here is: ${safeQuestion} ${safeClarification}`.trim();
+};
+
+const buildPromotedDoubtHint = (languageCode: string | null | undefined, questionText: string): string => {
+  const safeQuestion = String(questionText || "").replace(/\s+/g, " ").trim();
+  const normalizedLanguage = normalizeTeachingLanguageCode(languageCode);
+  if (normalizedLanguage === "HINDI") {
+    return `अगर यह शंका अभी भी है, तो पूछो: ${safeQuestion}`;
+  }
+  if (normalizedLanguage === "PUNJABI") {
+    return `ਜੇ ਇਹ ਸ਼ੱਕ ਅਜੇ ਵੀ ਹੈ, ਤਾਂ ਪੁੱਛੋ: ${safeQuestion}`;
+  }
+  return `If this still feels unclear, ask: ${safeQuestion}`;
+};
+
+const enrichAssistantPayloadWithPromotedDoubts = (
+  assistantPayload: AssistantPayload,
+  promotedDoubts: PromotedLessonDoubtInsight[]
+): AssistantPayload => {
+  if (!promotedDoubts.length) {
+    return assistantPayload;
+  }
+
+  const topDoubt = promotedDoubts[0];
+  const promotedExplanation = buildPromotedDoubtExplanation(
+    assistantPayload.explanationLanguage,
+    topDoubt.questionText,
+    topDoubt.clarificationText
+  );
+  const existingExplanation = String(assistantPayload.teacherExplanation || "").trim();
+  const shouldAppendExplanation =
+    Boolean(existingExplanation) &&
+    !existingExplanation.includes(topDoubt.questionText) &&
+    !existingExplanation.includes(topDoubt.clarificationText);
+  const interactionHints = Array.from(
+    new Set([
+      ...(Array.isArray(assistantPayload.interactionHints) ? assistantPayload.interactionHints : []),
+      ...promotedDoubts.slice(0, 2).map((doubt) =>
+        buildPromotedDoubtHint(assistantPayload.explanationLanguage, doubt.questionText)
+      ),
+    ].filter(Boolean))
+  ).slice(0, 6);
+
+  return {
+    ...assistantPayload,
+    teacherExplanation: shouldAppendExplanation
+      ? `${existingExplanation} ${promotedExplanation}`.trim()
+      : assistantPayload.teacherExplanation,
+    interactionHints,
+  };
+};
+
+const serializeMessages = (messages: TuitionSessionRecord["messages"]) => messages.map(serializeMessage);
+
+const findLatestStructuredAssistant = (messages: TuitionSessionRecord["messages"]) =>
+  [...messages]
+    .reverse()
+    .map((message) => serializeMessage(message).structured)
+    .find(Boolean) || null;
+
+const findPreviousStructuredAssistant = (messages: TuitionSessionRecord["messages"]) =>
+  [...messages]
+    .reverse()
+    .filter((message) => message.role === "ASSISTANT")
+    .map((message) => serializeMessage(message).structured)
+    .find(Boolean) || null;
+
+const getAssistantCacheContext = (input: {
+  refreshed: TuitionSessionRecord;
+  teacherContext: TeacherContextSnapshot;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+  content: string;
+  previousAssistant: AssistantPayload | null;
+}) => ({
+  profileId: input.refreshed.profile.id,
+  syllabusChapterId: input.refreshed.syllabusChapter.id,
+  boardName: input.refreshed.profile.board?.name || null,
+  classLevel: input.refreshed.profile.classLevel ?? null,
+  subjectName: input.teacherContext.subjectName || input.refreshed.profile.subject?.name || null,
+  topicTitle: input.teacherContext.topicTitle,
+  explanationLanguage: input.teacherContext.explanationLanguage,
+  boardLanguage: input.teacherContext.boardLanguage,
+  voiceLanguage: input.teacherContext.voiceLanguage,
+  teachingDepth: input.teacherContext.teachingDepth,
+  speedMode: input.speedMode,
+  difficultyMode: input.difficultyMode,
+  promptType: getPromptType(input.content),
+  promptText: input.content,
+  previousTeachingPhase: input.previousAssistant?.teacherState?.currentTeachingPhase || null,
+  previousConceptIndex: input.previousAssistant?.teacherState?.currentConceptIndex ?? null,
+});
+
+const findReusableLessonCache = async (input: ReturnType<typeof getAssistantCacheContext>) =>
+  prisma.tuitionLessonCache.findUnique({
+    where: {
+      normalizedCacheKey: buildLessonCacheKey(input),
+    },
+  });
+
+const findPromotedLessonDoubts = async (input: {
+  refreshed: TuitionSessionRecord;
+  teacherContext: TeacherContextSnapshot;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+}) => {
+  const doubts = await prisma.tuitionLessonDoubt.findMany({
+    where: {
+      syllabusChapterId: input.refreshed.syllabusChapter.id,
+      subjectName: input.teacherContext.subjectName || input.refreshed.profile.subject?.name || "General Studies",
+      topicTitle: input.teacherContext.topicTitle,
+      explanationLanguage: input.teacherContext.explanationLanguage,
+      boardLanguage: input.teacherContext.boardLanguage,
+      voiceLanguage: input.teacherContext.voiceLanguage,
+      teachingDepth: input.teacherContext.teachingDepth,
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      occurrenceCount: { gte: PROMOTED_DOUBT_MIN_OCCURRENCES },
+      importanceScore: { gte: PROMOTED_DOUBT_MIN_IMPORTANCE },
+    },
+    orderBy: [{ importanceScore: "desc" }, { occurrenceCount: "desc" }, { updatedAt: "desc" }],
+    take: PROMOTED_DOUBT_LIMIT,
+  });
+
+  return doubts
+    .map((doubt) => {
+      const answerPayload = toAssistantPayload(doubt.answerPayloadJson);
+      const clarificationText = firstNonEmptySentence(
+        answerPayload?.teacherExplanation ||
+          answerPayload?.boardState?.currentConcept ||
+          answerPayload?.replyText ||
+          ""
+      );
+      if (!clarificationText) return null;
+      return {
+        questionText: String(doubt.questionText || "").trim(),
+        clarificationText,
+        occurrenceCount: doubt.occurrenceCount,
+        importanceScore: doubt.importanceScore,
+      } satisfies PromotedLessonDoubtInsight;
+    })
+    .filter(Boolean) as PromotedLessonDoubtInsight[];
+};
+
+const promoteLessonDoubtsIntoCaches = async (input: {
+  refreshed: TuitionSessionRecord;
+  teacherContext: TeacherContextSnapshot;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+}) => {
+  const promotedDoubts = await findPromotedLessonDoubts(input);
+  if (!promotedDoubts.length) {
+    return 0;
+  }
+
+  const caches = await prisma.tuitionLessonCache.findMany({
+    where: {
+      syllabusChapterId: input.refreshed.syllabusChapter.id,
+      subjectName: input.teacherContext.subjectName || input.refreshed.profile.subject?.name || "General Studies",
+      topicTitle: input.teacherContext.topicTitle,
+      explanationLanguage: input.teacherContext.explanationLanguage,
+      boardLanguage: input.teacherContext.boardLanguage,
+      voiceLanguage: input.teacherContext.voiceLanguage,
+      teachingDepth: input.teacherContext.teachingDepth,
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      promptType: { in: ["START", "CONTINUE", "REPEAT", "EXAMPLE", "CHECK"] },
+    },
+    select: {
+      id: true,
+      assistantPayloadJson: true,
+      boardPayloadJson: true,
+    },
+  });
+
+  if (!caches.length) {
+    return 0;
+  }
+
+  await Promise.all(
+    caches.map(async (cache) => {
+      const assistantPayload = toAssistantPayload(cache.assistantPayloadJson);
+      if (!assistantPayload) return;
+      const enrichedPayload = enrichAssistantPayloadWithPromotedDoubts(assistantPayload, promotedDoubts);
+      await prisma.tuitionLessonCache.update({
+        where: { id: cache.id },
+        data: {
+          assistantPayloadJson: enrichedPayload as Prisma.InputJsonValue,
+          boardPayloadJson: (enrichedPayload.boardState || cache.boardPayloadJson || null) as Prisma.InputJsonValue,
+          lastUsedAt: new Date(),
+        },
+      });
+    })
+  );
+
+  return caches.length;
+};
+
+const saveLessonCache = async (
+  input: ReturnType<typeof getAssistantCacheContext>,
+  assistantPayload: AssistantPayload
+) => {
+  const normalizedCacheKey = buildLessonCacheKey(input);
+  return prisma.tuitionLessonCache.upsert({
+    where: { normalizedCacheKey },
+    update: {
+      assistantPayloadJson: assistantPayload as Prisma.InputJsonValue,
+      boardPayloadJson: (assistantPayload.boardState || null) as Prisma.InputJsonValue,
+      promptText: input.promptText,
+      promptType: input.promptType,
+      previousTeachingPhase: input.previousTeachingPhase,
+      previousConceptIndex: input.previousConceptIndex,
+      lastUsedAt: new Date(),
+      hitCount: { increment: 1 },
+    },
+    create: {
+      profileId: input.profileId,
+      syllabusChapterId: input.syllabusChapterId,
+      boardName: input.boardName,
+      classLevel: input.classLevel,
+      subjectName: input.subjectName || "General Studies",
+      topicTitle: input.topicTitle,
+      explanationLanguage: input.explanationLanguage,
+      boardLanguage: input.boardLanguage,
+      voiceLanguage: input.voiceLanguage,
+      teachingDepth: input.teachingDepth,
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      promptType: input.promptType,
+      promptText: input.promptText,
+      normalizedCacheKey,
+      previousTeachingPhase: input.previousTeachingPhase,
+      previousConceptIndex: input.previousConceptIndex,
+      assistantPayloadJson: assistantPayload as Prisma.InputJsonValue,
+      boardPayloadJson: (assistantPayload.boardState || null) as Prisma.InputJsonValue,
+      lastUsedAt: new Date(),
+      hitCount: 1,
+    },
+  });
+};
+
+const recordLessonDoubt = async (input: {
+  userId: string;
+  sessionId: string;
+  refreshed: TuitionSessionRecord;
+  teacherContext: TeacherContextSnapshot;
+  speedMode: TuitionSpeedMode;
+  difficultyMode: TuitionDifficultyMode;
+  questionText: string;
+  assistantPayload: AssistantPayload;
+  previousAssistant: AssistantPayload | null;
+}) => {
+  if (isTeacherCommandPrompt(input.questionText)) {
+    return {
+      recorded: false,
+      doubtId: null,
+      importanceScore: null,
+      occurrenceCount: null,
+    };
+  }
+  const normalizedQuestionKey = buildDoubtInsightKey({
+    syllabusChapterId: input.refreshed.syllabusChapter.id,
+    subjectName: input.teacherContext.subjectName || input.refreshed.profile.subject?.name || null,
+    topicTitle: input.teacherContext.topicTitle,
+    explanationLanguage: input.teacherContext.explanationLanguage,
+    boardLanguage: input.teacherContext.boardLanguage,
+    voiceLanguage: input.teacherContext.voiceLanguage,
+    teachingDepth: input.teacherContext.teachingDepth,
+    speedMode: input.speedMode,
+    difficultyMode: input.difficultyMode,
+    questionText: input.questionText,
+    previousTeachingPhase: input.previousAssistant?.teacherState?.currentTeachingPhase || null,
+    previousConceptIndex: input.previousAssistant?.teacherState?.currentConceptIndex ?? null,
+  });
+  const existing = await prisma.tuitionLessonDoubt.findUnique({
+    where: { normalizedQuestionKey },
+  });
+  const nextOccurrenceCount = (existing?.occurrenceCount || 0) + 1;
+  const importanceScore = buildImportanceScore(input.questionText, nextOccurrenceCount);
+  const cache = await findReusableLessonCache(
+    getAssistantCacheContext({
+      refreshed: input.refreshed,
+      teacherContext: input.teacherContext,
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      content: input.questionText,
+      previousAssistant: input.previousAssistant,
+    })
+  );
+  const doubt = await prisma.tuitionLessonDoubt.upsert({
+    where: { normalizedQuestionKey },
+    update: {
+      sessionId: input.sessionId,
+      lessonCacheId: cache?.id || null,
+      answerPayloadJson: input.assistantPayload as Prisma.InputJsonValue,
+      occurrenceCount: nextOccurrenceCount,
+      importanceScore,
+      lastAskedAt: new Date(),
+    },
+    create: {
+      userId: input.userId,
+      sessionId: input.sessionId,
+      syllabusChapterId: input.refreshed.syllabusChapter.id,
+      lessonCacheId: cache?.id || null,
+      subjectName: input.teacherContext.subjectName || input.refreshed.profile.subject?.name || "General Studies",
+      topicTitle: input.teacherContext.topicTitle,
+      explanationLanguage: input.teacherContext.explanationLanguage,
+      boardLanguage: input.teacherContext.boardLanguage,
+      voiceLanguage: input.teacherContext.voiceLanguage,
+      teachingDepth: input.teacherContext.teachingDepth,
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      questionText: input.questionText,
+      normalizedQuestionKey,
+      answerPayloadJson: input.assistantPayload as Prisma.InputJsonValue,
+      previousTeachingPhase: input.previousAssistant?.teacherState?.currentTeachingPhase || null,
+      previousConceptIndex: input.previousAssistant?.teacherState?.currentConceptIndex ?? null,
+      occurrenceCount: nextOccurrenceCount,
+      importanceScore,
+      lastAskedAt: new Date(),
+    },
+  });
+  return {
+    recorded: true,
+    doubtId: doubt.id,
+    importanceScore,
+    occurrenceCount: nextOccurrenceCount,
+  };
+};
+
+const resolveSessionModes = (input: {
+  speedMode?: string | TuitionSpeedMode | null;
+  difficultyMode?: string | TuitionDifficultyMode | null;
+  fallbackSpeedMode?: TuitionSpeedMode;
+  fallbackDifficultyMode?: TuitionDifficultyMode;
+}) => ({
+  speedMode: normalizeSpeedMode(input.speedMode || input.fallbackSpeedMode),
+  difficultyMode: normalizeDifficultyMode(input.difficultyMode || input.fallbackDifficultyMode),
+});
+
 const serializeSession = (session: TuitionSessionRecord) => {
-  const latestAssistant =
-    [...session.messages]
-      .reverse()
-      .map((message) => serializeMessage(message).structured)
-      .find(Boolean) || null;
+  const latestAssistant = findLatestStructuredAssistant(session.messages);
   const chapterTitle = session.syllabusChapter.name;
   const topicTitle = latestAssistant?.topicTitle || latestAssistant?.title || session.title || chapterTitle;
   const explanationLanguage = normalizeTeachingLanguageCode(
@@ -411,7 +976,7 @@ const serializeSession = (session: TuitionSessionRecord) => {
       teachingDepth,
       curriculumBoard: latestAssistant?.curriculumBoard || session.profile.board?.name || null,
     },
-    messages: session.messages.map(serializeMessage),
+    messages: serializeMessages(session.messages),
     chapterContext: {
       boardName: session.profile.board?.name || null,
       classLevel: session.profile.classLevel ?? null,
@@ -712,8 +1277,7 @@ export const tuitionAiService = {
   ) {
     const chapter = await tuitionSyllabusService.resolveOwnedChapter(userId, syllabusChapterId);
     const profile = await tuitionProfileService.getOrCreateProfile(userId);
-    const speedMode = normalizeSpeedMode(input.speedMode);
-    const difficultyMode = normalizeDifficultyMode(input.difficultyMode);
+    const { speedMode, difficultyMode } = resolveSessionModes(input);
     const teacherContext = resolveTeacherContext({
       boardName: profile.board?.name || null,
       preferredLanguage: profile.preferredLanguage,
@@ -843,8 +1407,12 @@ export const tuitionAiService = {
       ...input,
     });
     const responseLanguage = teacherContext.explanationLanguage;
-    const speedMode = normalizeSpeedMode(input.speedMode || session.speedMode);
-    const difficultyMode = normalizeDifficultyMode(input.difficultyMode || session.difficultyMode);
+    const { speedMode, difficultyMode } = resolveSessionModes({
+      speedMode: input.speedMode,
+      difficultyMode: input.difficultyMode,
+      fallbackSpeedMode: session.speedMode,
+      fallbackDifficultyMode: session.difficultyMode,
+    });
 
     await prisma.tuitionSession.update({
       where: { id: session.id },
@@ -866,27 +1434,58 @@ export const tuitionAiService = {
     });
 
     const refreshed = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
-    const previousAssistant =
-      [...refreshed.messages]
-        .reverse()
-        .filter((message) => message.role === "ASSISTANT")
-        .map((message) => serializeMessage(message).structured)
-        .find(Boolean) || null;
-    const assistantPayload = await buildTuitionTeacherAssistantPayload({
-      boardName: refreshed.profile.board?.name || null,
-      classLevel: refreshed.profile.classLevel,
-      subjectName: teacherContext.subjectName || refreshed.profile.subject?.name || null,
-      topicTitle: teacherContext.topicTitle,
-      explanationLanguage: teacherContext.explanationLanguage,
-      boardLanguage: teacherContext.boardLanguage,
-      voiceLanguage: teacherContext.voiceLanguage,
-      teachingDepth: teacherContext.teachingDepth,
+    const previousAssistant = findPreviousStructuredAssistant(refreshed.messages);
+    const cacheContext = getAssistantCacheContext({
+      refreshed,
+      teacherContext,
       speedMode,
       difficultyMode,
-      studentPrompt: content,
-      messageNumber: refreshed.messages.length + 1,
-      previousAssistant: previousAssistant as any,
+      content,
+      previousAssistant,
     });
+    const cachedLesson = await findReusableLessonCache(cacheContext);
+    let activeLessonCacheId = cachedLesson?.id || null;
+    const promotedDoubts = cacheContext.promptType === "DOUBT"
+      ? []
+      : await findPromotedLessonDoubts({
+          refreshed,
+          teacherContext,
+          speedMode,
+          difficultyMode,
+        });
+    let assistantPayload =
+      (cachedLesson?.assistantPayloadJson ? toAssistantPayload(cachedLesson.assistantPayloadJson) : null) || null;
+
+    if (assistantPayload) {
+      assistantPayload = enrichAssistantPayloadWithPromotedDoubts(assistantPayload, promotedDoubts);
+      await prisma.tuitionLessonCache.update({
+        where: { id: cachedLesson!.id },
+        data: {
+          assistantPayloadJson: assistantPayload as Prisma.InputJsonValue,
+          lastUsedAt: new Date(),
+          hitCount: { increment: 1 },
+        },
+      });
+    } else {
+      assistantPayload = await buildTuitionTeacherAssistantPayload({
+        boardName: refreshed.profile.board?.name || null,
+        classLevel: refreshed.profile.classLevel,
+        subjectName: teacherContext.subjectName || refreshed.profile.subject?.name || null,
+        topicTitle: teacherContext.topicTitle,
+        explanationLanguage: teacherContext.explanationLanguage,
+        boardLanguage: teacherContext.boardLanguage,
+        voiceLanguage: teacherContext.voiceLanguage,
+        teachingDepth: teacherContext.teachingDepth,
+        speedMode,
+        difficultyMode,
+        studentPrompt: content,
+        messageNumber: refreshed.messages.length + 1,
+        previousAssistant: previousAssistant as any,
+      });
+      assistantPayload = enrichAssistantPayloadWithPromotedDoubts(assistantPayload, promotedDoubts);
+      const savedLessonCache = await saveLessonCache(cacheContext, assistantPayload);
+      activeLessonCacheId = savedLessonCache.id;
+    }
 
     const progress = await tuitionProgressService.bumpForMessage(userId, syllabusChapterId, sessionId);
     assistantPayload.progressUpdate = tuitionProgressService.formatProgressUpdate(progress);
@@ -906,13 +1505,52 @@ export const tuitionAiService = {
         },
       },
     });
+    prewarmSpeechTrackForAssistant({
+      messageId: assistantMessage.id,
+      assistantPayload,
+      fallbackLanguage: responseLanguage,
+    });
 
     const updatedSession = await resolveOwnedSession(userId, syllabusChapterId, sessionId);
+    const doubtRecord = await recordLessonDoubt({
+      userId,
+      sessionId,
+      refreshed,
+      teacherContext,
+      speedMode,
+      difficultyMode,
+      questionText: content,
+      assistantPayload,
+      previousAssistant,
+    });
+    const promotedCacheCount =
+      doubtRecord.recorded &&
+      Number(doubtRecord.occurrenceCount || 0) >= PROMOTED_DOUBT_MIN_OCCURRENCES &&
+      Number(doubtRecord.importanceScore || 0) >= PROMOTED_DOUBT_MIN_IMPORTANCE
+        ? await promoteLessonDoubtsIntoCaches({
+            refreshed,
+            teacherContext,
+            speedMode,
+            difficultyMode,
+          })
+        : 0;
 
     return {
       session: serializeSession(updatedSession),
       assistantMessage: serializeMessage(assistantMessage),
       progress,
+      cache: {
+        hit: Boolean(cachedLesson),
+        source: cachedLesson ? "saved_lesson_cache" : "generated",
+        promptType: cacheContext.promptType,
+        lessonCacheId: activeLessonCacheId,
+        doubtRecorded: doubtRecord.recorded,
+        doubtId: doubtRecord.doubtId,
+        doubtOccurrenceCount: doubtRecord.occurrenceCount,
+        doubtImportanceScore: doubtRecord.importanceScore,
+        promotedDoubtCount: promotedDoubts.length,
+        promotedCacheCount,
+      },
       provider: await this.getBootstrapMeta(),
     };
   },
@@ -1026,45 +1664,11 @@ export const tuitionAiService = {
         session.profile.preferredLanguage ||
         "ENGLISH"
     );
-    const cacheKey = `${targetMessage.id}:${voiceLanguage}:${sourceText}`;
-    const cached = tuitionSpeechTrackCache.get(cacheKey);
-    if (cached) {
-      return { speechTrack: cached };
-    }
-
-    const audioBuffer = await generateSpeechMp3Buffer(sourceText, {
-      model: process.env.OPENAI_TUITION_SYNC_TTS_MODEL || process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
-      voice: process.env.OPENAI_TUITION_SYNC_TTS_VOICE || process.env.OPENAI_REALTIME_VOICE || "marin",
-      languageHint: toOpenAiLanguageHint(voiceLanguage),
-    });
-
-    const timing = await transcribeMp3WithTimestamps(audioBuffer, sourceText, {
-      mimeType: "audio/mpeg",
-      fileName: `tuition-teacher-${targetMessage.id}.mp3`,
-      languageHint: toOpenAiLanguageHint(voiceLanguage),
-    });
-
-    if (!timing.words.length) {
-      throw new AppError(
-        "Exact speech sync is blocked because word timestamps were not returned for this teacher explanation.",
-        422,
-        "TUITION_TEACHER_WORD_TIMESTAMPS_MISSING"
-      );
-    }
-
-    const speechTrack: TuitionTeacherSpeechTrack = {
-      engine: "openai_tts_whisper_word_timestamps",
-      syncType: "exact_timestamp_words",
-      mimeType: "audio/mpeg",
-      audioBase64: audioBuffer.toString("base64"),
-      sourceText,
-      words: timing.words,
-      segments: timing.segments,
-      language: voiceLanguage,
+    const speechTrack = await getOrCreateSpeechTrack({
       messageId: targetMessage.id,
-    };
-
-    tuitionSpeechTrackCache.set(cacheKey, speechTrack);
+      sourceText,
+      voiceLanguage,
+    });
     return { speechTrack };
   },
 };

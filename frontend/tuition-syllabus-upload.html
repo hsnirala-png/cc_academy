@@ -46,25 +46,10 @@
       </section>
 
       <section class="section tuition-flow-hero">
-        <article class="card tuition-upload-intro-card">
-          <div class="tuition-upload-intro-copy">
-            <p class="eyebrow">Phase 3</p>
-            <h1>Set Up Your Tuition Flow</h1>
-            <p>
-              Save your board, class, subject, and preferred language first. Then either upload a syllabus
-              file or enter chapters manually so the review and teacher flow stay aligned to the same school context.
-            </p>
-            <div class="tuition-upload-highlight-row">
-              <span class="tuition-chip">Profile Setup</span>
-              <span class="tuition-chip">Syllabus Upload</span>
-              <span class="tuition-chip">Chapter Review</span>
-            </div>
-            <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
-          </div>
-        </article>
-        <article class="card tuition-flow-side-card">
+        <article class="card tuition-flow-side-card tuition-flow-side-card-wide tuition-upload-context-card">
           <h2>Current Context</h2>
-          <div id="tuitionUploadSummary" class="tuition-summary-stack"></div>
+          <p id="tuitionUploadStatus" class="form-message">Loading tuition profile...</p>
+          <div id="tuitionUploadSummary" class="tuition-summary-stack compact"></div>
           <div id="tuitionActivationPanel" class="tuition-activation-panel"></div>
           <div class="tuition-flow-actions">
             <a id="tuitionActiveSyllabusCta" class="btn-primary hidden" href="./tuition-chapters.html"
@@ -85,72 +70,124 @@
           </div>
 
           <form id="tuitionUploadForm" class="tuition-flow-form">
-            <div class="tuition-flow-grid">
-              <label>
-                <span>Board</span>
-                <select id="tuitionBoardSelect" required></select>
-              </label>
-              <label>
-                <span>Class</span>
-                <select id="tuitionClassSelect" required></select>
-              </label>
-              <label>
-                <span>Subject</span>
-                <select id="tuitionSubjectSelect" required></select>
-              </label>
-              <label>
-                <span>Preferred Language</span>
-                <select id="tuitionLanguageSelect">
-                  <option value="ENGLISH">English</option>
-                  <option value="HINDI">Hindi</option>
-                  <option value="PUNJABI">Punjabi</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="tuition-card-header">
-              <div>
-                <p class="eyebrow">2. Upload</p>
-              <h2>Upload Syllabus File Or Enter It Manually</h2>
+            <div class="tuition-upload-form-intro">
+              <p class="tuition-upload-form-lead">
+                Set the learning profile first, then continue with a syllabus file or a manual chapter list.
+              </p>
+              <div class="tuition-upload-method-row" aria-hidden="true">
+                <div class="tuition-upload-method-card">
+                  <strong>Step 1</strong>
+                  <span>Choose board, class, subject, and language.</span>
+                </div>
+                <div class="tuition-upload-method-card">
+                  <strong>Step 2</strong>
+                  <span>Upload a file or paste chapters manually.</span>
+                </div>
+                <div class="tuition-upload-method-card">
+                  <strong>Step 3</strong>
+                  <span>Review the syllabus and start chapter lessons.</span>
+                </div>
               </div>
             </div>
 
-            <label>
-              <span>Syllabus File (Optional)</span>
-              <input id="tuitionFileInput" type="file" accept="image/*,.pdf,.txt" capture="environment" />
-            </label>
+            <section class="tuition-upload-form-section">
+              <div class="tuition-upload-section-head">
+                <div>
+                  <p class="eyebrow">1. Profile</p>
+                  <h3>Academic Profile</h3>
+                </div>
+                <p class="tuition-upload-section-note">
+                  These settings keep the upload, review, and AI teacher flow aligned to the same context.
+                </p>
+              </div>
 
-            <label>
-              <span>Draft Title Override</span>
-              <input
-                id="tuitionDraftTitle"
-                type="text"
-                maxlength="191"
-                placeholder="Optional: Class 8 Science 2026-27"
-              />
-            </label>
+              <div class="tuition-flow-grid">
+                <label>
+                  <span>Board</span>
+                  <select id="tuitionBoardSelect" required></select>
+                </label>
+                <label>
+                  <span>Class</span>
+                  <select id="tuitionClassSelect" required></select>
+                </label>
+                <label>
+                  <span>Subject</span>
+                  <select id="tuitionSubjectSelect" required></select>
+                </label>
+                <label>
+                  <span>Preferred Language</span>
+                  <select id="tuitionLanguageSelect">
+                    <option value="ENGLISH">English</option>
+                    <option value="HINDI">Hindi</option>
+                    <option value="PUNJABI">Punjabi</option>
+                  </select>
+                </label>
+              </div>
+            </section>
 
-            <label>
-              <span>Manual Chapter List</span>
-              <textarea
-                id="tuitionManualChapterList"
-                rows="6"
-                placeholder="Enter one chapter per line if you want to continue without uploading a file."
-              ></textarea>
-            </label>
+            <section class="tuition-upload-form-section tuition-upload-form-section-accent">
+              <div class="tuition-upload-section-head">
+                <div>
+                  <p class="eyebrow">2. Upload</p>
+                  <h3>Syllabus Source</h3>
+                </div>
+                <p class="tuition-upload-section-note">
+                  Use a file if you have the syllabus ready. Use manual mode if you only want to paste chapter names.
+                </p>
+              </div>
 
-            <div class="tuition-flow-actions">
-              <button id="tuitionUseDemoChaptersBtn" type="button" class="btn-secondary">Use Demo Chapters</button>
-            </div>
+              <div class="tuition-upload-option-grid" aria-hidden="true">
+                <article class="tuition-upload-option-card">
+                  <p class="tuition-upload-option-label">Option A</p>
+                  <strong>Upload Syllabus File</strong>
+                  <span>Best when you have a PDF, image, or text copy of the syllabus.</span>
+                </article>
+                <article class="tuition-upload-option-card">
+                  <p class="tuition-upload-option-label">Option B</p>
+                  <strong>Enter Chapters Manually</strong>
+                  <span>Best when you only want a quick chapter list without uploading a document.</span>
+                </article>
+              </div>
 
-            <label>
-              <span>Manual Parse Notes</span>
-              <textarea
-                id="tuitionManualText"
-                rows="6"
-                placeholder="Optional: paste chapter names or syllabus text to guide the manual-safe parser."
-              ></textarea>
-            </label>
+              <div class="tuition-upload-dual-grid">
+                <label>
+                  <span>Syllabus File (Optional)</span>
+                  <input id="tuitionFileInput" type="file" accept="image/*,.pdf,.txt" capture="environment" />
+                </label>
+
+                <label>
+                  <span>Draft Title Override</span>
+                  <input
+                    id="tuitionDraftTitle"
+                    type="text"
+                    maxlength="191"
+                    placeholder="Optional: Class 8 Science 2026-27"
+                  />
+                </label>
+              </div>
+
+              <label>
+                <span>Manual Chapter List</span>
+                <textarea
+                  id="tuitionManualChapterList"
+                  rows="6"
+                  placeholder="Enter one chapter per line if you want to continue without uploading a file."
+                ></textarea>
+              </label>
+
+              <div class="tuition-flow-actions">
+                <button id="tuitionUseDemoChaptersBtn" type="button" class="btn-secondary">Use Demo Chapters</button>
+              </div>
+
+              <label>
+                <span>Manual Parse Notes</span>
+                <textarea
+                  id="tuitionManualText"
+                  rows="6"
+                  placeholder="Optional: paste chapter names or syllabus text to guide the manual-safe parser."
+                ></textarea>
+              </label>
+            </section>
 
             <div class="tuition-file-meta" id="tuitionFileMeta"></div>
             <p class="tuition-empty-note tuition-manual-input-note">

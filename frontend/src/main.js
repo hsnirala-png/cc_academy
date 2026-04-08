@@ -9,6 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const homeLatestProductsGrid = document.querySelector("#homeLatestProductsGrid");
   const homeLatestProductsMessage = document.querySelector("#homeLatestProductsMessage");
   const homeLatestViewAllLink = document.querySelector(".home-latest-view-all");
+  const homeExploreTypes = document.querySelector("#homeExploreTypes");
+  const homeExploreCards = document.querySelector("#homeExploreCards");
+  const homeExploreMeta = document.querySelector("#homeExploreMeta");
+  const homeExploreSearch = document.querySelector("#homeExploreSearch");
   const contactForm = document.querySelector("#contactForm");
   const contactMessage = document.querySelector("#contactMessage");
   const navLinks = document.querySelectorAll(".nav-links a");
@@ -71,6 +75,12 @@ document.addEventListener("DOMContentLoaded", () => {
     windowStart: 0,
     cardsPerView: 1,
     isMobileView: false,
+  };
+  const homeExploreState = {
+    types: [],
+    activeTypeId: "",
+    searchTerm: "",
+    activeCategory: "",
   };
   const getHomeProductsIsMobileView = () => window.matchMedia("(max-width: 680px)").matches;
   const getHomeProductsCardsPerView = () => 3;
@@ -228,6 +238,192 @@ document.addEventListener("DOMContentLoaded", () => {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
+
+  const normalizeTextKey = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const normalizeExploreAssetUrl = (input) => {
+    const raw = String(input || "").trim();
+    if (!raw) return "./public/PSTET_1.png";
+    if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) return raw;
+    if (raw.startsWith("./") || raw.startsWith("../") || raw.startsWith("/")) return raw;
+    return `./${raw}`;
+  };
+
+  const getActiveExploreType = () =>
+    homeExploreState.types.find((type) => type.id === homeExploreState.activeTypeId) ||
+    homeExploreState.types[0] ||
+    null;
+
+  const getFilteredExploreItems = () => {
+    const activeType = getActiveExploreType();
+    const items = Array.isArray(activeType?.items) ? activeType.items : [];
+    const search = normalizeTextKey(homeExploreState.searchTerm);
+    const activeCategory = normalizeTextKey(homeExploreState.activeCategory);
+    return items.filter((item) => {
+      const matchesCategory =
+        !activeCategory || normalizeTextKey(item?.categoryName || "uncategorized") === activeCategory;
+      if (!matchesCategory) return false;
+      if (!search) return true;
+      return [item?.title, item?.subtitle, item?.categoryName]
+        .map(normalizeTextKey)
+        .some((value) => value.includes(search));
+    });
+  };
+
+  const getExploreCategories = (type) => {
+    const items = Array.isArray(type?.items) ? type.items : [];
+    const categories = Array.from(
+      new Set(
+        items
+          .map((item) => String(item?.categoryName || "").trim())
+          .filter(Boolean)
+      )
+    );
+    if (
+      homeExploreState.activeTypeId === type?.id &&
+      homeExploreState.activeCategory &&
+      !categories.some((category) => normalizeTextKey(category) === normalizeTextKey(homeExploreState.activeCategory))
+    ) {
+      homeExploreState.activeCategory = "";
+    }
+    return categories;
+  };
+
+  const renderExploreMeta = () => {
+    if (!(homeExploreMeta instanceof HTMLElement)) return;
+    const activeType = getActiveExploreType();
+    if (!activeType) {
+      homeExploreMeta.innerHTML = "";
+      return;
+    }
+    const total = getFilteredExploreItems().length;
+    homeExploreMeta.innerHTML = `
+      <div class="home-explore-meta-card">
+        <strong>${escapeHtml(activeType.name || "Type")}</strong>
+        <span>${escapeHtml(activeType.description || "Browse the cards in this selected type.")}</span>
+      </div>
+      <div class="home-explore-meta-card is-count">
+        <strong>${total}</strong>
+        <span>${total === 1 ? "product found" : "products found"}</span>
+      </div>
+    `;
+  };
+
+  const renderExploreTypes = () => {
+    if (!(homeExploreTypes instanceof HTMLElement)) return;
+    if (!homeExploreState.types.length) {
+      homeExploreTypes.innerHTML =
+        '<button class="home-explore-type-btn is-active" type="button">No types added yet</button>';
+      return;
+    }
+
+    homeExploreTypes.innerHTML = homeExploreState.types
+      .map((type) => {
+        const isActive = type.id === homeExploreState.activeTypeId;
+        const icon = String(type.iconUrl || "").trim();
+        const categories = getExploreCategories(type);
+        const categoryMarkup =
+          isActive && categories.length
+            ? `
+              <div class="home-explore-subcategories" aria-label="${escapeHtml(type.name || "Type")} categories">
+                <button
+                  class="home-explore-subcategory ${!homeExploreState.activeCategory ? "is-active" : ""}"
+                  type="button"
+                  data-category=""
+                >
+                  All
+                </button>
+                ${categories
+                  .map((category) => {
+                    const isCategoryActive =
+                      normalizeTextKey(category) === normalizeTextKey(homeExploreState.activeCategory);
+                    return `
+                      <button
+                        class="home-explore-subcategory ${isCategoryActive ? "is-active" : ""}"
+                        type="button"
+                        data-category="${escapeHtml(category)}"
+                      >
+                        ${escapeHtml(category)}
+                      </button>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            `
+            : "";
+        return `
+          <div class="home-explore-type-group ${isActive ? "is-active" : ""}">
+            <button class="home-explore-type-btn ${isActive ? "is-active" : ""}" type="button" data-type-id="${escapeHtml(type.id)}">
+              ${
+                icon
+                  ? `<img src="${escapeHtml(normalizeExploreAssetUrl(icon))}" alt="${escapeHtml(type.name || "Type")}" class="home-explore-type-icon" />`
+                  : `<span class="home-explore-type-dot" aria-hidden="true"></span>`
+              }
+              <span>${escapeHtml(type.name || "Type")}</span>
+            </button>
+            ${categoryMarkup}
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const renderExploreCards = () => {
+    if (!(homeExploreCards instanceof HTMLElement)) return;
+    const items = getFilteredExploreItems();
+    if (!items.length) {
+      homeExploreCards.innerHTML =
+        '<div class="home-explore-empty">No products match this type/category yet.</div>';
+      renderExploreMeta();
+      return;
+    }
+
+    homeExploreCards.innerHTML = items
+      .map((item) => {
+        const title = escapeHtml(item.title || "Explore");
+        const subtitle = escapeHtml(item.subtitle || "");
+        const imageUrl = escapeHtml(normalizeExploreAssetUrl(item.imageUrl || ""));
+        const href = String(item.linkUrl || "").trim() || "#";
+        const openInNewTab = /^https?:\/\//i.test(href);
+        return `
+          <a class="home-explore-card" href="${escapeHtml(href)}" ${openInNewTab ? 'target="_blank" rel="noopener noreferrer"' : ""}>
+            <div class="home-explore-card-media">
+              <img src="${imageUrl}" alt="${title}" />
+            </div>
+            <div class="home-explore-card-copy">
+              <h3>${title}</h3>
+              ${subtitle ? `<p>${subtitle}</p>` : ""}
+            </div>
+          </a>
+        `;
+      })
+      .join("");
+    renderExploreMeta();
+  };
+
+  const loadHomeExploreSection = async () => {
+    if (!(homeExploreTypes instanceof HTMLElement) || !(homeExploreCards instanceof HTMLElement)) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/explore-sections?pageKey=landing-home`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load explore section.");
+      const data = await response.json().catch(() => ({}));
+      homeExploreState.types = Array.isArray(data?.types) ? data.types : [];
+      homeExploreState.activeTypeId = homeExploreState.types[0]?.id || "";
+      homeExploreState.activeCategory = "";
+      renderExploreTypes();
+      renderExploreCards();
+    } catch {
+      homeExploreState.types = [];
+      homeExploreState.activeTypeId = "";
+      homeExploreState.activeCategory = "";
+      renderExploreTypes();
+      renderExploreCards();
+    }
+  };
 
   const getMockReminderMeta = (option) => {
     const reminderDate = String(option?.preferredDate || option?.scheduledDate || "").trim();
@@ -1607,6 +1803,34 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHomeLatestProducts(homeProductsState.products);
     });
     void loadHomeLatestProducts();
+  }
+  if (homeExploreTypes instanceof HTMLElement) {
+    homeExploreTypes.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const categoryButton = target.closest("[data-category]");
+      if (categoryButton instanceof HTMLButtonElement) {
+        homeExploreState.activeCategory = String(categoryButton.getAttribute("data-category") || "").trim();
+        renderExploreTypes();
+        renderExploreCards();
+        return;
+      }
+      const button = target.closest("[data-type-id]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const typeId = String(button.getAttribute("data-type-id") || "").trim();
+      if (!typeId) return;
+      homeExploreState.activeTypeId = typeId;
+      homeExploreState.activeCategory = "";
+      renderExploreTypes();
+      renderExploreCards();
+    });
+    void loadHomeExploreSection();
+  }
+  if (homeExploreSearch instanceof HTMLInputElement) {
+    homeExploreSearch.addEventListener("input", () => {
+      homeExploreState.searchTerm = homeExploreSearch.value || "";
+      renderExploreCards();
+    });
   }
   void loadHomeMockRegistrationPopup();
   enforceMobileHomeHeader();
