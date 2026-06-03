@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Hub Board</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Board</h1>
+        <p id="teacherHubStudentBoardMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-card">
+        <div id="teacherHubStudentBoardMeta" class="teacher-hub-chip-row"></div>
+        <div id="teacherHubStudentBoardSurface" class="teacher-hub-board"><pre>Waiting for board content...</pre></div>
+      </section>
+      <section class="teacher-hub-card">
+        <h2>Shared Files</h2>
+        <div id="teacherHubStudentBoardFiles" class="teacher-hub-list"></div>
+      </section>
+    </main>
+    <script type="module" src="./src/teacher-hub-student-board.js?v=1"></script>
+  </body>
+</html>

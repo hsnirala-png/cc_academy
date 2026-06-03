@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout | CC Academy</title>
-    <link rel="stylesheet" href="./src/styles.css?v=45" />
+    <link rel="stylesheet" href="./src/styles.css?v=97" />
   </head>
   <body class="home-page checkout-page">
     <header class="site-header">
@@ -38,8 +38,9 @@
         </div>
 
         <nav id="primary-nav" class="nav-links" aria-label="Primary">
-          <a href="./index.html#features">Features</a>
-          <a href="./index.html#testimonials">Testimonials</a>
+          <a href="./index.html">Home</a>
+          <a href="./products.html">Courses</a>
+          <a href="./demo-class.html">Demo Class</a>
           <a href="./index.html#contact">Contact</a>
         </nav>
 
@@ -146,10 +147,34 @@
           </article>
 
           <p id="checkoutMessage" class="form-message"></p>
+          <div class="checkout-policy-links" aria-label="Checkout policy links">
+            <a href="./privacy-policy.html">Privacy Policy</a>
+            <a href="./terms.html">Terms</a>
+            <a href="./refund-policy.html">Refund Policy</a>
+            <a href="./contact.html">Contact</a>
+          </div>
           <button id="checkoutPayNowBtn" type="button" class="btn-primary checkout-pay-btn">Pay Now</button>
         </aside>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand-block">
+        <p class="footer-brand-name">CC Academy</p>
+        <p>&copy; 2026 CC Academy. All rights reserved.</p>
+      </div>
+      <div class="footer-links" aria-label="Trust and policy links">
+        <a href="./about.html">About</a>
+        <a href="./contact.html">Contact</a>
+        <a href="./privacy-policy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms</a>
+        <a href="./refund-policy.html">Refund Policy</a>
+        <a href="./faqs.html">FAQs</a>
+        <a href="./demo-class.html">Demo Class</a>
+        <a href="./student-safety.html">Student Safety</a>
+        <a href="./teacher-agreement.html">Teacher Agreement</a>
+      </div>
+    </footer>
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="./src/checkout.js?v=4"></script>

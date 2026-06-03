@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Hub Dashboard</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Hub Dashboard</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./teacher-hub-teacher-profile.html">Profile</a>
+          <a href="./teacher-hub-teacher-offerings.html">Offerings</a>
+          <a href="./teacher-hub-teacher-board.html">Board, Content & Notices</a>
+        </nav>
+        <p id="teacherHubTeacherDashboardMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-grid cols-2">
+        <article class="teacher-hub-card"><h2>Offerings</h2><p id="teacherHubTeacherOfferingCount">0</p></article>
+        <article class="teacher-hub-card"><h2>Enrollments</h2><p id="teacherHubTeacherEnrollmentCount">0</p></article>
+      </section>
+    </main>
+    <script type="module" src="./src/teacher-hub-teacher-dashboard.js?v=1"></script>
+  </body>
+</html>

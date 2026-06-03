@@ -38,11 +38,20 @@ const ensureProductMockTestTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS \`ProductMockTest\` (
       \`productId\` VARCHAR(191) NOT NULL,
       \`mockTestId\` VARCHAR(191) NOT NULL,
+      \`flowType\` VARCHAR(20) NOT NULL DEFAULT 'LESSON',
       \`isUpcoming\` BOOLEAN NOT NULL DEFAULT false,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       PRIMARY KEY (\`productId\`, \`mockTestId\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("ProductMockTest", "flowType"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductMockTest` ADD COLUMN `flowType` VARCHAR(20) NOT NULL DEFAULT 'LESSON'"
+      )
+      .catch(() => undefined);
+  }
 
   if (!(await hasColumn("ProductMockTest", "isUpcoming"))) {
     await prisma
@@ -82,11 +91,20 @@ const ensureProductDemoMockTestTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS \`ProductDemoMockTest\` (
       \`productId\` VARCHAR(191) NOT NULL,
       \`mockTestId\` VARCHAR(191) NOT NULL,
+      \`flowType\` VARCHAR(20) NOT NULL DEFAULT 'LESSON',
       \`isUpcoming\` BOOLEAN NOT NULL DEFAULT false,
       \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       PRIMARY KEY (\`productId\`, \`mockTestId\`)
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
+
+  if (!(await hasColumn("ProductDemoMockTest", "flowType"))) {
+    await prisma
+      .$executeRawUnsafe(
+        "ALTER TABLE `ProductDemoMockTest` ADD COLUMN `flowType` VARCHAR(20) NOT NULL DEFAULT 'LESSON'"
+      )
+      .catch(() => undefined);
+  }
 
   if (!(await hasColumn("ProductDemoMockTest", "isUpcoming"))) {
     await prisma

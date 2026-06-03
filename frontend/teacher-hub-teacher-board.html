@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Hub Board</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Board, Content & Notices</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./teacher-hub-teacher-dashboard.html">Dashboard</a>
+          <a href="./teacher-hub-teacher-profile.html">Profile</a>
+          <a href="./teacher-hub-teacher-offerings.html">Offerings</a>
+        </nav>
+        <p id="teacherHubTeacherBoardMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-grid cols-2">
+        <article class="teacher-hub-card">
+          <h2>Create Board</h2>
+          <form id="teacherHubBoardCreateForm" class="teacher-hub-form">
+            <label class="teacher-hub-field"><span>Enrollment Id</span><input id="teacherBoardEnrollmentId" /></label>
+            <label class="teacher-hub-field"><span>Board Title</span><input id="teacherBoardTitle" /></label>
+            <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Create Board</button></div>
+          </form>
+          <div id="teacherHubBoardsList" class="teacher-hub-list"></div>
+        </article>
+        <article class="teacher-hub-card">
+          <h2>Whiteboard Snapshot</h2>
+          <form id="teacherHubWhiteboardForm" class="teacher-hub-form">
+            <label class="teacher-hub-field"><span>Board Id</span><input id="teacherWhiteboardBoardId" /></label>
+            <label class="teacher-hub-field"><span>Snapshot Title</span><input id="teacherWhiteboardTitle" /></label>
+            <label class="teacher-hub-field"><span>Board JSON / Notes</span><textarea id="teacherWhiteboardPayload"></textarea></label>
+            <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Save Whiteboard</button></div>
+          </form>
+        </article>
+      </section>
+      <section class="teacher-hub-grid cols-2">
+        <article class="teacher-hub-card">
+          <h2>Create Notice</h2>
+          <form id="teacherHubNoticeForm" class="teacher-hub-form">
+            <label class="teacher-hub-field"><span>Target Type</span><select id="teacherNoticeTargetType"><option value="ENROLLMENT">Enrollment</option><option value="BATCH">Batch</option></select></label>
+            <label class="teacher-hub-field"><span>Target Id</span><input id="teacherNoticeTargetId" /></label>
+            <label class="teacher-hub-field"><span>Title</span><input id="teacherNoticeTitle" /></label>
+            <label class="teacher-hub-field"><span>Body</span><textarea id="teacherNoticeBody"></textarea></label>
+            <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Send Notice</button></div>
+          </form>
+          <div id="teacherHubNoticeList" class="teacher-hub-list"></div>
+        </article>
+        <article class="teacher-hub-card">
+          <h2>Upload Board File</h2>
+          <form id="teacherHubBoardFileForm" class="teacher-hub-form">
+            <label class="teacher-hub-field"><span>Board Id</span><input id="teacherBoardFileBoardId" /></label>
+            <label class="teacher-hub-field"><span>File Title</span><input id="teacherBoardFileTitle" /></label>
+            <label class="teacher-hub-field"><span>File</span><input id="teacherBoardFileInput" type="file" /></label>
+            <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Upload File</button></div>
+          </form>
+        </article>
+        <article class="teacher-hub-card">
+          <h2>Create Content</h2>
+          <form id="teacherHubContentForm" class="teacher-hub-form">
+            <label class="teacher-hub-field"><span>Enrollment Id</span><input id="teacherContentEnrollmentId" /></label>
+            <label class="teacher-hub-field"><span>Content Type</span><select id="teacherContentType"><option value="NOTE">Note</option><option value="ASSIGNMENT">Assignment</option><option value="PROJECT">Project</option></select></label>
+            <label class="teacher-hub-field"><span>Title</span><input id="teacherContentTitle" /></label>
+            <label class="teacher-hub-field"><span>Body</span><textarea id="teacherContentBody"></textarea></label>
+            <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Publish Content</button></div>
+          </form>
+          <div id="teacherHubContentList" class="teacher-hub-list"></div>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="./src/teacher-hub-teacher-board.js?v=1"></script>
+  </body>
+</html>

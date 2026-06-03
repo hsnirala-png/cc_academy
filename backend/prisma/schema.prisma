@@ -866,3 +866,388 @@ model TuitionLessonDoubt {
   @@index([lessonCacheId, updatedAt])
   @@index([topicTitle, subjectName, updatedAt])
 }
+
+model TeacherFeatureFlagRollout {
+  id               String   @id @default(cuid())
+  flagKey          String   @db.VarChar(120)
+  scopeType        String   @db.VarChar(40)
+  userId           String?  @db.VarChar(191)
+  teacherProfileId String?  @db.VarChar(191)
+  isEnabled        Boolean  @default(true)
+  note             String?  @db.Text
+  createdBy        String?  @db.VarChar(191)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([flagKey, scopeType, isEnabled])
+  @@index([userId, flagKey])
+  @@index([teacherProfileId, flagKey])
+}
+
+model TeacherProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @db.VarChar(191)
+  displayName       String   @db.VarChar(191)
+  headline          String?  @db.VarChar(191)
+  bio               String?  @db.LongText
+  status            String   @default("PENDING") @db.VarChar(40)
+  canTeachOneToOne  Boolean  @default(true)
+  canTeachBatch     Boolean  @default(false)
+  subjectsJson      Json?
+  boardsJson        Json?
+  classLevelsJson   Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+model TeacherKyc {
+  id                   String   @id @default(cuid())
+  teacherProfileId     String   @unique @db.VarChar(191)
+  legalName            String?  @db.VarChar(191)
+  documentType         String?  @db.VarChar(80)
+  documentNumberMasked String?  @db.VarChar(80)
+  verificationStatus   String   @default("PENDING") @db.VarChar(40)
+  documentMetaJson     Json?
+  verifiedByAdminId    String?  @db.VarChar(191)
+  verifiedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([verificationStatus, updatedAt])
+}
+
+model TeacherPayoutAccount {
+  id                 String   @id @default(cuid())
+  teacherProfileId   String   @db.VarChar(191)
+  accountType        String   @db.VarChar(40)
+  accountLabelMasked String   @db.VarChar(191)
+  accountMetaJson    Json?
+  isVerified         Boolean  @default(false)
+  verifiedByAdminId  String?  @db.VarChar(191)
+  verifiedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([teacherProfileId, createdAt])
+  @@index([isVerified, updatedAt])
+}
+
+model TeacherOffering {
+  id            String   @id @default(cuid())
+  teacherProfileId String @db.VarChar(191)
+  mode          String   @db.VarChar(40)
+  title         String   @db.VarChar(191)
+  board         String?  @db.VarChar(120)
+  classLevel    Int?
+  subject       String   @db.VarChar(120)
+  billingCycle  String   @db.VarChar(40)
+  cyclePrice    Decimal  @db.Decimal(10, 2)
+  demoPrice     Decimal  @default(0) @db.Decimal(10, 2)
+  batchCapacity Int?
+  isPublished   Boolean  @default(false)
+  status        String   @default("DRAFT") @db.VarChar(40)
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([status, isPublished, updatedAt])
+  @@index([subject, board, classLevel])
+}
+
+model TeacherOfferingPolicy {
+  id                 String   @id @default(cuid())
+  teacherOfferingId  String   @unique @db.VarChar(191)
+  cancellationPolicy String?  @db.Text
+  refundPolicy       String?  @db.Text
+  noShowPolicy       String?  @db.Text
+  lateJoinPolicy     String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TeacherRequirement {
+  id           String   @id @default(cuid())
+  studentUserId String  @db.VarChar(191)
+  board        String?  @db.VarChar(120)
+  classLevel   Int?
+  subject      String   @db.VarChar(120)
+  modeWanted   String   @db.VarChar(40)
+  goals        String?  @db.Text
+  status       String   @default("OPEN") @db.VarChar(40)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentUserId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model TeacherEnrollment {
+  id                String   @id @default(cuid())
+  studentUserId     String   @db.VarChar(191)
+  teacherProfileId  String   @db.VarChar(191)
+  teacherOfferingId String   @db.VarChar(191)
+  batchId           String?  @db.VarChar(191)
+  mode              String   @db.VarChar(40)
+  status            String   @default("PENDING") @db.VarChar(40)
+  billingCycle      String   @db.VarChar(40)
+  currentCycleStart DateTime?
+  currentCycleEnd   DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([studentUserId, updatedAt])
+  @@index([teacherProfileId, updatedAt])
+  @@index([teacherOfferingId, updatedAt])
+  @@index([batchId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model TeacherBatch {
+  id                String   @id @default(cuid())
+  teacherProfileId  String   @db.VarChar(191)
+  teacherOfferingId String   @db.VarChar(191)
+  title             String   @db.VarChar(191)
+  capacity          Int?
+  status            String   @default("ACTIVE") @db.VarChar(40)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([teacherOfferingId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model TeacherBatchStudent {
+  id            String   @id @default(cuid())
+  batchId       String   @db.VarChar(191)
+  studentUserId String   @db.VarChar(191)
+  enrollmentId  String   @db.VarChar(191)
+  status        String   @default("ACTIVE") @db.VarChar(40)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([batchId, studentUserId])
+  @@unique([enrollmentId])
+  @@index([batchId, updatedAt])
+  @@index([studentUserId, updatedAt])
+}
+
+model TeacherBoard {
+  id               String   @id @default(cuid())
+  teacherProfileId String   @db.VarChar(191)
+  enrollmentId     String?  @db.VarChar(191)
+  batchId          String?  @db.VarChar(191)
+  title            String   @db.VarChar(191)
+  status           String   @default("ACTIVE") @db.VarChar(40)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([enrollmentId, updatedAt])
+  @@index([batchId, updatedAt])
+}
+
+model TeacherBoardSession {
+  id             String   @id @default(cuid())
+  teacherBoardId String   @db.VarChar(191)
+  startedAt      DateTime @default(now())
+  endedAt        DateTime?
+  status         String   @default("OPEN") @db.VarChar(40)
+  summary        String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([teacherBoardId, startedAt])
+  @@index([status, updatedAt])
+}
+
+model TeacherBoardArtifact {
+  id             String   @id @default(cuid())
+  teacherBoardId String   @db.VarChar(191)
+  sessionId      String?  @db.VarChar(191)
+  artifactType   String   @db.VarChar(40)
+  title          String?  @db.VarChar(191)
+  storageUrl     String?  @db.VarChar(1000)
+  mimeType       String?  @db.VarChar(191)
+  payloadJson    Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([teacherBoardId, updatedAt])
+  @@index([sessionId, updatedAt])
+  @@index([artifactType, updatedAt])
+}
+
+model TeacherContentItem {
+  id               String   @id @default(cuid())
+  teacherProfileId String   @db.VarChar(191)
+  enrollmentId     String?  @db.VarChar(191)
+  batchId          String?  @db.VarChar(191)
+  contentType      String   @db.VarChar(40)
+  title            String   @db.VarChar(191)
+  body             String?  @db.LongText
+  visibility       String   @default("ENROLLED_ONLY") @db.VarChar(40)
+  status           String   @default("PUBLISHED") @db.VarChar(40)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([enrollmentId, updatedAt])
+  @@index([batchId, updatedAt])
+  @@index([contentType, status, updatedAt])
+}
+
+model TeacherContentAttachment {
+  id           String   @id @default(cuid())
+  contentItemId String  @db.VarChar(191)
+  fileName     String   @db.VarChar(191)
+  mimeType     String   @db.VarChar(191)
+  storageUrl   String   @db.VarChar(1000)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([contentItemId, createdAt])
+}
+
+model TeacherNotice {
+  id               String   @id @default(cuid())
+  teacherProfileId String   @db.VarChar(191)
+  targetType       String   @db.VarChar(40)
+  targetId         String   @db.VarChar(191)
+  title            String   @db.VarChar(191)
+  body             String   @db.Text
+  status           String   @default("PUBLISHED") @db.VarChar(40)
+  publishedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([targetType, targetId, updatedAt])
+  @@index([status, publishedAt])
+}
+
+model TeacherNoticeRecipient {
+  id              String   @id @default(cuid())
+  teacherNoticeId  String  @db.VarChar(191)
+  studentUserId   String   @db.VarChar(191)
+  deliveredAt     DateTime @default(now())
+  readAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([teacherNoticeId, studentUserId])
+  @@index([studentUserId, updatedAt])
+  @@index([readAt])
+}
+
+model TeacherOrder {
+  id                String   @id @default(cuid())
+  studentUserId     String   @db.VarChar(191)
+  teacherEnrollmentId String @db.VarChar(191)
+  teacherOfferingId String   @db.VarChar(191)
+  billingCycle      String   @db.VarChar(40)
+  grossAmount       Decimal  @db.Decimal(10, 2)
+  platformFeeAmount Decimal  @db.Decimal(10, 2)
+  netTeacherAmount  Decimal  @db.Decimal(10, 2)
+  paymentStatus     String   @default("PENDING") @db.VarChar(40)
+  cycleStart        DateTime?
+  cycleEnd          DateTime?
+  isDemo            Boolean  @default(false)
+  razorpayOrderId   String?  @db.VarChar(191)
+  razorpayPaymentId String?  @db.VarChar(191)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([studentUserId, updatedAt])
+  @@index([teacherEnrollmentId, updatedAt])
+  @@index([paymentStatus, updatedAt])
+}
+
+model TeacherBillingCycle {
+  id                String   @id @default(cuid())
+  teacherEnrollmentId String @db.VarChar(191)
+  teacherProfileId  String   @db.VarChar(191)
+  cycleType         String   @db.VarChar(40)
+  startsOn          DateTime
+  endsOn            DateTime
+  status            String   @default("OPEN") @db.VarChar(40)
+  grossAmount       Decimal  @default(0) @db.Decimal(10, 2)
+  platformFeeAmount Decimal  @default(0) @db.Decimal(10, 2)
+  netAmount         Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([teacherEnrollmentId, updatedAt])
+  @@index([teacherProfileId, updatedAt])
+  @@index([status, endsOn])
+}
+
+model TeacherLedgerEntry {
+  id               String   @id @default(cuid())
+  teacherProfileId String   @db.VarChar(191)
+  billingCycleId   String?  @db.VarChar(191)
+  teacherOrderId   String?  @db.VarChar(191)
+  entryType        String   @db.VarChar(40)
+  amount           Decimal  @db.Decimal(10, 2)
+  note             String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([teacherProfileId, createdAt])
+  @@index([billingCycleId, createdAt])
+  @@index([teacherOrderId, createdAt])
+}
+
+model TeacherPayout {
+  id                String   @id @default(cuid())
+  teacherProfileId  String   @db.VarChar(191)
+  payoutAccountId   String?  @db.VarChar(191)
+  cycleCount        Int      @default(0)
+  grossAmount       Decimal  @db.Decimal(10, 2)
+  platformFeeAmount Decimal  @db.Decimal(10, 2)
+  adjustmentAmount  Decimal  @default(0) @db.Decimal(10, 2)
+  netAmount         Decimal  @db.Decimal(10, 2)
+  status            String   @default("PENDING") @db.VarChar(40)
+  releasedAt        DateTime?
+  approvedByAdminId String?  @db.VarChar(191)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([teacherProfileId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model TeacherModerationFlag {
+  id               String   @id @default(cuid())
+  teacherProfileId String?  @db.VarChar(191)
+  enrollmentId     String?  @db.VarChar(191)
+  contentItemId    String?  @db.VarChar(191)
+  noticeId         String?  @db.VarChar(191)
+  scopeType        String   @db.VarChar(40)
+  reason           String   @db.VarChar(191)
+  details          String?  @db.Text
+  status           String   @default("OPEN") @db.VarChar(40)
+  createdBy        String?  @db.VarChar(191)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([teacherProfileId, updatedAt])
+}
+
+model TeacherAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?  @db.VarChar(191)
+  scopeType   String   @db.VarChar(40)
+  scopeId     String   @db.VarChar(191)
+  action      String   @db.VarChar(120)
+  summary     String   @db.Text
+  detailsJson Json?
+  createdAt   DateTime @default(now())
+
+  @@index([scopeType, scopeId, createdAt])
+  @@index([actorUserId, createdAt])
+}

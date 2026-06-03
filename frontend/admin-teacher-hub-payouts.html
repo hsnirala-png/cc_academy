@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Teacher Hub Payouts</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Payout Controls</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./admin-teacher-hub.html">Overview</a>
+          <a href="./admin-teacher-hub-teachers.html">Teachers & KYC</a>
+          <a href="./admin-teacher-hub-offerings.html">Offerings</a>
+          <a href="./admin-teacher-hub-moderation.html">Moderation</a>
+        </nav>
+        <p id="adminTeacherHubPayoutsMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-card">
+        <h2>Payout Accounts</h2>
+        <div id="adminTeacherHubPayoutAccountsList" class="teacher-hub-list"></div>
+      </section>
+      <section class="teacher-hub-card">
+        <h2>Payouts</h2>
+        <form id="adminTeacherHubCreatePayoutForm" class="teacher-hub-form">
+          <label class="teacher-hub-field"><span>Teacher Profile Id</span><input id="adminTeacherHubCreatePayoutTeacherProfileId" /></label>
+          <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Create Payout</button></div>
+        </form>
+        <div id="adminTeacherHubPayoutsList" class="teacher-hub-list"></div>
+      </section>
+    </main>
+    <script type="module" src="./src/admin-teacher-hub-payouts.js?v=1"></script>
+  </body>
+</html>
