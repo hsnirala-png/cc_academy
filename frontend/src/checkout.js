@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return payload;
   };
 
-  const finalizeProductPurchase = async () => {
+  const finalizeProductPurchase = async (paymentEvidence = null) => {
     const response = await fetch(`${API_BASE}/products/${encodeURIComponent(state.productId)}/buy`, {
       method: "POST",
       headers: {
@@ -207,6 +207,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
         walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
+        paymentEvidence: paymentEvidence || undefined,
       }),
     });
     const payload = await response.json().catch(() => ({}));
@@ -371,7 +372,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         razorpay_signature: String(paymentResponse.razorpay_signature || ""),
       });
 
-      await finalizeProductPurchase();
+      await finalizeProductPurchase({
+        razorpay_order_id: String(paymentResponse.razorpay_order_id || ""),
+        razorpay_payment_id: String(paymentResponse.razorpay_payment_id || ""),
+      });
       setMessage("Payment successful. Purchase completed.", "success");
       window.setTimeout(() => {
         window.location.href = "./products.html";

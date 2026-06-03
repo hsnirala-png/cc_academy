@@ -7,6 +7,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { getReferrerIdByCode, getWalletBalance, normalizeAmount } from "../modules/referrals/referral.utils";
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
+import { consumeVerifiedPaymentEvidence } from "./payment.routes";
 import { verifyToken } from "../utils/jwt";
 import { loadAccessibleProductIdsForSelection } from "../utils/productCombos";
 import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
@@ -913,6 +914,12 @@ const buyWithWalletSchema = z.object({
     },
     z.coerce.number().nonnegative().optional()
   ),
+  paymentEvidence: z
+    .object({
+      razorpay_order_id: z.string().trim().min(1),
+      razorpay_payment_id: z.string().trim().min(1),
+    })
+    .optional(),
 });
 
 const claimTrialSchema = z.object({
@@ -951,6 +958,50 @@ const hasAnyProductPurchase = async (userId: string): Promise<boolean> => {
   )) as Array<{ id: string }>;
   return rows.length > 0;
 };
+
+const getExistingProductPurchase = async (userId: string, productId: string) => {
+  const rows = (await prisma.$queryRawUnsafe(
+    `
+      SELECT id, productId, amountPaid, walletUsed, referralBonusCredited, packageId, packageTitle, packagePrice, createdAt
+      FROM ProductPurchase
+      WHERE userId = ?
+        AND productId = ?
+      ORDER BY createdAt DESC
+      LIMIT 1
+    `,
+    userId,
+    productId
+  )) as Array<{
+    id: string;
+    productId: string;
+    amountPaid: number | string;
+    walletUsed: number | string;
+    referralBonusCredited: number | string;
+    packageId: string | null;
+    packageTitle: string | null;
+    packagePrice: number | string | null;
+    createdAt: Date | string;
+  }>;
+  return rows[0] || null;
+};
+
+const buildAlreadyOwnedResponse = (purchase: Awaited<ReturnType<typeof getExistingProductPurchase>>) => ({
+  message: "Product already purchased.",
+  alreadyOwned: true,
+  purchase: purchase
+    ? {
+        id: purchase.id,
+        productId: purchase.productId,
+        amountPaid: normalizeAmount(purchase.amountPaid),
+        walletUsed: normalizeAmount(purchase.walletUsed),
+        packageId: purchase.packageId || null,
+        packageTitle: purchase.packageTitle || null,
+        packagePrice: purchase.packagePrice === null ? null : normalizeAmount(purchase.packagePrice),
+        referralBonusCredited: normalizeAmount(purchase.referralBonusCredited),
+        createdAt: toIso(purchase.createdAt),
+      }
+    : null,
+});
 
 const resolveReferrerForFriendOffer = async (buyerUserId: string, referralCode: string) => {
   const normalizedReferralCode = String(referralCode || "")
@@ -1409,6 +1460,12 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
     }
 
     const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
+    const existingPurchase = await getExistingProductPurchase(userId, productId);
+    if (existingPurchase) {
+      res.status(200).json(buildAlreadyOwnedResponse(existingPurchase));
+      return;
+    }
+
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
@@ -1425,6 +1482,23 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
     );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
+    if (wallet.payableAfterWallet > 0) {
+      const paymentEvidence = input.paymentEvidence;
+      const consumeResult = consumeVerifiedPaymentEvidence({
+        userId,
+        razorpayOrderId: paymentEvidence?.razorpay_order_id || "",
+        razorpayPaymentId: paymentEvidence?.razorpay_payment_id || "",
+        expectedAmountInPaise: Math.round(wallet.payableAfterWallet * 100),
+        expectedCurrency: "INR",
+      });
+      if (!consumeResult.ok) {
+        throw new AppError(
+          `${consumeResult.message} Complete Razorpay payment before purchase access is granted.`,
+          402
+        );
+      }
+    }
+
     const referralBonusAmount = normalizeAmount(product.referralBonusAmount ?? 0);
     const bonusToCredit = purchaseReferrerId && referralBonusAmount > 0 ? referralBonusAmount : 0;
 
@@ -1573,6 +1647,12 @@ productsRouter.post("/:productId/buy-with-wallet", ...ensureStudent, async (req,
     }
 
     const { product, selectedPackage } = await getCheckoutSelection(productId, input.packageId);
+    const existingPurchase = await getExistingProductPurchase(userId, productId);
+    if (existingPurchase) {
+      res.status(200).json(buildAlreadyOwnedResponse(existingPurchase));
+      return;
+    }
+
     const includeDefaultOffer = input.includeDefaultOffer !== false;
     const friendOffer = await resolveReferrerForFriendOffer(userId, input.referralCode || "");
 
