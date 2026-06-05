@@ -159,6 +159,7 @@ model User {
   referralWithdrawals ReferralWithdrawal[]
   productPurchases ProductPurchase[]
   paymentOrders PaymentOrder[]
+  productTrialClaims ProductTrialClaim[]
   contactConversations ContactConversation[]
   tuitionProfile TuitionProfile?
   tuitionUploads TuitionSyllabusUpload[]
@@ -283,11 +284,47 @@ model Product {
   createdByUser User?    @relation("ProductsCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   purchases     ProductPurchase[]
   paymentOrders PaymentOrder[]
+  packages      ProductPackage[]
+  trialClaims   ProductTrialClaim[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([isActive, examCategory, examName, courseType, languageMode])
   @@index([createdBy])
+}
+
+model ProductPackage {
+  id           String   @id @default(cuid())
+  productId    String
+  title        String
+  price        Decimal  @db.Decimal(10, 2)
+  featureLines Json?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder, createdAt])
+}
+
+model ProductTrialClaim {
+  id                String   @id @default(cuid())
+  userId            String
+  productId         String
+  mobile            String
+  deviceFingerprint String
+  trialDays         Int
+  claimedAt         DateTime
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId, productId, createdAt])
+  @@index([productId, mobile])
+  @@index([productId, deviceFingerprint])
 }
 
 model CoachingClass {
