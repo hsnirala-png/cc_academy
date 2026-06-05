@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const goAdminLogin = () => {
-    window.location.href = "/admin-login.html";
+    window.location.href = "./admin-login.html";
   };
 
   if (adminLogoutBtn) {
