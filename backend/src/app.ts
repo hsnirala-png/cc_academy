@@ -18,7 +18,7 @@ import { exploreRouter } from "./routes/explore.routes";
 import { healthRouter } from "./routes/health.routes";
 import { lessonsRouter } from "./routes/lessons.routes";
 import { meRouter } from "./routes/me.routes";
-import { paymentRouter } from "./routes/payment.routes";
+import { paymentRouter, paymentWebhookRouter } from "./routes/payment.routes";
 import { productsRouter } from "./routes/products.routes";
 import { referralsRouter } from "./routes/referrals.routes";
 import { slidersRouter } from "./routes/sliders.routes";
@@ -41,6 +41,7 @@ servedPublicDirs.forEach((publicDir) => {
 });
 
 app.use(cors());
+app.use("/api/payment/webhook", express.raw({ type: "application/json", limit: "1mb" }), paymentWebhookRouter);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 

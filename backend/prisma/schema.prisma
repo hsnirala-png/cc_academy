@@ -523,12 +523,37 @@ model PaymentOrder {
   updatedAt                DateTime @updatedAt
   verifiedAt               DateTime?
   usedAt                   DateTime?
+  failedAt                 DateTime?
+  lastWebhookEventAt       DateTime?
   user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product                  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([userId, status, createdAt])
   @@index([productId, status, createdAt])
   @@index([status, updatedAt])
+}
+
+model PaymentEvent {
+  id                String   @id @default(cuid())
+  razorpayEventId   String   @unique
+  eventType         String
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  paymentOrderId    String?
+  status            String   @default("RECEIVED")
+  payloadJson       Json
+  signature         String?
+  receivedAt        DateTime @default(now())
+  processedAt       DateTime?
+  errorMessage      String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([eventType, receivedAt])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@index([paymentOrderId])
+  @@index([status, receivedAt])
 }
 
 model ReferralPayoutMethod {

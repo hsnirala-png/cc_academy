@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { getRazorpayClient, razorpayKeyId } from "../config/razorpay";
@@ -7,6 +7,7 @@ import { getReferrerIdByCode, getWalletBalance, normalizeAmount } from "../modul
 import { prisma } from "../utils/prisma";
 
 export const paymentRouter = Router();
+export const paymentWebhookRouter = Router();
 
 type CheckoutProductRow = {
   id: string;
@@ -35,6 +36,17 @@ type PaymentOrderRow = {
   status: string;
   referralCodeSnapshot: string | null;
   walletAmountPaiseSnapshot: number | string;
+};
+
+type WebhookPaymentOrderRow = {
+  id: string;
+  status: string;
+  razorpayPaymentId: string | null;
+};
+
+type PaymentEventRow = {
+  id: string;
+  status: string;
 };
 
 const optionalTrimmedString = (max: number) =>
@@ -73,6 +85,82 @@ const verifyPaymentSchema = z.object({
   razorpay_payment_id: z.string().trim().min(1, "razorpay_payment_id is required"),
   razorpay_signature: z.string().trim().min(1, "razorpay_signature is required"),
 });
+
+const toHeaderValue = (value: unknown): string => {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "").trim();
+};
+
+const verifyWebhookSignature = (rawBody: Buffer, signature: string, secret: string): boolean => {
+  if (!signature || !secret) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(signature);
+  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+};
+
+const readNestedRecord = (value: unknown, key: string): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const next = (value as Record<string, unknown>)[key];
+  if (!next || typeof next !== "object" || Array.isArray(next)) return null;
+  return next as Record<string, unknown>;
+};
+
+const readNestedString = (value: unknown, key: string): string | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = (value as Record<string, unknown>)[key];
+  const text = String(raw || "").trim();
+  return text || null;
+};
+
+const extractWebhookContext = (payload: Record<string, unknown>, rawBody: Buffer) => {
+  const eventType = readNestedString(payload, "event") || "unknown";
+  const payloadRecord = readNestedRecord(payload, "payload");
+  const paymentEntity = readNestedRecord(readNestedRecord(payloadRecord, "payment"), "entity");
+  const orderEntity = readNestedRecord(readNestedRecord(payloadRecord, "order"), "entity");
+  const razorpayOrderId = readNestedString(paymentEntity, "order_id") || readNestedString(orderEntity, "id");
+  const razorpayPaymentId = readNestedString(paymentEntity, "id");
+  const bodyHash = createHash("sha256").update(rawBody).digest("hex");
+  const createdAt = readNestedString(payload, "created_at");
+  const razorpayEventId =
+    readNestedString(payload, "id") ||
+    readNestedString(payload, "event_id") ||
+    [eventType, razorpayOrderId || "no-order", razorpayPaymentId || "no-payment", createdAt || bodyHash].join(":");
+
+  return {
+    eventType,
+    razorpayEventId,
+    razorpayOrderId,
+    razorpayPaymentId,
+  };
+};
+
+const updatePaymentEvent = async (
+  eventId: string,
+  status: "PROCESSED" | "IGNORED" | "FAILED",
+  processedAt: Date,
+  paymentOrderId: string | null,
+  errorMessage: string | null = null
+) => {
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE PaymentEvent
+      SET status = ?, processedAt = ?, paymentOrderId = ?, errorMessage = ?, updatedAt = ?
+      WHERE id = ?
+    `,
+    status,
+    processedAt,
+    paymentOrderId,
+    errorMessage,
+    processedAt,
+    eventId
+  );
+};
+
+const isDuplicatePaymentEventError = (error: unknown): boolean => {
+  const message = String((error as { message?: string })?.message || "").toLowerCase();
+  return message.includes("duplicate") && message.includes("paymentevent_razorpayeventid_key");
+};
 
 const REFERRAL_DISCOUNT_SLABS = [
   { min: 249, max: 500, friendDiscount: 10 },
@@ -247,6 +335,215 @@ export const loadVerifiedPaymentOrderForPurchase = async ({
   if (!String(order.razorpayPaymentId || "").trim()) return { ok: false, message: "Verified payment id is missing." };
   return { ok: true, order };
 };
+
+paymentWebhookRouter.post("/", async (req, res, next) => {
+  try {
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!rawBody) {
+      res.status(400).json({ message: "Webhook raw body is required." });
+      return;
+    }
+
+    const webhookSecret = String(process.env.RAZORPAY_WEBHOOK_SECRET || "").trim();
+    if (!webhookSecret) {
+      res.status(500).json({ message: "Razorpay webhook verification is not configured." });
+      return;
+    }
+
+    const signature = toHeaderValue(req.headers.razorpay_signature);
+    if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+      res.status(400).json({ message: "Invalid Razorpay webhook signature." });
+      return;
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(rawBody.toString("utf8")) as Record<string, unknown>;
+    } catch {
+      res.status(400).json({ message: "Invalid Razorpay webhook payload." });
+      return;
+    }
+
+    const context = extractWebhookContext(payload, rawBody);
+    const existingEvents = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, status
+        FROM PaymentEvent
+        WHERE razorpayEventId = ?
+        LIMIT 1
+      `,
+      context.razorpayEventId
+    )) as PaymentEventRow[];
+
+    if (existingEvents.length) {
+      res.json({ received: true, duplicate: true });
+      return;
+    }
+
+    const now = new Date();
+    const paymentEventId = randomUUID();
+    try {
+      await prisma.$executeRawUnsafe(
+        `
+          INSERT INTO PaymentEvent
+          (
+            id,
+            razorpayEventId,
+            eventType,
+            razorpayOrderId,
+            razorpayPaymentId,
+            paymentOrderId,
+            status,
+            payloadJson,
+            signature,
+            receivedAt,
+            processedAt,
+            errorMessage,
+            createdAt,
+            updatedAt
+          )
+          VALUES (?, ?, ?, ?, ?, NULL, 'RECEIVED', ?, ?, ?, NULL, NULL, ?, ?)
+        `,
+        paymentEventId,
+        context.razorpayEventId,
+        context.eventType,
+        context.razorpayOrderId,
+        context.razorpayPaymentId,
+        JSON.stringify(payload),
+        signature || null,
+        now,
+        now,
+        now
+      );
+    } catch (error) {
+      if (isDuplicatePaymentEventError(error)) {
+        res.json({ received: true, duplicate: true });
+        return;
+      }
+      throw error;
+    }
+
+    const supportedEvents = new Set(["payment.captured", "order.paid", "payment.failed"]);
+    if (!supportedEvents.has(context.eventType)) {
+      await updatePaymentEvent(paymentEventId, "IGNORED", new Date(), null, "Unsupported webhook event type.");
+      res.json({ received: true, processed: false });
+      return;
+    }
+
+    if (!context.razorpayOrderId) {
+      await updatePaymentEvent(paymentEventId, "FAILED", new Date(), null, "Webhook payload is missing Razorpay order id.");
+      res.status(400).json({ received: true, message: "Webhook payload is missing Razorpay order id." });
+      return;
+    }
+
+    const orderRows = (await prisma.$queryRawUnsafe(
+      `
+        SELECT id, status, razorpayPaymentId
+        FROM PaymentOrder
+        WHERE razorpayOrderId = ?
+        LIMIT 1
+      `,
+      context.razorpayOrderId
+    )) as WebhookPaymentOrderRow[];
+    const paymentOrder = orderRows[0] || null;
+
+    if (!paymentOrder) {
+      await updatePaymentEvent(paymentEventId, "IGNORED", new Date(), null, "Matching PaymentOrder was not found.");
+      res.json({ received: true, processed: false });
+      return;
+    }
+
+    const currentStatus = String(paymentOrder.status || "").toUpperCase();
+    const processedAt = new Date();
+
+    if (context.eventType === "payment.captured" || context.eventType === "order.paid") {
+      if (currentStatus === "PENDING") {
+        await prisma.$executeRawUnsafe(
+          `
+            UPDATE PaymentOrder
+            SET status = 'VERIFIED',
+                razorpayPaymentId = COALESCE(?, razorpayPaymentId),
+                verifiedAt = COALESCE(verifiedAt, ?),
+                lastWebhookEventAt = ?,
+                updatedAt = ?
+            WHERE id = ?
+              AND status = 'PENDING'
+          `,
+          context.razorpayPaymentId,
+          processedAt,
+          processedAt,
+          processedAt,
+          paymentOrder.id
+        );
+        await updatePaymentEvent(paymentEventId, "PROCESSED", processedAt, paymentOrder.id);
+        res.json({ received: true, processed: true });
+        return;
+      }
+
+      if (currentStatus === "VERIFIED" || currentStatus === "USED") {
+        await prisma.$executeRawUnsafe(
+          `
+            UPDATE PaymentOrder
+            SET lastWebhookEventAt = ?, updatedAt = ?
+            WHERE id = ?
+          `,
+          processedAt,
+          processedAt,
+          paymentOrder.id
+        );
+        await updatePaymentEvent(paymentEventId, "IGNORED", processedAt, paymentOrder.id, "PaymentOrder already verified or used.");
+        res.json({ received: true, processed: false });
+        return;
+      }
+
+      await updatePaymentEvent(paymentEventId, "IGNORED", processedAt, paymentOrder.id, `PaymentOrder status is ${currentStatus}.`);
+      res.json({ received: true, processed: false });
+      return;
+    }
+
+    if (context.eventType === "payment.failed") {
+      if (currentStatus === "PENDING") {
+        await prisma.$executeRawUnsafe(
+          `
+            UPDATE PaymentOrder
+            SET status = 'FAILED',
+                failedAt = COALESCE(failedAt, ?),
+                lastWebhookEventAt = ?,
+                updatedAt = ?
+            WHERE id = ?
+              AND status = 'PENDING'
+          `,
+          processedAt,
+          processedAt,
+          processedAt,
+          paymentOrder.id
+        );
+        await updatePaymentEvent(paymentEventId, "PROCESSED", processedAt, paymentOrder.id);
+        res.json({ received: true, processed: true });
+        return;
+      }
+
+      await prisma.$executeRawUnsafe(
+        `
+          UPDATE PaymentOrder
+          SET lastWebhookEventAt = ?, updatedAt = ?
+          WHERE id = ?
+        `,
+        processedAt,
+        processedAt,
+        paymentOrder.id
+      );
+      await updatePaymentEvent(paymentEventId, "IGNORED", processedAt, paymentOrder.id, "PaymentOrder is not pending; failure did not downgrade status.");
+      res.json({ received: true, processed: false });
+      return;
+    }
+
+    await updatePaymentEvent(paymentEventId, "IGNORED", processedAt, paymentOrder.id, "No webhook action was taken.");
+    res.json({ received: true, processed: false });
+  } catch (error) {
+    next(error);
+  }
+});
 
 paymentRouter.post("/order", requireAuth, async (req, res, next) => {
   try {
