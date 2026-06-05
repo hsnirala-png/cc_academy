@@ -223,6 +223,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return payload;
   };
 
+  const redirectToDashboardAfterPurchase = (purchasePayload = null) => {
+    const params = new URLSearchParams();
+    params.set("purchase", purchasePayload?.alreadyOwned ? "already-owned" : "success");
+    params.set("productId", state.productId);
+    window.location.href = `./dashboard.html?${params.toString()}`;
+  };
+
   const openRazorpayCheckout = (orderPayload) =>
     new Promise((resolve, reject) => {
       const RazorpayCtor = window.Razorpay;
@@ -233,8 +240,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let settled = false;
 
+      const razorpayKey = String(orderPayload.key);
       const options = {
-        key: String(orderPayload.key),
+        key: razorpayKey,
         amount: Number(orderPayload.amount),
         currency: String(orderPayload.currency || "INR"),
         name: "CC Academy",
@@ -265,6 +273,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           resolve(response);
         },
       };
+      if (razorpayKey.startsWith("rzp_test_")) {
+        const existingConfig = options.config && typeof options.config === "object" ? options.config : {};
+        const existingDisplay =
+          existingConfig.display && typeof existingConfig.display === "object" ? existingConfig.display : {};
+        const existingHide = Array.isArray(existingDisplay.hide) ? existingDisplay.hide : [];
+        // In Razorpay test mode, UPI is hidden to avoid external UPI app/QR confusion. Live mode keeps configured payment methods.
+        options.config = {
+          ...existingConfig,
+          display: {
+            ...existingDisplay,
+            hide: [...existingHide, { method: "upi" }],
+          },
+        };
+      }
 
       const rzp = new RazorpayCtor(options);
       rzp.on("payment.failed", () => {
@@ -358,10 +380,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const amountToPay = toSafeNumber(state.pricing?.payableAmount);
       if (amountToPay <= 0) {
-        await finalizeProductPurchase();
+        const purchasePayload = await finalizeProductPurchase();
         setMessage("Purchase successful. Payment not required.", "success");
         window.setTimeout(() => {
-          window.location.href = "./products.html";
+          redirectToDashboardAfterPurchase(purchasePayload);
         }, 1200);
         return;
       }
@@ -378,10 +400,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         razorpay_signature: String(paymentResponse.razorpay_signature || ""),
       });
 
-      await finalizeProductPurchase(verifyPayload?.paymentEvidence || { paymentOrderId: verifyPayload?.paymentOrderId });
+      const purchasePayload = await finalizeProductPurchase(
+        verifyPayload?.paymentEvidence || { paymentOrderId: verifyPayload?.paymentOrderId }
+      );
       setMessage("Payment successful. Purchase completed.", "success");
       window.setTimeout(() => {
-        window.location.href = "./products.html";
+        redirectToDashboardAfterPurchase(purchasePayload);
       }, 1200);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to complete payment.";

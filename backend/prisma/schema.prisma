@@ -276,6 +276,8 @@ model Product {
   accessDays    Int
   validityLabel String?
   addons        Json?
+  trialEnabled  Boolean  @default(false)
+  trialDays     Int?
   isActive      Boolean  @default(true)
   createdBy     String?
   createdByUser User?    @relation("ProductsCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -457,6 +459,9 @@ model ProductPurchase {
   amountPaid    Decimal  @db.Decimal(10, 2)
   walletUsed    Decimal  @db.Decimal(10, 2)
   referralBonusCredited Decimal @default(0) @db.Decimal(10, 2)
+  packageId     String?
+  packageTitle  String?
+  packagePrice  Decimal? @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
