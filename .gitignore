@@ -4,3 +4,5 @@ node_modules
 .qa-tools/
 backend/public/uploads/
 .tmp-edge-exact-sync-proof/
+
+db_backups/

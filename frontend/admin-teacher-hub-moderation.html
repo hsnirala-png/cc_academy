@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Teacher Hub Moderation</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Hub Moderation</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./admin-teacher-hub.html">Overview</a>
+          <a href="./admin-teacher-hub-teachers.html">Teachers & KYC</a>
+          <a href="./admin-teacher-hub-offerings.html">Offerings</a>
+          <a href="./admin-teacher-hub-payouts.html">Payouts</a>
+        </nav>
+        <form id="adminTeacherHubModerationForm" class="teacher-hub-form">
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>Scope Type</span><input id="adminModerationScopeType" value="CONTENT" /></label>
+            <label class="teacher-hub-field"><span>Teacher Profile Id</span><input id="adminModerationTeacherProfileId" /></label>
+          </div>
+          <label class="teacher-hub-field"><span>Reason</span><input id="adminModerationReason" /></label>
+          <label class="teacher-hub-field"><span>Details</span><textarea id="adminModerationDetails"></textarea></label>
+          <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Create Flag</button></div>
+        </form>
+        <p id="adminTeacherHubModerationMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-card">
+        <div id="adminTeacherHubModerationList" class="teacher-hub-list"></div>
+      </section>
+    </main>
+    <script type="module" src="./src/admin-teacher-hub-moderation.js?v=1"></script>
+  </body>
+</html>

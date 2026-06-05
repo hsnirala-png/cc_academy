@@ -375,6 +375,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  const renderTeacherHubEntry = async () => {
+    const tuitionSlot = document.querySelector("#dashTuitionTeacherSlot");
+    if (!(tuitionSlot instanceof HTMLElement)) return;
+
+    let card = document.querySelector("[data-dash-teacher-hub-entry]");
+    if (!(card instanceof HTMLElement)) {
+      card = document.createElement("article");
+      card.className = "dash-card";
+      card.setAttribute("data-dash-teacher-hub-entry", "true");
+      tuitionSlot.append(card);
+    }
+
+    const renderHidden = () => {
+      if (card instanceof HTMLElement) card.remove();
+    };
+
+    try {
+      const bootstrap = await fetch(`${API_BASE}/student/teacher-hub/bootstrap`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      if (!bootstrap.ok) {
+        renderHidden();
+        return;
+      }
+      const payload = await bootstrap.json().catch(() => ({}));
+      if (payload?.ok !== true) {
+        renderHidden();
+        return;
+      }
+
+      card.innerHTML = `
+        <p class="dash-k">Teacher Hub</p>
+        <p class="dash-v">Stay inside CC Academy for teacher notices, content, enrollments, and controlled learning flow.</p>
+        <div class="dash-card-actions">
+          <a class="btn-primary" href="./teacher-hub-student.html">Open Teacher Hub</a>
+          <a class="btn-primary" href="./teacher-hub-student-requirements.html">Request Teacher</a>
+        </div>
+      `;
+    } catch {
+      renderHidden();
+    }
+  };
+
   const normalizeSliderAssetUrl = (input) => {
     const raw = String(input || "").trim();
     if (!raw) return "";
@@ -1274,6 +1320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   renderTuitionTeacherEntry();
+  renderTeacherHubEntry();
 
   if (dashLessonTests instanceof HTMLElement) {
     dashLessonTests.addEventListener("click", async (event) => {

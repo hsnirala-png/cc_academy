@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const goAdminLogin = () => {
-    window.location.href = "/admin-login.html";
+    window.location.href = "./admin-login.html";
   };
 
   if (adminLogoutBtn) {
@@ -162,6 +162,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replaceAll("'", "&#39;");
   };
 
+  const setTeacherHubAdminLinksVisible = (isVisible) => {
+    document.querySelectorAll("[data-teacher-hub-admin-link]").forEach((node) => {
+      if (node instanceof HTMLElement) {
+        node.style.display = isVisible ? "" : "none";
+      }
+    });
+  };
+
+  const syncTeacherHubAdminLinks = async () => {
+    try {
+      await apiRequest("/api/admin/teacher-hub/overview");
+      setTeacherHubAdminLinksVisible(true);
+    } catch (error) {
+      if (error?.status === 404) {
+        setTeacherHubAdminLinksVisible(false);
+        return;
+      }
+      setTeacherHubAdminLinksVisible(true);
+    }
+  };
+
   const renderOverview = (overview) => {
     if (overviewStudents) overviewStudents.textContent = String(overview.studentsTotal ?? 0);
     if (overviewClasses) {
@@ -176,6 +197,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }`;
     }
   };
+
+  await syncTeacherHubAdminLinks();
 
   const renderClasses = () => {
     if (!classesTableBody) return;

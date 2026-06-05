@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Hub Profile</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Profile</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./teacher-hub-teacher-dashboard.html">Dashboard</a>
+          <a href="./teacher-hub-teacher-offerings.html">Offerings</a>
+          <a href="./teacher-hub-teacher-board.html">Board, Content & Notices</a>
+        </nav>
+        <form id="teacherHubTeacherProfileForm" class="teacher-hub-form">
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>Display Name</span><input id="teacherProfileDisplayName" required /></label>
+            <label class="teacher-hub-field"><span>Headline</span><input id="teacherProfileHeadline" /></label>
+          </div>
+          <label class="teacher-hub-field"><span>Bio</span><textarea id="teacherProfileBio"></textarea></label>
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>Subjects (comma separated)</span><input id="teacherProfileSubjects" /></label>
+            <label class="teacher-hub-field"><span>Boards (comma separated)</span><input id="teacherProfileBoards" /></label>
+          </div>
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>Class Levels (comma separated)</span><input id="teacherProfileClassLevels" /></label>
+            <label class="teacher-hub-field"><span>Teaching Modes</span>
+              <select id="teacherProfileMode">
+                <option value="ONE_TO_ONE">1:1 only</option>
+                <option value="BOTH">1:1 and Batch</option>
+                <option value="BATCH">Batch only</option>
+              </select>
+            </label>
+          </div>
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>KYC Legal Name</span><input id="teacherKycLegalName" /></label>
+            <label class="teacher-hub-field"><span>Document Type</span><input id="teacherKycDocumentType" /></label>
+          </div>
+          <div class="teacher-hub-form-row">
+            <label class="teacher-hub-field"><span>Document Number Masked</span><input id="teacherKycDocumentMasked" /></label>
+            <label class="teacher-hub-field"><span>Payout Account Type</span><input id="teacherPayoutType" value="BANK" /></label>
+          </div>
+          <label class="teacher-hub-field"><span>Payout Label Masked</span><input id="teacherPayoutLabel" /></label>
+          <div class="teacher-hub-actions"><button class="btn-primary" type="submit">Save Teacher Profile</button></div>
+        </form>
+        <p id="teacherHubTeacherProfileMessage" class="form-message"></p>
+      </section>
+    </main>
+    <script type="module" src="./src/teacher-hub-teacher-profile.js?v=1"></script>
+  </body>
+</html>

@@ -1,0 +1,157 @@
+.teacher-hub-wrap {
+  width: min(1100px, 94%);
+  margin: 1rem auto 2rem;
+}
+
+.teacher-hub-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.teacher-hub-grid.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.teacher-hub-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 83, 189, 0.06);
+}
+
+.teacher-hub-card h1,
+.teacher-hub-card h2,
+.teacher-hub-card h3,
+.teacher-hub-card p {
+  margin-top: 0;
+}
+
+.teacher-hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.teacher-hub-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.teacher-hub-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.teacher-hub-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.teacher-hub-field input,
+.teacher-hub-field textarea,
+.teacher-hub-field select {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  width: 100%;
+}
+
+.teacher-hub-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.teacher-hub-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.teacher-hub-item {
+  border: 1px solid #d8e5ff;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fbff;
+}
+
+.teacher-hub-item-meta,
+.teacher-hub-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.teacher-hub-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: #e9f2ff;
+  color: #0f53bd;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.teacher-hub-board {
+  min-height: 260px;
+  border: 1px dashed #7aa7e8;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fafdff 0%, #eef6ff 100%);
+  padding: 1rem;
+}
+
+.teacher-hub-board pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-family: Consolas, Monaco, monospace;
+}
+
+.teacher-hub-empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+.teacher-hub-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.teacher-hub-table th,
+.teacher-hub-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.teacher-hub-table th {
+  background: #f2f7ff;
+}
+
+.teacher-hub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.teacher-hub-nav a {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  text-decoration: none;
+  color: var(--brand);
+  background: #fff;
+  font-weight: 700;
+}
+
+@media (max-width: 780px) {
+  .teacher-hub-grid.cols-2,
+  .teacher-hub-form-row {
+    grid-template-columns: 1fr;
+  }
+}

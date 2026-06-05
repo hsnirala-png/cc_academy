@@ -1,0 +1,3 @@
+ALTER TABLE `Product`
+  ADD COLUMN `trialEnabled` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `trialDays` INT NULL;

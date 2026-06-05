@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Teacher Hub Offerings</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>Teacher Offerings</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./admin-teacher-hub.html">Overview</a>
+          <a href="./admin-teacher-hub-teachers.html">Teachers & KYC</a>
+          <a href="./admin-teacher-hub-payouts.html">Payouts</a>
+          <a href="./admin-teacher-hub-moderation.html">Moderation</a>
+        </nav>
+        <p id="adminTeacherHubOfferingsMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-card">
+        <div id="adminTeacherHubOfferingsList" class="teacher-hub-list"></div>
+      </section>
+    </main>
+    <script type="module" src="./src/admin-teacher-hub-offerings.js?v=1"></script>
+  </body>
+</html>

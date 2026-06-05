@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Hub Enrollments</title>
+    <link rel="stylesheet" href="./src/styles.css?v=87" />
+    <link rel="stylesheet" href="./src/teacher-hub.css?v=1" />
+  </head>
+  <body>
+    <main class="teacher-hub-wrap teacher-hub-grid">
+      <section class="teacher-hub-card">
+        <h1>My Teacher Enrollments</h1>
+        <nav class="teacher-hub-nav">
+          <a href="./teacher-hub-student.html">Overview</a>
+          <a href="./teacher-hub-student-requirements.html">Requirements</a>
+          <a href="./teacher-hub-student-notices.html">Notices</a>
+          <a href="./teacher-hub-student-content.html">Content</a>
+        </nav>
+        <p id="teacherHubEnrollmentsMessage" class="form-message"></p>
+      </section>
+      <section class="teacher-hub-card">
+        <h2>Enrollments</h2>
+        <div id="teacherHubEnrollmentsList" class="teacher-hub-list"></div>
+      </section>
+    </main>
+    <script type="module" src="./src/teacher-hub-student-enrollments.js?v=1"></script>
+  </body>
+</html>

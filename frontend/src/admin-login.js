@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const goAdminPanel = async () => {
     const adminPath = await resolvePagePath(
-      ["/admin", "./admin.html", "/admin.html", "./frontend/admin.html"],
+      ["./admin.html", "/admin.html", "./frontend/admin.html"],
       "Admin Panel"
     );
     window.location.href = adminPath;
