@@ -161,14 +161,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.walletUseAmount = Math.max(0, toSafeNumber(payload?.pricing?.walletUsed));
   };
 
-  const createPaymentOrder = async (amountRupees) => {
+  const createPaymentOrder = async () => {
     const response = await fetch(`${API_BASE}/api/payment/order`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ amount: amountRupees }),
+      body: JSON.stringify({
+        productId: state.productId,
+        includeDefaultOffer: state.includeDefaultOffer,
+        referralCode: state.referralCode || undefined,
+        walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
+      }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -207,6 +212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         includeDefaultOffer: state.includeDefaultOffer,
         referralCode: state.referralCode || undefined,
         walletUseAmount: state.walletUseAmount > 0 ? state.walletUseAmount : undefined,
+        paymentOrderId: paymentEvidence?.paymentOrderId || undefined,
         paymentEvidence: paymentEvidence || undefined,
       }),
     });
@@ -360,22 +366,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      const orderPayload = await createPaymentOrder(amountToPay);
+      const orderPayload = await createPaymentOrder();
       const paymentResponse = await openRazorpayCheckout(orderPayload);
       if (!paymentResponse || typeof paymentResponse !== "object") {
         throw new Error("Payment response is invalid.");
       }
 
-      await verifyPaymentSignature({
+      const verifyPayload = await verifyPaymentSignature({
         razorpay_order_id: String(paymentResponse.razorpay_order_id || ""),
         razorpay_payment_id: String(paymentResponse.razorpay_payment_id || ""),
         razorpay_signature: String(paymentResponse.razorpay_signature || ""),
       });
 
-      await finalizeProductPurchase({
-        razorpay_order_id: String(paymentResponse.razorpay_order_id || ""),
-        razorpay_payment_id: String(paymentResponse.razorpay_payment_id || ""),
-      });
+      await finalizeProductPurchase(verifyPayload?.paymentEvidence || { paymentOrderId: verifyPayload?.paymentOrderId });
       setMessage("Payment successful. Purchase completed.", "success");
       window.setTimeout(() => {
         window.location.href = "./products.html";

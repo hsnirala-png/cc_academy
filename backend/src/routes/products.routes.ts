@@ -7,7 +7,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { getReferrerIdByCode, getWalletBalance, normalizeAmount } from "../modules/referrals/referral.utils";
 import { AppError } from "../utils/appError";
 import { ensureMockTestAccessStorageReady } from "../utils/mockTestAccessStorage";
-import { consumeVerifiedPaymentEvidence } from "./payment.routes";
+import { loadVerifiedPaymentOrderForPurchase } from "./payment.routes";
 import { verifyToken } from "../utils/jwt";
 import { loadAccessibleProductIdsForSelection } from "../utils/productCombos";
 import { resolveProductThumbnailUrl } from "../utils/productThumbnail";
@@ -899,6 +899,7 @@ const serializeProduct = (
 const buyWithWalletSchema = z.object({
   packageId: optionalTrimmedString(191),
   referralCode: z.string().trim().min(4).max(40).optional(),
+  paymentOrderId: optionalTrimmedString(191),
   includeDefaultOffer: z.preprocess((value) => {
     if (value === undefined || value === null || value === "") return undefined;
     if (typeof value === "string") {
@@ -916,8 +917,7 @@ const buyWithWalletSchema = z.object({
   ),
   paymentEvidence: z
     .object({
-      razorpay_order_id: z.string().trim().min(1),
-      razorpay_payment_id: z.string().trim().min(1),
+      paymentOrderId: z.string().trim().min(1),
     })
     .optional(),
 });
@@ -1482,21 +1482,24 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
     );
     const walletBalance = await getWalletBalance(userId);
     const wallet = resolveWalletAdjustment(pricing.payableAmount, walletBalance, input.walletUseAmount);
+    let verifiedPaymentOrderId: string | null = null;
     if (wallet.payableAfterWallet > 0) {
-      const paymentEvidence = input.paymentEvidence;
-      const consumeResult = consumeVerifiedPaymentEvidence({
+      const paymentOrderId = String(input.paymentOrderId || input.paymentEvidence?.paymentOrderId || "").trim();
+      const paymentOrderResult = await loadVerifiedPaymentOrderForPurchase({
         userId,
-        razorpayOrderId: paymentEvidence?.razorpay_order_id || "",
-        razorpayPaymentId: paymentEvidence?.razorpay_payment_id || "",
-        expectedAmountInPaise: Math.round(wallet.payableAfterWallet * 100),
-        expectedCurrency: "INR",
+        productId,
+        paymentOrderId,
+        expectedAmountPaise: Math.round(wallet.payableAfterWallet * 100),
+        expectedReferralCodeSnapshot: friendOffer.appliedReferralCode || null,
+        expectedWalletAmountPaise: Math.round(wallet.walletUsed * 100),
       });
-      if (!consumeResult.ok) {
+      if (!paymentOrderResult.ok) {
         throw new AppError(
-          `${consumeResult.message} Complete Razorpay payment before purchase access is granted.`,
+          `${paymentOrderResult.message} Complete Razorpay payment before purchase access is granted.`,
           402
         );
       }
+      verifiedPaymentOrderId = paymentOrderResult.order.id;
     }
 
     const referralBonusAmount = normalizeAmount(product.referralBonusAmount ?? 0);
@@ -1563,6 +1566,26 @@ productsRouter.post("/:productId/buy", ...ensureStudent, async (req, res, next) 
             : `Wallet used: ${String(product.title || "Product")}`,
           purchaseId,
           now
+        )
+      );
+    }
+
+    if (verifiedPaymentOrderId) {
+      statements.push(
+        prisma.$executeRawUnsafe(
+          `
+            UPDATE PaymentOrder
+            SET status = 'USED', usedAt = ?, updatedAt = ?
+            WHERE id = ?
+              AND userId = ?
+              AND productId = ?
+              AND status = 'VERIFIED'
+          `,
+          now,
+          now,
+          verifiedPaymentOrderId,
+          userId,
+          productId
         )
       );
     }
